@@ -1,46 +1,60 @@
-# Astro Starter Kit: Basics
+# SCPP Web
+
+Sitio web del proyecto SCPP construido con Astro.
+
+## Desarrollo local
+
+Todos los comandos se ejecutan desde la carpeta del proyecto.
 
 ```sh
-npm create astro@latest -- --template basics
+npm install
+npm run dev
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Servidor local: `http://localhost:4321`
 
-## 🚀 Project Structure
+## Build de producción
 
-Inside of your Astro project, you'll see the following folders and files:
+```sh
+npm run build
+npm run preview
+```
+
+La salida de producción se genera en `dist/`.
+
+## Despliegue recomendado
+
+El flujo más simple para compartir avances es:
+
+1. Guardar el código en GitHub.
+2. Conectar el repositorio a Netlify.
+3. Dejar que Netlify publique automáticamente cada `push`.
+4. Usar ramas o pull requests si quieres previews separadas.
+
+Este repositorio ya incluye la configuración base para Netlify:
+
+- Base directory: `Proyecto`
+- Build command: `npm run build`
+- Publish directory: `dist`
+
+## Pasos en Netlify
+
+1. Entra en Netlify y elige `Add new site`.
+2. Selecciona `Import an existing project`.
+3. Conecta tu cuenta de GitHub.
+4. Elige este repositorio.
+5. Revisa que Netlify detecte estos valores:
 
 ```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
+Base directory: Proyecto
+Build command: npm run build
+Publish directory: dist
 ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+6. Pulsa `Deploy site`.
 
-## 🧞 Commands
+## Notas
 
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+- No hace falta subir manualmente archivos a Netlify en cada cambio.
+- GitHub sirve para el control de versiones; Netlify sirve para mostrar el sitio funcionando.
+- Si más adelante quieres un dominio propio, se puede conectar desde Netlify sin cambiar el proyecto.
