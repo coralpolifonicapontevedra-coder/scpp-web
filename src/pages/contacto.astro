@@ -1,0 +1,251 @@
+---
+/* src/pages/contacto.astro */
+import BaseLayout from '../layouts/layout.astro';
+---
+
+<BaseLayout title="Contacto" lang="gl">
+  <div class="container contacto-page-wrapper">
+    
+    <header class="contacto-header">
+      <h1>Contacto</h1>
+      <div class="section-line-center"></div>
+      <p class="contacto-intro">Tes algunha dúbida, queres solicitar a nosa participación nun evento ou queres visitarnos nun ensaio? Envíanos unha mensaxe ou achégate ao noso local.</p>
+    </header>
+
+    <div class="contacto-grid">
+      
+      <section class="contacto-form-block">
+        <h2>Envíanos unha mensaxe</h2>
+        <div class="section-line"></div>
+        
+        <form class="contacto-form" action="#" method="POST">
+          <div class="form-group">
+            <label for="nome">Nome completo *</label>
+            <input type="text" id="nome" name="nome" required placeholder="Ex. Xiao García" />
+          </div>
+
+          <div class="form-group">
+            <label for="email">Correo electrónico *</label>
+            <input type="email" id="email" name="email" required placeholder="Ex. xiao@correo.com" />
+          </div>
+
+          <div class="form-group">
+            <label for="asunto">Asunto de interese *</label>
+            <select id="asunto" name="asunto" required>
+              <option value="" disabled selected>Selecciona unha opción...</option>
+              <option value="contratacion">Contratación de concertos</option>
+              <option value="voces">Incorporación de novas voces</option>
+              <option value="socio">Alta de socio / Colaboración</option>
+              <option value="outro">Outras consultas</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="mensaxe">Mensaxe *</label>
+            <textarea id="mensaxe" name="mensaxe" rows="6" required placeholder="Escribe aquí o motivo da túa consulta con todo o detalle posible..."></textarea>
+          </div>
+
+          <button type="submit" class="btn-enviar">Enviar mensaxe</button>
+        </form>
+      </section>
+
+      <aside class="contacto-info-block">
+        <div class="info-card">
+          <h2>Datos Institucionais</h2>
+          <div class="section-line"></div>
+          
+          <ul class="info-list">
+            <li>
+              <strong>📍 Local de Ensaios:</strong><br />
+              [Enderezo do Local ou Sede]<br />
+              36002 Pontevedra
+            </li>
+            <li>
+              <strong>⏰ Horarios de Ensaio:</strong><br />
+              Xoves xerais ás 20:00 h<br />
+              (Consultar sección Axenda para parciais)
+            </li>
+            <li>
+              <strong>✉️ Correo electrónico:</strong><br />
+              <a href="mailto:info@polifonicapontevedra.gal" class="info-link">info@polifonicapontevedra.gal</a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="map-card">
+          <div class="map-placeholder">
+            <span>🗺️ Espazo reservado para o Mapa de Google Maps</span>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .contacto-page-wrapper {
+    padding-top: 4rem;
+    padding-bottom: 6rem;
+  }
+
+  /* Cabeceira */
+  .contacto-header {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 4rem auto;
+  }
+  .contacto-header h1 {
+    color: var(--color-principal);
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  .section-line-center {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 1rem auto 1.5rem auto;
+  }
+  .contacto-intro {
+    font-size: 1.15rem;
+    color: var(--color-texto);
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  /* Distribución en dúas columnas */
+  .contacto-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 4rem;
+    align-items: flex-start;
+  }
+
+  @media (max-width: 992px) {
+    .contacto-grid {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+  }
+
+  .contacto-form-block h2, .contacto-info-block h2 {
+    color: var(--color-principal);
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+
+  .section-line {
+    width: 35px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 0.6rem 0 2rem 0;
+  }
+
+  /* Estilos do Formulario */
+  .contacto-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-texto);
+  }
+
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--color-gris);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--color-texto);
+    background-color: var(--color-blanco);
+    transition: border-color 0.2s ease;
+  }
+
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-principal);
+  }
+
+  .btn-enviar {
+    display: inline-block;
+    padding: 0.9rem 2rem;
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
+    border: none;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    align-self: flex-start;
+  }
+
+  .btn-enviar:hover {
+    background-color: var(--color-acento);
+  }
+
+  /* Bloque de Información lateral */
+  .contacto-info-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .info-card {
+    background: var(--color-gris);
+    padding: 2.5rem;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.02);
+  }
+
+  .info-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .info-list li {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--color-texto);
+  }
+
+  .info-link {
+    color: var(--color-principal);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .info-link:hover {
+    color: var(--color-acento);
+  }
+
+  /* Espazo do Mapa */
+  .map-placeholder {
+    background: #e5e5e5;
+    border: 1px solid #ccc;
+    height: 250px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+</style>

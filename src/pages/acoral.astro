@@ -1,0 +1,182 @@
+---
+/* src/pages/acoral.astro */
+import BaseLayout from '../layouts/Layout.astro';
+
+const seccions = [
+  { id: 'historia', titulo: 'Historia' },
+  { id: 'directora', titulo: 'Directora' },
+  { id: 'xunta', titulo: 'Xunta Directiva' },
+  { id: 'coralistas', titulo: 'Coralistas' },
+  { id: 'premios', titulo: 'Premios e Recoñecementos' },
+  { id: 'colaboracions', titulo: 'Colaboracións' },
+  { id: 'contratacion', titulo: 'Contratación' }
+];
+---
+
+<BaseLayout title="A Coral" lang="gl">
+  <div class="container coral-page-wrapper">
+    
+    <aside class="coral-sidebar">
+      <nav class="sidebar-nav">
+        <h3>A Coral</h3>
+        <ul>
+          {seccions.map(sec => (
+            <li>
+              {sec.id === 'historia' ? (
+                <a href="/historia">{sec.titulo}</a>
+              ) : sec.id === 'directora' ? (
+                <a href="/directora">{sec.titulo}</a>
+              ) : (
+                <a href={`#${sec.id}`}>{sec.titulo}</a>
+              )}
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="coral-content-elements">
+      
+      <!-- HISTORIA -->
+      <section id="historia" class="coral-section-card">
+        <h2>Historia</h2>
+        <div class="section-line"></div>
+        <p>
+          Fundada oficialmente o 3 de febreiro de 1925 baixo a primeira presidencia de Antón Losada Diéguez, a Sociedad Coral Polifónica de Pontevedra representa un fito na historia musical de Galicia. Concibida dende os seus inicios como un proxecto de dignificación cultural, contou coa xenial mística plástica de Alfonso Daniel Rodríguez Castelao e co rigor musical do mestre Antonio Blanco Porto.
+        </p>
+        <p>
+          A través de cen anos de actividade ininterrompida, as súas voces e os seus emblemáticos decorados románicos de Castelao teñen percorrido os mellores escenarios internacionais, recollendo as máximas distincións da intelectualidade e o pobo galego.
+        </p>
+        <a href="/historia" class="btn-institucional">Ver liña do tempo completa</a>
+      </section>
+
+      <!-- DIRECTORA -->
+      <section id="directora" class="coral-section-card">
+        <h2>Directora</h2>
+        <div class="section-line"></div>
+        <p>
+          <strong>Nanette Sánchez Ordaz</strong> dirixe a Sociedade Coral Polifónica de Pontevedra dende novembro de 2013. Licenciada en Dirección Coral polo Instituto Superior de Arte da Habana, a súa traxectoria abarca escenarios de España, Portugal, Cuba e Bélxica. Na actualidade é tamén profesora de Coro e Educación Auditiva no Conservatorio Profesional Manuel Quiroga de Pontevedra.
+        </p>
+        <p>
+          Baixo a súa dirección, a Coral afrontou a conmemoración do centenario da entidade (2025–2026) e foi distinguida coa Medalla de Ouro da Sociedade en xuño de 2019 polo seu labor artístico e a súa dedicación á institución.
+        </p>
+        <a href="/directora" class="btn-institucional">Coñecer a directora</a>
+      </section>
+
+      <!-- XUNTA DIRECTIVA -->
+      <section id="xunta" class="coral-section-card">
+        <h2>Xunta Directiva</h2>
+        <div class="section-line"></div>
+        <p>Órgano de goberno da Sociedade encargado da xestión institucional, loxística e organizativa:</p>
+        <ul class="clean-list">
+          <li><strong>Presidente:</strong> José Raposeiras Correa</li>
+          <li><strong>Secretario:</strong> [Nome do Secretario]</li>
+          <li><strong>Tesoureiro:</strong> [Nome do Tesoureiro]</li>
+        </ul>
+      </section>
+
+      <!-- CORALISTAS -->
+      <section id="coralistas" class="coral-section-card">
+        <h2>Coralistas</h2>
+        <div class="section-line"></div>
+        <p>O corazón da nosa coral. Relación de voces activas (sopranos, contraltos, tenores e baixos) que dan vida ao noso repertorio polifónico...</p>
+      </section>
+
+      <!-- PREMIOS E RECOÑECEMENTOS -->
+      <section id="premios" class="coral-section-card">
+        <h2>Premios e Recoñecementos</h2>
+        <div class="section-line"></div>
+        <p>Galardóns, medallas institucionais e distincións outorgadas á Sociedade ao longo do seu século de historia cultural e compromiso co canto...</p>
+      </section>
+
+      <!-- COLABORACIÓNS -->
+      <section id="colaboracions" class="coral-section-card">
+        <h2>Colaboracións</h2>
+        <div class="section-line"></div>
+        <p>Proxectos conxuntos, intercambios culturais e actuacións especiais desenvolvidas en colaboración con outras entidades musicais, orquestras e institucións...</p>
+      </section>
+
+      <!-- CONTRATACIÓN -->
+      <section id="contratacion" class="coral-section-card contratacion-box">
+        <h2>Contratación</h2>
+        <div class="section-line"></div>
+        <p>Información para concellos, entidades culturais, comisións ou eventos privados interesados en concertar unha actuación ou concerto da nosa coral.</p>
+        <a href="/contacto" class="btn-institucional">Solicitar Información</a>
+      </section>
+
+    </main>
+  </div>
+</BaseLayout>
+
+<style>
+  .coral-page-wrapper {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 4rem;
+    padding-top: 4rem;
+    padding-bottom: 6rem;
+  }
+  .coral-sidebar { position: relative; }
+  .sidebar-nav {
+    position: sticky;
+    top: 160px;
+    background: var(--color-gris);
+    padding: 2.2rem 1.8rem;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.03);
+  }
+  .sidebar-nav h3 {
+    color: var(--color-principal);
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+  }
+  .sidebar-nav ul { list-style: none; }
+  .sidebar-nav li { margin-bottom: 0.9rem; }
+  .sidebar-nav a {
+    text-decoration: none;
+    color: var(--color-texto);
+    font-size: 0.95rem;
+    opacity: 0.8;
+    transition: 0.2s ease;
+    display: inline-block;
+  }
+  .sidebar-nav a:hover {
+    color: var(--color-acento);
+    opacity: 1;
+    transform: translateX(4px);
+  }
+  .coral-content-elements { display: flex; flex-direction: column; gap: 4.5rem; }
+  .coral-section-card { scroll-margin-top: 160px; }
+  .coral-section-card h2 { color: var(--color-principal); font-size: 2rem; font-weight: 700; }
+  .section-line { width: 50px; height: 2px; background-color: var(--color-acento); margin: 0.8rem 0 1.8rem 0; }
+  .coral-section-card p { color: var(--color-texto); font-size: 1.1rem; line-height: 1.7; opacity: 0.9; margin-bottom: 1.5rem; }
+  .clean-list { list-style: none; margin-top: 1.2rem; }
+  .clean-list li { margin-bottom: 0.6rem; font-size: 1.1rem; }
+  .contratacion-box { background: var(--color-gris); padding: 2.5rem; border-radius: 4px; border-left: 4px solid var(--color-principal); }
+  .btn-institucional {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.8rem 2.2rem;
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+  .btn-institucional:hover { background-color: var(--color-acento); }
+
+  @media (max-width: 992px) {
+    .coral-page-wrapper { grid-template-columns: 1fr; gap: 3rem; padding-top: 2rem; }
+    .sidebar-nav { position: relative; top: 0; padding: 1.5rem; }
+    .sidebar-nav ul { display: flex; flex-wrap: wrap; gap: 1rem; }
+    .sidebar-nav li { margin-bottom: 0; }
+    .sidebar-nav a { background: var(--color-blanco); padding: 0.4rem 0.8rem; border-radius: 4px; border: 1px solid rgba(0,0,0,0.05); }
+  }
+</style>

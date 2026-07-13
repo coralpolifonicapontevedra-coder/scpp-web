@@ -1,0 +1,347 @@
+---
+/* src/pages/axenda.astro */
+import BaseLayout from '../layouts/layout.astro';
+
+// Datos de mostra (simulados), que máis adiante se lerán automaticamente desde AppSheet
+const proximosConcertos = [
+  {
+    titulo: "Concerto Extraordinario de Verán",
+    data: "25 de Xullo, 2026",
+    hora: "20:30 h",
+    lugar: "Teatro Principal de Pontevedra",
+    directora: "Nome da Directora", // Cambiado de director a directora
+    pianista: "Nome do Pianista",
+    cartel: "/assets/cartel-mostra.jpg"
+  }
+];
+
+const historicoConcertos = [
+  { titulo: "Concerto de Primavera", data: "12 de Maio, 2026", lugar: "Igrexa de San Francisco" },
+  { titulo: "Recital de Polifonía Centenaria", data: "14 de Marzo, 2026", lugar: "Pazo da Cultura" }
+];
+---
+
+<BaseLayout title="Axenda" lang="gl">
+  <div class="container agenda-page-wrapper">
+    
+    <!-- Cabeceira de Sección -->
+    <header class="agenda-header">
+      <h1>Axenda Cultural</h1>
+      <div class="section-line-center"></div>
+      <p class="agenda-intro">Sigue a actividade en directo da Sociedade Coral Polifónica de Pontevedra. Aquí atoparás as nosas vindeiras actuacións e o rexistro histórico dos nosos concertos.</p>
+    </header>
+
+    <!-- NAVEGACIÓN INTERNA / SECCIÓNS -->
+    <div class="agenda-sections-grid">
+      
+      <!-- 1. PRÓXIMOS CONCERTOS -->
+      <section id="proximos" class="agenda-block">
+        <h2>Próximos Concertos</h2>
+        <div class="section-line"></div>
+        
+        {proximosConcertos.map((concerto) => (
+          <div class="concert-card-featured">
+            <div class="concert-info">
+              <span class="concert-tag">Vindeiro evento</span>
+              <h3>{concerto.titulo}</h3>
+              
+              <ul class="concert-meta-list">
+                <li><strong>Data:</strong> {concerto.data}</li>
+                <li><strong>Hora:</strong> {concerto.hora}</li>
+                <li><strong>Lugar:</strong> {concerto.lugar}</li>
+                <li><strong>Dirección:</strong> {concerto.directora}</li> <!-- Corrixido aquí tamén -->
+                <li><strong>Pianista:</strong> {concerto.pianista}</li>
+              </ul>
+              
+              <p class="concert-notes">A entrada será de balde ata completar o aforo. O programa incluirá pezas tradicionais galegas e polifonía clásica.</p>
+              
+              <a href="#" class="btn-secondary">Ver programa completo</a>
+            </div>
+            
+            <div class="concert-poster-placeholder">
+              <span>Espazo para o Cartel</span>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <!-- 2. CALENDARIO DE ENSAIOS E ACTIVIDADES -->
+      <section id="calendario" class="agenda-block calendar-box">
+        <h2>Calendario da Coral</h2>
+        <div class="section-line"></div>
+        <p>Consulta os días de ensaio xerais, reunións informativas e outras citas internas ou públicas:</p>
+        
+        <div class="calendar-mock-interface">
+          <div class="calendar-item">
+            <div class="date-badge"><span>XOV</span><strong>09</strong><span>XUL</span></div>
+            <div class="calendar-details">
+              <h4>Ensaio Xeral de Voces</h4>
+              <p>20:00 h • Aula de ensaios habitual. Convocatoria para tódalas cordas.</p>
+            </div>
+          </div>
+          <div class="calendar-item">
+            <div class="date-badge"><span>MAR</span><strong>14</strong><span>XUL</span></div>
+            <div class="calendar-details">
+              <h4>Ensaio Técnico de Sopranos e Contraltos</h4>
+              <p>19:30 h • Repaso do repertorio do concerto de verán.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. HISTÓRICO DE CONCERTOS -->
+      <section id="historico" class="agenda-block">
+        <h2>Histórico de Concertos</h2>
+        <div class="section-line"></div>
+        <p class="section-desc">Memoria das nosas actuacións e recitais máis recentes:</p>
+        
+        <div class="historical-list">
+          {historicoConcertos.map((item) => (
+            <div class="historical-item">
+              <div class="historical-meta">
+                <span class="hist-date">{item.data}</span>
+                <h4>{item.titulo}</h4>
+                <span class="hist-place">{item.lugar}</span>
+              </div>
+              <a href="#" class="link-minimal">Ver detalles do concerto →</a>
+            </div>
+          ))}
+        </div>
+      </section>
+
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .agenda-page-wrapper {
+    padding-top: 4rem;
+    padding-bottom: 6rem;
+  }
+
+  /* Cabeceira */
+  .agenda-header {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 4rem auto;
+  }
+  .agenda-header h1 {
+    color: var(--color-principal);
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  .section-line-center {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 1rem auto 1.5rem auto;
+  }
+  .agenda-intro {
+    font-size: 1.15rem;
+    color: var(--color-texto);
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  /* Distribución de bloques */
+  .agenda-sections-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5rem;
+  }
+  .agenda-block h2 {
+    color: var(--color-principal);
+    font-size: 1.8rem;
+    font-weight: 700;
+  }
+  .section-line {
+    width: 40px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 0.6rem 0 2rem 0;
+  }
+
+  /* Tarxeta do concerto destacado */
+  .concert-card-featured {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 3rem;
+    background: var(--color-gris);
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.02);
+    overflow: hidden;
+    padding: 3rem;
+  }
+  .concert-tag {
+    display: inline-block;
+    background: var(--color-principal);
+    color: var(--color-blanco);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.3rem 0.8rem;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+  .concert-info h3 {
+    font-size: 1.8rem;
+    color: var(--color-texto);
+    margin-bottom: 1.5rem;
+  }
+  .concert-meta-list {
+    list-style: none;
+    margin-bottom: 1.5rem;
+  }
+  .concert-meta-list li {
+    margin-bottom: 0.5rem;
+    font-size: 1.05rem;
+  }
+  .concert-notes {
+    font-size: 1rem;
+    opacity: 0.8;
+    margin-bottom: 2rem;
+  }
+  .btn-secondary {
+    display: inline-block;
+    padding: 0.7rem 1.8rem;
+    border: 2px solid var(--color-principal);
+    color: var(--color-principal);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: 0.2s ease;
+  }
+  .btn-secondary:hover {
+    background: var(--color-principal);
+    color: var(--color-blanco);
+  }
+
+  /* Espazo reservado para o cartel */
+  .concert-poster-placeholder {
+    background: #e5e5e5;
+    border: 2px dashed #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    min-height: 400px;
+    color: #666;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+  }
+
+  /* Caixa do Calendario */
+  .calendar-box {
+    background: #fff;
+  }
+  .calendar-mock-interface {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    margin-top: 1.5rem;
+  }
+  .calendar-item {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1.5rem;
+    background: var(--color-gris);
+    border-radius: 4px;
+    border-left: 3px solid var(--color-acento);
+  }
+  .date-badge {
+    background: var(--color-blanco);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 4px;
+    padding: 0.5rem;
+    min-width: 70px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+  .date-badge span {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+  }
+  .date-badge strong {
+    font-size: 1.4rem;
+    color: var(--color-principal);
+    font-weight: 700;
+  }
+  .calendar-details h4 {
+    font-size: 1.1rem;
+    color: var(--color-texto);
+    margin-bottom: 0.2rem;
+  }
+  .calendar-details p {
+    font-size: 0.95rem;
+    opacity: 0.8;
+  }
+
+  /* Histórico */
+  .section-desc {
+    margin-bottom: 1.5rem;
+    opacity: 0.8;
+  }
+  .historical-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .historical-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid var(--color-gris);
+  }
+  .historical-meta h4 {
+    font-size: 1.1rem;
+    color: var(--color-texto);
+    margin: 0.2rem 0;
+  }
+  .hist-date {
+    font-size: 0.85rem;
+    color: var(--color-acento);
+    font-weight: 600;
+  }
+  .hist-place {
+    font-size: 0.9rem;
+    opacity: 0.7;
+  }
+  .link-minimal {
+    font-size: 0.9rem;
+    color: var(--color-principal);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .link-minimal:hover {
+    color: var(--color-acento);
+  }
+
+  /* Responsivo */
+  @media (max-width: 850px) {
+    .concert-card-featured {
+      grid-template-columns: 1fr;
+      padding: 2rem;
+      gap: 2rem;
+    }
+    .concert-poster-placeholder {
+      min-height: 300px;
+      order: -1;
+    }
+    .historical-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+  }
+</style>

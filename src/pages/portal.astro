@@ -1,0 +1,202 @@
+---
+/* src/pages/portal.astro */
+import BaseLayout from '../layouts/layout.astro';
+---
+
+<BaseLayout title="Portal de Socios" lang="gl">
+  <div class="container portal-page-wrapper">
+    
+    <div class="portal-login-card">
+      <header class="portal-card-header">
+        <span class="portal-lock-icon">🔒</span>
+        <h1>Portal de Socios</h1>
+        <div class="section-line-center"></div>
+        <p>Introduce as túas credenciais autorizadas para acceder ao espazo interno, partituras, circulares e circuítos de comunicación da Coral.</p>
+      </header>
+
+      <form class="portal-form" action="#" method="POST">
+        <div class="form-group">
+          <label for="email-socio">Correo electrónico</label>
+          <input 
+            type="email" 
+            id="email-socio" 
+            name="email-socio" 
+            required 
+            placeholder="Ex. socio@polifonicapontevedra.gal" 
+          />
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="password-socio">Contrasinal</label>
+            <a href="/contacto" class="forgot-password-link">Esqueciches o contrasinal?</a>
+          </div>
+          <input 
+            type="password" 
+            id="password-socio" 
+            name="password-socio" 
+            required 
+            placeholder="••••••••" 
+          />
+        </div>
+
+        <button type="submit" class="btn-portal-submit">Acceder ao espazo privado</button>
+      </form>
+
+      <footer class="portal-card-footer">
+        <p>Es membro da agrupación pero aínda non tes conta? <a href="/contacto">Solicita o teu acceso á Xunta Directiva</a>.</p>
+      </footer>
+    </div>
+
+  </div>
+</BaseLayout>
+
+<style>
+  .portal-page-wrapper {
+    padding-top: 5rem;
+    padding-bottom: 7rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 250px); /* Axuda a centrar verticalmente na pantalla */
+  }
+
+  /* Tarxeta de Login */
+  .portal-login-card {
+    background: var(--color-blanco);
+    border: 1px solid var(--color-gris);
+    border-radius: 6px;
+    padding: 3.5rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  }
+
+  @media (max-width: 576px) {
+    .portal-login-card {
+      padding: 2rem;
+    }
+  }
+
+  /* Cabeceira interna */
+  .portal-card-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .portal-lock-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .portal-card-header h1 {
+    color: var(--color-principal);
+    font-size: 2rem;
+    font-weight: 700;
+  }
+  .section-line-center {
+    width: 45px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 0.8rem auto 1.2rem auto;
+  }
+  .portal-card-header p {
+    font-size: 0.95rem;
+    color: #666;
+    line-height: 1.5;
+  }
+
+  /* Formulario */
+  .portal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-texto);
+  }
+
+  /* Fila especial para etiquetas con enlaces internos */
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .forgot-password-link {
+    font-size: 0.8rem;
+    color: var(--color-principal);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .forgot-password-link:hover {
+    color: var(--color-acento);
+  }
+
+  .form-group input {
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--color-gris);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--color-texto);
+    background-color: var(--color-blanco);
+    transition: border-color 0.2s ease;
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--color-principal);
+  }
+
+  /* Botón de envío */
+  .btn-portal-submit {
+    display: block;
+    width: 100%;
+    padding: 0.9rem;
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
+    border: none;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .btn-portal-submit:hover {
+    background-color: var(--color-acento);
+  }
+
+  /* Pé da tarxeta */
+  .portal-card-footer {
+    margin-top: 2.5rem;
+    border-top: 1px solid var(--color-gris);
+    padding-top: 1.5rem;
+    text-align: center;
+  }
+  .portal-card-footer p {
+    font-size: 0.85rem;
+    color: #777;
+    line-height: 1.4;
+  }
+  .portal-card-footer a {
+    color: var(--color-principal);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .portal-card-footer a:hover {
+    color: var(--color-acento);
+  }
+</style>

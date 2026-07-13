@@ -1,0 +1,198 @@
+---
+/* src/pages/colabora.astro */
+import BaseLayout from '../layouts/layout.astro';
+
+const viasColaboracion = [
+  {
+    id: "cantar",
+    titulo: "Quero cantar",
+    descripcion: "Buscamos novas voces para todas as cordas (sopranos, contraltos, tenores e baixos). Se tes oído musical, ilusión por aprender e queres formar parte dunha agrupación centenaria, convídamosche a participar nos nosos ensaios.",
+    botonText: "Unirme á Coral",
+    url: "/contacto",
+    destacado: true
+  },
+  {
+    id: "socio",
+    titulo: "Feizme socio",
+    descripcion: "Apoia a nosa actividade regular cunha achega periódica. Como socio, axudarás a soster os ensaios, a escola de canto, a conservación do arquivo histórico e terás acceso preferente e gratuíto aos nosos concertos de tempada.",
+    botonText: "Solicitar alta de socio",
+    url: "/contacto",
+    destacado: false
+  },
+  {
+    id: "economica",
+    titulo: "Colaboración económica puntual",
+    descripcion: "Calquera axuda, por pequena que sexa, é fundamental para o mantemento do noso patrimonio vocal. Podes realizar unha doazón puntual destinada a proxectos específicos, edición de partituras ou gravacións institucionais.",
+    botonText: "Facer unha doazón",
+    url: "/contacto",
+    destacado: false
+  },
+  {
+    id: "empresas",
+    titulo: "Empresas e Mecenado",
+    descripcion: "Asociar o nome da túa empresa á Sociedade Coral Polifónica de Pontevedra é apoiar a excelencia cultural. Ofrecemos convenios de mecenado e patrocinio a medida con importantes vantaxes fiscais e visibilidade de marca.",
+    botonText: "Dossier para Empresas",
+    url: "/contacto",
+    destacado: false
+  }
+];
+---
+
+<BaseLayout title="Colabora" lang="gl">
+  <div class="container colabora-page-wrapper">
+    
+    <header class="colabora-header">
+      <h1>Colabora con nós</h1>
+      <div class="section-line-center"></div>
+      <p class="colabora-intro">A Sociedade Coral Polifónica de Pontevedra mantén vivo un legado cultural único dende 1925. Descobre as diferentes formas en que podes formar parte e apoiar o noso proxecto musical.</p>
+    </header>
+
+    <div class="colabora-grid">
+      {viasColaboracion.map((via) => (
+        <div class={via.destacado ? "colabora-card featured-card" : "colabora-card"}>
+          {via.destacado && <span class="badge-destacado">Recomendado</span>}
+          <div class="colabora-content">
+            <h2>{via.titulo}</h2>
+            <div class="card-line"></div>
+            <p>{via.descripcion}</p>
+          </div>
+          <div class="colabora-action">
+            <a href={via.url} class="btn-colabora">
+              {via.botonText}
+            </a>
+          </div>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</BaseLayout>
+
+<style>
+  .colabora-page-wrapper {
+    padding-top: 4rem;
+    padding-bottom: 6rem;
+  }
+
+  /* Cabeceira */
+  .colabora-header {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 4rem auto;
+  }
+  .colabora-header h1 {
+    color: var(--color-principal);
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  .section-line-center {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 1rem auto 1.5rem auto;
+  }
+  .colabora-intro {
+    font-size: 1.15rem;
+    color: var(--color-texto);
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  /* Distribución das tarxetas */
+  .colabora-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 3rem;
+  }
+
+  @media (max-width: 992px) {
+    .colabora-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .colabora-card {
+    background: var(--color-blanco);
+    border: 1px solid var(--color-gris);
+    border-radius: 4px;
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .colabora-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Estilo especial para "Quero cantar" */
+  .featured-card {
+    border-left: 4px solid var(--color-principal);
+    background: linear-gradient(to bottom right, #ffffff, var(--color-gris));
+  }
+
+  .badge-destacado {
+    position: absolute;
+    top: 1.5rem;
+    right: 2rem;
+    background: var(--color-principal);
+    color: var(--color-blanco);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.3rem 0.8rem;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+  }
+
+  .colabora-content h2 {
+    font-size: 1.6rem;
+    color: var(--color-texto);
+    font-weight: 700;
+  }
+
+  .card-line {
+    width: 35px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 0.8rem 0 1.5rem 0;
+  }
+
+  .colabora-content p {
+    font-size: 1.05rem;
+    color: #444;
+    line-height: 1.65;
+    margin-bottom: 2.5rem;
+  }
+
+  /* Botón de acción institucional */
+  .btn-colabora {
+    display: inline-block;
+    padding: 0.8rem 2rem;
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    text-align: center;
+    width: auto;
+  }
+
+  .btn-colabora:hover {
+    background-color: var(--color-acento);
+  }
+
+  .featured-card .btn-colabora {
+    background-color: var(--color-principal);
+  }
+  .featured-card .btn-colabora:hover {
+    background-color: var(--color-acento);
+  }
+</style>

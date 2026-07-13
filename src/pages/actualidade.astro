@@ -1,0 +1,198 @@
+---
+/* src/pages/actualidade.astro */
+import BaseLayout from '../layouts/layout.astro';
+
+// Datos de mostra reais/simulados para as novas da Coral
+const artigosActualidade = [
+  {
+    id: "homenaxe-antonio-blanco",
+    titulo: "Éxito rotundo na Misa Solemnizada en homenaxe a Antonio Blanco",
+    data: "17 de Novembro, 2025",
+    resumo: "A Basílica de Santa María acolleu a veciños e institucións nun emotivo acto musical polo centenario do nacemento do insigne compositor e director pontevedrés.",
+    categoria: "Crónica",
+    ImaxePlaceholder: "🏛️"
+  },
+  {
+    id: "centenario-scpp-2025",
+    titulo: "A Coral Polifónica de Pontevedra cumpre un século de historia musical",
+    data: "12 de Outubro, 2025",
+    resumo: "Repasamos os fitos máis importantes da nosa traxectoria dende a fundación en 1925 ata nos converter nun piar fundamental do patrimonio cultural galego.",
+    categoria: "Institucional",
+    ImaxePlaceholder: "🎵"
+  },
+  {
+    id: "novas-voces-curso",
+    titulo: "Aberto o prazo de inscrición para a incorporación de novas voces",
+    data: "05 de Setembro, 2025",
+    resumo: "Buscas formar parte dunha das agrupacións históricas de Galicia? Se tes paixón polo canto polifónico, os ensaios de outono son a oportunidade perfecta.",
+    categoria: "Convocatoria",
+    ImaxePlaceholder: "🗣️"
+  }
+];
+---
+
+<BaseLayout title="Actualidade" lang="gl">
+  <div class="container news-page-wrapper">
+    
+    <header class="news-header">
+      <h1>Actualidade e Novas</h1>
+      <div class="section-line-center"></div>
+      <p class="news-intro">Mantente ao día de toda a crónica social, institucional, concertos recentes e comunicados oficiais da Sociedade Coral Polifónica de Pontevedra.</p>
+    </header>
+
+    <div class="news-grid">
+      {artigosActualidade.map((artigo) => (
+        <article class="news-card">
+          <div class="news-visual-box">
+            <span class="news-icon">{artigo.ImaxePlaceholder}</span>
+            <span class="news-category-tag">{artigo.categoria}</span>
+          </div>
+          
+          <div class="news-content-box">
+            <span class="news-date">{artigo.data}</span>
+            <h2>{artigo.titulo}</h2>
+            <p>{artigo.resumo}</p>
+            
+            <a href={`/actualidade/${artigo.id}`} class="read-more-link">
+              Ler noticia completa →
+            </a>
+          </div>
+        </article>
+      ))}
+    </div>
+
+  </div>
+</BaseLayout>
+
+<style>
+  .news-page-wrapper {
+    padding-top: 4rem;
+    padding-bottom: 6rem;
+  }
+
+  /* Cabeceira */
+  .news-header {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 4rem auto;
+  }
+  .news-header h1 {
+    color: var(--color-principal);
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  .section-line-center {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 1rem auto 1.5rem auto;
+  }
+  .news-intro {
+    font-size: 1.15rem;
+    color: var(--color-texto);
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  /* Grella de tarxetas de novas */
+  .news-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 3rem;
+  }
+
+  .news-card {
+    background: var(--color-blanco);
+    border: 1px solid var(--color-gris);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .news-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Caixa superior para imaxe ou recurso visual */
+  .news-visual-box {
+    background: var(--color-gris);
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-bottom: 1px solid rgba(0,0,0,0.02);
+  }
+
+  .news-icon {
+    font-size: 3.5rem;
+  }
+
+  .news-category-tag {
+    position: absolute;
+    bottom: 1rem;
+    left: 1.5rem;
+    background: var(--color-principal);
+    color: var(--color-blanco);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.25rem 0.7rem;
+    border-radius: 2px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Caixa inferior de texto */
+  .news-content-box {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .news-date {
+    font-size: 0.8rem;
+    color: var(--color-acento);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .news-content-box h2 {
+    font-size: 1.3rem;
+    color: var(--color-texto);
+    line-height: 1.4;
+    margin-bottom: 1rem;
+    font-weight: 700;
+  }
+
+  .news-content-box p {
+    font-size: 0.95rem;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    flex-grow: 1; /* Empuxa o botón "Ler máis" sempre abaixo de todo */
+  }
+
+  .read-more-link {
+    font-size: 0.9rem;
+    color: var(--color-principal);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+  }
+
+  .read-more-link:hover {
+    color: var(--color-acento);
+  }
+
+  /* Responsivo para pantallas máis pequenas */
+  @media (max-width: 400px) {
+    .news-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

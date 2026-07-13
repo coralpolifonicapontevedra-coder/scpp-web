@@ -1,0 +1,946 @@
+---
+/* src/pages/historia.astro */
+import BaseLayout from '../layouts/layout.astro';
+
+// Categorías do Dashboard da Historia
+const categoriasDashboard = [
+  {
+    id: "nacemento",
+    titulo: "O Nacemento",
+    anos: "1925 — 1926",
+    desc: "A fundación da Sociedade e os seus primeiros pasos públicos.",
+    icon: "Ⅰ"
+  },
+  {
+    id: "evolucion",
+    titulo: "A Evolución",
+    anos: "1927 — 2024",
+    desc: "A consolidación artística, as xiras e a proxección exterior.",
+    icon: "Ⅱ"
+  },
+  {
+    id: "centenario",
+    titulo: "O Centenario",
+    anos: "2025 — 2026",
+    desc: "A conmemoración do primeiro século e os seus recoñecementos.",
+    icon: "Ⅲ"
+  },
+  {
+    id: "directivas",
+    titulo: "Direccións e Presidencias",
+    anos: "Arquivo SCPP",
+    desc: "As persoas que guiaron a vida musical e institucional da entidade.",
+    icon: "Ⅳ"
+  }
+];
+
+// Datos históricos para "O Nacemento"
+const hitosNacemento = [
+  {
+    ano: "1925",
+    data_texto: "Martes, 3 de febreiro de 1925",
+    titulo: "Fundación da Sociedade Coral Polifónica de Pontevedra",
+    descricion: "A Sociedade Coral Polifónica de Pontevedra fundouse oficialmente nesta data como resultado do impulso dun grupo de intelectuais, músicos e galeguistas comprometidos coa dignificación da música coral e coa afirmación cultural de Galicia. Entre as persoas vencelladas á súa orixe destacan Antón Losada Diéguez, primeiro presidente da entidade; Antonio Blanco Porto, director musical fundacional; Antonio Iglesias Vilarelle; e Alfonso Daniel Rodríguez Castelao, que ademais de participar no proxecto desempeñaría máis adiante un papel esencial na súa identidade visual e escénica. A Coral naceu coa vontade de integrar o repertorio polifónico, a música sacra e a reelaboración culta da tradición musical galega.",
+    foto_nome: "fundacion-1925.jpg"
+  },
+  {
+    ano: "1925",
+    data_texto: "Xoves, 9 de abril de 1925",
+    titulo: "Primeira actuación pública na igrexa de San Francisco",
+    descricion: "Poucos meses despois da súa constitución, a Coral realizou a súa primeira actuación pública na Igrexa Conventual de San Francisco de Pontevedra, coincidindo coa celebración de Xoves Santo. A interpretación dun programa de carácter sacro permitiu presentar ante a cidade unha agrupación nova, xa claramente definida polo seu coidado musical e pola seriedade do seu proxecto artístico. A boa acollida daquela primeira comparecencia levou a repetir a actuación ao día seguinte na Basílica de Santa María a Maior.",
+    foto_nome: "primeiro-concerto-1925.jpg"
+  },
+  {
+    ano: "1926",
+    data_texto: "Martes, 23 de marzo de 1926",
+    titulo: "Primeiro concerto en ámbito civil no Teatro Principal",
+    descricion: "O concerto celebrado no Teatro Principal de Pontevedra marcou un momento decisivo na consolidación pública da Sociedade. Tratouse da primeira gran presentación da Coral nun marco civil e serviu para fixar algúns dos trazos que definirían a súa personalidade artística: a convivencia entre a polifonía clásica, o repertorio sacro e a sensibilidade galeguista do proxecto. Esta velada incorporou, ademais, unha escenografía concibida especificamente para a agrupación por Castelao, elemento que reforzou a singularidade visual da Coral e a converteu nunha proposta cultural especialmente recoñecible.",
+    foto_nome: "debut-teatro-principal-1926.jpg"
+  }
+];
+
+// Datos históricos para "A Evolución"
+const hitosEvolucion = [
+  {
+    ano: "1934",
+    data_texto: "Xullo de 1934",
+    titulo: "Xira a Lisboa e primeira proxección internacional",
+    descricion: "A viaxe a Lisboa constituíu unha das primeiras grandes saídas internacionais da Sociedade Coral Polifónica de Pontevedra. A presenza en escenarios portugueses supuxo un paso adiante na súa proxección exterior e confirmou a capacidade da agrupación para representar, fóra de Galicia, unha proposta musical asentada no rigor coral e nunha identidade cultural propia. Esta etapa contribuíu a ampliar o seu prestixio e a consolidar unha vocación pública que ía máis alá do ámbito local.",
+    foto_nome: "gira-lisboa-1934.jpg"
+  },
+  {
+    ano: "1951",
+    data_texto: "Ano 1951",
+    titulo: "Participación nunha interpretación dirixida por Leopoldo Stokowski",
+    descricion: "A intervención da Coral nunha interpretación dirixida por Leopoldo Stokowski na Catedral de Santiago de Compostela figura entre os episodios máis significativos da súa traxectoria no século XX. A vinculación cun director de proxección internacional deste nivel supuxo un recoñecemento artístico de primeira orde e reforzou a consideración da Sociedade como unha agrupación coral de alto valor musical.",
+    foto_nome: "stokowski-1951.jpg"
+  },
+  {
+    ano: "1979",
+    data_texto: "Outubro de 1979",
+    titulo: "Xira por Arxentina e Uruguai",
+    descricion: "A xira por Bos Aires e Montevideo representou unha das experiencias internacionais máis relevantes da historia da Coral. Ademais do valor estritamente musical dos concertos, a viaxe tivo unha dimensión simbólica fonda ao conectar coa emigración galega e coas comunidades que mantiveron vivo no exterior o vínculo coa cultura do país. A Coral actuou así tamén como embaixadora dunha tradición musical e afectiva compartida.",
+    foto_nome: "gira-sudamerica-1979.jpg"
+  },
+  {
+    ano: "1991",
+    data_texto: "Xuño de 1991",
+    titulo: "Concertos en París",
+    descricion: "A presenza da Sociedade en París deu continuidade á súa proxección internacional e á súa capacidade para presentar o repertorio coral galego e polifónico en contextos de prestixio. Máis alá do feito concreto da viaxe, esta etapa evidencia a continuidade dun labor sostido ao longo do tempo, no que a Coral foi combinando a fidelidade ao seu legado histórico coa apertura a novos espazos de difusión e encontro musical.",
+    foto_nome: "gira-paris-1991.jpg"
+  }
+];
+
+// Datos históricos para "O Centenario"
+const hitosCentenario = [
+  {
+    ano: "2025",
+    data_texto: "Venres, 14 de marzo de 2025",
+    titulo: "Exposición do centenario no Museo de Pontevedra",
+    descricion: "A inauguración da exposición do centenario permitiu mostrar ao público unha parte substancial do patrimonio documental, artístico e musical da entidade. A mostra serviu para contextualizar a historia da Coral dentro da cultura galega contemporánea e para facer visible a importancia do seu legado ao longo de cen anos.",
+    foto_nome: "exposicion-museo-2025.jpg"
+  },
+  {
+    ano: "2025",
+    data_texto: "Mércores, 9 de abril de 2025",
+    titulo: "Concerto do centenario en San Francisco",
+    descricion: "Cen anos despois da primeira actuación pública da Coral, a igrexa de San Francisco acolleu un concerto conmemorativo de especial valor simbólico. A efeméride permitiu establecer unha continuidade visible entre a fundación da entidade e a súa realidade actual, subliñando a permanencia dun proxecto musical que atravesou xeracións e contextos históricos moi diferentes sen perder a súa personalidade esencial.",
+    foto_nome: "concerto-san-francisco-2025.jpg"
+  },
+  {
+    ano: "2025",
+    data_texto: "Luns, 2 de xuño de 2025",
+    titulo: "Homenaxe da Sociedad Filarmónica de Pontevedra",
+    descricion: "A homenaxe impulsada pola Sociedad Filarmónica de Pontevedra constituíu un recoñecemento institucional á traxectoria da Coral e ao seu lugar na vida cultural da cidade. O acto puxo de manifesto a relación histórica entre entidades que, desde ámbitos complementarios, contribuíron á construción do tecido musical pontevedrés ao longo do século XX e comezos do XXI.",
+    foto_nome: "homenaxe-filarmonica-2025.jpg"
+  },
+  {
+    ano: "2025",
+    data_texto: "Mércores, 4 de xuño de 2025",
+    titulo: "Recoñecemento como 'Pontevedreses do Ano'",
+    descricion: "A concesión deste recoñecemento serviu para poñer en valor a achega continuada da Coral á cultura pontevedresa ao longo de varias xeracións. Máis alá do premio en si, o galardón fixo visible a presenza estable da entidade na memoria pública da cidade e o aprecio social acumulado tras un século de actividade musical e institucional.",
+    foto_nome: "pontevedreses-ano-2025.jpg"
+  },
+  {
+    ano: "2025",
+    data_texto: "Mércores, 22 de outubro de 2025",
+    titulo: "Conferencias e concerto arredor da memoria da entidade",
+    descricion: "A programación do centenario incorporou tamén unha dimensión divulgativa e musicolóxica, articulada a través de conferencias e actividades musicais centradas na propia historia da Sociedade. Esta liña de traballo contribuíu a reforzar a lectura da Coral non só como agrupación interpretativa, senón tamén como institución cultural cunha memoria rica, complexa e documentalmente valiosa.",
+    foto_nome: "conferencias-directores-2025.jpg"
+  },
+  {
+    ano: "2025",
+    data_texto: "Xoves, 11 de decembro de 2025",
+    titulo: "Premio Otero Pedrayo 2025",
+    descricion: "A concesión do Premio Otero Pedrayo constituíu un dos recoñecementos públicos máis relevantes da etapa do centenario. A distinción subliñou o labor continuado da Coral na preservación, difusión e dignificación do patrimonio musical e cultural galego, situando a súa traxectoria dentro do conxunto de iniciativas que contribuíron á vida cultural do país.",
+    foto_nome: "premio-otero-2025.jpg"
+  },
+  {
+    ano: "2025",
+    data_texto: "Sábado, 13 de decembro de 2025",
+    titulo: "Medalla de Ouro 'Marcial del Adalid'",
+    descricion: "A recepción desta medalla supuxo un novo recoñecemento institucional á traxectoria da Sociedade e ao seu peso dentro da cultura galega. O premio confirmou o lugar da Coral entre as entidades musicais históricas máis destacadas do país e reforzou a visibilidade pública da súa actividade no ano do centenario.",
+    foto_nome: "medalla-ouro-2025.jpg"
+  },
+  {
+    ano: "2026",
+    data_texto: "Luns, 23 de marzo de 2026",
+    titulo: "Concerto de clausura do centenario: estrea de 'LEUCOIÑA'",
+    descricion: "O 23 de marzo de 2026 celebrouse o concerto de clausura do centenario, no que tivo lugar a estrea de 'LEUCOIÑA'. A cita funcionou como peche artístico dun ciclo conmemorativo de especial intensidade e significou tamén o último gran concerto da entidade baixo a presidencia de Xosé Carlos Valle Pérez.",
+    foto_nome: "clausura-leucoina-2026.jpg"
+  },
+  {
+    ano: "2026",
+    data_texto: "Xoves, 26 de marzo de 2026",
+    titulo: "Relevo na presidencia da Sociedade",
+    descricion: "Na asemblea celebrada o 26 de marzo de 2026 produciuse o relevo na presidencia da Sociedade Coral Polifónica de Pontevedra. Xosé Carlos Valle Pérez pechaba así unha etapa moi relevante para a entidade, especialmente vinculada á organización e proxección institucional do centenario, abríndose un novo período baixo a presidencia de José Raposeiras Correa.",
+    foto_nome: "relevo-presidencia-2026.jpg"
+  }
+];
+
+// Listaxe histórica de directores
+const directoresHistoricos = [
+  {
+    nome: "Antonio Blanco Porto",
+    periodo: "1925 — por documentar",
+    hito: "Director fundacional da Sociedade Coral Polifónica de Pontevedra e figura decisiva na definición da súa identidade musical inicial, unindo o rigor da polifonía histórica coa valorización do repertorio galego."
+  },
+  {
+    nome: "Antonio Iglesias Vilarelle",
+    periodo: "por documentar",
+    hito: "Musicólogo e director de grande relevancia na consolidación artística da entidade, estreitamente vinculado ao desenvolvemento do seu repertorio e á súa proxección cultural."
+  },
+  {
+    nome: "José Verea Montero",
+    periodo: "maio de 1980 — 1998",
+    hito: "Tomou o relevo na dirección da Polifónica en maio de 1980, guiando a agrupación durante unha etapa prolongada de estabilidade, traballo coral e continuidade interpretativa."
+  },
+  {
+    nome: "Moisés Fernández Cayeiro",
+    periodo: "1998 — por documentar",
+    hito: "Asumiu novamente a dirección da Coral en 1998, representando unha liña de continuidade artística e de mantemento do nivel musical da agrupación."
+  },
+  {
+    nome: "Marlene Armenteiro Cutiño",
+    periodo: "por documentar — 2013",
+    hito: "Sucedeu a Fernández Cayeiro na dirección artística da entidade, asumindo a responsabilidade musical da Coral na etapa inmediatamente anterior ao período actual."
+  },
+  {
+    nome: "Nanette Sánchez Ordaz",
+    periodo: "2013 — actualidade",
+    hito: "Actual directora da Sociedade Coral Polifónica de Pontevedra. Baixo a súa dirección, a Coral desenvolveu a súa actividade recente e afrontou a etapa do centenario."
+  }
+];
+
+// Listaxe histórica de presidentes
+const presidentesHistoricos = [
+  {
+    nome: "Antón Losada Diéguez",
+    periodo: "1925",
+    hito: "Primeiro presidente da entidade e unha das figuras fundamentais na súa fundación e impulso institucional."
+  },
+  {
+    nome: "Alfonso Daniel Rodríguez Castelao",
+    periodo: "1929 — 1932",
+    hito: "Cofundador histórico da Sociedade, deseñador do emblema e tamén presidente da SCPP, cunha achega decisiva á súa identidade simbólica e escénica."
+  },
+  {
+    nome: "José Blein Llinás",
+    periodo: "por documentar",
+    hito: "Figura vinculada á presidencia histórica da Sociedade Coral Polifónica de Pontevedra."
+  },
+  {
+    nome: "Vicente Riestra Calderón",
+    periodo: "por documentar",
+    hito: "Formou parte da continuidade institucional da SCPP desde a presidencia."
+  },
+  {
+    nome: "Augusto García Sánchez",
+    periodo: "por documentar",
+    hito: "Presidente histórico da entidade no decurso da súa traxectoria institucional e cultural."
+  },
+  {
+    nome: "José Fernando Filgueira Valverde",
+    periodo: "por documentar",
+    hito: "Intelectual e presidente da Sociedade, ligado á proxección cultural e patrimonial da institución."
+  },
+  {
+    nome: "Xosé Carlos Valle Pérez",
+    periodo: "ata o 26 de marzo de 2026",
+    hito: "Ocupou a presidencia da Sociedade ata a asemblea do 26 de marzo de 2026, desempeñando un papel moi relevante na etapa do centenario e na valorización do patrimonio histórico da Coral."
+  },
+  {
+    nome: "José Raposeiras Correa",
+    periodo: "dende o 26 de marzo de 2026",
+    hito: "Presidente actual da Sociedade Coral Polifónica de Pontevedra, encargado de abrir a nova etapa institucional posterior ao centenario."
+  }
+];
+---
+
+<BaseLayout title="Historia - SCPP" lang="gl">
+  <div class="historia-page">
+    
+    <header class="historia-hero">
+      <div class="hero-inner">
+        <span class="editorial-label">Arquivo Histórico Oficial</span>
+        <h1>Historia da Sociedade</h1>
+        <div class="divider-line"></div>
+        <p class="hero-subtitle">
+          Un percorrido pola fundación, a evolución artística e a memoria institucional da Sociedade Coral Polifónica de Pontevedra.
+        </p>
+      </div>
+    </header>
+
+    <section class="dashboard-wrapper">
+      <div class="dashboard-grid">
+        {categoriasDashboard.map((cat, index) => (
+          <button class={`dashboard-card ${index === 0 ? 'active' : ''}`} data-tab={cat.id}>
+            <span class="card-icon">{cat.icon}</span>
+            <div class="card-text-inner">
+              <span class="card-span">{cat.anos}</span>
+              <h2>{cat.titulo}</h2>
+              <p>{cat.desc}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+
+    <section class="content-panel-container">
+      
+      <div id="panel-nacemento" class="panel-section active">
+        <div class="panel-header">
+          <span>1925 — 1926</span>
+          <h2>Os comezos da entidade</h2>
+          <p class="panel-lead">A fundación da Sociedade, as primeiras actuacións públicas e a definición do seu perfil artístico inicial.</p>
+        </div>
+        
+        <div class="timeline-flow">
+          {hitosNacemento.map(hito => (
+            <article class="timeline-step">
+              <div class="timeline-badge"><span class="badge-year">{hito.ano}</span></div>
+              <div class="timeline-card">
+                <span class="step-date">{hito.data_texto}</span>
+                <h3>{hito.titulo}</h3>
+                <p>{hito.descricion}</p>
+                {hito.foto_nome && (
+                  <div class="card-media">
+                    <img src={`/img/historia/${hito.foto_nome}`} alt={hito.titulo} loading="lazy" class="history-image" onerror="this.style.opacity='0'; this.nextElementSibling.style.display='flex';" />
+                    <div class="image-placeholder">
+                      <span class="placeholder-icon">Arquivo</span>
+                      <span class="placeholder-text">Imaxe non dispoñible</span>
+                      <span class="placeholder-filename">{hito.foto_nome}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <div id="panel-evolucion" class="panel-section">
+        <div class="panel-header">
+          <span>1927 — 2024</span>
+          <h2>Consolidación e proxección</h2>
+          <p class="panel-lead">A continuidade da actividade coral, a apertura ao exterior e algúns dos fitos máis relevantes da súa traxectoria pública.</p>
+        </div>
+
+        <div class="timeline-flow">
+          {hitosEvolucion.map(hito => (
+            <article class="timeline-step">
+              <div class="timeline-badge"><span class="badge-year">{hito.ano}</span></div>
+              <div class="timeline-card">
+                <span class="step-date">{hito.data_texto}</span>
+                <h3>{hito.titulo}</h3>
+                <p>{hito.descricion}</p>
+                {hito.foto_nome && (
+                  <div class="card-media">
+                    <img src={`/img/historia/${hito.foto_nome}`} alt={hito.titulo} loading="lazy" class="history-image" onerror="this.style.opacity='0'; this.nextElementSibling.style.display='flex';" />
+                    <div class="image-placeholder">
+                      <span class="placeholder-icon">Arquivo</span>
+                      <span class="placeholder-text">Imaxe non dispoñible</span>
+                      <span class="placeholder-filename">{hito.foto_nome}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <div id="panel-centenario" class="panel-section">
+        <div class="panel-header">
+          <span>2025 — 2026</span>
+          <h2>O centenario</h2>
+          <p class="panel-lead">A conmemoración do primeiro século de historia da Coral a través de exposicións, concertos e recoñecementos institucionais.</p>
+        </div>
+
+        <div class="timeline-flow">
+          {hitosCentenario.map(hito => (
+            <article class="timeline-step">
+              <div class="timeline-badge"><span class="badge-year">{hito.ano}</span></div>
+              <div class="timeline-card">
+                <span class="step-date">{hito.data_texto}</span>
+                <h3>{hito.titulo}</h3>
+                <p>{hito.descricion}</p>
+                {hito.foto_nome && (
+                  <div class="card-media">
+                    <img src={`/img/historia/${hito.foto_nome}`} alt={hito.titulo} loading="lazy" class="history-image" onerror="this.style.opacity='0'; this.nextElementSibling.style.display='flex';" />
+                    <div class="image-placeholder">
+                      <span class="placeholder-icon">Arquivo</span>
+                      <span class="placeholder-text">Imaxe non dispoñible</span>
+                      <span class="placeholder-filename">{hito.foto_nome}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <div id="panel-directivas" class="panel-section">
+        <div class="panel-header">
+          <span>Arquivo Organizativo SCPP</span>
+          <h2>Direccións e Presidencias</h2>
+          <p class="panel-lead">Un percorrido polas direccións artísticas e polas presidencias que sostiveron a vida musical, institucional e patrimonial da Sociedade Coral Polifónica de Pontevedra.</p>
+        </div>
+
+        <div class="directores-wrapper">
+          <table class="directores-table">
+            <thead>
+              <tr>
+                <th>Dirección artística</th>
+                <th>Período</th>
+                <th>Apunte biográfico e institucional</th>
+              </tr>
+            </thead>
+            <tbody>
+              {directoresHistoricos.map(dir => (
+                <tr>
+                  <td class="td-nome"><strong>{dir.nome}</strong></td>
+                  <td class="td-periodo">{dir.periodo}</td>
+                  <td class="td-hito">{dir.hito}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="directores-wrapper presidents-wrapper">
+          <table class="directores-table">
+            <thead>
+              <tr>
+                <th>Presidencia</th>
+                <th>Período</th>
+                <th>Apunte institucional</th>
+              </tr>
+            </thead>
+            <tbody>
+              {presidentesHistoricos.map(pres => (
+                <tr>
+                  <td class="td-nome"><strong>{pres.nome}</strong></td>
+                  <td class="td-periodo">{pres.periodo}</td>
+                  <td class="td-hito">{pres.hito}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="xunta-directiva-box">
+          <div class="xunta-text">
+            <h3>Goberno e continuidade institucional</h3>
+            <p>
+              O labor diario, administrativo, loxístico e patrimonial da Sociedade Coral Polifónica de Pontevedra sostense grazas ao compromiso das súas sucesivas xuntas directivas. Dende a fundación da entidade ata a actualidade, a Coral mantivo a súa actividade musical mediante unha estrutura de goberno orientada á conservación do arquivo, á organización da vida coral e á proxección pública da institución.
+            </p>
+            <ul class="xunta-list">
+              <li><strong>Memoria institucional:</strong> A Coral conserva unha tradición documental, artística e musical de grande valor para o patrimonio cultural pontevedrés e galego.</li>
+              <li><strong>Responsabilidade organizativa:</strong> A presidencia e a xunta directiva garanten a coordinación da actividade ordinaria, as relacións institucionais e a continuidade do proxecto coral.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const cards = document.querySelectorAll('.dashboard-card');
+    const sections = document.querySelectorAll('.panel-section');
+
+    cards.forEach(card => {
+      card.addEventListener('click', () => {
+        const targetId = card.getAttribute('data-tab');
+
+        cards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        sections.forEach(sec => {
+          sec.classList.remove('active');
+        });
+
+        const activePanel = document.getElementById(`panel-${targetId}`);
+        if (activePanel) {
+          activePanel.classList.add('active');
+
+          if (window.innerWidth < 850) {
+            activePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+      });
+    });
+  });
+</script>
+
+<style>
+  .historia-page {
+    background-color: #fdfdfd;
+    color: #1a1a1a;
+    font-family: inherit;
+    padding-bottom: 8rem;
+  }
+
+  .historia-hero {
+    text-align: center;
+    padding: 7rem 1.5rem 4rem;
+    background-color: #faf9f6;
+    border-bottom: 1px solid #eae8e3;
+  }
+
+  .hero-inner {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .editorial-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #a3821a;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 1rem;
+  }
+
+  .historia-hero h1 {
+    font-size: 3.2rem;
+    font-weight: 700;
+    color: #5c1926;
+    margin: 0 0 1.5rem;
+    letter-spacing: -0.5px;
+  }
+
+  .divider-line {
+    width: 60px;
+    height: 1px;
+    background-color: #a3821a;
+    margin: 0 auto 2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #555;
+    opacity: 0.9;
+  }
+
+  .dashboard-wrapper {
+    max-width: 1100px;
+    margin: -3rem auto 4rem;
+    padding: 0 1.5rem;
+    position: relative;
+    z-index: 10;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+
+  .dashboard-card {
+    background: #ffffff;
+    border: 1px solid #e3dec3;
+    border-radius: 6px;
+    padding: 2rem 1.5rem;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.03);
+    transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    width: 100%;
+  }
+
+  .dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(92, 25, 38, 0.08);
+    border-color: #5c1926;
+  }
+
+  .dashboard-card.active {
+    background-color: #5c1926;
+    border-color: #5c1926;
+    color: #ffffff;
+    box-shadow: 0 15px 40px rgba(92, 25, 38, 0.25);
+  }
+
+  .card-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #5c1926;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .dashboard-card.active .card-icon {
+    color: #ffffff;
+  }
+
+  .card-text-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .card-span {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #a3821a;
+  }
+
+  .dashboard-card.active .card-span {
+    color: #eae5da;
+  }
+
+  .card-text-inner h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+    color: #111;
+  }
+
+  .dashboard-card.active h2 {
+    color: #ffffff;
+  }
+
+  .card-text-inner p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #666;
+    margin: 0;
+  }
+
+  .dashboard-card.active p {
+    color: #eae5da;
+    opacity: 0.9;
+  }
+
+  .content-panel-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  .panel-section {
+    display: none;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .panel-section.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .panel-header {
+    text-align: center;
+    margin-bottom: 4rem;
+    border-bottom: 1px solid #eae8e3;
+    padding-bottom: 3rem;
+  }
+
+  .panel-header span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: #a3821a;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 0.6rem;
+  }
+
+  .panel-header h2 {
+    font-size: 2.1rem;
+    color: #111;
+    font-weight: 700;
+    margin: 0 0 1.2rem;
+  }
+
+  .panel-lead {
+    font-size: 1.02rem;
+    line-height: 1.8;
+    color: #666;
+    max-width: 720px;
+    margin: 0 auto;
+    opacity: 0.9;
+  }
+
+  .timeline-flow {
+    position: relative;
+    padding-left: 3rem;
+  }
+
+  .timeline-flow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 15px;
+    width: 1px;
+    background-color: #e3dec3;
+  }
+
+  .timeline-step {
+    position: relative;
+    margin-bottom: 5rem;
+  }
+
+  .timeline-step:last-child {
+    margin-bottom: 0;
+  }
+
+  .timeline-badge {
+    position: absolute;
+    left: -47px;
+    top: 0;
+    background-color: #fdfdfd;
+    border: 1px solid #a3821a;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+  }
+
+  .badge-year {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #a3821a;
+  }
+
+  .timeline-card {
+    background-color: #ffffff;
+    border: 1px solid #eae7dc;
+    border-radius: 4px;
+    padding: 2.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  }
+
+  .step-date {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #a3821a;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 0.8rem;
+  }
+
+  .timeline-card h3 {
+    font-size: 1.35rem;
+    color: #111;
+    margin: 0 0 1.2rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .timeline-card p {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: #444;
+    text-align: justify;
+    margin: 0;
+  }
+
+  .card-media {
+    margin-top: 2rem;
+    border-radius: 2px;
+    overflow: hidden;
+    background-color: #fafaf7;
+    border: 1px dashed #e3dec3;
+    min-height: 240px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .history-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(20%);
+    transition: filter 0.4s ease, opacity 0.3s ease;
+    z-index: 2;
+  }
+
+  .timeline-card:hover .history-image {
+    filter: grayscale(0%);
+  }
+
+  .image-placeholder {
+    display: none;
+    position: absolute;
+    inset: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #faf9f6;
+    color: #a3821a;
+    z-index: 1;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  .placeholder-icon {
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+  }
+
+  .placeholder-text {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+  }
+
+  .placeholder-filename {
+    font-family: monospace;
+    font-size: 0.75rem;
+    opacity: 0.5;
+    margin-top: 0.4rem;
+  }
+
+  .directores-wrapper {
+    overflow-x: auto;
+    margin-top: 2rem;
+    border: 1px solid #eae7dc;
+    border-radius: 4px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01);
+  }
+
+  .presidents-wrapper {
+    margin-top: 3rem;
+  }
+
+  .directores-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #ffffff;
+    font-size: 0.95rem;
+    text-align: left;
+  }
+
+  .directores-table th {
+    background-color: #5c1926;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 1.2rem 1.5rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .directores-table td {
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid #eae7dc;
+    line-height: 1.6;
+    color: #444;
+  }
+
+  .directores-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .td-nome {
+    color: #111 !important;
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+
+  .td-periodo {
+    font-weight: 700;
+    color: #a3821a;
+    white-space: nowrap;
+  }
+
+  .td-hito {
+    text-align: justify;
+  }
+
+  .xunta-directiva-box {
+    margin-top: 4rem;
+    background-color: #faf9f6;
+    border-left: 4px solid #5c1926;
+    border-radius: 4px;
+    padding: 3rem;
+  }
+
+  .xunta-text h3 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #5c1926;
+    margin: 0 0 1.2rem;
+  }
+
+  .xunta-text p {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: #444;
+    text-align: justify;
+    margin-bottom: 2rem;
+  }
+
+  .xunta-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .xunta-list li {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #333;
+    padding-left: 1.5rem;
+    position: relative;
+  }
+
+  .xunta-list li::before {
+    content: '▪';
+    position: absolute;
+    left: 0;
+    color: #a3821a;
+    font-size: 1.2rem;
+    line-height: 1;
+    top: -1px;
+  }
+
+  @media (max-width: 1050px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.2rem;
+    }
+    .dashboard-wrapper {
+      margin-top: -1.5rem;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+    .timeline-flow {
+      padding-left: 2.2rem;
+    }
+    .timeline-flow::before {
+      left: 10px;
+    }
+    .timeline-badge {
+      left: -33px;
+      width: 26px;
+      height: 26px;
+    }
+    .badge-year {
+      font-size: 0.65rem;
+    }
+    .timeline-card {
+      padding: 1.8rem;
+    }
+    .timeline-card h3 {
+      font-size: 1.25rem;
+    }
+    .xunta-directiva-box {
+      padding: 1.8rem;
+    }
+  }
+</style>

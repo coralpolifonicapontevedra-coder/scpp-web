@@ -1,0 +1,250 @@
+---
+/* src/pages/galeria.astro */
+import BaseLayout from '../layouts/layout.astro';
+
+// Datos de mostra simulados para a galería de imaxes
+const albumesGaleria = [
+  {
+    titulo: "Concerto de San Xoán 2026",
+    descripcion: "Instantáneas da nosa actuación na Igrexa de San Francisco.",
+    categoria: "Concertos",
+    miniatura: "📸",
+    cantidade: "12 imaxes"
+  },
+  {
+    titulo: "Ensaios Xerais no Pazo da Cultura",
+    descripcion: "Preparación do repertorio polifónico do centenario.",
+    categoria: "Ensaios",
+    miniatura: "🎼",
+    cantidade: "8 imaxes"
+  },
+  {
+    titulo: "Xira Histórica por Europa",
+    descripcion: "Recordo fotográfico das viaxes institucionais da Coral.",
+    categoria: "Viaxes",
+    miniatura: "✈️",
+    cantidade: "24 imaxes"
+  },
+  {
+    titulo: "Arquivo Documental (1925 - 1950)",
+    descripcion: "Partituras históricas, recortes de prensa antigos e fotos fundacionais.",
+    categoria: "Histórico",
+    miniatura: "📜",
+    cantidade: "16 imaxes"
+  },
+  {
+    titulo: "Homenaxe a Antonio Blanco",
+    descripcion: "Acto solemne e concerto conmemorativo na Basílica de Santa María.",
+    categoria: "Concertos",
+    miniatura: "🏛️",
+    cantidade: "10 imaxes"
+  },
+  {
+    titulo: "Encontro Coral de Outono",
+    descripcion: "Compartindo escenario con outras agrupacións convidadas.",
+    categoria: "Eventos",
+    miniatura: "🤝",
+    cantidade: "15 imaxes"
+  }
+];
+---
+
+<BaseLayout title="Galería" lang="gl">
+  <div class="container gallery-page-wrapper">
+    
+    <header class="gallery-header">
+      <h1>Galería Fotográfica</h1>
+      <div class="section-line-center"></div>
+      <p class="gallery-intro">Un percorrido visual pola historia recente e o arquivo documental da Sociedade Coral Polifónica de Pontevedra.</p>
+    </header>
+
+    <div class="gallery-filters">
+      <span class="filter-tag active">Todos</span>
+      <span class="filter-tag">Concertos</span>
+      <span class="filter-tag">Ensaios</span>
+      <span class="filter-tag">Histórico</span>
+      <span class="filter-tag">Viaxes</span>
+    </div>
+
+    <div class="gallery-grid">
+      {albumesGaleria.map((album) => (
+        <div class="gallery-card">
+          <div class="gallery-visual-box">
+            <span class="gallery-icon">{album.miniatura}</span>
+            <span class="gallery-count-tag">{album.cantidade}</span>
+          </div>
+          
+          <div class="gallery-content-box">
+            <span class="gallery-category">{album.categoria}</span>
+            <h2>{album.titulo}</h2>
+            <p>{album.descripcion}</p>
+            
+            <a href="#" class="view-album-link">
+              Abrir álbum →
+            </a>
+          </div>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</BaseLayout>
+
+<style>
+  .gallery-page-wrapper {
+    padding-top: 4rem;
+    padding-bottom: 6rem;
+  }
+
+  /* Cabeceira */
+  .gallery-header {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 3rem auto;
+  }
+  .gallery-header h1 {
+    color: var(--color-principal);
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  .section-line-center {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 1rem auto 1.5rem auto;
+  }
+  .gallery-intro {
+    font-size: 1.15rem;
+    color: var(--color-texto);
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  /* Filtros de categorías */
+  .gallery-filters {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 4rem;
+    flex-wrap: wrap;
+  }
+  .filter-tag {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 1.2rem;
+    border: 1px solid var(--color-gris);
+    border-radius: 20px;
+    color: var(--color-texto);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .filter-tag:hover, .filter-tag.active {
+    background: var(--color-principal);
+    border-color: var(--color-principal);
+    color: var(--color-blanco);
+  }
+
+  /* Grella de tarxetas */
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 3rem;
+  }
+
+  .gallery-card {
+    background: var(--color-blanco);
+    border: 1px solid var(--color-gris);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .gallery-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Contedor visual superior (Imaxe de mostra) */
+  .gallery-visual-box {
+    background: var(--color-gris);
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-bottom: 1px solid rgba(0,0,0,0.02);
+  }
+
+  .gallery-icon {
+    font-size: 4rem;
+  }
+
+  .gallery-count-tag {
+    position: absolute;
+    bottom: 1rem;
+    right: 1.5rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--color-blanco);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: .25rem .7rem;
+    border-radius: 2px;
+  }
+
+  /* Contedor inferior de texto */
+  .gallery-content-box {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .gallery-category {
+    font-size: 0.75rem;
+    color: var(--color-acento);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: .4rem;
+    display: block;
+  }
+
+  .gallery-content-box h2 {
+    font-size: 1.3rem;
+    color: var(--color-texto);
+    line-height: 1.4;
+    margin-bottom: .6rem;
+    font-weight: 700;
+  }
+
+  .gallery-content-box p {
+    font-size: .95rem;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 1.8rem;
+    flex-grow: 1;
+  }
+
+  .view-album-link {
+    font-size: 0.9rem;
+    color: var(--color-principal);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+  }
+
+  .view-album-link:hover {
+    color: var(--color-acento);
+  }
+
+  /* Responsivo */
+  @media (max-width: 400px) {
+    .gallery-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,301 @@
+---
+/* src/components/Header.astro */
+import { Image } from 'astro:assets';
+import escudoImg from '../assets/escudo-raw.svg';
+
+const { lang = 'gl' } = Astro.props;
+const currentPath = Astro.url.pathname;
+
+const menuItems = {
+  gl: [
+    { name: 'Inicio', url: '/' },
+    { name: 'A Coral', url: '/acoral' },
+    { name: 'Axenda', url: '/axenda' }, /* Corrixido aquí */
+    { name: 'Actualidade', url: '/actualidade' },
+    { name: 'Galería', url: '/galeria' },
+    { name: 'Colabora', url: '/colabora' },
+    { name: 'Contacto', url: '/contacto' },
+    { name: 'Portal', url: '/portal' }
+  ],
+  es: [
+    { name: 'Inicio', url: '/' },
+    { name: 'La Coral', url: '/acoral' },
+    { name: 'Agenda', url: '/axenda' }, /* Corrixido aquí */
+    { name: 'Actualidad', url: '/actualidad' },
+    { name: 'Galería', url: '/galeria' },
+    { name: 'Colabora', url: '/colabora' },
+    { name: 'Contacto', url: '/contacto' },
+    { name: 'Portal', url: '/portal' }
+  ]
+};
+
+const currentMenu = menuItems[lang] ?? menuItems.gl;
+---
+
+<header class="site-header">
+  <div class="header-wrap">
+
+    <a href="/" class="logo-link">
+      <Image
+        src={escudoImg}
+        alt="Escudo SCPP"
+        class="main-logo"
+      />
+
+      <div class="brand-text">
+        <span class="brand-title">SCPP</span>
+        <span class="brand-sub">
+          Sociedade Coral Polifónica de Pontevedra
+        </span>
+      </div>
+    </a>
+
+    <button
+      id="menuToggle"
+      class="menu-toggle"
+      aria-label="Abrir menú">
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+    </button>
+
+    <nav id="navMenu" class="nav-menu">
+      {currentMenu.map((item) => (
+        <a
+          href={item.url}
+          class={
+            currentPath === item.url ||
+            (item.url !== "/" && currentPath.startsWith(item.url))
+              ? "active-link"
+              : ""
+          }
+        >
+          {item.name}
+        </a>
+      ))}
+    </nav>
+
+    <div class="header-right-zone">
+      <div class="header-social-links">
+        <a href="https://www.facebook.com/PolifonicaPontevedra/" target="_blank" rel="noopener noreferrer" title="Facebook" aria-label="Facebook">
+          <svg viewBox="0 0 24 24" class="social-icon"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.75z"/></svg>
+        </a>
+        <a href="https://www.instagram.com/polifonicapontevedra/" target="_blank" rel="noopener noreferrer" title="Instagram" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" class="social-icon"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+        </a>
+        <a href="https://www.youtube.com/@coralpolifonicadepontevedr4676" target="_blank" rel="noopener noreferrer" title="YouTube" aria-label="YouTube">
+          <svg viewBox="0 0 24 24" class="social-icon"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        </a>
+      </div>
+
+      <div class="lang-selector">
+        <span class={lang === 'gl' ? 'active-lang' : ''}>GL</span>
+        |
+        <span class={lang === 'es' ? 'active-lang' : ''}>ES</span>
+      </div>
+    </div>
+
+  </div>
+</header>
+
+<script>
+  const menuToggle = document.getElementById("menuToggle");
+  const navMenu = document.getElementById("navMenu");
+
+  menuToggle?.addEventListener("click", () => {
+    menuToggle.classList.toggle("is-active");
+    navMenu?.classList.toggle("is-open");
+  });
+</script>
+
+<style>
+.site-header{
+  background:var(--color-blanco);
+  border-bottom:1px solid var(--color-gris);
+  position:sticky;
+  top:0;
+  z-index:100;
+}
+
+.header-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:1.2rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.logo-link{
+  display:flex;
+  align-items:center;
+  gap:1.2rem;
+  text-decoration:none;
+}
+
+.main-logo{
+  height:4cm;
+  width:auto;
+  display:block;
+}
+
+.brand-text{
+  display:flex;
+  flex-direction:column;
+}
+
+.brand-title{
+  font-size:1.6rem;
+  font-weight:700;
+  color:var(--color-principal);
+  line-height:1.1;
+}
+
+.brand-sub{
+  font-size:.78rem;
+  text-transform:uppercase;
+  opacity:.8;
+  color:var(--color-texto);
+}
+
+.nav-menu{
+  display:flex;
+  align-items:center;
+  flex-grow:1;
+  justify-content:center;
+  padding:0 1.5rem;
+}
+
+.nav-menu a{
+  margin:0 0.65rem;
+  font-size:.85rem;
+  font-weight:600;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  text-decoration:none;
+  color:var(--color-texto);
+  transition:.2s;
+  white-space:nowrap;
+}
+
+.nav-menu a:hover{
+  color:var(--color-acento);
+}
+
+.active-link{
+  color:var(--color-acento);
+  font-weight:700;
+}
+
+.header-right-zone {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.header-social-links {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.social-icon {
+  width: 20px;
+  height: 20px;
+  fill: var(--color-principal);
+  transition: transform 0.2s ease, fill 0.2s ease;
+  display: block;
+}
+
+.header-social-links a:hover .social-icon {
+  fill: var(--color-acento);
+  transform: scale(1.1);
+}
+
+.lang-selector{
+  font-size:.8rem;
+  font-weight:600;
+  color:#bbb;
+}
+
+.active-lang{
+  color:var(--color-principal);
+}
+
+.menu-toggle{
+  display:none;
+  width:24px;
+  height:18px;
+  padding:0;
+  border:none;
+  background:none;
+  cursor:pointer;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.bar{
+  width:100%;
+  height:2px;
+  background:var(--color-principal);
+  transition:.3s;
+}
+
+.menu-toggle.is-active .bar:nth-child(1){
+  transform:translateY(8px) rotate(45deg);
+}
+
+.menu-toggle.is-active .bar:nth-child(2){
+  opacity:0;
+}
+
+.menu-toggle.is-active .bar:nth-child(3){
+  transform:translateY(-8px) rotate(-45deg);
+}
+
+@media (max-width:1150px){
+  .header-social-links {
+    display: none;
+  }
+}
+
+@media (max-width:992px){
+  .header-wrap{
+    padding:1.2rem 2rem;
+  }
+
+  .menu-toggle{
+    display:flex;
+  }
+
+  .lang-selector{
+    display:none;
+  }
+
+  .nav-menu{
+    position:fixed;
+    top:0;
+    right:-100%;
+    width:260px;
+    height:100vh;
+    background:white;
+    box-shadow:-4px 0 15px rgba(0,0,0,.08);
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    justify-content: flex-start;
+    padding:6rem 2rem;
+    transition:right .3s;
+  }
+
+  .nav-menu.is-open{
+    right:0;
+  }
+
+  .nav-menu a{
+    margin:1rem 0;
+    font-size:1rem;
+  }
+}
+</style>
