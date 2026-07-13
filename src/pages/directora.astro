@@ -1,0 +1,333 @@
+---
+/* src/pages/directora.astro */
+import BaseLayout from '../layouts/Layout.astro';
+---
+
+<BaseLayout title="Directora" lang="gl">
+  <div class="container directora-page-wrapper">
+
+    <header class="directora-header">
+      <h1>Dirección Artística</h1>
+      <div class="section-line-center"></div>
+      <p class="directora-intro">A Sociedade Coral Polifónica de Pontevedra está dirixida dende 2013 por Nanette Sánchez Ordaz, músico de formación académica internacional e ampla traxectoria no ámbito coral galego.</p>
+    </header>
+
+    <div class="directora-grid">
+
+      <aside class="directora-aside">
+        <div class="foto-wrapper">
+          <img
+            src="/img/directora/nanette-piano.jpg"
+            alt="Nanette Sánchez Ordaz, directora da SCPP"
+            class="directora-foto"
+            onerror="this.style.opacity='0'; this.nextElementSibling.style.display='flex';"
+          />
+          <div class="foto-placeholder">
+            <span>📷</span>
+            <span>Fotografía da Directora</span>
+          </div>
+        </div>
+
+        <div class="directora-datos-rapidos">
+          <h3>Nanette Sánchez Ordaz</h3>
+          <div class="datos-line"></div>
+          <ul class="datos-list">
+            <li>
+              <span class="dato-label">Cargo</span>
+              <span class="dato-valor">Directora artística</span>
+            </li>
+            <li>
+              <span class="dato-label">Na SCPP dende</span>
+              <span class="dato-valor">Novembro de 2013</span>
+            </li>
+            <li>
+              <span class="dato-label">Formación</span>
+              <span class="dato-valor">Licenciada en Dirección Coral, Instituto Superior de Arte da Habana</span>
+            </li>
+            <li>
+              <span class="dato-label">Docencia</span>
+              <span class="dato-valor">Conservatorio Profesional Manuel Quiroga de Pontevedra</span>
+            </li>
+            <li>
+              <span class="dato-label">Distinción</span>
+              <span class="dato-valor">Medalla de Ouro da SCPP (xuño 2019)</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="directora-bio">
+
+        <section class="bio-section">
+          <h2>Formación musical</h2>
+          <div class="section-line"></div>
+          <p>
+            Nanette Sánchez Ordaz é Licenciada en Música na especialidade de Dirección Coral polo <strong>Instituto Superior de Arte da Habana</strong> (Cuba), onde se formou baixo a guía das recoñecidas directoras <strong>Alina Orraca</strong> e <strong>Digna Guerra</strong>, dúas das figuras máis relevantes da pedagoxía coral cubana e iberoamericana.
+          </p>
+          <p>
+            Durante a súa etapa formativa integrouse no <strong>Coro da Escola Nacional de Música da Habana</strong>, do que chegou a ser directora asistente, participando en numerosos concertos, festivais e concursos de ámbito nacional e internacional.
+          </p>
+        </section>
+
+        <section class="bio-section">
+          <h2>Recoñecementos e primeiros pasos</h2>
+          <div class="section-line"></div>
+          <p>
+            Xa durante os seus anos de formación, Nanette Sánchez Ordaz destacou como directora coral de primeira liña. Obtivo o <strong>Primeiro Premio de Dirección Coral no I Concurso de Dirección Coral da Asociación Hermanos Saíz</strong>, celebrado na Habana, un recoñecemento que confirmou o seu talento e o rigor da súa formación técnica.
+          </p>
+        </section>
+
+        <section class="bio-section">
+          <h2>Traxectoria en Galicia</h2>
+          <div class="section-line"></div>
+          <p>
+            Instalada en Galicia, fundou o <strong>Coro do Ilustre Colexio de Avogados de Vigo</strong>, agrupación coa que desenvolveu unha intensa actividade artística que transcendeu as fronteiras do país. O coro actuou en escenarios de <strong>España, Portugal, Cuba e Bélxica</strong>, consolidando o seu perfil como directora de proxección internacional.
+          </p>
+          <p>
+            Na actualidade é <strong>profesora de Coro e Educación Auditiva no Conservatorio Profesional Manuel Quiroga de Pontevedra</strong>, onde transmite a súa experiencia e rigor musical ás novas xeracións de músicos galegos.
+          </p>
+        </section>
+
+        <section class="bio-section">
+          <h2>Dirección da Sociedade Coral Polifónica de Pontevedra</h2>
+          <div class="section-line"></div>
+          <p>
+            Dende <strong>novembro de 2013</strong>, Nanette Sánchez Ordaz asume a dirección artística da <strong>Sociedade Coral Polifónica de Pontevedra</strong>. Baixo a súa batuta, a Coral afrontou un dos períodos máis relevantes da súa historia: a conmemoración do <strong>centenario da entidade (2025–2026)</strong>, cun ambicioso programa de concertos, exposicións e actos institucionais que proxectaron a Coral a nivel autonómico e nacional.
+          </p>
+          <p>
+            En recoñecemento ao seu labor artístico e á súa dedicación á institución, foi distinguida coa <strong>Medalla de Ouro da Sociedade Coral Polifónica de Pontevedra</strong> en xuño de 2019.
+          </p>
+        </section>
+
+        <div class="cita-destacada">
+          <blockquote>
+            "A polifonía non é só música: é a voz colectiva dun pobo, un patrimonio vivo que temos a responsabilidade de preservar e transmitir."
+          </blockquote>
+        </div>
+
+      </main>
+
+    </div>
+
+    <div class="back-link-wrapper">
+      <a href="/acoral" class="back-link">← Volver a A Coral</a>
+    </div>
+
+  </div>
+</BaseLayout>
+
+<style>
+  .directora-page-wrapper {
+    padding-top: 4rem;
+    padding-bottom: 6rem;
+  }
+
+  .directora-header {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 4rem auto;
+  }
+  .directora-header h1 {
+    color: var(--color-principal);
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  .section-line-center {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 1rem auto 1.5rem auto;
+  }
+  .directora-intro {
+    font-size: 1.15rem;
+    color: var(--color-texto);
+    opacity: 0.85;
+    line-height: 1.7;
+  }
+
+  .directora-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 5rem;
+    align-items: flex-start;
+  }
+
+  @media (max-width: 992px) {
+    .directora-grid {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+  }
+
+  .directora-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    position: sticky;
+    top: 120px;
+  }
+
+  @media (max-width: 992px) {
+    .directora-aside {
+      position: relative;
+      top: 0;
+    }
+  }
+
+  .foto-wrapper {
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    aspect-ratio: 3 / 4;
+    background-color: var(--color-gris);
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+
+  .directora-foto {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    display: block;
+    filter: grayscale(10%);
+    transition: filter 0.4s ease;
+  }
+
+  .foto-wrapper:hover .directora-foto {
+    filter: grayscale(0%);
+  }
+
+  .foto-placeholder {
+    display: none;
+    position: absolute;
+    inset: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    background-color: var(--color-gris);
+    color: var(--color-acento);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .foto-placeholder span:first-child {
+    font-size: 3rem;
+  }
+
+  .directora-datos-rapidos {
+    background: var(--color-gris);
+    border: 1px solid rgba(0,0,0,0.03);
+    border-radius: 4px;
+    padding: 2rem;
+  }
+
+  .directora-datos-rapidos h3 {
+    color: var(--color-principal);
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+
+  .datos-line {
+    width: 35px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin-bottom: 1.5rem;
+  }
+
+  .datos-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .datos-list li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .dato-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--color-acento);
+  }
+
+  .dato-valor {
+    font-size: 0.92rem;
+    color: var(--color-texto);
+    line-height: 1.5;
+  }
+
+  .directora-bio {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  .bio-section h2 {
+    color: var(--color-principal);
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .section-line {
+    width: 35px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 0.6rem 0 1.5rem 0;
+  }
+
+  .bio-section p {
+    font-size: 1.05rem;
+    color: var(--color-texto);
+    line-height: 1.8;
+    opacity: 0.9;
+    margin-bottom: 1rem;
+    text-align: justify;
+  }
+
+  .bio-section p:last-child {
+    margin-bottom: 0;
+  }
+
+  .cita-destacada {
+    border-left: 4px solid var(--color-principal);
+    background: var(--color-gris);
+    padding: 2rem 2.5rem;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .cita-destacada blockquote {
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--color-texto);
+    line-height: 1.8;
+    margin: 0;
+    opacity: 0.85;
+  }
+
+  .back-link-wrapper {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-gris);
+  }
+
+  .back-link {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-principal);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .back-link:hover {
+    color: var(--color-acento);
+  }
+</style>
