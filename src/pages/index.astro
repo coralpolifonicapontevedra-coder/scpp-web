@@ -30,6 +30,9 @@ const proximosConciertos = [
       <p>
         Unha das agrupacións corais maiis antigas de Galicia e institución de referencia. Mantemos vivo o compromiso coa difusión do noso patrimonio a través da polifonía renacentista, a música medieval, sacra e a canción popular galega harmonizada.
       </p>
+      <div class="intro-action">
+        <a href="/benvida" class="btn-esencia">Descubre a nosa esencia</a>
+      </div>
     </div>
   </section>
 
@@ -123,6 +126,24 @@ const proximosConciertos = [
     font-size: 1.15rem;
     color: var(--color-texto);
     opacity: 0.9;
+  }
+
+  .intro-action {
+    margin-top: 2.5rem;
+  }
+
+  .btn-esencia {
+    color: var(--color-principal);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 2px solid var(--color-acento);
+    padding-bottom: 4px;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .btn-esencia:hover {
+    color: var(--color-acento);
+    border-color: var(--color-principal);
   }
 
   .agenda-section {
