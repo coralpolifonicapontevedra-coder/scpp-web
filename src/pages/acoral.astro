@@ -4,6 +4,7 @@ import BaseLayout from '../layouts/Layout.astro';
 
 const seccions = [
   { id: 'historia', titulo: 'Historia' },
+  { id: 'centenario', titulo: 'Centenario' },
   { id: 'directora', titulo: 'Directora' },
   { id: 'xunta', titulo: 'Xunta Directiva' },
   { id: 'coralistas', titulo: 'Coralistas' },
@@ -26,6 +27,10 @@ const seccions = [
                 <a href="/historia">{sec.titulo}</a>
               ) : sec.id === 'directora' ? (
                 <a href="/directora">{sec.titulo}</a>
+              ) : sec.id === 'xunta' ? (
+                <a href="/xunta-directiva">{sec.titulo}</a>
+              ) : sec.id === 'premios' ? (
+                <a href="/distincions">{sec.titulo}</a>
               ) : (
                 <a href={`#${sec.id}`}>{sec.titulo}</a>
               )}
@@ -50,6 +55,29 @@ const seccions = [
         <a href="/historia" class="btn-institucional">Descubrir a nosa historia</a>
       </section>
 
+
+      <!-- CENTENARIO -->
+      <section id="centenario" class="coral-section-card">
+        <h2>Centenario</h2>
+        <div class="section-line"></div>
+
+        <p>
+          Entre 2025 e 2026, a Sociedade Coral Polifónica de Pontevedra celebrou
+          o seu primeiro século de historia cun amplo programa de concertos,
+          exposicións, conferencias e recoñecementos institucionais.
+        </p>
+
+        <p>
+          O concerto de San Francisco, a homenaxe da Sociedade Filharmónica,
+          o Premio Otero Pedrayo, a Medalla Marcial del Adalid, a Vieira de Honra
+          e a estrea de <em>Leucoíña. O canto das augas</em> forman parte desta celebración.
+        </p>
+
+        <a href="/centenario" class="btn-institucional">
+          Descubrir o centenario
+        </a>
+      </section>
+
       <!-- DIRECTORA -->
       <section id="directora" class="coral-section-card">
         <h2>Directora</h2>
@@ -67,12 +95,18 @@ const seccions = [
       <section id="xunta" class="coral-section-card">
         <h2>Xunta Directiva</h2>
         <div class="section-line"></div>
-        <p>Órgano de goberno da Sociedade encargado da xestión institucional, loxística e organizativa:</p>
-        <ul class="clean-list">
-          <li><strong>Presidente:</strong> José Raposeiras Correa</li>
-          <li><strong>Secretario:</strong> [Nome do Secretario]</li>
-          <li><strong>Tesoureiro:</strong> [Nome do Tesoureiro]</li>
-        </ul>
+        <p>
+          A Xunta Directiva é o equipo de persoas que coordina o día a día da Sociedade,
+          organiza a actividade da Coral, coida do seu patrimonio e representa a institución
+          ante outras entidades.
+        </p>
+        <p>
+          O equipo elixido en 2026 desenvolve esta tarefa de maneira altruísta,
+          combinando a xestión da asociación coa participación activa na vida coral.
+        </p>
+        <a href="/xunta-directiva" class="btn-institucional">
+          Coñecer a Xunta Directiva
+        </a>
       </section>
 
       <!-- CORALISTAS -->
@@ -86,7 +120,18 @@ const seccions = [
       <section id="premios" class="coral-section-card">
         <h2>Distincións</h2>
         <div class="section-line"></div>
-        <p>Galardóns, medallas institucionais e distincións outorgadas á Sociedade ao longo do seu século de historia cultural e compromiso co canto...</p>
+        <p>
+          Ao longo da súa historia, a Sociedade Coral Polifónica de Pontevedra recibiu
+          numerosos premios, medallas e recoñecementos institucionais pola súa achega
+          á música, á cultura galega e á vida da cidade.
+        </p>
+        <p>
+          Desde as primeiras distincións do século XX ata os galardóns concedidos no
+          ano do centenario, estas homenaxes forman parte da memoria colectiva da entidade.
+        </p>
+        <a href="/distincions" class="btn-institucional">
+          Consultar as distincións
+        </a>
       </section>
 
       <!-- COLABORACIÓNS -->

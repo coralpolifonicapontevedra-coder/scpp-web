@@ -1,0 +1,473 @@
+---
+/* src/pages/centenario.astro */
+import BaseLayout from '../layouts/Layout.astro';
+
+const eventos = [
+  {
+    data: '26 de marzo e 8 de abril de 2025',
+    titulo: 'Selo conmemorativo e presentación oficial',
+    lugar: 'Correos · Edificio Castelao do Museo de Pontevedra',
+    texto: 'Correos dedicou á Sociedade Coral Polifónica de Pontevedra un selo da serie «Efemérides» con motivo do centenario. A emisión realizouse o 26 de marzo e a presentación oficial celebrouse o 8 de abril no Museo de Pontevedra, cun acto institucional e o tradicional mataselos de honra.',
+    imaxe: '/img/centenario/02-presentacion-selo.webp',
+    alt: 'Presentación oficial do selo conmemorativo do centenario no Museo de Pontevedra',
+    pe: 'Emisión do selo conmemorativo e presentación oficial con mataselos de honra.'
+  },
+  {
+    data: '9 de abril de 2025',
+    titulo: 'Concerto do centenario en San Francisco',
+    lugar: 'Igrexa conventual de San Francisco · Pontevedra',
+    texto: 'Cen anos despois da primeira presentación pública da Coral, a igrexa de San Francisco acolleu un concerto conmemorativo que recuperou a memoria daquela actuación fundacional de 1925.',
+    imaxe: '/img/centenario/03-concerto-san-francisco.webp',
+    alt: 'Concerto do centenario da Coral na igrexa de San Francisco',
+    pe: 'Concerto conmemorativo do 9 de abril de 2025.'
+  },
+  {
+    data: '2 de xuño de 2025',
+    titulo: 'Homenaxe da Sociedade Filharmónica',
+    lugar: 'Teatro Principal · Pontevedra',
+    texto: 'A Sociedade Filharmónica de Pontevedra organizou un concerto homenaxe á Coral no Teatro Principal, escenario do seu primeiro gran concerto de 1926.',
+    imaxe: '/img/centenario/04-filarmonica-teatro-principal.webp',
+    alt: 'Concerto homenaxe da Sociedade Filharmónica no Teatro Principal',
+    pe: 'Concerto homenaxe organizado pola Sociedade Filharmónica de Pontevedra.'
+  },
+  {
+    data: '4 de xuño de 2025',
+    titulo: 'Pontevedreses do Ano',
+    lugar: 'Auditorio de Afundación · Pontevedra',
+    texto: 'A Sociedade foi distinguida na categoría de Música e Cultura. A Coral pechou a gala interpretando «Si vas a San Benitiño», de Antonio Blanco Porto.',
+    imaxe: '/img/centenario/05-pontevedreses-do-ano.webp',
+    alt: 'Entrega do premio Pontevedreses do Ano á Coral Polifónica',
+    pe: 'Entrega do recoñecemento Pontevedreses do Ano 2025.'
+  },
+  {
+    data: '2025',
+    titulo: 'Exposición do centenario',
+    lugar: 'Edificio Castelao · Museo de Pontevedra',
+    texto: 'A exposición reuniu fotografías, documentos, programas, partituras, gravacións e materiais escenográficos que permitiron percorrer cen anos de historia musical e institucional.',
+    imaxe: '/img/centenario/06-exposicion-centenario.webp',
+    alt: 'Exposición do centenario da Coral no Museo de Pontevedra',
+    pe: 'Exposición dedicada aos cen anos da Sociedade.'
+  },
+  {
+    data: '2025',
+    titulo: 'Xornada de conferencias',
+    lugar: 'Teatro Principal · Pontevedra',
+    texto: 'O Teatro Principal acolleu unha xornada de estudo e divulgación arredor da historia, da música, da escena e do legado da Sociedade, coa participación de especialistas e persoas vinculadas á institución.',
+    imaxe: '/img/centenario/07-conferencias-teatro-principal.webp',
+    alt: 'Xornada de conferencias do centenario no Teatro Principal',
+    pe: 'Conferencias e intervencións musicais arredor da historia da Coral.'
+  },
+  {
+    data: '11 de decembro de 2025',
+    titulo: 'Premio Otero Pedrayo',
+    lugar: 'Pazo da Deputación · Pontevedra',
+    texto: 'A Sociedade recibiu un dos grandes recoñecementos do centenario pola súa contribución á dignificación e á proxección da cultura galega. O acto incluíu unha audición da Coral.',
+    imaxe: '/img/centenario/08-premio-otero-pedrayo.webp',
+    alt: 'Entrega do Premio Otero Pedrayo á Sociedade Coral Polifónica',
+    pe: 'Acto de entrega do Premio Otero Pedrayo 2025.'
+  },
+  {
+    data: '13 de decembro de 2025',
+    titulo: 'Medalla de Ouro «Marcial del Adalid»',
+    lugar: 'Edificio Castelao · Museo de Pontevedra',
+    texto: 'A Real Academia Galega de Belas Artes entregou á Sociedade a Medalla de Ouro «Marcial del Adalid». A cerimonia incluíu a laudatio de Rosa Cedrón e un recital da Coral.',
+    imaxe: '/img/centenario/09-marcial-del-adalid.webp',
+    alt: 'Entrega da Medalla Marcial del Adalid á Coral Polifónica',
+    pe: 'Entrega da Medalla de Ouro «Marcial del Adalid».'
+  },
+  {
+    data: '20 de decembro de 2025',
+    titulo: 'Concerto de Nadal e «Missa Brevis»',
+    lugar: 'Igrexa conventual de San Francisco · Pontevedra',
+    texto: 'A Coral e a Banda de Música de Pontevedra compartiron un dos grandes concertos do centenario, cun programa que incluíu a «Missa Brevis» de Jacob de Haan e unha selección de panxoliñas.',
+    imaxe: '/img/centenario/10-missa-brevis.webp',
+    alt: 'Concerto de Nadal coa Missa Brevis na igrexa de San Francisco',
+    pe: 'Concerto de Nadal do centenario coa Banda de Música de Pontevedra.'
+  },
+  {
+    data: '23 de marzo de 2026',
+    titulo: '«Leucoíña. O canto das augas»',
+    lugar: 'Auditorio de Afundación · Pontevedra',
+    texto: 'A Sociedade Coral Polifónica de Pontevedra e a Orquestra Sinfónica de Pontevedra estrearon a cantata «Leucoíña. O canto das augas», composta por Brais González. O concerto clausurou oficialmente os actos do centenario.',
+    imaxe: '/img/centenario/11-leucoina.webp',
+    alt: 'Concerto Leucoíña no Auditorio de Afundación de Pontevedra',
+    pe: 'Estrea de «Leucoíña. O canto das augas» no Auditorio de Afundación.'
+  },
+  {
+    data: '28 de marzo de 2026',
+    titulo: 'Vieira de Honra á Calidade Artística',
+    lugar: 'LVIII Cabido Xeral da Enxebre Orde da Vieira · Madrid',
+    texto: 'A Fundación Cultural da Vieira recoñeceu a traxectoria centenaria da Sociedade e a súa contribución á difusión da música coral galega.',
+    imaxe: '/img/centenario/12-vieira-de-honra.webp',
+    alt: 'Entrega da Vieira de Honra á Calidade Artística',
+    pe: 'Vieira de Honra á Calidade Artística, Madrid, 28 de marzo de 2026.'
+  }
+];
+---
+
+<BaseLayout title="Centenario | Sociedade Coral Polifónica de Pontevedra" lang="gl">
+  <main class="centenario-page">
+    <header class="centenario-hero">
+      <div class="hero-content">
+        <p class="eyebrow">1925 — 2025</p>
+        <h1>Un século de voces</h1>
+        <p class="hero-lead">
+          Concertos, exposicións, conferencias, recoñecementos e novas creacións
+          para celebrar cen anos de música, memoria e compromiso colectivo.
+        </p>
+        <a class="hero-link" href="#eventos">
+          Percorrer o centenario <span aria-hidden="true">↓</span>
+        </a>
+      </div>
+    </header>
+
+    <section class="centenario-intro">
+      <p class="section-kicker">2025 — 2026</p>
+      <h2>Unha celebración aberta á cidade</h2>
+      <p>
+        O centenario non foi un único acontecemento, senón un programa amplo que
+        recuperou a historia da Sociedade, fixo visible o seu patrimonio e abriu
+        novas vías artísticas para o futuro.
+      </p>
+    </section>
+
+    <section id="eventos" class="events-section" aria-label="Actos do centenario">
+      <div class="events-list">
+        {eventos.map((evento, index) => (
+          <article class="event-card">
+            <div class="event-index">{String(index + 1).padStart(2, '0')}</div>
+
+            <div class="event-image">
+              <img
+                src={evento.imaxe}
+                alt={evento.alt}
+                loading="lazy"
+                onerror="this.closest('.event-image')?.classList.add('image-missing'); this.remove();"
+              />
+              <div class="image-placeholder" aria-hidden="true">
+                <span>Foto do evento</span>
+                <small>{evento.imaxe}</small>
+              </div>
+            </div>
+
+            <div class="event-content">
+              <div class="event-meta">
+                <span>{evento.data}</span>
+                <span>{evento.lugar}</span>
+              </div>
+              <h2>{evento.titulo}</h2>
+              <p>{evento.texto}</p>
+              <p class="event-caption">{evento.pe}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="closing-section">
+      <p class="section-kicker">23 de marzo de 2026</p>
+      <h2>Un final que tamén foi un comezo</h2>
+      <p>
+        A estrea de «Leucoíña. O canto das augas» pechou oficialmente os actos do
+        centenario cunha obra nova creada para a Sociedade, convertendo a memoria
+        acumulada durante cen anos en música para o futuro.
+      </p>
+      <a href="/historia" class="closing-link">
+        Volver á historia <span aria-hidden="true">→</span>
+      </a>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .centenario-page {
+    --wine: var(--color-principal, #5c1926);
+    --gold: var(--color-acento, #a3821a);
+    --ink: #201d1d;
+    --muted: #6f6965;
+    --paper: #f7f5f0;
+    --line: #ded8ce;
+    background: #fff;
+    color: var(--ink);
+    padding-bottom: 7rem;
+  }
+
+  .centenario-hero {
+    min-height: 430px;
+    display: grid;
+    place-items: center;
+    padding: 5rem 1.5rem 6rem;
+    background:
+      radial-gradient(circle at 75% 20%, rgba(225, 202, 123, 0.18), transparent 28%),
+      linear-gradient(135deg, #45101a, #701f30);
+    color: white;
+    text-align: center;
+  }
+
+  .hero-content {
+    width: min(850px, 100%);
+  }
+
+  .eyebrow,
+  .section-kicker {
+    margin: 0 0 1rem;
+    color: var(--gold);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .centenario-hero .eyebrow {
+    color: #e1ca7b;
+  }
+
+  .centenario-hero h1 {
+    margin: 0;
+    color: #fffaf1;
+    font-size: clamp(2.8rem, 7vw, 5rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  .hero-lead {
+    max-width: 700px;
+    margin: 1.5rem auto 0;
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    line-height: 1.75;
+  }
+
+  .hero-link,
+  .closing-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .hero-link {
+    margin-top: 2rem;
+    color: white;
+  }
+
+  .hero-link span,
+  .closing-link span {
+    color: #e1ca7b;
+  }
+
+  .centenario-intro,
+  .events-section,
+  .closing-section {
+    width: min(1080px, calc(100% - 3rem));
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .centenario-intro {
+    max-width: 760px;
+    padding: 5.5rem 0 4.5rem;
+    text-align: center;
+  }
+
+  .centenario-intro h2,
+  .closing-section h2 {
+    margin: 0;
+    color: var(--wine);
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .centenario-intro > p:last-child,
+  .closing-section > p {
+    margin: 1.5rem auto 0;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.85;
+  }
+
+  .events-list {
+    display: grid;
+    gap: 1.6rem;
+  }
+
+  .event-card {
+    display: grid;
+    grid-template-columns: 54px minmax(250px, 360px) 1fr;
+    gap: 1.4rem;
+    align-items: stretch;
+    padding: 1.5rem;
+    border: 1px solid var(--line);
+    background: white;
+  }
+
+  .event-index {
+    color: var(--gold);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding-top: 0.3rem;
+  }
+
+  .event-image {
+    min-height: 235px;
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(135deg, rgba(92, 25, 38, 0.08), rgba(163, 130, 26, 0.12)),
+      var(--paper);
+    border: 1px solid var(--line);
+  }
+
+  .event-image img {
+    width: 100%;
+    height: 100%;
+    min-height: 235px;
+    display: block;
+    object-fit: cover;
+  }
+
+  .image-placeholder {
+    position: absolute;
+    inset: 0;
+    display: none;
+    place-items: center;
+    padding: 1.2rem;
+    text-align: center;
+  }
+
+  .image-missing .image-placeholder {
+    display: grid;
+  }
+
+  .image-placeholder span {
+    display: block;
+    color: var(--wine);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .image-placeholder small {
+    display: block;
+    max-width: 260px;
+    margin-top: 0.6rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+
+  .event-content {
+    padding: 0.3rem 0.4rem 0.3rem 0;
+  }
+
+  .event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.1rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .event-meta span {
+    color: var(--gold);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .event-content h2 {
+    margin: 0;
+    color: var(--wine);
+    font-size: 1.55rem;
+    line-height: 1.25;
+  }
+
+  .event-content > p {
+    color: #4c4744;
+    line-height: 1.8;
+  }
+
+  .event-caption {
+    margin-bottom: 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    color: var(--muted) !important;
+    font-size: 0.88rem;
+    font-style: italic;
+  }
+
+  .closing-section {
+    margin-top: 5rem;
+    padding: 4.5rem 2.5rem;
+    background: var(--paper);
+    text-align: center;
+  }
+
+  .closing-link {
+    margin-top: 2rem;
+    color: var(--wine);
+  }
+
+  .closing-link span {
+    color: var(--gold);
+  }
+
+  @media (max-width: 900px) {
+    .event-card {
+      grid-template-columns: 42px 1fr;
+    }
+
+    .event-image,
+    .event-content {
+      grid-column: 2;
+    }
+
+    .event-image {
+      min-height: 300px;
+    }
+  }
+
+  @media (max-width: 580px) {
+    .centenario-hero {
+      min-height: 380px;
+      padding: 4rem 1.2rem 5rem;
+    }
+
+    .centenario-intro,
+    .events-section,
+    .closing-section {
+      width: min(100% - 2rem, 1080px);
+    }
+
+    .event-card {
+      grid-template-columns: 1fr;
+      padding: 1rem;
+    }
+
+    .event-index,
+    .event-image,
+    .event-content {
+      grid-column: 1;
+    }
+
+    .event-image {
+      min-height: 230px;
+    }
+
+    .event-image img {
+      min-height: 230px;
+    }
+
+    .closing-section {
+      padding: 3.2rem 1.4rem;
+    }
+  }
+</style>
