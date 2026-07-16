@@ -1,12 +1,20 @@
 ---
 /* src/pages/index.astro */
-import BaseLayout from '../layouts/Layout.astro';
-import { Image } from 'astro:assets';
-import rosetonImg from '../assets/roseton.jpg';
+import BaseLayout from "../layouts/Layout.astro";
+import { Image } from "astro:assets";
+import rosetonImg from "../assets/roseton.jpg";
 
 const proximosConciertos = [
-  { fecha: '10 SET 2026', titulo: 'Teatro Colón da Coruña', nota: 'Concerto co motivo do bicentenario do nacemento de Marcial del Adalid.' },
-  { fecha: '07 NOV 2026', titulo: 'Liceo Casino de Pontevedra', nota: 'Cantos do Outono.' }
+  {
+    fecha: "10 SET 2026",
+    titulo: "Teatro Colón da Coruña",
+    nota: "Concerto co motivo do bicentenario do nacemento de Marcial del Adalid.",
+  },
+  {
+    fecha: "07 NOV 2026",
+    titulo: "Liceo Casino de Pontevedra",
+    nota: "Cantos do Outono.",
+  },
 ];
 ---
 
@@ -15,11 +23,19 @@ const proximosConciertos = [
     <div class="hero-box">
       <div class="hero-content">
         <div class="hero-logo-wrapper">
-          <Image src={rosetonImg} alt="Rosetón SCPP" width={180} height={180} class="center-roseton" />
+          <Image
+            src={rosetonImg}
+            alt="Rosetón SCPP"
+            width={180}
+            height={180}
+            class="center-roseton"
+          />
         </div>
         <h1>Sociedade Coral Polifónica de Pontevedra</h1>
         <div class="minimal-line"></div>
-        <p class="hero-subtitle">Fundada en 1925 • Cen anos de patrimonio e polifonía en Galicia</p>
+        <p class="hero-subtitle">
+          Fundada en 1925 • Cen anos de patrimonio e polifonía en Galicia
+        </p>
       </div>
     </div>
   </section>
@@ -28,7 +44,10 @@ const proximosConciertos = [
     <div class="container intro-content">
       <h2>Un Século de Canto</h2>
       <p>
-        Unha das agrupacións corais maiis antigas de Galicia e institución de referencia. Mantemos vivo o compromiso coa difusión do noso patrimonio a través da polifonía renacentista, a música medieval, sacra e a canción popular galega harmonizada.
+        Unha das agrupacións corais maiis antigas de Galicia e institución de
+        referencia. Mantemos vivo o compromiso coa difusión do noso patrimonio a
+        través da polifonía renacentista, a música medieval, sacra e a canción
+        popular galega harmonizada.
       </p>
       <div class="intro-action">
         <a href="/benvida" class="btn-esencia">Descubre a nosa esencia</a>
@@ -41,15 +60,17 @@ const proximosConciertos = [
       <div class="agenda-title-row">
         <h3>📋 Próximos Eventos</h3>
       </div>
-      
+
       <div class="grid-events">
-        {proximosConciertos.map(concierto => (
-          <div class="event-card">
-            <span class="date">{concierto.fecha}</span>
-            <h4>{concierto.titulo}</h4>
-            <p>{concierto.nota}</p>
-          </div>
-        ))}
+        {
+          proximosConciertos.map((concierto) => (
+            <div class="event-card">
+              <span class="date">{concierto.fecha}</span>
+              <h4>{concierto.titulo}</h4>
+              <p>{concierto.nota}</p>
+            </div>
+          ))
+        }
       </div>
 
       <div class="agenda-actions">
@@ -82,12 +103,22 @@ const proximosConciertos = [
     padding: 2rem;
   }
   .hero-logo-wrapper {
+    width: 180px;
+    height: 180px;
     margin-bottom: 2rem;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #090909;
   }
   .center-roseton {
+    width: 100%;
+    height: 100%;
+    max-width: none;
     display: block;
-    height: auto;
+    object-fit: cover;
     border-radius: 50%;
+    transform: translateX(-2px) scale(1.035);
+    transform-origin: center;
   }
   .hero-content h1 {
     color: var(--color-blanco);
@@ -138,7 +169,9 @@ const proximosConciertos = [
     text-decoration: none;
     border-bottom: 2px solid var(--color-acento);
     padding-bottom: 4px;
-    transition: color 0.2s ease, border-color 0.2s ease;
+    transition:
+      color 0.2s ease,
+      border-color 0.2s ease;
   }
 
   .btn-esencia:hover {
