@@ -1,198 +1,592 @@
 ---
 /* src/pages/actualidade.astro */
 import BaseLayout from '../layouts/Layout.astro';
-
-// Datos de mostra reais/simulados para as novas da Coral
-const artigosActualidade = [
-  {
-    id: "homenaxe-antonio-blanco",
-    titulo: "Éxito rotundo na Misa Solemnizada en homenaxe a Antonio Blanco",
-    data: "17 de Novembro, 2025",
-    resumo: "A Basílica de Santa María acolleu a veciños e institucións nun emotivo acto musical polo centenario do nacemento do insigne compositor e director pontevedrés.",
-    categoria: "Crónica",
-    ImaxePlaceholder: "🏛️"
-  },
-  {
-    id: "centenario-scpp-2025",
-    titulo: "A Coral Polifónica de Pontevedra cumpre un século de historia musical",
-    data: "12 de Outubro, 2025",
-    resumo: "Repasamos os fitos máis importantes da nosa traxectoria dende a fundación en 1925 ata nos converter nun piar fundamental do patrimonio cultural galego.",
-    categoria: "Institucional",
-    ImaxePlaceholder: "🎵"
-  },
-  {
-    id: "novas-voces-curso",
-    titulo: "Aberto o prazo de inscrición para a incorporación de novas voces",
-    data: "05 de Setembro, 2025",
-    resumo: "Buscas formar parte dunha das agrupacións históricas de Galicia? Se tes paixón polo canto polifónico, os ensaios de outono son a oportunidade perfecta.",
-    categoria: "Convocatoria",
-    ImaxePlaceholder: "🗣️"
-  }
-];
 ---
 
-<BaseLayout title="Actualidade" lang="gl">
-  <div class="container news-page-wrapper">
-    
-    <header class="news-header">
-      <h1>Actualidade e Novas</h1>
-      <div class="section-line-center"></div>
-      <p class="news-intro">Mantente ao día de toda a crónica social, institucional, concertos recentes e comunicados oficiais da Sociedade Coral Polifónica de Pontevedra.</p>
+<BaseLayout
+  title="Actualidade | Sociedade Coral Polifónica de Pontevedra"
+  description="Publicacións, entrevistas e novas da Sociedade Coral Polifónica de Pontevedra."
+>
+  <main class="actualidade">
+    <header class="cabeceira">
+      <p class="sobrelinea">Sociedade Coral Polifónica de Pontevedra</p>
+      <h1>Actualidade</h1>
+      <p class="introducion">
+        Publicacións, entrevistas e novas arredor da vida da Coral.
+      </p>
     </header>
 
-    <div class="news-grid">
-      {artigosActualidade.map((artigo) => (
-        <article class="news-card">
-          <div class="news-visual-box">
-            <span class="news-icon">{artigo.ImaxePlaceholder}</span>
-            <span class="news-category-tag">{artigo.categoria}</span>
-          </div>
-          
-          <div class="news-content-box">
-            <span class="news-date">{artigo.data}</span>
-            <h2>{artigo.titulo}</h2>
-            <p>{artigo.resumo}</p>
-            
-            <a href={`/actualidade/${artigo.id}`} class="read-more-link">
-              Ler noticia completa →
-            </a>
-          </div>
-        </article>
-      ))}
+    <div id="actualidade-status" class="status" role="status" aria-live="polite">
+      <span class="status-mark" aria-hidden="true"></span>
+      <span id="status-text">Cargando as publicacións…</span>
     </div>
 
-  </div>
+    <section
+      id="publicacion-destacada"
+      class="destacada"
+      aria-labelledby="destacada-titulo"
+      hidden
+    >
+      <p class="etiqueta">Publicación destacada</p>
+      <h2 id="destacada-titulo">
+        <a id="destacada-titulo-ligazon" href="/"></a>
+      </h2>
+
+      <div class="metadatos">
+        <span id="destacada-tipo"></span>
+        <span id="destacada-medio"></span>
+        <time id="destacada-data"></time>
+      </div>
+
+      <a id="destacada-ligazon" class="ligazon-principal" href="/">
+        Ler a ficha completa <span aria-hidden="true">→</span>
+      </a>
+    </section>
+
+    <section id="arquivo-publicacions" class="arquivo" aria-labelledby="ultimas-publicacions" hidden>
+      <div class="titulo-seccion">
+        <h2 id="ultimas-publicacions">Últimas publicacións</h2>
+        <span id="total-publicacions" aria-label="Número de publicacións"></span>
+      </div>
+
+      <div id="lista-publicacions" class="lista-publicacions"></div>
+    </section>
+
+    <div id="error-actions" class="error-actions" hidden>
+      <button id="retry-button" type="button">Tentar de novo</button>
+    </div>
+  </main>
+
+  <script is:inline>
+    (() => {
+      const API_URL = 'https://script.google.com/macros/s/AKfycbwKBDO5bvPxlXhsJTDvQHtx313rfN_BQIb3JX69X_qg6nZUOHDu183AGLh7JTIoN1a9/exec?recurso=publicacions';
+
+      const status = document.getElementById('actualidade-status');
+      const statusText = document.getElementById('status-text');
+      const destacada = document.getElementById('publicacion-destacada');
+      const destacadaTitulo = document.getElementById('destacada-titulo-ligazon');
+      const destacadaTipo = document.getElementById('destacada-tipo');
+      const destacadaMedio = document.getElementById('destacada-medio');
+      const destacadaData = document.getElementById('destacada-data');
+      const destacadaLigazon = document.getElementById('destacada-ligazon');
+      const arquivo = document.getElementById('arquivo-publicacions');
+      const total = document.getElementById('total-publicacions');
+      const lista = document.getElementById('lista-publicacions');
+      const errorActions = document.getElementById('error-actions');
+      const retryButton = document.getElementById('retry-button');
+
+      const clean = (value) => String(value ?? '').trim();
+
+      const isTrue = (value) => {
+        if (value === true) return true;
+        return ['true', 'si', 'sí', 'yes', 'y', '1'].includes(clean(value).toLowerCase());
+      };
+
+      const safeInternalPdf = (value) => {
+        const route = clean(value);
+        return /^\/documentos\/publicacions\/[a-z0-9._-]+\.pdf$/i.test(route)
+          ? route
+          : '';
+      };
+
+      const visibleDate = (isoDate) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate;
+
+        try {
+          return new Intl.DateTimeFormat('gl-ES', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          }).format(new Date(`${isoDate}T00:00:00Z`));
+        } catch {
+          return isoDate;
+        }
+      };
+
+      const normalisePublication = (publication) => ({
+        id: clean(publication?.id),
+        titulo: clean(publication?.titulo),
+        tipo: clean(publication?.tipo),
+        medio: clean(publication?.medio),
+        data: clean(publication?.data),
+        destacada: isTrue(publication?.destacada),
+        rutaWeb: safeInternalPdf(publication?.rutaWeb),
+      });
+
+      const createMeta = (publication) => {
+        const wrapper = document.createElement('div');
+        const date = document.createElement('time');
+        const type = document.createElement('span');
+
+        wrapper.className = 'publicacion-meta';
+        date.dateTime = publication.data;
+        date.textContent = visibleDate(publication.data);
+        type.textContent = publication.tipo;
+        wrapper.append(date, type);
+
+        return wrapper;
+      };
+
+      const createPublication = (publication) => {
+        const article = document.createElement('article');
+        const title = document.createElement('h3');
+        const titleLink = document.createElement('a');
+        const footer = document.createElement('div');
+        const media = document.createElement('span');
+        const readLink = document.createElement('a');
+        const arrow = document.createElement('span');
+
+        article.className = 'publicacion';
+        titleLink.href = publication.rutaWeb;
+        titleLink.textContent = publication.titulo;
+        title.append(titleLink);
+
+        footer.className = 'publicacion-pe';
+        media.textContent = publication.medio;
+        readLink.href = publication.rutaWeb;
+        readLink.setAttribute('aria-label', `Ler a ficha completa: ${publication.titulo}`);
+        readLink.append(document.createTextNode('Ler ficha '));
+        arrow.setAttribute('aria-hidden', 'true');
+        arrow.textContent = '→';
+        readLink.append(arrow);
+        footer.append(media, readLink);
+
+        article.append(createMeta(publication), title, footer);
+        return article;
+      };
+
+      const render = (publications) => {
+        const cleanPublications = publications
+          .map(normalisePublication)
+          .filter((publication) => publication.titulo && publication.rutaWeb)
+          .sort((left, right) => right.data.localeCompare(left.data));
+
+        if (!cleanPublications.length) {
+          status.classList.remove('is-loading', 'is-error');
+          statusText.textContent = 'Non hai publicacións dispoñibles neste momento.';
+          return;
+        }
+
+        const featured = cleanPublications.find((publication) => publication.destacada)
+          ?? cleanPublications[0];
+        const remaining = cleanPublications.filter((publication) => publication !== featured);
+
+        destacadaTitulo.textContent = featured.titulo;
+        destacadaTitulo.href = featured.rutaWeb;
+        destacadaTipo.textContent = featured.tipo;
+        destacadaMedio.textContent = featured.medio;
+        destacadaData.dateTime = featured.data;
+        destacadaData.textContent = visibleDate(featured.data);
+        destacadaLigazon.href = featured.rutaWeb;
+        destacada.hidden = false;
+
+        lista.replaceChildren(...remaining.map(createPublication));
+        total.textContent = String(remaining.length);
+        arquivo.hidden = remaining.length === 0;
+        status.hidden = true;
+      };
+
+      const loadPublications = async () => {
+        status.hidden = false;
+        status.classList.add('is-loading');
+        status.classList.remove('is-error');
+        statusText.textContent = 'Cargando as publicacións…';
+        destacada.hidden = true;
+        arquivo.hidden = true;
+        errorActions.hidden = true;
+        retryButton.disabled = true;
+
+        try {
+          const response = await fetch(API_URL, {
+            method: 'GET',
+            cache: 'no-store',
+            redirect: 'follow',
+          });
+
+          if (!response.ok) throw new Error(`Resposta HTTP ${response.status}`);
+
+          const data = await response.json();
+          if (!data?.ok || !Array.isArray(data.publicacions)) {
+            throw new Error('Formato de resposta non válido');
+          }
+
+          render(data.publicacions);
+        } catch (error) {
+          status.classList.remove('is-loading');
+          status.classList.add('is-error');
+          statusText.textContent = 'Non foi posible cargar agora as publicacións.';
+          errorActions.hidden = false;
+        } finally {
+          retryButton.disabled = false;
+        }
+      };
+
+      retryButton?.addEventListener('click', loadPublications);
+      loadPublications();
+    })();
+  </script>
 </BaseLayout>
 
 <style>
-  .news-page-wrapper {
-    padding-top: 4rem;
-    padding-bottom: 6rem;
+  .actualidade {
+    --wine: var(--color-principal, #6a1b29);
+    --wine-dark: #49121d;
+    --gold: var(--color-acento, #c5a059);
+    --ink: var(--color-texto, #1f1f1f);
+    --muted: #68625b;
+    --paper: #fdfbf7;
+    --soft: #f4f0e6;
+    --line: rgba(106, 27, 41, 0.17);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 70vh;
+    padding: clamp(3.5rem, 7vw, 6.5rem) clamp(1.25rem, 5vw, 5rem) clamp(4rem, 8vw, 7rem);
   }
 
-  /* Cabeceira */
-  .news-header {
+  .cabeceira,
+  .status,
+  .destacada,
+  .arquivo,
+  .error-actions {
+    width: min(1180px, 100%);
+    margin-inline: auto;
+  }
+
+  .cabeceira {
+    margin-bottom: clamp(3.5rem, 7vw, 6rem);
     text-align: center;
-    max-width: 800px;
-    margin: 0 auto 4rem auto;
   }
-  .news-header h1 {
-    color: var(--color-principal);
-    font-size: 2.5rem;
+
+  .sobrelinea,
+  .etiqueta {
+    color: var(--wine);
+    font-size: 0.76rem;
     font-weight: 700;
-  }
-  .section-line-center {
-    width: 60px;
-    height: 2px;
-    background-color: var(--color-acento);
-    margin: 1rem auto 1.5rem auto;
-  }
-  .news-intro {
-    font-size: 1.15rem;
-    color: var(--color-texto);
-    opacity: 0.85;
-    line-height: 1.6;
-  }
-
-  /* Grella de tarxetas de novas */
-  .news-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 3rem;
-  }
-
-  .news-card {
-    background: var(--color-blanco);
-    border: 1px solid var(--color-gris);
-    border-radius: 4px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .news-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-  }
-
-  /* Caixa superior para imaxe ou recurso visual */
-  .news-visual-box {
-    background: var(--color-gris);
-    height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    border-bottom: 1px solid rgba(0,0,0,0.02);
-  }
-
-  .news-icon {
-    font-size: 3.5rem;
-  }
-
-  .news-category-tag {
-    position: absolute;
-    bottom: 1rem;
-    left: 1.5rem;
-    background: var(--color-principal);
-    color: var(--color-blanco);
-    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    margin: 0 0 1rem;
     text-transform: uppercase;
-    font-weight: 700;
-    padding: 0.25rem 0.7rem;
-    border-radius: 2px;
-    letter-spacing: 0.05em;
   }
 
-  /* Caixa inferior de texto */
-  .news-content-box {
-    padding: 2rem;
+  .cabeceira h1 {
+    color: var(--wine-dark);
+    font-family: var(--fuente-minimalista, Aptos, Calibri, system-ui, sans-serif);
+    font-size: clamp(3rem, 7vw, 5.75rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    margin: 0;
+  }
+
+  .cabeceira h1::after {
+    background: var(--gold);
+    content: '';
+    display: block;
+    height: 2px;
+    margin: 1.5rem auto 1.75rem;
+    width: 4rem;
+  }
+
+  .introducion {
+    color: var(--muted);
+    font-family: var(--fuente-minimalista, Aptos, Calibri, system-ui, sans-serif);
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
+    line-height: 1.65;
+    margin: 0 auto;
+    max-width: 710px;
+  }
+
+  .status {
+    align-items: center;
+    background: var(--soft);
+    color: var(--muted);
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+    min-height: 8rem;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .status-mark {
+    animation: pulse 1.1s ease-in-out infinite alternate;
+    background: var(--gold);
+    border-radius: 999px;
+    height: 0.55rem;
+    width: 0.55rem;
+  }
+
+  .status:not(.is-loading) .status-mark {
+    animation: none;
+  }
+
+  .status.is-error .status-mark {
+    background: var(--wine);
+  }
+
+  .destacada {
+    border-bottom: 1px solid var(--line);
+    border-top: 1px solid var(--wine);
+    padding: clamp(2.25rem, 5vw, 4.5rem) 0 clamp(3rem, 6vw, 5rem);
+    position: relative;
+  }
+
+  .destacada::before {
+    background: var(--gold);
+    content: '';
+    height: 3px;
+    left: 0;
+    position: absolute;
+    top: -1px;
+    width: 7rem;
+  }
+
+  .destacada h2 {
+    font-family: var(--fuente-minimalista, Aptos, Calibri, system-ui, sans-serif);
+    font-size: clamp(2.25rem, 5.7vw, 5.1rem);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 1.02;
+    margin: 0;
+    max-width: 1000px;
+  }
+
+  .destacada h2 a,
+  .publicacion h3 a {
+    color: var(--wine-dark);
+    text-decoration: none;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.16em;
+    transition: color 180ms ease;
+  }
+
+  .destacada h2 a:hover,
+  .destacada h2 a:focus-visible,
+  .publicacion h3 a:hover,
+  .publicacion h3 a:focus-visible {
+    color: var(--wine);
+    text-decoration: underline;
+  }
+
+  .metadatos {
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.83rem;
+    gap: 0.5rem 1.5rem;
+    letter-spacing: 0.035em;
+    margin-top: 2rem;
+  }
+
+  .metadatos > * + *::before {
+    color: var(--gold);
+    content: '·';
+    margin-right: 1.5rem;
+  }
+
+  .ligazon-principal {
+    align-items: center;
+    border-bottom: 1px solid currentColor;
+    color: var(--wine);
+    display: inline-flex;
+    font-size: 0.82rem;
+    font-weight: 700;
+    gap: 0.65rem;
+    letter-spacing: 0.08em;
+    margin-top: 2.5rem;
+    padding-bottom: 0.4rem;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .ligazon-principal span,
+  .publicacion-pe a span {
+    transition: transform 180ms ease;
+  }
+
+  .ligazon-principal:hover span,
+  .ligazon-principal:focus-visible span,
+  .publicacion-pe a:hover span,
+  .publicacion-pe a:focus-visible span {
+    transform: translateX(0.25rem);
+  }
+
+  .arquivo {
+    margin-top: clamp(4rem, 8vw, 7rem);
+  }
+
+  .titulo-seccion {
+    align-items: baseline;
+    display: flex;
+    gap: 2rem;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .titulo-seccion h2 {
+    color: var(--wine);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .titulo-seccion > span {
+    color: var(--muted);
+    font-size: 1rem;
+  }
+
+  .lista-publicacions {
+    border-top: 1px solid var(--wine);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :global(.publicacion) {
+    border-bottom: 1px solid var(--line);
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    min-height: 310px;
+    padding: 2rem 0 1.75rem;
   }
 
-  .news-date {
-    font-size: 0.8rem;
-    color: var(--color-acento);
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    display: block;
+  :global(.publicacion:nth-child(odd)) {
+    border-right: 1px solid var(--line);
+    padding-right: clamp(1.5rem, 4vw, 3.5rem);
   }
 
-  .news-content-box h2 {
-    font-size: 1.3rem;
-    color: var(--color-texto);
-    line-height: 1.4;
-    margin-bottom: 1rem;
+  :global(.publicacion:nth-child(even)) {
+    padding-left: clamp(1.5rem, 4vw, 3.5rem);
+  }
+
+  :global(.publicacion-meta),
+  :global(.publicacion-pe) {
+    align-items: center;
+    color: var(--muted);
+    display: flex;
+    font-size: 0.75rem;
+    gap: 1rem;
+    justify-content: space-between;
+    letter-spacing: 0.045em;
+  }
+
+  :global(.publicacion-meta span) {
+    color: var(--gold);
     font-weight: 700;
+    text-transform: uppercase;
   }
 
-  .news-content-box p {
-    font-size: 0.95rem;
-    color: #555;
-    line-height: 1.6;
-    margin-bottom: 2rem;
-    flex-grow: 1; /* Empuxa o botón "Ler máis" sempre abaixo de todo */
+  :global(.publicacion h3) {
+    font-family: var(--fuente-minimalista, Aptos, Calibri, system-ui, sans-serif);
+    font-size: clamp(1.7rem, 3vw, 2.45rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+    margin: 2rem 0 3rem;
+    max-width: 500px;
   }
 
-  .read-more-link {
-    font-size: 0.9rem;
-    color: var(--color-principal);
+  :global(.publicacion h3 a) {
+    color: var(--wine-dark);
     text-decoration: none;
-    font-weight: 600;
-    transition: color 0.2s ease;
   }
 
-  .read-more-link:hover {
-    color: var(--color-acento);
+  :global(.publicacion h3 a:hover),
+  :global(.publicacion h3 a:focus-visible) {
+    color: var(--wine);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.16em;
   }
 
-  /* Responsivo para pantallas máis pequenas */
-  @media (max-width: 400px) {
-    .news-grid {
+  :global(.publicacion-pe) {
+    margin-top: auto;
+  }
+
+  :global(.publicacion-pe a) {
+    align-items: center;
+    color: var(--wine);
+    display: inline-flex;
+    font-weight: 700;
+    gap: 0.45rem;
+    text-decoration: none;
+  }
+
+  .error-actions {
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .error-actions button {
+    background: transparent;
+    border: 1px solid var(--wine);
+    color: var(--wine);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.8rem 1.2rem;
+    text-transform: uppercase;
+  }
+
+  .error-actions button:hover,
+  .error-actions button:focus-visible {
+    background: var(--wine);
+    color: white;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  @keyframes pulse {
+    from { opacity: 0.35; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1.15); }
+  }
+
+  @media (max-width: 720px) {
+    .metadatos {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .metadatos > * + *::before {
+      content: none;
+    }
+
+    .lista-publicacions {
       grid-template-columns: 1fr;
+    }
+
+    :global(.publicacion) {
+      min-height: 0;
+      padding: 1.75rem 0;
+    }
+
+    :global(.publicacion:nth-child(odd)) {
+      border-right: 0;
+      padding-right: 0;
+    }
+
+    :global(.publicacion:nth-child(even)) {
+      padding-left: 0;
+    }
+
+    :global(.publicacion h3) {
+      margin: 1.5rem 0 2.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .status-mark {
+      animation: none;
+    }
+
+    .ligazon-principal span,
+    :global(.publicacion-pe a span) {
+      transition: none;
     }
   }
 </style>

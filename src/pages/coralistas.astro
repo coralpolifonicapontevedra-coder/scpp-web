@@ -1,0 +1,438 @@
+---
+import BaseLayout from '../layouts/Layout.astro';
+
+const gruposVoz = [
+  { clave: 'Soprano', titulo: 'Sopranos', numero: '01' },
+  { clave: 'Contralto', titulo: 'Contraltos', numero: '02' },
+  { clave: 'Tenor', titulo: 'Tenores', numero: '03' },
+  { clave: 'Baixo', titulo: 'Baixos', numero: '04' },
+];
+---
+
+<BaseLayout
+  title="Coralistas | Sociedade Coral Polifónica de Pontevedra"
+  description="Cantoras e cantores da Sociedade Coral Polifónica de Pontevedra, organizados por cordas."
+>
+  <main class="coralistas-page">
+    <header class="page-header">
+      <p class="eyebrow">As voces da Sociedade</p>
+      <h1>Coralistas</h1>
+      <p class="intro">
+        Cantoras e cantores que manteñen viva a tradición coral da Sociedade
+        Coral Polifónica de Pontevedra.
+      </p>
+    </header>
+
+    <section class="directory" aria-labelledby="directorio-title">
+      <div class="directory-heading">
+        <div>
+          <p class="section-label">Formación actual</p>
+          <h2 id="directorio-title">As nosas voces</h2>
+        </div>
+        <p class="privacy-note">
+          A relación actualízase desde a xestión interna da Sociedade. Só se
+          mostran as persoas autorizadas para figurar na web.
+        </p>
+      </div>
+
+      <div id="coralistas-status" class="status" role="status" aria-live="polite">
+        <span class="status-mark" aria-hidden="true"></span>
+        <span id="status-text">Cargando a relación de coralistas…</span>
+      </div>
+
+      <div id="voices-grid" class="voices-grid" hidden>
+        {
+          gruposVoz.map((grupo) => (
+            <section class="voice-panel" data-voice={grupo.clave} aria-labelledby={`voz-${grupo.clave}`}>
+              <header class="voice-heading">
+                <span class="voice-number" aria-hidden="true">{grupo.numero}</span>
+                <div>
+                  <h3 id={`voz-${grupo.clave}`}>{grupo.titulo}</h3>
+                  <p class="voice-total" data-count>—</p>
+                </div>
+              </header>
+              <ol class="voice-list" data-list />
+            </section>
+          ))
+        }
+      </div>
+
+      <div id="error-actions" class="error-actions" hidden>
+        <button id="retry-button" type="button">Tentar de novo</button>
+      </div>
+    </section>
+  </main>
+
+  <script is:inline>
+    (() => {
+      const API_URL = 'https://script.google.com/macros/s/AKfycbwKBDO5bvPxlXhsJTDvQHtx313rfN_BQIb3JX69X_qg6nZUOHDu183AGLh7JTIoN1a9/exec';
+      const VOICE_ORDER = ['Soprano', 'Contralto', 'Tenor', 'Baixo'];
+      const collator = new Intl.Collator('gl', { sensitivity: 'base' });
+
+      const status = document.getElementById('coralistas-status');
+      const statusText = document.getElementById('status-text');
+      const voicesGrid = document.getElementById('voices-grid');
+      const errorActions = document.getElementById('error-actions');
+      const retryButton = document.getElementById('retry-button');
+
+      const clean = (value) => typeof value === 'string' ? value.trim() : '';
+
+      const comparePeople = (a, b) => {
+        const fields = ['primeiroApelido', 'segundoApelido', 'nome'];
+
+        for (const field of fields) {
+          const comparison = collator.compare(clean(a[field]), clean(b[field]));
+          if (comparison !== 0) return comparison;
+        }
+
+        return 0;
+      };
+
+      const fullName = (person) => [
+        clean(person.nome),
+        clean(person.primeiroApelido),
+        clean(person.segundoApelido),
+      ].filter(Boolean).join(' ');
+
+      const render = (people) => {
+        VOICE_ORDER.forEach((voice) => {
+          const panel = document.querySelector(`[data-voice="${voice}"]`);
+          if (!panel) return;
+
+          const list = panel.querySelector('[data-list]');
+          const count = panel.querySelector('[data-count]');
+          const members = people
+            .filter((person) => clean(person.voz) === voice)
+            .sort(comparePeople);
+
+          list.replaceChildren();
+
+          members.forEach((person, index) => {
+            const item = document.createElement('li');
+            const order = document.createElement('span');
+            const name = document.createElement('span');
+
+            order.className = 'member-number';
+            order.setAttribute('aria-hidden', 'true');
+            order.textContent = String(index + 1).padStart(2, '0');
+
+            name.className = 'member-name';
+            name.textContent = fullName(person);
+
+            item.append(order, name);
+            list.append(item);
+          });
+
+          const suffix = members.length === 1 ? 'voz' : 'voces';
+          count.textContent = `${members.length} ${suffix}`;
+        });
+      };
+
+      const loadPeople = async () => {
+        status.hidden = false;
+        status.classList.remove('is-error');
+        statusText.textContent = 'Cargando a relación de coralistas…';
+        voicesGrid.hidden = true;
+        errorActions.hidden = true;
+        retryButton.disabled = true;
+
+        try {
+          const response = await fetch(API_URL, {
+            method: 'GET',
+            cache: 'no-store',
+            redirect: 'follow',
+          });
+
+          if (!response.ok) throw new Error(`Resposta HTTP ${response.status}`);
+
+          const data = await response.json();
+          if (!data?.ok || !Array.isArray(data.coralistas)) {
+            throw new Error('Formato de resposta non válido');
+          }
+
+          render(data.coralistas);
+          voicesGrid.hidden = false;
+          status.hidden = true;
+        } catch (error) {
+          status.classList.add('is-error');
+          statusText.textContent = 'Non foi posible cargar agora a relación de coralistas.';
+          errorActions.hidden = false;
+        } finally {
+          retryButton.disabled = false;
+        }
+      };
+
+      retryButton?.addEventListener('click', loadPeople);
+      loadPeople();
+    })();
+  </script>
+</BaseLayout>
+
+<style>
+  .coralistas-page {
+    --wine: #6a1b29;
+    --wine-dark: #49121d;
+    --gold: #c5a059;
+    --ink: #1f1f1f;
+    --muted: #68625b;
+    --paper: #fdfbf7;
+    --soft: #f4f0e6;
+    --line: rgba(106, 27, 41, 0.17);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 70vh;
+    padding: clamp(3.5rem, 7vw, 6.5rem) clamp(1.25rem, 5vw, 5rem) clamp(4rem, 8vw, 7rem);
+  }
+
+  .page-header,
+  .directory {
+    width: min(1180px, 100%);
+    margin-inline: auto;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: clamp(3.5rem, 7vw, 6rem);
+  }
+
+  .eyebrow,
+  .section-label {
+    color: var(--wine);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    margin: 0 0 1rem;
+    text-transform: uppercase;
+  }
+
+  .page-header h1 {
+    color: var(--wine-dark);
+    font-family: var(--fuente-minimalista);
+    font-size: clamp(3rem, 7vw, 5.75rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    margin: 0;
+  }
+
+  .page-header h1::after {
+    background: var(--gold);
+    content: '';
+    display: block;
+    height: 2px;
+    margin: 1.5rem auto 1.75rem;
+    width: 4rem;
+  }
+
+  .intro {
+    color: var(--muted);
+    font-family: var(--fuente-minimalista);
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
+    line-height: 1.65;
+    margin: 0 auto;
+    max-width: 710px;
+  }
+
+  .directory-heading {
+    align-items: end;
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 470px);
+    margin-bottom: 2rem;
+    padding-bottom: 1.75rem;
+  }
+
+  .directory-heading h2 {
+    color: var(--wine-dark);
+    font-family: var(--fuente-minimalista);
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    font-weight: 700;
+    line-height: 1;
+    margin: 0;
+  }
+
+  .section-label {
+    margin-bottom: 0.75rem;
+  }
+
+  .privacy-note {
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  .status {
+    align-items: center;
+    background: var(--soft);
+    color: var(--muted);
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+    min-height: 8rem;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .status-mark {
+    animation: pulse 1.1s ease-in-out infinite alternate;
+    background: var(--gold);
+    border-radius: 50%;
+    height: 0.55rem;
+    width: 0.55rem;
+  }
+
+  .status.is-error {
+    color: var(--wine);
+  }
+
+  .status.is-error .status-mark {
+    animation: none;
+    background: var(--wine);
+  }
+
+  .voices-grid {
+    display: grid;
+    gap: 1.4rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .voice-panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  .voice-heading {
+    align-items: start;
+    border-bottom: 2px solid var(--wine);
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: auto 1fr;
+    margin-bottom: 0.4rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .voice-number {
+    color: var(--gold);
+    font-family: var(--fuente-minimalista);
+    font-size: 0.9rem;
+    line-height: 1.2;
+    padding-top: 0.35rem;
+  }
+
+  .voice-heading h3 {
+    color: var(--wine-dark);
+    font-family: var(--fuente-minimalista);
+    font-size: clamp(1.65rem, 3vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1;
+    margin: 0 0 0.5rem;
+  }
+
+  .voice-total {
+    color: var(--muted);
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .voice-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .voice-list :global(li) {
+    align-items: baseline;
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 2rem 1fr;
+    padding: 0.82rem 0;
+  }
+
+  .voice-list :global(li:last-child) {
+    border-bottom: 0;
+  }
+
+  .voice-list :global(.member-number) {
+    color: var(--gold);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+
+  .voice-list :global(.member-name) {
+    color: var(--ink);
+    font-size: 0.96rem;
+    line-height: 1.45;
+  }
+
+  .error-actions {
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .error-actions button {
+    background: var(--wine);
+    border: 1px solid var(--wine);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.85rem 1.35rem;
+    text-transform: uppercase;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .error-actions button:hover,
+  .error-actions button:focus-visible {
+    background: transparent;
+    color: var(--wine);
+  }
+
+  .error-actions button:focus-visible {
+    outline: 3px solid rgba(197, 160, 89, 0.5);
+    outline-offset: 3px;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  @keyframes pulse {
+    from { opacity: 0.35; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1.1); }
+  }
+
+  @media (max-width: 780px) {
+    .directory-heading {
+      align-items: start;
+      grid-template-columns: 1fr;
+    }
+
+    .voices-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 460px) {
+    .coralistas-page {
+      padding-inline: 1rem;
+    }
+
+    .voice-panel {
+      padding-inline: 1.2rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .status-mark {
+      animation: none;
+    }
+  }
+</style>
