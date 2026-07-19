@@ -78,9 +78,14 @@ export const handler = async (event) => {
     }
 
     if (!response.ok || !result?.ok) {
+      const detalle = typeof result?.detalle === 'string'
+        ? result.detalle.slice(0, 300)
+        : '';
+
       return json(502, {
         ok: false,
         erro: result?.erro || 'Non foi posible actualizar os datos',
+        ...(detalle ? { detalle } : {}),
       });
     }
 
