@@ -70,7 +70,10 @@ import BaseLayout from '../layouts/Layout.astro';
 
           const payload = await response.json();
           if (!response.ok || !payload?.ok) {
-            throw new Error(payload?.erro || 'Non foi posible actualizar os datos');
+            const mensaxe = payload?.detalle
+              ? `${payload.erro}: ${payload.detalle}`
+              : payload?.erro;
+            throw new Error(mensaxe || 'Non foi posible actualizar os datos');
           }
 
           result.textContent = payload.mensaxe;
