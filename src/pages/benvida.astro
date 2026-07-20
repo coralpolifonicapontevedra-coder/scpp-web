@@ -1,0 +1,308 @@
+---
+import BaseLayout from '../layouts/Layout.astro';
+import { Image } from 'astro:assets';
+import benvidaImg from '../assets/benvida-2026.jpg';
+---
+
+<BaseLayout title="Descubre a nosa esencia" lang="gl">
+
+  <div class="container benvida-page-wrapper">
+
+    <div class="page-header">
+      <p class="page-kicker">DESCUBRE A NOSA ESENCIA</p>
+      <h1>Benvida á Sociedade Coral Polifónica de Pontevedra</h1>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="benvida-card">
+
+      <aside class="benvida-image-container">
+        <Image
+          src={benvidaImg}
+          alt="Sociedade Coral Polifónica de Pontevedra"
+          class="benvida-image"
+        />
+      </aside>
+
+      <article class="benvida-content">
+
+        <p class="lead">
+          É unha satisfacción darvos a benvida á páxina web da Sociedade Coral Polifónica de Pontevedra.
+        </p>
+
+        <p>
+          Desde aquí queremos achegarvos á historia, á actividade e ao espírito dunha institución
+          que leva máis dun século facendo da música unha parte esencial da vida cultural de
+          Pontevedra.
+        </p>
+
+        <p>
+          A nosa Coral é o resultado do compromiso, da ilusión e da dedicación de centos de
+          persoas que, ao longo de máis de cen anos, compartiron unha mesma paixón.
+          Grazas a elas conservamos un legado que temos a responsabilidade de coidar
+          e seguir enriquecendo para as futuras xeracións.
+        </p>
+
+        <p>
+          A música une persoas, emociona e crea vínculos que perduran no tempo.
+          Ese é o espírito que nos inspira cada día e que queremos compartir con todas
+          as persoas que forman parte desta gran familia, así como con quen desexe
+          coñecernos, acompañarnos nos nosos concertos ou achegarse por primeira vez
+          á música coral.
+        </p>
+
+        <p>
+          A nosa vocación é preservar o patrimonio musical que recibimos, promover a cultura
+          coral e seguir facendo da música un punto de encontro entre xeracións.
+          Con cada ensaio e con cada concerto renovamos o compromiso de manter viva
+          unha institución centenaria que continúa mirando ao futuro con ilusión.
+        </p>
+
+        <p>
+          A Xunta Directiva quere expresar o seu agradecemento a todas as persoas
+          que, ao longo da nosa historia, contribuíron co seu esforzo, dedicación
+          e xenerosidade a facer posible que a Sociedade Coral Polifónica de Pontevedra
+          chegase ata aquí.
+          O seu exemplo é a mellor inspiración para seguir construíndo o futuro
+          mantendo vivos os valores que nos identifican.
+        </p>
+
+        <p>
+          Agardamos que esta visita sexa o comezo dun vínculo duradeiro coa nosa Coral.
+        </p>
+
+        <p>
+          <strong>Grazas por acompañarnos.</strong>
+        </p>
+
+        <div class="signature">
+
+          <div class="signature-line"></div>
+
+          <p class="signature-name">
+            A Xunta Directiva
+          </p>
+
+          <p class="signature-org">
+            Sociedade Coral Polifónica de Pontevedra
+          </p>
+
+        </div>
+
+        <div class="next-section">
+
+          <h3>Continúa coñecendo a nosa Coral</h3>
+
+          <nav class="next-nav">
+
+            <a href="/historia">
+              Historia
+            </a>
+
+            <a href="/directora">
+              Directora
+            </a>
+
+            <a href="/xunta-directiva">
+              Xunta Directiva
+            </a>
+
+            <a href="/coralistas">
+              Coralistas
+            </a>
+
+          </nav>
+
+        </div>
+
+      </article>
+
+    </div>
+
+  </div>
+
+</BaseLayout>
+
+<style>
+
+.benvida-page-wrapper{
+    padding-top:4rem;
+    padding-bottom:6rem;
+}
+
+/* HEADER NORMAL (sen sticky) */
+.page-header{
+    text-align:center;
+    margin-bottom:4rem;
+    background: var(--color-fondo);
+    padding: 1.2rem 0;
+}
+
+.page-kicker{
+    letter-spacing:.18em;
+    font-size:.68rem; /* subtítulo máis pequeno */
+    font-weight:700;
+    color:var(--color-acento);
+    margin-bottom:.5rem;
+}
+
+.page-header h1{
+    font-size:2.2rem;
+    color:var(--color-principal);
+    line-height:1.2;
+}
+
+.section-line{
+    width:60px;
+    height:2px;
+    background:var(--color-acento);
+    margin:1.2rem auto 0 auto;
+}
+
+.benvida-card{
+    display:grid;
+    grid-template-columns:42% 58%;
+    gap:4rem;
+    align-items:start;
+    margin-top: 2rem;
+}
+
+/* IMAXE STICKY MANTIDA */
+.benvida-image-container{
+    position:sticky;
+    top:200px;
+}
+
+.benvida-image{
+    width:100%;
+    display:block;
+    height:auto;
+    object-fit:cover;
+    border-radius:8px;
+    padding:10px;
+    background:white;
+    box-shadow:0 14px 35px rgba(0,0,0,.08);
+    border:1px solid #ececec;
+}
+
+.benvida-content{
+    max-width:680px;
+}
+
+.lead{
+    font-size:1.25rem;
+    font-style:italic;
+    color:var(--color-principal);
+    line-height:1.8;
+    margin-bottom:2rem;
+}
+
+.benvida-content p{
+    font-size:1.08rem;
+    line-height:1.9;
+    color:var(--color-texto);
+    margin-bottom:1.6rem;
+}
+
+.signature{
+    margin-top:4rem;
+    padding-top:2rem;
+}
+
+.signature-line{
+    width:80px;
+    height:1px;
+    background:var(--color-acento);
+    margin-bottom:1.5rem;
+}
+
+.signature-name{
+    font-size:1.05rem;
+    font-weight:700;
+    color:var(--color-principal);
+    margin-bottom:.2rem !important;
+}
+
+.signature-org{
+    font-size:.95rem;
+    color:#666;
+    margin-bottom:0 !important;
+}
+
+.next-section{
+    margin-top:5rem;
+    padding-top:2.5rem;
+    border-top:1px solid var(--color-gris);
+}
+
+.next-section h3{
+    font-size:1.1rem;
+    color:var(--color-principal);
+    margin-bottom:1.5rem;
+}
+
+.next-nav{
+    display:flex;
+    flex-wrap:wrap;
+    gap:1.5rem 2.5rem;
+}
+
+.next-nav a{
+    text-decoration:none;
+    color:var(--color-principal);
+    font-weight:600;
+    transition:all .25s ease;
+    border-bottom:1px solid transparent;
+    padding-bottom:.15rem;
+}
+
+.next-nav a:hover{
+    color:var(--color-acento);
+    border-bottom-color:var(--color-acento);
+}
+
+@media (max-width:1100px){
+    .benvida-card{
+        grid-template-columns:1fr;
+        gap:3rem;
+    }
+
+    .benvida-image-container{
+        position:relative;
+        top:0;
+        max-width:720px;
+        margin:0 auto;
+    }
+
+    .benvida-content{
+        max-width:100%;
+    }
+}
+
+@media (max-width:768px){
+
+    .benvida-page-wrapper{
+        padding-top:2rem;
+        padding-bottom:4rem;
+    }
+
+    .page-header h1{
+        font-size:1.8rem;
+    }
+
+    .lead{
+        font-size:1.15rem;
+    }
+
+    .benvida-content p{
+        font-size:1rem;
+        line-height:1.8;
+    }
+
+    .next-nav{
+        flex-direction:column;
+        gap:1rem;
+    }
+}
+
+</style>

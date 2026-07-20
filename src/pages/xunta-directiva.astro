@@ -1,0 +1,375 @@
+---
+/* src/pages/xunta-directiva.astro */
+import BaseLayout from '../layouts/Layout.astro';
+
+const secretariaAdministracion = [
+  {
+    nome: 'Joaquín Cuiñas Rodríguez',
+    cargo: 'Secretario',
+    texto: 'Encárgase da documentación da asociación, das comunicacións oficiais e da coordinación administrativa.'
+  },
+  {
+    nome: 'Marta Valbuena Aguado',
+    cargo: 'Vicesecretaria',
+    texto: 'Colabora nas tarefas organizativas e substitúe á secretaría cando é necesario.'
+  },
+  {
+    nome: 'Gonzalo González González',
+    cargo: 'Tesoureiro',
+    texto: 'Xestiona os recursos económicos da Sociedade e supervisa as contas e os pagamentos.'
+  }
+];
+
+const organizacionPatrimonio = [
+  {
+    nome: 'M.ª del Carmen Martínez Lourido',
+    cargo: 'Vicepresidenta',
+    texto: 'Colabora coa presidencia e participa na coordinación das actividades da Coral.'
+  },
+  {
+    nome: 'Mercedes González Rosales',
+    cargo: 'Contadora',
+    texto: 'Supervisa a contabilidade e o seguimento económico da asociación.'
+  },
+  {
+    nome: 'Antía Fonseca Roque',
+    cargo: 'Arquiveira-bibliotecaria',
+    texto: 'Custodia e organiza o arquivo histórico, musical e documental da Sociedade.'
+  }
+];
+
+const vogais = [
+  { nome: 'Gabriel Bravo Bueno', corda: 'Baixos' },
+  { nome: 'Fernando Marín Gómez', corda: 'Tenores' },
+  { nome: 'M.ª Pilar García Pinal', corda: 'Sopranos' },
+  { nome: 'Raquel Paredes Álvarez', corda: 'Contraltos' }
+];
+---
+
+<BaseLayout title="Xunta Directiva | Sociedade Coral Polifónica de Pontevedra" lang="gl">
+  <main class="xunta-page">
+    <header class="page-header">
+      <p class="eyebrow">Mandato 2026 — actualidade</p>
+      <h1>Xunta Directiva</h1>
+      <p class="lead">
+        A Xunta Directiva é o equipo de persoas que coordina o día a día da
+        Sociedade Coral Polifónica de Pontevedra.
+      </p>
+    </header>
+
+    <figure class="group-photo">
+      <img
+        src="/img/xunta/xunta-directiva-2026.webp"
+        alt="Xunta Directiva da Sociedade Coral Polifónica de Pontevedra, mandato 2026"
+      />
+    </figure>
+
+    <section class="intro-section">
+      <p>
+        A súa función é organizar a actividade da Coral, coidar do seu patrimonio
+        histórico e musical e representar a institución ante outras entidades.
+      </p>
+      <p>
+        Todos os seus integrantes desenvolven esta tarefa de maneira altruísta,
+        combinando a xestión da asociación coa súa participación activa na vida coral.
+      </p>
+
+    </section>
+
+    <section class="people-section">
+      <p class="section-kicker">Presidencia</p>
+
+      <article class="person-card">
+        <span class="index">01</span>
+        <div>
+          <h2>José Raposeiras Correa</h2>
+          <p>
+            Representa institucionalmente á Sociedade Coral Polifónica de Pontevedra
+            e coordina o traballo da Xunta Directiva e das distintas actividades da Coral.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="people-section">
+      <p class="section-kicker">Secretaría e administración</p>
+
+      <div class="cards-grid">
+        {secretariaAdministracion.map((persoa, index) => (
+          <article class="person-card">
+            <span class="index">{String(index + 2).padStart(2, '0')}</span>
+            <div>
+              <h2>{persoa.nome}</h2>
+              <p class="role">{persoa.cargo}</p>
+              <p>{persoa.texto}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="people-section soft-section">
+      <p class="section-kicker">Organización e patrimonio</p>
+
+      <div class="cards-grid">
+        {organizacionPatrimonio.map((persoa, index) => (
+          <article class="person-card">
+            <span class="index">{String(index + 5).padStart(2, '0')}</span>
+            <div>
+              <h2>{persoa.nome}</h2>
+              <p class="role">{persoa.cargo}</p>
+              <p>{persoa.texto}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="people-section">
+      <p class="section-kicker">Representación das cordas</p>
+      <p class="section-intro">
+        Cada corda conta cunha persoa representante dentro da Xunta Directiva,
+        que actúa como enlace entre os cantores e a organización da asociación.
+      </p>
+
+      <div class="voices-grid">
+        {vogais.map((vogal, index) => (
+          <article class="voice-card">
+            <span>{String(index + 8).padStart(2, '0')}</span>
+            <h2>{vogal.nome}</h2>
+            <p>{vogal.corda}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="closing-section">
+      <p>
+        A Xunta Directiva traballa para garantir a continuidade dunha institución
+        centenaria e para que a música siga formando parte da vida cultural de Pontevedra.
+      </p>
+
+      <a href="/benvida" class="essence-link">
+        Coñece a nosa historia e os valores que nos inspiran
+        <span aria-hidden="true">→</span>
+      </a>
+
+      <a href="/acoral" class="back-link">
+        Volver a A Coral <span aria-hidden="true">→</span>
+      </a>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .xunta-page {
+    --wine: var(--color-principal, #5c1926);
+    --gold: var(--color-acento, #a3821a);
+    --ink: #201d1d;
+    --muted: #6f6965;
+    --paper: #f7f5f0;
+    --line: #ded8ce;
+    width: min(1080px, calc(100% - 3rem));
+    margin: 0 auto;
+    padding: 4rem 0 7rem;
+    color: var(--ink);
+  }
+
+  .page-header {
+    max-width: 760px;
+    margin: 0 auto 2.5rem;
+    text-align: center;
+  }
+
+  .eyebrow,
+  .section-kicker {
+    margin: 0 0 0.8rem;
+    color: var(--gold);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .page-header h1 {
+    margin: 0;
+    color: var(--wine);
+    font-size: clamp(2.2rem, 4vw, 3rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .lead {
+    max-width: 680px;
+    margin: 1rem auto 0;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.75;
+  }
+
+  .group-photo {
+    margin: 0 auto;
+    max-width: 760px;
+  }
+
+  .group-photo img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid var(--line);
+  }
+
+  .intro-section {
+    max-width: 760px;
+    margin: 3rem auto 5rem;
+    text-align: center;
+  }
+
+  .intro-section p,
+  .section-intro,
+  .person-card p,
+  .closing-section p {
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  .essence-link,
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1.2rem;
+    color: var(--wine);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .essence-link span,
+  .back-link span {
+    color: var(--gold);
+  }
+
+  .people-section {
+    margin-top: 4.5rem;
+  }
+
+  .soft-section {
+    padding: 2.2rem;
+    background: var(--paper);
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .person-card {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 0.9rem;
+    padding: 1.4rem 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .cards-grid .person-card {
+    padding: 1.4rem;
+    border: 1px solid var(--line);
+    background: white;
+  }
+
+  .index {
+    color: var(--gold);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding-top: 0.2rem;
+  }
+
+  .person-card h2,
+  .voice-card h2 {
+    margin: 0;
+    color: var(--wine);
+    font-size: 1.05rem;
+    line-height: 1.35;
+  }
+
+  .role {
+    margin: 0.25rem 0 0.7rem;
+    color: var(--gold) !important;
+    font-size: 0.76rem !important;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .voices-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .voice-card {
+    padding: 1.3rem;
+    border: 1px solid var(--line);
+    background: white;
+  }
+
+  .voice-card > span {
+    color: var(--gold);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  .voice-card h2 {
+    margin-top: 0.8rem;
+  }
+
+  .voice-card p {
+    margin: 0.35rem 0 0;
+    color: var(--gold);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .closing-section {
+    max-width: 760px;
+    margin: 5rem auto 0;
+    padding: 2rem 0 0;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    .cards-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .voices-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .xunta-page {
+      width: min(100% - 2rem, 1080px);
+      padding-top: 2.5rem;
+    }
+
+    .soft-section {
+      padding: 1.2rem;
+    }
+
+    .voices-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

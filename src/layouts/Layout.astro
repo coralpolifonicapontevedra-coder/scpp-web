@@ -1,0 +1,75 @@
+---
+/* src/layouts/layout.astro */
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+const { title, lang = 'gl' } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} | SCPP</title>
+    <link rel="stylesheet" href="/src/styles/global.css" />
+  </head>
+  <body>
+    <Header lang={lang} />
+    
+    <main>
+      <slot />
+    </main>
+
+    <Footer lang={lang} />
+  </body>
+</html>
+
+<style is:global>
+  /* Variables y estilos base mínimos para que el diseño funcione */
+  :root {
+    --color-principal: #6b1d2f; /* Granate institucional */
+    --color-acento: #bd9648;    /* Dorado */
+    --color-blanco: #ffffff;
+    --color-texto: #2d2d2d;
+    --color-gris: #f7f7f7;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Aptos', sans-serif;
+    color: var(--color-texto);
+    background-color: var(--color-blanco);
+    line-height: 1.6;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+</style>
+
+<script is:inline>
+  // O contrasinal que ti decidas para a directiva
+  const CONTRASINAL_SECRETO = "scpp2026"; 
+
+  // Comprobamos se xa puxeron o contrasinal nesta sesión
+  if (sessionStorage.getItem("acceso_coral") !== "concedido") {
+    let intento = prompt("Acceso Protexido - SCPP:\nIntroduce o contrasinal para ver as probas da web:");
+    
+    if (intento === CONTRASINAL_SECRETO) {
+      sessionStorage.setItem("acceso_coral", "concedido");
+    } else {
+      alert("Contrasinal incorrecto.");
+      // Redirixe a unha páxina en branco ou volve pedir
+      window.location.reload();
+    }
+  }
+</script>

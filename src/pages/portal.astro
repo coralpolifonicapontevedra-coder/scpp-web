@@ -1,0 +1,474 @@
+---
+/* src/pages/portal.astro */
+import BaseLayout from '../layouts/Layout.astro';
+---
+
+<BaseLayout title="Portal de Socios" lang="gl">
+  <div class="container portal-page-wrapper">
+    <div class="portal-login-card">
+      <header class="portal-card-header">
+        <span class="portal-lock-icon" aria-hidden="true">🔒</span>
+        <h1>Portal de Socios</h1>
+        <div class="section-line-center"></div>
+        <p>
+          Introduce as túas credenciais autorizadas para acceder ao espazo
+          interno da Sociedade Coral Polifónica de Pontevedra.
+        </p>
+      </header>
+
+      <form class="portal-form" id="portal-form" novalidate>
+        <div class="form-group">
+          <label for="email-socio">Correo electrónico</label>
+          <input
+            type="email"
+            id="email-socio"
+            name="email"
+            required
+            autocomplete="email"
+            placeholder="Ex. socio@correo.gal"
+          />
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="password-socio">Contrasinal</label>
+            <a href="/contacto" class="forgot-password-link">
+              Esqueciches o contrasinal?
+            </a>
+          </div>
+          <input
+            type="password"
+            id="password-socio"
+            name="password"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••"
+          />
+        </div>
+
+        <section class="privacy-box" aria-labelledby="privacy-title">
+          <h2 id="privacy-title">Protección de datos e condicións de acceso</h2>
+
+          <div class="privacy-text" id="privacy-text" tabindex="0">
+            <p>
+              Os datos facilitados serán tratados pola Sociedade Coral
+              Polifónica de Pontevedra coa finalidade de xestionar o acceso á
+              zona privada da web e á aplicación SCPP Xestión, así como as
+              comunicacións e funcionalidades internas vinculadas á entidade.
+            </p>
+            <p>
+              O acceso é persoal e non transferible. A persoa usuaria
+              comprométese a custodiar as súas credenciais e a empregar a
+              información dispoñible exclusivamente para os fins propios da
+              Sociedade.
+            </p>
+            <p>
+              A aceptación quedará rexistrada coa data e hora, o correo
+              electrónico, a versión do texto legal e os identificadores
+              internos da persoa usuaria. Poderá solicitarse a retirada do
+              consentimento ou o exercicio dos dereitos correspondentes a
+              través da páxina de contacto.
+            </p>
+          </div>
+
+          <label class="privacy-consent" for="acepta-fines">
+            <input
+              type="checkbox"
+              id="acepta-fines"
+              name="aceptaFines"
+              required
+            />
+            <span>
+              Lin e acepto as condicións de acceso e o tratamento dos meus
+              datos para a xestión da zona privada da web e de SCPP Xestión.
+            </span>
+          </label>
+        </section>
+
+        <p
+          id="portal-message"
+          class="portal-message"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></p>
+
+        <button type="submit" class="btn-portal-submit" id="portal-submit">
+          Acceder ao espazo privado
+        </button>
+      </form>
+
+      <footer class="portal-card-footer">
+        <p>
+          Es membro da agrupación pero aínda non tes conta?
+          <a href="/contacto">Solicita o teu acceso á Xunta Directiva</a>.
+        </p>
+      </footer>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const VERSION_TEXTO_LEGAL = 'PRIVACIDADE-WEB-1.0';
+  const AMBITO = 'coralpolifonicapontevedra.org';
+
+  const formulario = document.querySelector('#portal-form');
+  const correoInput = document.querySelector('#email-socio');
+  const contrasinalInput = document.querySelector('#password-socio');
+  const aceptaInput = document.querySelector('#acepta-fines');
+  const mensaxe = document.querySelector('#portal-message');
+  const boton = document.querySelector('#portal-submit');
+  const textoLegal = document.querySelector('#privacy-text');
+
+  function mostrarMensaxe(texto, tipo = 'erro') {
+    if (!(mensaxe instanceof HTMLElement)) return;
+
+    mensaxe.textContent = texto;
+    mensaxe.hidden = false;
+    mensaxe.dataset.tipo = tipo;
+  }
+
+  function ocultarMensaxe() {
+    if (!(mensaxe instanceof HTMLElement)) return;
+
+    mensaxe.textContent = '';
+    mensaxe.hidden = true;
+    delete mensaxe.dataset.tipo;
+  }
+
+  formulario?.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    ocultarMensaxe();
+
+    if (
+      !(correoInput instanceof HTMLInputElement) ||
+      !(contrasinalInput instanceof HTMLInputElement) ||
+      !(aceptaInput instanceof HTMLInputElement) ||
+      !(boton instanceof HTMLButtonElement) ||
+      !(textoLegal instanceof HTMLElement)
+    ) {
+      mostrarMensaxe('Non foi posible iniciar o formulario.');
+      return;
+    }
+
+    const email = correoInput.value.trim().toLowerCase();
+    const password = contrasinalInput.value;
+    const aceptaFines = aceptaInput.checked;
+
+    if (!email || !password) {
+      mostrarMensaxe('Introduce o correo electrónico e o contrasinal.');
+      return;
+    }
+
+    if (!aceptaFines) {
+      mostrarMensaxe(
+        'É necesario aceptar as condicións para acceder ao espazo privado.'
+      );
+      aceptaInput.focus();
+      return;
+    }
+
+    boton.disabled = true;
+    boton.textContent = 'Comprobando acceso…';
+
+    try {
+      const resposta = await fetch('/.netlify/functions/aceptacion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          accion: 'rexistrarAceptacion',
+          version: VERSION_TEXTO_LEGAL,
+          textoLegal: textoLegal.innerText.trim(),
+          aceptaFines: true,
+          ambito: AMBITO
+        })
+      });
+
+      const resultado = await resposta.json().catch(() => null);
+
+      if (!resposta.ok || !resultado?.ok) {
+        throw new Error(
+          resultado?.erro ||
+          resultado?.detalle ||
+          'Non foi posible comprobar o acceso.'
+        );
+      }
+
+      mostrarMensaxe(
+        resultado.mensaxe || 'Aceptación rexistrada correctamente.',
+        'correcto'
+      );
+
+      /*
+       * Cambiar esta ruta pola páxina privada real cando estea creada.
+       * O redireccionamento só debe facerse despois de validar tamén
+       * as credenciais no servidor.
+       */
+      if (resultado.redirect) {
+        window.location.assign(resultado.redirect);
+      }
+    } catch (erro) {
+      mostrarMensaxe(
+        erro instanceof Error
+          ? erro.message
+          : 'Produciuse un erro ao comprobar o acceso.'
+      );
+    } finally {
+      boton.disabled = false;
+      boton.textContent = 'Acceder ao espazo privado';
+    }
+  });
+</script>
+
+<style>
+  .portal-page-wrapper {
+    padding-top: 5rem;
+    padding-bottom: 7rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 250px);
+  }
+
+  .portal-login-card {
+    background: var(--color-blanco);
+    border: 1px solid var(--color-gris);
+    border-radius: 6px;
+    padding: 3.5rem;
+    max-width: 580px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  }
+
+  .portal-card-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .portal-lock-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 1rem;
+  }
+
+  .portal-card-header h1 {
+    color: var(--color-principal);
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .section-line-center {
+    width: 45px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 0.8rem auto 1.2rem;
+  }
+
+  .portal-card-header p {
+    font-size: 0.95rem;
+    color: #666;
+    line-height: 1.5;
+  }
+
+  .portal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-group label,
+  .privacy-consent {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-texto);
+  }
+
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .forgot-password-link {
+    font-size: 0.8rem;
+    color: var(--color-principal);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .forgot-password-link:hover {
+    color: var(--color-acento);
+  }
+
+  .form-group input {
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--color-gris);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--color-texto);
+    background-color: var(--color-blanco);
+    transition: border-color 0.2s ease;
+  }
+
+  .form-group input:focus,
+  .privacy-text:focus {
+    outline: 2px solid color-mix(
+      in srgb,
+      var(--color-principal) 28%,
+      transparent
+    );
+    outline-offset: 2px;
+    border-color: var(--color-principal);
+  }
+
+  .privacy-box {
+    padding: 1.25rem;
+    border: 1px solid var(--color-gris);
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.018);
+  }
+
+  .privacy-box h2 {
+    margin: 0 0 0.9rem;
+    color: var(--color-principal);
+    font-size: 1rem;
+  }
+
+  .privacy-text {
+    max-height: 190px;
+    overflow-y: auto;
+    padding: 0.9rem;
+    border: 1px solid var(--color-gris);
+    border-radius: 4px;
+    background: var(--color-blanco);
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: #555;
+  }
+
+  .privacy-text p {
+    margin: 0 0 0.8rem;
+  }
+
+  .privacy-text p:last-child {
+    margin-bottom: 0;
+  }
+
+  .privacy-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    line-height: 1.45;
+    cursor: pointer;
+  }
+
+  .privacy-consent input {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin-top: 0.12rem;
+    flex: 0 0 auto;
+    accent-color: var(--color-principal);
+  }
+
+  .portal-message {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .portal-message[data-tipo='erro'] {
+    border: 1px solid #b42318;
+    background: #fff4f2;
+    color: #8a1c13;
+  }
+
+  .portal-message[data-tipo='correcto'] {
+    border: 1px solid #39854a;
+    background: #f2fbf4;
+    color: #236532;
+  }
+
+  .btn-portal-submit {
+    display: block;
+    width: 100%;
+    padding: 0.9rem;
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
+    border: none;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition:
+      background-color 0.2s ease,
+      opacity 0.2s ease;
+    margin-top: 0.25rem;
+    text-align: center;
+  }
+
+  .btn-portal-submit:hover:not(:disabled) {
+    background-color: var(--color-acento);
+  }
+
+  .btn-portal-submit:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
+
+  .portal-card-footer {
+    margin-top: 2.5rem;
+    border-top: 1px solid var(--color-gris);
+    padding-top: 1.5rem;
+    text-align: center;
+  }
+
+  .portal-card-footer p {
+    font-size: 0.85rem;
+    color: #777;
+    line-height: 1.4;
+  }
+
+  .portal-card-footer a {
+    color: var(--color-principal);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .portal-card-footer a:hover {
+    color: var(--color-acento);
+  }
+
+  @media (max-width: 576px) {
+    .portal-page-wrapper {
+      padding-top: 2.5rem;
+      padding-bottom: 4rem;
+    }
+
+    .portal-login-card {
+      padding: 2rem 1.25rem;
+    }
+
+    .label-row {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+  }
+</style>

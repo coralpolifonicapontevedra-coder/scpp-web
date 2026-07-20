@@ -1,0 +1,45 @@
+/* src/styles/global.css */
+
+:root {
+  --color-principal: #6A1B29;   /* Granate institucional */
+  --color-acento: #C5A059;      /* Dorado */
+  --color-fondo: #FDFBF7;       /* Blanco roto minimalista */
+  --color-texto: #1F1F1F;       /* Antracita */
+  --color-blanco: #FFFFFF;
+  --color-gris: #F4F0E6;
+  
+  /* Prioridad absoluta a la tipografía Aptos */
+  --fuente-minimalista: 'Aptos', 'Calibri', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+  font-family: var(--fuente-minimalista);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--fuente-minimalista);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-principal);
+}
+
+/* Quitamos subrayados por defecto en toda la web */
+a {
+  text-decoration: none !important;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}

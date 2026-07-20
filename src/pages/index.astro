@@ -1,0 +1,214 @@
+---
+/* src/pages/index.astro */
+import BaseLayout from '../layouts/Layout.astro';
+import { Image } from 'astro:assets';
+import rosetonImg from '../assets/roseton.jpg';
+
+const proximosConciertos = [
+  { fecha: '10 SET 2026', titulo: 'Teatro Colón da Coruña', nota: 'Concerto co motivo do bicentenario do nacemento de Marcial del Adalid.' },
+  { fecha: '07 NOV 2026', titulo: 'Liceo Casino de Pontevedra', nota: 'Cantos do Outono.' }
+];
+---
+
+<BaseLayout title="Inicio" lang="gl">
+  <section class="hero-section">
+    <div class="hero-box">
+      <div class="hero-content">
+        <div class="hero-logo-wrapper">
+          <Image src={rosetonImg} alt="Rosetón SCPP" width={180} height={180} class="center-roseton" />
+        </div>
+        <h1>Sociedade Coral Polifónica de Pontevedra</h1>
+        <div class="minimal-line"></div>
+        <p class="hero-subtitle">Fundada en 1925 • Cen anos de patrimonio e polifonía en Galicia</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="intro-section">
+    <div class="container intro-content">
+      <h2>Un Século de Canto</h2>
+      <p>
+        Unha das agrupacións corais maiis antigas de Galicia e institución de referencia. Mantemos vivo o compromiso coa difusión do noso patrimonio a través da polifonía renacentista, a música medieval, sacra e a canción popular galega harmonizada.
+      </p>
+      <div class="intro-action">
+        <a href="/benvida" class="btn-esencia">Descubre a nosa esencia</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="agenda-section container">
+    <div class="agenda-wrapper">
+      <div class="agenda-title-row">
+        <h3>📋 Próximos Eventos</h3>
+      </div>
+      
+      <div class="grid-events">
+        {proximosConciertos.map(concierto => (
+          <div class="event-card">
+            <span class="date">{concierto.fecha}</span>
+            <h4>{concierto.titulo}</h4>
+            <p>{concierto.nota}</p>
+          </div>
+        ))}
+      </div>
+
+      <div class="agenda-actions">
+        <a href="/axenda" class="btn-agenda-link">Ver a axenda completa</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .hero-section {
+    padding: 1.5rem 0;
+  }
+  .hero-box {
+    background-color: var(--color-principal);
+    min-height: 520px;
+    margin: 0 2rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hero-content {
+    max-width: 800px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem;
+  }
+  .hero-logo-wrapper {
+    margin-bottom: 2rem;
+  }
+  .center-roseton {
+    display: block;
+    height: auto;
+    border-radius: 50%;
+  }
+  .hero-content h1 {
+    color: var(--color-blanco);
+    font-size: 2.8rem;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+  .minimal-line {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 1.5rem 0;
+  }
+  .hero-subtitle {
+    color: var(--color-acento);
+    font-size: 1.1rem;
+  }
+
+  .intro-section {
+    padding: 5rem 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+  }
+  .intro-content {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .intro-content h2 {
+    font-size: 2rem;
+    margin-bottom: 1.2rem;
+    color: var(--color-principal);
+  }
+  .intro-content p {
+    font-size: 1.15rem;
+    color: var(--color-texto);
+    opacity: 0.9;
+  }
+
+  .intro-action {
+    margin-top: 2.5rem;
+  }
+
+  .btn-esencia {
+    color: var(--color-principal);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 2px solid var(--color-acento);
+    padding-bottom: 4px;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .btn-esencia:hover {
+    color: var(--color-acento);
+    border-color: var(--color-principal);
+  }
+
+  .agenda-section {
+    padding-bottom: 5rem;
+  }
+  .agenda-wrapper h3 {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-principal);
+    border-bottom: 1px solid var(--color-gris);
+    padding-bottom: 0.5rem;
+    width: 100%;
+  }
+  .grid-events {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+    margin-bottom: 3rem;
+  }
+  @media (max-width: 768px) {
+    .grid-events {
+      grid-template-columns: 1fr;
+    }
+  }
+  .event-card {
+    background: var(--color-blanco);
+    padding: 2rem;
+    border-radius: 4px;
+    border: 1px solid var(--color-gris);
+  }
+  .date {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-acento);
+  }
+  .event-card h4 {
+    margin: 0.5rem 0;
+    color: var(--color-texto);
+    font-size: 1.15rem;
+  }
+  .event-card p {
+    font-size: 0.95rem;
+    color: #666;
+  }
+
+  .agenda-actions {
+    text-align: center;
+    margin-top: 1rem;
+  }
+  .btn-agenda-link {
+    display: inline-block;
+    padding: 0.8rem 2.2rem;
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+  .btn-agenda-link:hover {
+    background-color: var(--color-acento);
+  }
+</style>
