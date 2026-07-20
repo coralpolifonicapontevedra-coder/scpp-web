@@ -172,7 +172,7 @@ import BaseLayout from '../layouts/Layout.astro';
     boton.textContent = 'Comprobando acceso…';
 
     try {
-      const resposta = await fetch('/.netlify/functions/aceptacion', {
+      const resposta = await fetch('/api/aceptacion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

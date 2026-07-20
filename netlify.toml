@@ -4,3 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "22.12.0"
+
+  [[redirects]]
+  from = "/api/aceptacion"
+  to = "/.netlify/functions/aceptacion"
+  status = 200
