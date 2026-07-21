@@ -11,7 +11,7 @@
  */
 
 const FIREBASE_API_KEY =
-  'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQD0IkecPZbs';
+  'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs';
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), {
