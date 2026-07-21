@@ -16,37 +16,50 @@ import BaseLayout from '../layouts/Layout.astro';
         </p>
       </header>
 
-      <form class="portal-form" id="portal-form" novalidate>
-        <div class="form-group">
-          <label for="email-socio">Correo electrónico</label>
-          <input
-            type="email"
-            id="email-socio"
-            name="email"
-            required
-            autocomplete="email"
-            placeholder="Ex. socio@correo.gal"
-          />
-        </div>
+      <div class="portal-form" id="portal-auth">
+        <section id="auth-options" aria-labelledby="auth-title">
+          <h2 id="auth-title" class="sr-only">Identificación</h2>
 
-        <div class="form-group">
-          <div class="label-row">
-            <label for="password-socio">Contrasinal</label>
-            <a href="/contacto" class="forgot-password-link">
-              Esqueciches o contrasinal?
-            </a>
+          <button type="button" class="btn-google" id="google-login">
+            <span class="google-mark" aria-hidden="true">G</span>
+            Continuar con Google
+          </button>
+
+          <div class="auth-separator" aria-hidden="true">
+            <span>ou</span>
           </div>
-          <input
-            type="password"
-            id="password-socio"
-            name="password"
-            required
-            autocomplete="current-password"
-            placeholder="••••••••"
-          />
-        </div>
 
-        <section class="privacy-box" aria-labelledby="privacy-title">
+          <div class="form-group">
+            <label for="email-socio">Correo electrónico</label>
+            <input
+              type="email"
+              id="email-socio"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="Ex. socio@correo.gal"
+            />
+          </div>
+
+          <button type="button" class="btn-email-link" id="email-link-login">
+            Recibir unha ligazón de acceso
+          </button>
+
+          <p class="email-help">
+            Enviarémosche unha ligazón para entrar sen contrasinal.
+          </p>
+        </section>
+
+        <section id="authenticated-area" hidden>
+          <div class="authenticated-user">
+            <div>
+              <span>Identificación verificada</span>
+              <strong id="authenticated-email"></strong>
+            </div>
+            <button type="button" id="logout-button">Cambiar conta</button>
+          </div>
+
+          <section class="privacy-box" aria-labelledby="privacy-title">
           <h2 id="privacy-title">Protección de datos e condicións de acceso</h2>
 
           <div class="privacy-text" id="privacy-text" tabindex="0">
@@ -83,6 +96,11 @@ import BaseLayout from '../layouts/Layout.astro';
               datos para a xestión da zona privada da web e de SCPP Xestión.
             </span>
           </label>
+          </section>
+
+          <button type="button" class="btn-portal-submit" id="portal-submit">
+            Aceptar e acceder ao espazo privado
+          </button>
         </section>
 
         <p
@@ -92,11 +110,7 @@ import BaseLayout from '../layouts/Layout.astro';
           aria-live="polite"
           hidden
         ></p>
-
-        <button type="submit" class="btn-portal-submit" id="portal-submit">
-          Acceder ao espazo privado
-        </button>
-      </form>
+      </div>
 
       <footer class="portal-card-footer">
         <p>
@@ -109,16 +123,51 @@ import BaseLayout from '../layouts/Layout.astro';
 </BaseLayout>
 
 <script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import {
+    GoogleAuthProvider,
+    getAuth,
+    isSignInWithEmailLink,
+    onAuthStateChanged,
+    sendSignInLinkToEmail,
+    signInWithEmailLink,
+    signInWithPopup,
+    signOut
+  } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQD0IkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  auth.useDeviceLanguage();
+
   const VERSION_TEXTO_LEGAL = 'PRIVACIDADE-WEB-1.0';
   const AMBITO = 'coralpolifonicapontevedra.org';
+  const EMAIL_GARDADO = 'scpp-email-acceso';
 
-  const formulario = document.querySelector('#portal-form');
+  const opcionesAcceso = document.querySelector('#auth-options');
+  const zonaAutenticada = document.querySelector('#authenticated-area');
+  const correoAutenticado = document.querySelector('#authenticated-email');
   const correoInput = document.querySelector('#email-socio');
-  const contrasinalInput = document.querySelector('#password-socio');
+  const botonGoogle = document.querySelector('#google-login');
+  const botonEmail = document.querySelector('#email-link-login');
+  const botonSaida = document.querySelector('#logout-button');
   const aceptaInput = document.querySelector('#acepta-fines');
   const mensaxe = document.querySelector('#portal-message');
-  const boton = document.querySelector('#portal-submit');
+  const botonAcceso = document.querySelector('#portal-submit');
   const textoLegal = document.querySelector('#privacy-text');
+
+  let enlaceEmailPendente = isSignInWithEmailLink(
+    auth,
+    window.location.href
+  );
 
   function mostrarMensaxe(texto, tipo = 'erro') {
     if (!(mensaxe instanceof HTMLElement)) return;
@@ -136,31 +185,161 @@ import BaseLayout from '../layouts/Layout.astro';
     delete mensaxe.dataset.tipo;
   }
 
-  formulario?.addEventListener('submit', async (evento) => {
-    evento.preventDefault();
+  function definirBoton(
+    boton,
+    bloqueado,
+    texto
+  ) {
+    if (!(boton instanceof HTMLButtonElement)) return;
+
+    boton.disabled = bloqueado;
+    boton.textContent = texto;
+  }
+
+  function actualizarVista(usuario) {
+    if (
+      !(opcionesAcceso instanceof HTMLElement) ||
+      !(zonaAutenticada instanceof HTMLElement) ||
+      !(correoAutenticado instanceof HTMLElement)
+    ) {
+      return;
+    }
+
+    const autenticado = Boolean(usuario?.email);
+    opcionesAcceso.hidden = autenticado;
+    zonaAutenticada.hidden = !autenticado;
+    correoAutenticado.textContent = usuario?.email || '';
+
+    if (!autenticado && aceptaInput instanceof HTMLInputElement) {
+      aceptaInput.checked = false;
+    }
+  }
+
+  function limparUrlEnlace() {
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
+  }
+
+  async function completarAccesoPorEmail(email) {
+    definirBoton(botonEmail, true, 'Comprobando ligazón…');
+
+    try {
+      await signInWithEmailLink(auth, email, window.location.href);
+      window.localStorage.removeItem(EMAIL_GARDADO);
+      enlaceEmailPendente = false;
+      limparUrlEnlace();
+      mostrarMensaxe('Identificación verificada correctamente.', 'correcto');
+    } catch (erro) {
+      console.error(erro);
+      mostrarMensaxe(
+        'A ligazón non é válida ou xa caducou. Solicita unha nova.'
+      );
+    } finally {
+      definirBoton(
+        botonEmail,
+        false,
+        'Recibir unha ligazón de acceso'
+      );
+    }
+  }
+
+  onAuthStateChanged(auth, (usuario) => {
+    actualizarVista(usuario);
+  });
+
+  botonGoogle?.addEventListener('click', async () => {
+    ocultarMensaxe();
+    definirBoton(botonGoogle, true, 'Abrindo Google…');
+
+    try {
+      const provedor = new GoogleAuthProvider();
+      provedor.setCustomParameters({ prompt: 'select_account' });
+      await signInWithPopup(auth, provedor);
+      mostrarMensaxe('Identificación verificada correctamente.', 'correcto');
+    } catch (erro) {
+      console.error(erro);
+      mostrarMensaxe(
+        'Non foi posible completar o acceso con Google.'
+      );
+    } finally {
+      definirBoton(botonGoogle, false, 'Continuar con Google');
+    }
+  });
+
+  botonEmail?.addEventListener('click', async () => {
+    ocultarMensaxe();
+
+    if (!(correoInput instanceof HTMLInputElement)) return;
+
+    const email = correoInput.value.trim().toLowerCase();
+
+    if (!email) {
+      mostrarMensaxe('Introduce o teu correo electrónico.');
+      correoInput.focus();
+      return;
+    }
+
+    if (enlaceEmailPendente) {
+      await completarAccesoPorEmail(email);
+      return;
+    }
+
+    definirBoton(botonEmail, true, 'Enviando ligazón…');
+
+    try {
+      await sendSignInLinkToEmail(auth, email, {
+        url: `${window.location.origin}/portal/`,
+        handleCodeInApp: true
+      });
+
+      window.localStorage.setItem(EMAIL_GARDADO, email);
+      mostrarMensaxe(
+        'Enviámosche unha ligazón de acceso. Revisa tamén o cartafol de correo non desexado.',
+        'correcto'
+      );
+    } catch (erro) {
+      console.error(erro);
+      mostrarMensaxe(
+        'Non foi posible enviar a ligazón. Comproba o correo e inténtao de novo.'
+      );
+    } finally {
+      definirBoton(
+        botonEmail,
+        false,
+        'Recibir unha ligazón de acceso'
+      );
+    }
+  });
+
+  botonSaida?.addEventListener('click', async () => {
+    ocultarMensaxe();
+    await signOut(auth);
+  });
+
+  botonAcceso?.addEventListener('click', async () => {
     ocultarMensaxe();
 
     if (
-      !(correoInput instanceof HTMLInputElement) ||
-      !(contrasinalInput instanceof HTMLInputElement) ||
       !(aceptaInput instanceof HTMLInputElement) ||
-      !(boton instanceof HTMLButtonElement) ||
+      !(botonAcceso instanceof HTMLButtonElement) ||
       !(textoLegal instanceof HTMLElement)
     ) {
       mostrarMensaxe('Non foi posible iniciar o formulario.');
       return;
     }
 
-    const email = correoInput.value.trim().toLowerCase();
-    const password = contrasinalInput.value;
-    const aceptaFines = aceptaInput.checked;
+    const usuario = auth.currentUser;
 
-    if (!email || !password) {
-      mostrarMensaxe('Introduce o correo electrónico e o contrasinal.');
+    if (!usuario?.email) {
+      mostrarMensaxe('É necesario identificarse primeiro.');
+      actualizarVista(null);
       return;
     }
 
-    if (!aceptaFines) {
+    if (!aceptaInput.checked) {
       mostrarMensaxe(
         'É necesario aceptar as condicións para acceder ao espazo privado.'
       );
@@ -168,18 +347,17 @@ import BaseLayout from '../layouts/Layout.astro';
       return;
     }
 
-    boton.disabled = true;
-    boton.textContent = 'Comprobando acceso…';
+    definirBoton(botonAcceso, true, 'Comprobando acceso…');
 
     try {
+      const idToken = await usuario.getIdToken(true);
       const resposta = await fetch('/api/aceptacion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email,
-          password,
+          idToken,
           accion: 'rexistrarAceptacion',
           version: VERSION_TEXTO_LEGAL,
           textoLegal: textoLegal.innerText.trim(),
@@ -203,11 +381,6 @@ import BaseLayout from '../layouts/Layout.astro';
         'correcto'
       );
 
-      /*
-       * Cambiar esta ruta pola páxina privada real cando estea creada.
-       * O redireccionamento só debe facerse despois de validar tamén
-       * as credenciais no servidor.
-       */
       if (resultado.redirect) {
         window.location.assign(resultado.redirect);
       }
@@ -218,10 +391,34 @@ import BaseLayout from '../layouts/Layout.astro';
           : 'Produciuse un erro ao comprobar o acceso.'
       );
     } finally {
-      boton.disabled = false;
-      boton.textContent = 'Acceder ao espazo privado';
+      definirBoton(
+        botonAcceso,
+        false,
+        'Aceptar e acceder ao espazo privado'
+      );
     }
   });
+
+  if (enlaceEmailPendente) {
+    const emailGardado =
+      window.localStorage.getItem(EMAIL_GARDADO) || '';
+
+    if (
+      emailGardado &&
+      correoInput instanceof HTMLInputElement
+    ) {
+      correoInput.value = emailGardado;
+      completarAccesoPorEmail(emailGardado);
+    } else {
+      definirBoton(botonEmail, false, 'Completar o acceso');
+      mostrarMensaxe(
+        'Introduce o mesmo correo ao que recibiches a ligazón para completar o acceso.'
+      );
+      if (correoInput instanceof HTMLInputElement) {
+        correoInput.focus();
+      }
+    }
+  }
 </script>
 
 <style>
@@ -278,6 +475,160 @@ import BaseLayout from '../layouts/Layout.astro';
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  #auth-options,
+  #authenticated-area {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  #auth-options[hidden],
+  #authenticated-area[hidden] {
+    display: none;
+  }
+
+  .btn-google,
+  .btn-email-link {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      border-color 0.2s ease,
+      background-color 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .btn-google {
+    border: 1px solid #c8c8c8;
+    background: var(--color-blanco);
+    color: #333;
+  }
+
+  .btn-google:hover:not(:disabled) {
+    border-color: var(--color-principal);
+    background: rgba(0, 0, 0, 0.018);
+  }
+
+  .google-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    margin-right: 0.55rem;
+    border-radius: 50%;
+    color: #1a73e8;
+    font-weight: 700;
+  }
+
+  .btn-email-link {
+    border: 1px solid var(--color-principal);
+    background: transparent;
+    color: var(--color-principal);
+  }
+
+  .btn-email-link:hover:not(:disabled) {
+    background: color-mix(
+      in srgb,
+      var(--color-principal) 7%,
+      transparent
+    );
+  }
+
+  .btn-google:disabled,
+  .btn-email-link:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
+
+  .auth-separator {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    color: #888;
+    font-size: 0.8rem;
+  }
+
+  .auth-separator::before,
+  .auth-separator::after {
+    content: '';
+    height: 1px;
+    flex: 1;
+    background: var(--color-gris);
+  }
+
+  .email-help {
+    margin: -0.7rem 0 0;
+    color: #777;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    text-align: center;
+  }
+
+  .authenticated-user {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid #b9dbc1;
+    border-radius: 4px;
+    background: #f2fbf4;
+  }
+
+  .authenticated-user div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .authenticated-user span {
+    color: #396842;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .authenticated-user strong {
+    color: #24552f;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+  }
+
+  #logout-button {
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-principal);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  #logout-button:hover {
+    color: var(--color-acento);
   }
 
   .form-group {
@@ -469,6 +820,11 @@ import BaseLayout from '../layouts/Layout.astro';
       align-items: flex-start;
       flex-direction: column;
       gap: 0.35rem;
+    }
+
+    .authenticated-user {
+      align-items: flex-start;
+      flex-direction: column;
     }
   }
 </style>

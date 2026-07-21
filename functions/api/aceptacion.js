@@ -1,10 +1,17 @@
 /**
- * Función de Cloudflare Pages para registrar la aceptación legal.
+ * Función de Cloudflare Pages para validar a identidade con Firebase
+ * e rexistrar a aceptación legal.
  *
- * Variables necesarias:
+ * Variables necesarias en Cloudflare Pages:
  * - APPS_SCRIPT_WEBAPP_URL
  * - WEB_WRITE_TOKEN
+ *
+ * A clave web de Firebase é un identificador público, igual que no
+ * firebaseConfig que se entrega ao navegador. Non é un contrasinal.
  */
+
+const FIREBASE_API_KEY =
+  'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQD0IkecPZbs';
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), {
@@ -14,6 +21,35 @@ const json = (status, body) =>
       'Cache-Control': 'no-store'
     }
   });
+
+async function verificarTokenFirebase(idToken) {
+  const resposta = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ idToken })
+    }
+  );
+
+  if (!resposta.ok) {
+    return null;
+  }
+
+  const resultado = await resposta.json();
+  const usuario = resultado?.users?.[0];
+
+  if (!usuario?.email || usuario.emailVerified !== true) {
+    return null;
+  }
+
+  return {
+    uid: String(usuario.localId || ''),
+    email: String(usuario.email).trim().toLowerCase()
+  };
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -46,18 +82,14 @@ export async function onRequest(context) {
     });
   }
 
-  const email = String(datos.email || '')
-    .trim()
-    .toLowerCase();
-
-  const password = String(datos.password || '');
+  const idToken = String(datos.idToken || '').trim();
   const textoLegal = String(datos.textoLegal || '').trim();
   const version = String(datos.version || '').trim();
 
-  if (!email || !password) {
-    return json(400, {
+  if (!idToken) {
+    return json(401, {
       ok: false,
-      erro: 'Introduce o correo e o contrasinal'
+      erro: 'É necesario identificarse de novo'
     });
   }
 
@@ -75,12 +107,20 @@ export async function onRequest(context) {
     });
   }
 
-  /*
-   * PENDENTE: validar aquí o contrasinal cun sistema de autenticación
-   * seguro. Nunca debe enviarse nin gardarse en Google Sheets.
-   *
-   * Polo momento só se rexistra a aceptación; non se autoriza o acceso.
-   */
+  let usuarioFirebase;
+
+  try {
+    usuarioFirebase = await verificarTokenFirebase(idToken);
+  } catch (erro) {
+    console.error('Erro ao validar Firebase:', erro);
+  }
+
+  if (!usuarioFirebase) {
+    return json(401, {
+      ok: false,
+      erro: 'A identificación non é válida ou caducou'
+    });
+  }
 
   try {
     const respostaAppsScript = await fetch(appsScriptUrl, {
@@ -91,7 +131,8 @@ export async function onRequest(context) {
       body: JSON.stringify({
         token: writeToken,
         accion: 'rexistrarAceptacion',
-        email,
+        email: usuarioFirebase.email,
+        uidFirebase: usuarioFirebase.uid,
         version,
         textoLegal,
         aceptaFines: true,
@@ -102,7 +143,6 @@ export async function onRequest(context) {
     });
 
     const textoResposta = await respostaAppsScript.text();
-
     let resultado;
 
     try {
@@ -115,12 +155,17 @@ export async function onRequest(context) {
     }
 
     if (!resultado.ok) {
-      return json(400, resultado);
+      const nonAutorizado =
+        resultado.erro === 'Usuario non autorizado';
+
+      return json(nonAutorizado ? 403 : 400, resultado);
     }
 
     return json(200, {
       ok: true,
-      mensaxe: 'Aceptación rexistrada correctamente'
+      email: usuarioFirebase.email,
+      mensaxe: 'Aceptación rexistrada correctamente',
+      redirect: resultado.redirect || ''
     });
   } catch (erro) {
     console.error(erro);
