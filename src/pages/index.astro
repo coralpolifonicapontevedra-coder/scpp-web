@@ -70,7 +70,13 @@ import rosetonImg from "../assets/roseton.jpg";
     .trim()
     .toLowerCase();
 
-  const escapar = (valor = '') => String(valor)
+  const corrixirErratas = (valor = '') => String(valor)
+    .replaceAll('Liceo Casinto', 'Liceo Casino')
+    .replaceAll('Real Acadademia', 'Real Academia')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const escapar = (valor = '') => corrixirErratas(valor)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -105,10 +111,11 @@ import rosetonImg from "../assets/roseton.jpg";
     contedor.innerHTML = proximos.map((evento) => {
       const localizacion = [evento.lugar, evento.cidade].filter(Boolean).join(' · ');
       const hora = horaLocal(evento.hora);
+      const datosEvento = [hora, localizacion].filter(Boolean).map(escapar).join(' · ');
       return `<a class="event-card" href="/axenda" aria-label="Ver ${escapar(evento.nome)} na axenda">
         <time datetime="${escapar(dataISO(evento.data))}">${dataEnGalego(evento.data)}</time>
         <h4>${escapar(evento.nome)}</h4>
-        ${hora || localizacion ? `<p class="event-meta">${hora ? `<span>${escapar(hora)}</span>` : ''}${localizacion ? `<span>${escapar(localizacion)}</span>` : ''}</p>` : ''}
+        ${datosEvento ? `<p class="event-meta">${datosEvento}</p>` : ''}
         ${evento.caracteristicas ? `<p class="event-description">${escapar(evento.caracteristicas)}</p>` : ''}
         <span class="event-link">Ver evento</span>
       </a>`;
