@@ -1,347 +1,362 @@
 ---
 /* src/pages/axenda.astro */
 import BaseLayout from '../layouts/Layout.astro';
-
-// Datos de mostra (simulados), que máis adiante se lerán automaticamente desde AppSheet
-const proximosConcertos = [
-  {
-    titulo: "Concerto Extraordinario de Verán",
-    data: "25 de Xullo, 2026",
-    hora: "20:30 h",
-    lugar: "Teatro Principal de Pontevedra",
-    directora: "Nome da Directora", // Cambiado de director a directora
-    pianista: "Nome do Pianista",
-    cartel: "/assets/cartel-mostra.jpg"
-  }
-];
-
-const historicoConcertos = [
-  { titulo: "Concerto de Primavera", data: "12 de Maio, 2026", lugar: "Igrexa de San Francisco" },
-  { titulo: "Recital de Polifonía Centenaria", data: "14 de Marzo, 2026", lugar: "Pazo da Cultura" }
-];
 ---
 
 <BaseLayout title="Axenda" lang="gl">
-  <div class="container agenda-page-wrapper">
-    
-    <!-- Cabeceira de Sección -->
+  <main class="container agenda-page">
     <header class="agenda-header">
-      <h1>Axenda Cultural</h1>
+      <p class="eyebrow">Programación</p>
+      <h1>Axenda</h1>
       <div class="section-line-center"></div>
-      <p class="agenda-intro">Sigue a actividade en directo da Sociedade Coral Polifónica de Pontevedra. Aquí atoparás as nosas vindeiras actuacións e o rexistro histórico dos nosos concertos.</p>
+      <p>
+        Consulta os próximos concertos confirmados da Sociedade Coral Polifónica de
+        Pontevedra e a memoria das actuacións xa realizadas.
+      </p>
     </header>
 
-    <!-- NAVEGACIÓN INTERNA / SECCIÓNS -->
-    <div class="agenda-sections-grid">
-      
-      <!-- 1. PRÓXIMOS CONCERTOS -->
-      <section id="proximos" class="agenda-block">
-        <h2>Próximos Concertos</h2>
-        <div class="section-line"></div>
-        
-        {proximosConcertos.map((concerto) => (
-          <div class="concert-card-featured">
-            <div class="concert-info">
-              <span class="concert-tag">Vindeiro evento</span>
-              <h3>{concerto.titulo}</h3>
-              
-              <ul class="concert-meta-list">
-                <li><strong>Data:</strong> {concerto.data}</li>
-                <li><strong>Hora:</strong> {concerto.hora}</li>
-                <li><strong>Lugar:</strong> {concerto.lugar}</li>
-                <li><strong>Dirección:</strong> {concerto.directora}</li> <!-- Corrixido aquí tamén -->
-                <li><strong>Pianista:</strong> {concerto.pianista}</li>
-              </ul>
-              
-              <p class="concert-notes">A entrada será de balde ata completar o aforo. O programa incluirá pezas tradicionais galegas e polifonía clásica.</p>
-              
-              <a href="#" class="btn-secondary">Ver programa completo</a>
-            </div>
-            
-            <div class="concert-poster-placeholder">
-              <span>Espazo para o Cartel</span>
-            </div>
-          </div>
-        ))}
-      </section>
+    <div id="aviso-carga" class="loading" role="status">Cargando a programación…</div>
 
-      <!-- 2. CALENDARIO DE ENSAIOS E ACTIVIDADES -->
-      <section id="calendario" class="agenda-block calendar-box">
-        <h2>Calendario da Coral</h2>
-        <div class="section-line"></div>
-        <p>Consulta os días de ensaio xerais, reunións informativas e outras citas internas ou públicas:</p>
-        
-        <div class="calendar-mock-interface">
-          <div class="calendar-item">
-            <div class="date-badge"><span>XOV</span><strong>09</strong><span>XUL</span></div>
-            <div class="calendar-details">
-              <h4>Ensaio Xeral de Voces</h4>
-              <p>20:00 h • Aula de ensaios habitual. Convocatoria para tódalas cordas.</p>
-            </div>
-          </div>
-          <div class="calendar-item">
-            <div class="date-badge"><span>MAR</span><strong>14</strong><span>XUL</span></div>
-            <div class="calendar-details">
-              <h4>Ensaio Técnico de Sopranos e Contraltos</h4>
-              <p>19:30 h • Repaso do repertorio do concerto de verán.</p>
-            </div>
-          </div>
+    <section id="proximos" class="agenda-block" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Vindeiras actuacións</p>
+          <h2>Concertos confirmados</h2>
         </div>
-      </section>
+      </div>
+      <div id="lista-proximos" class="concert-list"></div>
+    </section>
 
-      <!-- 3. HISTÓRICO DE CONCERTOS -->
-      <section id="historico" class="agenda-block">
-        <h2>Histórico de Concertos</h2>
-        <div class="section-line"></div>
-        <p class="section-desc">Memoria das nosas actuacións e recitais máis recentes:</p>
-        
-        <div class="historical-list">
-          {historicoConcertos.map((item) => (
-            <div class="historical-item">
-              <div class="historical-meta">
-                <span class="hist-date">{item.data}</span>
-                <h4>{item.titulo}</h4>
-                <span class="hist-place">{item.lugar}</span>
-              </div>
-              <a href="#" class="link-minimal">Ver detalles do concerto →</a>
-            </div>
-          ))}
+    <section id="aprazados" class="agenda-block" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Información</p>
+          <h2>Concertos aprazados</h2>
         </div>
-      </section>
+      </div>
+      <div id="lista-aprazados" class="concert-list"></div>
+    </section>
 
+    <section id="realizados" class="agenda-block" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Arquivo recente</p>
+          <h2>Concertos realizados</h2>
+        </div>
+      </div>
+      <div id="lista-realizados" class="historical-list"></div>
+    </section>
+
+    <div id="sen-resultados" class="empty-state" hidden>
+      Neste momento non hai concertos publicados na axenda.
     </div>
-  </div>
+  </main>
 </BaseLayout>
 
+<script>
+  const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
+  const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
+  const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
+
+  const normalizar = (valor = '') => String(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  const escapar = (valor = '') => String(valor)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+  const verdadeiro = (valor = '') =>
+    ['true', 'si', 'sí', 'yes', '1', 'verdadeiro'].includes(normalizar(valor));
+
+  function parseCSV(texto) {
+    const filas = [];
+    let fila = [];
+    let campo = '';
+    let entreComillas = false;
+
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i];
+      const seguinte = texto[i + 1];
+      if (c === '"' && entreComillas && seguinte === '"') {
+        campo += '"';
+        i++;
+      } else if (c === '"') {
+        entreComillas = !entreComillas;
+      } else if (c === ',' && !entreComillas) {
+        fila.push(campo);
+        campo = '';
+      } else if ((c === '\n' || c === '\r') && !entreComillas) {
+        if (c === '\r' && seguinte === '\n') i++;
+        fila.push(campo);
+        if (fila.some((valor) => valor.trim() !== '')) filas.push(fila);
+        fila = [];
+        campo = '';
+      } else {
+        campo += c;
+      }
+    }
+
+    if (campo || fila.length) {
+      fila.push(campo);
+      filas.push(fila);
+    }
+
+    const cabeceiras = (filas.shift() || []).map(normalizar);
+    return filas.map((valores) =>
+      Object.fromEntries(cabeceiras.map((cab, i) => [cab, (valores[i] || '').trim()])),
+    );
+  }
+
+  const valor = (fila, ...nomes) => {
+    for (const nome of nomes) {
+      const atopado = fila[normalizar(nome)];
+      if (atopado !== undefined && atopado !== '') return atopado;
+    }
+    return '';
+  };
+
+  const dataISO = (data) => {
+    const partes = String(data).split(/[\/-]/).map(Number);
+    if (partes.length !== 3 || partes.some(Number.isNaN)) return String(data);
+    if (partes[0] > 31) {
+      return `${partes[0]}-${String(partes[1]).padStart(2, '0')}-${String(partes[2]).padStart(2, '0')}`;
+    }
+    return `${partes[2]}-${String(partes[1]).padStart(2, '0')}-${String(partes[0]).padStart(2, '0')}`;
+  };
+
+  const dataLocal = (data) => {
+    const iso = dataISO(data);
+    const obxecto = new Date(`${iso}T12:00:00`);
+    if (Number.isNaN(obxecto.getTime())) return escapar(data);
+    return new Intl.DateTimeFormat('gl-ES', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    }).format(obxecto);
+  };
+
+  const enlacePublico = (valor) => {
+    const ruta = String(valor || '').trim();
+    if (!ruta) return '';
+    if (/^https?:\/\//i.test(ruta) || ruta.startsWith('/')) return ruta;
+    return '';
+  };
+
+  async function lerCSV(url) {
+    const resposta = await fetch(url, { cache: 'no-store' });
+    if (!resposta.ok) throw new Error(`Erro ${resposta.status}`);
+    return parseCSV(await resposta.text());
+  }
+
+  const renderPrograma = (programa) => {
+    if (!programa.length) return '';
+    return `
+      <details class="programa">
+        <summary>Ver programa</summary>
+        <ol>
+          ${programa.map((item) => `
+            <li>
+              <div class="obra-linea">
+                <span class="obra">${escapar(item.obra)}</span>
+                ${item.autor ? `<span class="autor">${escapar(item.autor)}</span>` : ''}
+              </div>
+              ${item.solista ? `<small><strong>Solista:</strong> ${escapar(item.solista)}</small>` : ''}
+              ${item.notas ? `<small>${escapar(item.notas)}</small>` : ''}
+            </li>
+          `).join('')}
+        </ol>
+      </details>`;
+  };
+
+  const renderDocumentos = (concerto) => {
+    const documentos = [
+      ['Tríptico', enlacePublico(concerto.triptico)],
+      ['Prensa', enlacePublico(concerto.prensa)],
+    ].filter(([, url]) => url);
+
+    if (!documentos.length) return '';
+    return `<div class="documentos">${documentos.map(([nome, url]) =>
+      `<a href="${escapar(url)}" target="_blank" rel="noopener noreferrer">${nome}</a>`
+    ).join('')}</div>`;
+  };
+
+  const renderConcerto = (concerto, etiqueta = 'Concerto confirmado') => {
+    const cartel = enlacePublico(concerto.cartel);
+    const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
+    return `
+      <article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''}">
+        <div class="concert-content">
+          <span class="concert-tag">${escapar(etiqueta)}</span>
+          <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
+          <h3>${escapar(concerto.nome)}</h3>
+          <div class="concert-meta">
+            ${concerto.hora ? `<span><strong>Hora</strong> ${escapar(concerto.hora)}</span>` : ''}
+            ${localizacion ? `<span><strong>Lugar</strong> ${escapar(localizacion)}</span>` : ''}
+          </div>
+          ${concerto.caracteristicas ? `<p class="description">${escapar(concerto.caracteristicas)}</p>` : ''}
+          ${renderPrograma(concerto.programa)}
+          ${renderDocumentos(concerto)}
+        </div>
+        ${cartel ? `<figure class="poster"><img src="${escapar(cartel)}" alt="Cartel de ${escapar(concerto.nome)}" loading="lazy" /></figure>` : ''}
+      </article>`;
+  };
+
+  const renderRealizado = (concerto) => {
+    const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
+    return `
+      <article class="historical-item">
+        <div>
+          <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
+          <h3>${escapar(concerto.nome)}</h3>
+          ${localizacion ? `<p>${escapar(localizacion)}</p>` : ''}
+        </div>
+        ${renderPrograma(concerto.programa)}
+        ${renderDocumentos(concerto)}
+      </article>`;
+  };
+
+  async function cargarAxenda() {
+    const aviso = document.querySelector('#aviso-carga');
+    const senResultados = document.querySelector('#sen-resultados');
+
+    try {
+      const [concertosRaw, programasRaw, repertorioRaw] = await Promise.all([
+        lerCSV(URL_CONCERTOS), lerCSV(URL_PROGRAMAS), lerCSV(URL_REPERTORIO),
+      ]);
+
+      const obras = new Map(repertorioRaw.map((fila) => [
+        valor(fila, 'Id', 'Row ID'),
+        {
+          nome: valor(fila, 'Nome', 'NomeObra', 'Obra', 'Título', 'Titulo'),
+          autor: valor(fila, 'Autor', 'Compositor'),
+        },
+      ]));
+
+      const concertos = concertosRaw.map((fila) => {
+        const id = valor(fila, 'Id', 'Row ID');
+        const programa = programasRaw
+          .filter((item) => valor(item, 'Id_Conciertos', 'Id_Concertos') === id)
+          .map((item) => {
+            const idObra = valor(item, 'Id_Obras');
+            const obra = obras.get(idObra) || {};
+            return {
+              orde: Number(valor(item, 'Orde')) || 999,
+              obra: obra.nome || idObra,
+              autor: obra.autor || '',
+              notas: valor(item, 'Notas'),
+              solista: valor(item, 'Solista'),
+            };
+          })
+          .sort((a, b) => a.orde - b.orde);
+
+        return {
+          id,
+          data: valor(fila, 'Data'),
+          nome: valor(fila, 'Nome'),
+          cidade: valor(fila, 'Cidade'),
+          lugar: valor(fila, 'Lugar'),
+          caracteristicas: valor(fila, 'Características', 'Caracteristicas'),
+          cartel: valor(fila, 'Cartel'),
+          triptico: valor(fila, 'Triptico', 'Tríptico'),
+          prensa: valor(fila, 'Prensa'),
+          hora: valor(fila, 'Hora'),
+          mostrarWeb: verdadeiro(valor(fila, 'Mostrar_Web')),
+          destacadoWeb: verdadeiro(valor(fila, 'Destacado_Web')),
+          estado: normalizar(valor(fila, 'Estado')),
+          programa,
+        };
+      }).filter((c) => c.mostrarWeb && c.id && c.data && c.nome);
+
+      const confirmados = concertos
+        .filter((c) => c.estado === 'confirmado')
+        .sort((a, b) => dataISO(a.data).localeCompare(dataISO(b.data)));
+      const aprazados = concertos
+        .filter((c) => c.estado === 'aprazado' || c.estado === 'aplazado')
+        .sort((a, b) => dataISO(a.data).localeCompare(dataISO(b.data)));
+      const realizados = concertos
+        .filter((c) => c.estado === 'realizado')
+        .sort((a, b) => dataISO(b.data).localeCompare(dataISO(a.data)));
+
+      if (confirmados.length) {
+        document.querySelector('#lista-proximos').innerHTML = confirmados
+          .sort((a, b) => Number(b.destacadoWeb) - Number(a.destacadoWeb) || dataISO(a.data).localeCompare(dataISO(b.data)))
+          .map((c) => renderConcerto(c)).join('');
+        document.querySelector('#proximos').hidden = false;
+      }
+
+      if (aprazados.length) {
+        document.querySelector('#lista-aprazados').innerHTML = aprazados
+          .map((c) => renderConcerto(c, 'Concerto aprazado')).join('');
+        document.querySelector('#aprazados').hidden = false;
+      }
+
+      if (realizados.length) {
+        document.querySelector('#lista-realizados').innerHTML = realizados
+          .map(renderRealizado).join('');
+        document.querySelector('#realizados').hidden = false;
+      }
+
+      aviso.hidden = true;
+      senResultados.hidden = Boolean(confirmados.length || aprazados.length || realizados.length);
+    } catch (erro) {
+      console.error(erro);
+      aviso.textContent = 'Non foi posible cargar a axenda neste momento. Téntao de novo máis tarde.';
+      aviso.classList.add('error');
+    }
+  }
+
+  cargarAxenda();
+</script>
+
 <style>
-  .agenda-page-wrapper {
-    padding-top: 4rem;
-    padding-bottom: 6rem;
-  }
-
-  /* Cabeceira */
-  .agenda-header {
-    text-align: center;
-    max-width: 800px;
-    margin: 0 auto 4rem auto;
-  }
-  .agenda-header h1 {
-    color: var(--color-principal);
-    font-size: 2.5rem;
-    font-weight: 700;
-  }
-  .section-line-center {
-    width: 60px;
-    height: 2px;
-    background-color: var(--color-acento);
-    margin: 1rem auto 1.5rem auto;
-  }
-  .agenda-intro {
-    font-size: 1.15rem;
-    color: var(--color-texto);
-    opacity: 0.85;
-    line-height: 1.6;
-  }
-
-  /* Distribución de bloques */
-  .agenda-sections-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 5rem;
-  }
-  .agenda-block h2 {
-    color: var(--color-principal);
-    font-size: 1.8rem;
-    font-weight: 700;
-  }
-  .section-line {
-    width: 40px;
-    height: 2px;
-    background-color: var(--color-acento);
-    margin: 0.6rem 0 2rem 0;
-  }
-
-  /* Tarxeta do concerto destacado */
-  .concert-card-featured {
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 3rem;
-    background: var(--color-gris);
-    border-radius: 4px;
-    border: 1px solid rgba(0,0,0,0.02);
-    overflow: hidden;
-    padding: 3rem;
-  }
-  .concert-tag {
-    display: inline-block;
-    background: var(--color-principal);
-    color: var(--color-blanco);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    font-weight: 700;
-    padding: 0.3rem 0.8rem;
-    border-radius: 3px;
-    letter-spacing: 0.05em;
-    margin-bottom: 1rem;
-  }
-  .concert-info h3 {
-    font-size: 1.8rem;
-    color: var(--color-texto);
-    margin-bottom: 1.5rem;
-  }
-  .concert-meta-list {
-    list-style: none;
-    margin-bottom: 1.5rem;
-  }
-  .concert-meta-list li {
-    margin-bottom: 0.5rem;
-    font-size: 1.05rem;
-  }
-  .concert-notes {
-    font-size: 1rem;
-    opacity: 0.8;
-    margin-bottom: 2rem;
-  }
-  .btn-secondary {
-    display: inline-block;
-    padding: 0.7rem 1.8rem;
-    border: 2px solid var(--color-principal);
-    color: var(--color-principal);
-    text-transform: uppercase;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-decoration: none;
-    border-radius: 4px;
-    transition: 0.2s ease;
-  }
-  .btn-secondary:hover {
-    background: var(--color-principal);
-    color: var(--color-blanco);
-  }
-
-  /* Espazo reservado para o cartel */
-  .concert-poster-placeholder {
-    background: #e5e5e5;
-    border: 2px dashed #ccc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    min-height: 400px;
-    color: #666;
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-  }
-
-  /* Caixa do Calendario */
-  .calendar-box {
-    background: #fff;
-  }
-  .calendar-mock-interface {
-    display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
-    margin-top: 1.5rem;
-  }
-  .calendar-item {
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-    padding: 1.5rem;
-    background: var(--color-gris);
-    border-radius: 4px;
-    border-left: 3px solid var(--color-acento);
-  }
-  .date-badge {
-    background: var(--color-blanco);
-    border: 1px solid rgba(0,0,0,0.08);
-    border-radius: 4px;
-    padding: 0.5rem;
-    min-width: 70px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    line-height: 1.1;
-  }
-  .date-badge span {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #888;
-    text-transform: uppercase;
-  }
-  .date-badge strong {
-    font-size: 1.4rem;
-    color: var(--color-principal);
-    font-weight: 700;
-  }
-  .calendar-details h4 {
-    font-size: 1.1rem;
-    color: var(--color-texto);
-    margin-bottom: 0.2rem;
-  }
-  .calendar-details p {
-    font-size: 0.95rem;
-    opacity: 0.8;
-  }
-
-  /* Histórico */
-  .section-desc {
-    margin-bottom: 1.5rem;
-    opacity: 0.8;
-  }
-  .historical-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  .historical-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.2rem 1.5rem;
-    border-bottom: 1px solid var(--color-gris);
-  }
-  .historical-meta h4 {
-    font-size: 1.1rem;
-    color: var(--color-texto);
-    margin: 0.2rem 0;
-  }
-  .hist-date {
-    font-size: 0.85rem;
-    color: var(--color-acento);
-    font-weight: 600;
-  }
-  .hist-place {
-    font-size: 0.9rem;
-    opacity: 0.7;
-  }
-  .link-minimal {
-    font-size: 0.9rem;
-    color: var(--color-principal);
-    text-decoration: none;
-    font-weight: 600;
-  }
-  .link-minimal:hover {
-    color: var(--color-acento);
-  }
-
-  /* Responsivo */
-  @media (max-width: 850px) {
-    .concert-card-featured {
-      grid-template-columns: 1fr;
-      padding: 2rem;
-      gap: 2rem;
-    }
-    .concert-poster-placeholder {
-      min-height: 300px;
-      order: -1;
-    }
-    .historical-item {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 1rem;
-    }
+  .agenda-page { padding: 4rem 1.25rem 6rem; }
+  .agenda-header { max-width: 760px; margin: 0 auto 4.5rem; text-align: center; }
+  .agenda-header h1 { margin: .2rem 0; color: var(--color-principal); font-size: clamp(2rem, 5vw, 3rem); }
+  .agenda-header > p:last-child { line-height: 1.7; opacity: .82; }
+  .eyebrow { margin: 0; color: var(--color-acento); font-size: .76rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+  .section-line-center { width: 48px; height: 2px; margin: 1.1rem auto 1.5rem; background: var(--color-acento); }
+  .agenda-block { margin-top: 5rem; }
+  .section-heading { margin-bottom: 2rem; border-bottom: 1px solid var(--color-gris); padding-bottom: 1rem; }
+  .section-heading h2 { margin: .25rem 0 0; color: var(--color-principal); font-size: clamp(1.5rem, 3vw, 2rem); }
+  .concert-list { display: grid; gap: 2rem; }
+  .concert-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 330px); gap: 2.5rem; padding: clamp(1.5rem, 4vw, 3rem); background: var(--color-gris); border: 1px solid rgba(0,0,0,.05); border-radius: 4px; }
+  .concert-card.is-featured { border-left: 4px solid var(--color-acento); }
+  .concert-tag { display: inline-block; margin-bottom: 1rem; color: var(--color-principal); font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  .concert-content time, .historical-item time { display: block; color: var(--color-acento); font-size: .92rem; font-weight: 650; text-transform: capitalize; }
+  .concert-content h3 { margin: .45rem 0 1.25rem; color: var(--color-texto); font-size: clamp(1.45rem, 3vw, 2rem); }
+  .concert-meta { display: flex; flex-wrap: wrap; gap: .65rem 1.7rem; margin-bottom: 1.4rem; }
+  .concert-meta span { font-size: .96rem; }
+  .concert-meta strong { margin-right: .35rem; color: var(--color-principal); }
+  .description { max-width: 720px; line-height: 1.7; opacity: .84; }
+  .poster { margin: 0; align-self: start; }
+  .poster img { display: block; width: 100%; max-height: 460px; object-fit: contain; background: #fff; border-radius: 3px; }
+  .programa { margin-top: 1.6rem; border-top: 1px solid rgba(0,0,0,.1); padding-top: 1rem; }
+  .programa summary { cursor: pointer; color: var(--color-principal); font-weight: 700; }
+  .programa ol { margin: 1.25rem 0 .25rem; padding-left: 1.4rem; }
+  .programa li { margin-bottom: .9rem; padding-left: .35rem; }
+  .obra-linea { display: flex; justify-content: space-between; gap: 1rem; }
+  .obra { font-weight: 650; }
+  .autor { text-align: right; opacity: .72; }
+  .programa small { display: block; margin-top: .2rem; opacity: .75; }
+  .documentos { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+  .documentos a { padding: .55rem 1rem; color: var(--color-principal); border: 1px solid var(--color-principal); border-radius: 3px; font-size: .82rem; font-weight: 700; text-decoration: none; }
+  .documentos a:hover { color: var(--color-blanco); background: var(--color-principal); }
+  .historical-list { display: grid; gap: 1rem; }
+  .historical-item { padding: 1.5rem 0; border-bottom: 1px solid var(--color-gris); }
+  .historical-item h3 { margin: .35rem 0; font-size: 1.2rem; }
+  .historical-item p { margin: 0; opacity: .7; }
+  .historical-item .programa { max-width: 850px; }
+  .loading, .empty-state { padding: 2rem; text-align: center; background: var(--color-gris); border-radius: 4px; }
+  .loading.error { color: #7a2525; }
+  [hidden] { display: none !important; }
+  @media (max-width: 800px) {
+    .concert-card { grid-template-columns: 1fr; }
+    .poster { order: -1; max-width: 420px; }
+    .obra-linea { display: block; }
+    .autor { display: block; margin-top: .15rem; text-align: left; }
   }
 </style>
