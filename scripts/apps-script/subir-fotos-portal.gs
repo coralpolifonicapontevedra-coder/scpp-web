@@ -13,6 +13,19 @@
  * FOTOS_APPSHEET_PATH (por defecto: Fotos_Images/).
  * A fila constrúese polos encabezados, polo que non depende da orde de Fotos.
  */
+function configurarFotosPortal() {
+  PropertiesService.getScriptProperties().setProperties({
+    FOTOS_FOLDER_ID: '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',
+    FOTOS_APPSHEET_PATH: 'Fotos_Images/',
+    FOTOS_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
+  });
+
+  var carpeta = DriveApp.getFolderById(
+    '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'
+  );
+  console.log('Configuración creada para a carpeta: ' + carpeta.getName());
+}
+
 function subirFotoPortal_(datos) {
   var email = String(datos.email || '').trim().toLowerCase();
   var usuario = obterUsuarioWebPorEmail(email);
