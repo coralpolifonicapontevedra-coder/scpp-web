@@ -139,10 +139,19 @@ import BaseLayout from '../layouts/Layout.astro';
     }).format(obxecto);
   };
 
-  const enlacePublico = (valor) => {
-    const ruta = String(valor || '').trim();
+  const enlacePublico = (valor, tipo = 'documento') => {
+    const ruta = String(valor || '').trim().replaceAll('\\', '/');
     if (!ruta) return '';
+
     if (/^https?:\/\//i.test(ruta) || ruta.startsWith('/')) return ruta;
+
+    const nomeFicheiro = ruta.split('/').filter(Boolean).pop();
+    if (!nomeFicheiro) return '';
+
+    if (tipo === 'cartel' && normalizar(ruta).includes('concertos_images')) {
+      return `/img/concertos/${encodeURIComponent(nomeFicheiro)}`;
+    }
+
     return '';
   };
 
@@ -185,7 +194,7 @@ import BaseLayout from '../layouts/Layout.astro';
   };
 
   const renderConcerto = (concerto, etiqueta = 'Concerto confirmado') => {
-    const cartel = enlacePublico(concerto.cartel);
+    const cartel = enlacePublico(concerto.cartel, 'cartel');
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
     return `
       <article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''}">
