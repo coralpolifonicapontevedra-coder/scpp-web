@@ -31,6 +31,15 @@ function configurarFotosPortal() {
   console.log('Configuración creada para a carpeta: ' + carpeta.getName());
 }
 
+function probarPanelFotos() {
+  var email = String(Session.getEffectiveUser().getEmail() ||
+    PropertiesService.getScriptProperties().getProperty('WEB_TEST_EMAIL') || '')
+    .trim().toLowerCase();
+  console.log('Correo da proba: ' + email);
+  var resultado = listarFotosRevisionPortal_({ email: email });
+  console.log(JSON.stringify(resultado));
+}
+
 function subirFotoPortal_(datos) {
   var email = String(datos.email || '').trim().toLowerCase();
   var usuario = obterUsuarioWebPorEmail(email);
