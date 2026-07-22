@@ -43,3 +43,38 @@ a {
   margin: 0 auto;
   padding: 0 2rem;
 }
+
+/* Axenda: os carteis créanse con JavaScript e precisan estilos globais. */
+.agenda-page .poster-thumb {
+  display: block !important;
+  width: 150px !important;
+  max-width: 150px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  cursor: zoom-in;
+  text-align: center;
+}
+
+.agenda-page .poster-thumb img {
+  display: block !important;
+  width: 150px !important;
+  max-width: 150px !important;
+  height: auto !important;
+  max-height: 210px !important;
+  object-fit: contain !important;
+  margin: 0 auto !important;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .1);
+  border-radius: 3px;
+}
+
+.agenda-page .poster-thumb span {
+  display: block;
+  width: 150px;
+  margin-top: .45rem;
+  color: var(--color-principal);
+  font-size: .72rem;
+  font-weight: 700;
+}
