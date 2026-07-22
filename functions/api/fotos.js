@@ -54,14 +54,26 @@ export async function onRequest({ request, env }) {
     return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
   }
 
+  const accion = String(datos.accion || 'subirFoto').trim();
+  const accionsPermitidas = new Set([
+    'subirFoto',
+    'listarFotosRevision',
+    'actualizarRevisionFoto'
+  ]);
+  if (!accionsPermitidas.has(accion)) {
+    return json(400, { ok: false, erro: 'Acción non permitida' });
+  }
+
   const tipo = String(datos.tipo || '').toLowerCase();
   const base64 = String(datos.base64 || '');
-  if (!String(datos.titulo || '').trim() || !String(datos.nomeFicheiro || '').trim() ||
-      !base64 || !TIPOS.has(tipo)) {
-    return json(400, { ok: false, erro: 'Faltan datos ou o formato non é compatible' });
-  }
-  if (Math.floor((base64.length * 3) / 4) > MAX_BYTES) {
-    return json(413, { ok: false, erro: 'A fotografía supera o máximo de 8 MB' });
+  if (accion === 'subirFoto') {
+    if (!String(datos.titulo || '').trim() ||
+        !String(datos.nomeFicheiro || '').trim() || !base64 || !TIPOS.has(tipo)) {
+      return json(400, { ok: false, erro: 'Faltan datos ou o formato non é compatible' });
+    }
+    if (Math.floor((base64.length * 3) / 4) > MAX_BYTES) {
+      return json(413, { ok: false, erro: 'A fotografía supera o máximo de 8 MB' });
+    }
   }
 
   try {
@@ -70,7 +82,7 @@ export async function onRequest({ request, env }) {
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
         token: env.WEB_WRITE_TOKEN,
-        accion: 'subirFoto',
+        accion,
         email: usuario.email,
         uidFirebase: usuario.uid,
         nomeFicheiro: String(datos.nomeFicheiro).trim(),
@@ -85,7 +97,11 @@ export async function onRequest({ request, env }) {
         procedencia: String(datos.procedencia || '').trim(),
         concerto: String(datos.concerto || '').trim(),
         evento: String(datos.evento || '').trim(),
-        confirmaDereitos: datos.confirmaDereitos === true
+        confirmaDereitos: datos.confirmaDereitos === true,
+        rowId: String(datos.rowId || '').trim(),
+        estado: String(datos.estado || '').trim(),
+        destacada: datos.destacada === true,
+        observacions: String(datos.observacions || '').trim()
       })
     });
     const texto = await resposta.text();
@@ -96,11 +112,7 @@ export async function onRequest({ request, env }) {
     if (!resultado.ok) {
       return json(resultado.erro === 'Usuario non autorizado' ? 403 : 400, resultado);
     }
-    return json(200, {
-      ok: true,
-      mensaxe: resultado.mensaxe || 'Fotografía recibida e pendente de revisión',
-      rowId: resultado.rowId || ''
-    });
+    return json(200, resultado);
   } catch (erro) {
     console.error(erro);
     return json(502, { ok: false, erro: 'Non foi posible contactar co servizo de fotografías' });
