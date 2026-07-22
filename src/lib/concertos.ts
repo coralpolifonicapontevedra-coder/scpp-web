@@ -23,14 +23,18 @@ export type Concerto = {
   programa: ProgramaItem[];
 };
 
+const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
+const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
+const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
+
 const normalizar = (valor = '') =>
-  valor
+  String(valor)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase();
 
-const verdadeiro = (valor = '') => ['true', 'si', 'sí', 'yes', '1'].includes(normalizar(valor));
+const verdadeiro = (valor = '') => ['true', 'si', 'sí', 'yes', '1', 'verdadeiro'].includes(normalizar(valor));
 
 function parseCSV(texto: string): Record<string, string>[] {
   const filas: string[][] = [];
@@ -59,6 +63,7 @@ function parseCSV(texto: string): Record<string, string>[] {
       campo += c;
     }
   }
+
   if (campo || fila.length) {
     fila.push(campo);
     filas.push(fila);
@@ -78,8 +83,7 @@ const valor = (fila: Record<string, string>, ...nomes: string[]) => {
   return '';
 };
 
-async function lerCSV(url?: string): Promise<Record<string, string>[]> {
-  if (!url) return [];
+async function lerCSV(url: string): Promise<Record<string, string>[]> {
   try {
     const resposta = await fetch(url);
     if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
@@ -90,44 +94,12 @@ async function lerCSV(url?: string): Promise<Record<string, string>[]> {
   }
 }
 
-const concertosMostra: Concerto[] = [
-  {
-    id: 'coruna-2026',
-    data: '2026-09-10',
-    nome: 'Concerto no Teatro Colón da Coruña',
-    cidade: 'A Coruña',
-    lugar: 'Teatro Colón',
-    caracteristicas: 'Concerto co motivo do bicentenario do nacemento de Marcial del Adalid.',
-    mostrarWeb: true,
-    destacadoWeb: true,
-    estado: 'Confirmado',
-    programa: [],
-  },
-  {
-    id: 'outono-2026',
-    data: '2026-11-07',
-    nome: 'Cantos do Outono',
-    cidade: 'Pontevedra',
-    lugar: 'Liceo Casino de Pontevedra',
-    mostrarWeb: true,
-    destacadoWeb: false,
-    estado: 'Confirmado',
-    programa: [],
-  },
-];
-
 export async function obterConcertos(): Promise<Concerto[]> {
-  const concertosUrl = import.meta.env.CONCERTOS_CSV_URL;
-  const programasUrl = import.meta.env.CONCERTOS_REPERTORIO_CSV_URL;
-  const repertorioUrl = import.meta.env.REPERTORIO_CSV_URL;
-
   const [filasConcertos, filasProgramas, filasRepertorio] = await Promise.all([
-    lerCSV(concertosUrl),
-    lerCSV(programasUrl),
-    lerCSV(repertorioUrl),
+    lerCSV(URL_CONCERTOS),
+    lerCSV(URL_PROGRAMAS),
+    lerCSV(URL_REPERTORIO),
   ]);
-
-  if (!filasConcertos.length) return concertosMostra;
 
   const obras = new Map(
     filasRepertorio.map((fila) => [
@@ -179,11 +151,29 @@ export async function obterConcertos(): Promise<Concerto[]> {
 }
 
 export const dataLocal = (data: string, formato: 'curto' | 'longo' = 'longo') => {
-  const valorData = new Date(`${data}T12:00:00`);
+  const partes = data.split(/[\/-]/).map(Number);
+  let valorData: Date;
+
+  if (partes.length === 3 && partes[0] > 31) {
+    valorData = new Date(partes[0], partes[1] - 1, partes[2], 12);
+  } else if (partes.length === 3) {
+    valorData = new Date(partes[2], partes[1] - 1, partes[0], 12);
+  } else {
+    valorData = new Date(`${data}T12:00:00`);
+  }
+
   if (Number.isNaN(valorData.getTime())) return data;
-  return new Intl.DateTimeFormat('gl-ES',
+  return new Intl.DateTimeFormat(
+    'gl-ES',
     formato === 'curto'
       ? { day: '2-digit', month: 'short', year: 'numeric' }
       : { day: 'numeric', month: 'long', year: 'numeric' },
   ).format(valorData);
+};
+
+export const dataISO = (data: string) => {
+  const partes = data.split(/[\/-]/).map(Number);
+  if (partes.length !== 3) return data;
+  if (partes[0] > 31) return `${partes[0]}-${String(partes[1]).padStart(2, '0')}-${String(partes[2]).padStart(2, '0')}`;
+  return `${partes[2]}-${String(partes[1]).padStart(2, '0')}-${String(partes[0]).padStart(2, '0')}`;
 };
