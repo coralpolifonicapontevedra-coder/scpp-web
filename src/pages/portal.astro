@@ -130,8 +130,13 @@ import BaseLayout from '../layouts/Layout.astro';
             </div>
             <div class="photo-fields-grid">
               <div class="form-group">
-                <label for="photo-date">Data aproximada</label>
+                <label for="photo-date">Data</label>
                 <input id="photo-date" name="dataFoto" type="date" />
+              </div>
+              <div class="form-group">
+                <label for="photo-year">Ano aproximado</label>
+                <input id="photo-year" name="anoAproximado" type="number"
+                  min="1900" max="2100" inputmode="numeric" />
               </div>
               <div class="form-group">
                 <label for="photo-place">Lugar</label>
@@ -144,6 +149,14 @@ import BaseLayout from '../layouts/Layout.astro';
               <div class="form-group">
                 <label for="photo-origin">Procedencia</label>
                 <input id="photo-origin" name="procedencia" maxlength="160" />
+              </div>
+              <div class="form-group">
+                <label for="photo-concert">Concerto</label>
+                <input id="photo-concert" name="concerto" maxlength="160" />
+              </div>
+              <div class="form-group">
+                <label for="photo-event">Evento</label>
+                <input id="photo-event" name="evento" maxlength="160" />
               </div>
             </div>
             <label class="privacy-consent" for="photo-rights">
@@ -513,7 +526,10 @@ import BaseLayout from '../layouts/Layout.astro';
           titulo: datosFormulario.get('titulo'),
           peFoto: datosFormulario.get('peFoto'),
           dataFoto: datosFormulario.get('dataFoto'),
+          anoAproximado: datosFormulario.get('anoAproximado'),
           lugar: datosFormulario.get('lugar'),
+          concerto: datosFormulario.get('concerto'),
+          evento: datosFormulario.get('evento'),
           autoria: datosFormulario.get('autoria'),
           procedencia: datosFormulario.get('procedencia'),
           confirmaDereitos: true
