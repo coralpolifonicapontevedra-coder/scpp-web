@@ -15,7 +15,7 @@ const CONFIG_MEDIOS = [
   {
     propiedadeFolderId: 'CONCERTOS_IMAGES_FOLDER_ID',
     rutaGitHub: 'public/img/concertos',
-    extensiones: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+    extensiones: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf'],
   },
 ];
 
@@ -52,8 +52,22 @@ function sincronizarMediosConcertos() {
         continue;
       }
 
-      const ruta = `${config.rutaGitHub}/${nome}`;
-      const resultado = subirOuActualizarGitHub_(file, ruta, { token, owner, repo, branch });
+      let nomeDestino = nome;
+      let blob = file.getBlob();
+
+      if (extension === 'pdf') {
+        const miniatura = file.getThumbnail();
+        if (!miniatura) {
+          console.log(`Ignorado ${nome}: Drive non devolveu miniatura para o PDF.`);
+          ignorados++;
+          continue;
+        }
+        nomeDestino = nome.replace(/\.pdf$/i, '.jpg');
+        blob = miniatura.getAs('image/jpeg').setName(nomeDestino);
+      }
+
+      const ruta = `${config.rutaGitHub}/${nomeDestino}`;
+      const resultado = subirOuActualizarGitHub_(blob, nomeDestino, ruta, { token, owner, repo, branch });
 
       if (resultado === 'subido') subidos++;
       if (resultado === 'sen_cambios') senCambios++;
@@ -64,10 +78,9 @@ function sincronizarMediosConcertos() {
   return { subidos, senCambios, ignorados };
 }
 
-function subirOuActualizarGitHub_(file, ruta, github) {
+function subirOuActualizarGitHub_(blob, nomeFicheiro, ruta, github) {
   const api = `https://api.github.com/repos/${github.owner}/${github.repo}/contents/${encodePath_(ruta)}`;
   const existente = obterFicheiroGitHub_(api, github);
-  const blob = file.getBlob();
   const base64 = Utilities.base64Encode(blob.getBytes());
   const gitBlobSha = calcularGitBlobSha_(blob.getBytes());
 
@@ -76,7 +89,7 @@ function subirOuActualizarGitHub_(file, ruta, github) {
   }
 
   const payload = {
-    message: `Actualizar medio: ${file.getName()}`,
+    message: `Actualizar medio: ${nomeFicheiro}`,
     content: base64,
     branch: github.branch,
   };
