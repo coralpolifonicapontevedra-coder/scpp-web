@@ -65,7 +65,9 @@ import BaseLayout from '../layouts/Layout.astro';
 
   const corrixirErratas = (valor = '') => String(valor)
     .replaceAll('Liceo Casinto', 'Liceo Casino')
-    .replaceAll('Real Acadademia', 'Real Academia');
+    .replaceAll('Real Acadademia', 'Real Academia')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   const escapar = (valor = '') => corrixirErratas(valor)
     .replaceAll('&', '&amp;')
@@ -137,10 +139,11 @@ import BaseLayout from '../layouts/Layout.astro';
     const iso = dataISO(data);
     const obxecto = new Date(`${iso}T12:00:00`);
     if (Number.isNaN(obxecto.getTime())) return escapar(data);
-    return new Intl.DateTimeFormat('gl-ES', {
-      day: 'numeric', month: 'long', year: 'numeric',
-    }).format(obxecto);
+    const meses = ['xaneiro', 'febreiro', 'marzo', 'abril', 'maio', 'xuño', 'xullo', 'agosto', 'setembro', 'outubro', 'novembro', 'decembro'];
+    return `${obxecto.getDate()} de ${meses[obxecto.getMonth()]} de ${obxecto.getFullYear()}`;
   };
+
+  const horaLocal = (hora = '') => String(hora).trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1');
 
   const enlacePublico = (valor, tipo = 'documento') => {
     const ruta = String(valor || '').trim().replaceAll('\\', '/');
@@ -195,7 +198,7 @@ import BaseLayout from '../layouts/Layout.astro';
     </button>`;
   };
 
-  const renderConcerto = (concerto, etiqueta = 'Concerto confirmado') => {
+  const renderConcerto = (concerto, etiqueta = 'Próximo concerto') => {
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
     return `<article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''}">
       <div class="concert-content">
@@ -203,7 +206,7 @@ import BaseLayout from '../layouts/Layout.astro';
         <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
         <h3>${escapar(concerto.nome)}</h3>
         <div class="concert-meta">
-          ${concerto.hora ? `<span><strong>Hora</strong> ${escapar(concerto.hora)}</span>` : ''}
+          ${concerto.hora ? `<span><strong>Hora</strong> ${escapar(horaLocal(concerto.hora))}</span>` : ''}
           ${localizacion ? `<span><strong>Lugar</strong> ${escapar(localizacion)}</span>` : ''}
         </div>
         ${concerto.caracteristicas ? `<p class="description">${escapar(concerto.caracteristicas)}</p>` : ''}
@@ -338,7 +341,7 @@ import BaseLayout from '../layouts/Layout.astro';
   cargarAxenda();
 </script>
 
-<style>
+<style is:global>
   .agenda-page { padding: 4rem 1.25rem 6rem; }
   .agenda-header { max-width: 760px; margin: 0 auto 4.5rem; text-align: center; }
   .agenda-header h1 { margin: .2rem 0; color: var(--color-principal); font-size: clamp(2rem, 5vw, 3rem); }
