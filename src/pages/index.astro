@@ -250,8 +250,8 @@ import rosetonImg from "../assets/roseton.jpg";
   document.querySelectorAll('.video-option').forEach((opcion) => {
     opcion.addEventListener('click', () => reproducirVideo(opcion.dataset.video, opcion.dataset.title));
   });
-  anteriores?.addEventListener('click', () => tiraVideos?.scrollBy({ left: -320, behavior: 'smooth' }));
-  seguintes?.addEventListener('click', () => tiraVideos?.scrollBy({ left: 320, behavior: 'smooth' }));
+  anteriores?.addEventListener('click', () => tiraVideos?.scrollBy({ left: -690, behavior: 'auto' }));
+  seguintes?.addEventListener('click', () => tiraVideos?.scrollBy({ left: 690, behavior: 'auto' }));
 </script>
 
 <style is:global>
