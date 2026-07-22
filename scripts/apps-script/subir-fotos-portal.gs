@@ -16,6 +16,7 @@
 function configurarFotosPortal() {
   PropertiesService.getScriptProperties().setProperties({
     FOTOS_FOLDER_ID: '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',
+    FOTOS_SPREADSHEET_ID: '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w',
     FOTOS_APPSHEET_PATH: 'Fotos_Images/',
     FOTOS_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
   });
@@ -42,6 +43,10 @@ function subirFotoPortal_(datos) {
   var propiedades = PropertiesService.getScriptProperties();
   var folderId = propiedades.getProperty('FOTOS_FOLDER_ID');
   if (!folderId) return { ok: false, erro: 'Falta configurar FOTOS_FOLDER_ID' };
+  var spreadsheetId = propiedades.getProperty('FOTOS_SPREADSHEET_ID');
+  if (!spreadsheetId) {
+    return { ok: false, erro: 'Falta configurar FOTOS_SPREADSHEET_ID' };
+  }
 
   var bytes = Utilities.base64Decode(String(datos.base64 || ''));
   if (bytes.length > 8 * 1024 * 1024) {
@@ -58,7 +63,7 @@ function subirFotoPortal_(datos) {
   ).replace(/\/+$/, '') + '/' + ficheiro.getName();
   var rowId = Utilities.getUuid();
   var agora = new Date();
-  var folla = SpreadsheetApp.getActive().getSheetByName('Fotos');
+  var folla = SpreadsheetApp.openById(spreadsheetId).getSheetByName('Fotos');
   if (!folla) {
     ficheiro.setTrashed(true);
     return { ok: false, erro: 'Non se atopou a folla Fotos' };
