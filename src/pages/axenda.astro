@@ -200,7 +200,7 @@ import BaseLayout from '../layouts/Layout.astro';
 
   const renderConcerto = (concerto, etiqueta = 'Próximo concerto') => {
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
-    return `<article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''}">
+    return `<article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''} ${concerto.cartel ? 'has-poster' : ''}">
       <div class="concert-content">
         <span class="concert-tag">${escapar(etiqueta)}</span>
         <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
@@ -219,7 +219,7 @@ import BaseLayout from '../layouts/Layout.astro';
 
   const renderRealizado = (concerto) => {
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
-    return `<article class="historical-item">
+    return `<article class="historical-item ${concerto.cartel ? 'has-poster' : ''}">
       <div class="historical-main">
         <div class="historical-content">
           <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
@@ -352,11 +352,12 @@ import BaseLayout from '../layouts/Layout.astro';
   .section-heading { margin-bottom: 2rem; border-bottom: 1px solid var(--color-gris); padding-bottom: 1rem; }
   .section-heading h2 { margin: .25rem 0 0; color: var(--color-principal); font-size: clamp(1.5rem, 3vw, 2rem); }
   .concert-list, .historical-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; align-items: stretch; }
-  .concert-card { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; height: 100%; padding: clamp(1.5rem, 3vw, 2rem); background: var(--color-gris); border: 1px solid rgba(106,27,41,.1); border-radius: 8px; box-shadow: 0 12px 30px rgba(64,43,30,.06); }
+  .concert-card { display: block; height: 100%; padding: clamp(1.5rem, 3vw, 2rem); background: var(--color-gris); border: 1px solid rgba(106,27,41,.1); border-radius: 8px; box-shadow: 0 12px 30px rgba(64,43,30,.06); }
+  .concert-card.has-poster { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; }
   .concert-card.is-featured { border-left: 4px solid var(--color-acento); }
   .concert-tag { display: inline-block; margin-bottom: 1rem; color: var(--color-principal); font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
   .concert-content time, .historical-item time { display: block; color: var(--color-acento); font-size: .92rem; font-weight: 650; text-transform: capitalize; }
-  .concert-content h3 { margin: .45rem 0 1.25rem; color: var(--color-texto); font-size: clamp(1.45rem, 3vw, 2rem); }
+  .concert-content h3 { margin: .45rem 0 1.25rem; color: var(--color-texto); font-size: clamp(1.3rem, 2vw, 1.6rem); line-height: 1.25; }
   .concert-meta { display: flex; flex-wrap: wrap; gap: .65rem 1.7rem; margin-bottom: 1.4rem; }
   .concert-meta span { font-size: .96rem; }
   .concert-meta strong { margin-right: .35rem; color: var(--color-principal); }
@@ -376,7 +377,8 @@ import BaseLayout from '../layouts/Layout.astro';
   .documentos a { padding: .55rem 1rem; color: var(--color-principal); border: 1px solid var(--color-principal); border-radius: 3px; font-size: .82rem; font-weight: 700; text-decoration: none; }
   .documentos a:hover { color: var(--color-blanco); background: var(--color-principal); }
   .historical-item { height: 100%; padding: clamp(1.4rem, 3vw, 1.8rem); background: #fff; border: 1px solid rgba(106,27,41,.12); border-radius: 8px; box-shadow: 0 12px 30px rgba(64,43,30,.05); }
-  .historical-main { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; }
+  .historical-main { display: block; }
+  .historical-item.has-poster .historical-main { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; }
   .historical-main .poster-thumb { width: 150px; max-width: 150px; }
   .historical-main .poster-thumb img { width: 150px; max-width: 150px; height: auto; max-height: 210px; }
   .historical-item h3 { margin: .35rem 0; font-size: 1.2rem; }
