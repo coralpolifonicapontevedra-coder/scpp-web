@@ -1,0 +1,553 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+---
+
+<BaseLayout title="Revisión de fotografías" lang="gl">
+  <div class="container review-page">
+    <header class="review-page-header">
+      <p class="eyebrow">Espazo de administración</p>
+      <h1>Revisión de fotografías</h1>
+      <div class="section-line"></div>
+      <p class="intro">
+        Revisa cada achega antes de incorporala ao arquivo ou publicala na
+        galería da Coral.
+      </p>
+      <nav class="page-actions" aria-label="Accións da revisión">
+        <a href="/portal/">Volver ao envío de fotografías</a>
+        <button id="review-refresh" type="button">Actualizar</button>
+      </nav>
+    </header>
+
+    <section id="review-shell" class="review-shell" hidden>
+      <p class="review-summary">
+        <span id="review-count">0</span>
+        <span id="review-count-label">fotografías pendentes</span>
+      </p>
+      <p id="review-message" class="review-message" role="status"
+        aria-live="polite"></p>
+      <div id="review-list" class="review-list"></div>
+      <p id="review-empty" class="review-empty" hidden>
+        Non hai fotografías pendentes de revisión.
+      </p>
+    </section>
+
+    <section id="access-state" class="access-state" aria-live="polite">
+      <p>Comprobando a sesión e os permisos de administración…</p>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  auth.useDeviceLanguage();
+
+  const shell = document.querySelector('#review-shell');
+  const estadoAcceso = document.querySelector('#access-state');
+  const lista = document.querySelector('#review-list');
+  const contador = document.querySelector('#review-count');
+  const etiquetaContador = document.querySelector('#review-count-label');
+  const baleiro = document.querySelector('#review-empty');
+  const mensaxe = document.querySelector('#review-message');
+  const actualizar = document.querySelector('#review-refresh');
+
+  function escaparHtml(texto) {
+    return String(texto ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function mostrarMensaxe(texto = '', tipo = '') {
+    if (!(mensaxe instanceof HTMLElement)) return;
+    mensaxe.textContent = texto;
+    mensaxe.dataset.tipo = tipo;
+    mensaxe.hidden = !texto;
+  }
+
+  function mostrarAcceso(texto, conLigazon = false) {
+    if (!(estadoAcceso instanceof HTMLElement)) return;
+    estadoAcceso.innerHTML = conLigazon
+      ? `<p>${escaparHtml(texto)}</p><a href="/portal/">Ir ao portal privado</a>`
+      : `<p>${escaparHtml(texto)}</p>`;
+    estadoAcceso.hidden = false;
+  }
+
+  async function solicitar(accion, datos = {}) {
+    const usuario = auth.currentUser;
+    if (!usuario?.email) throw new Error('A sesión non está activa.');
+    const idToken = await usuario.getIdToken(true);
+    const resposta = await fetch('/api/fotos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion, ...datos })
+    });
+    const resultado = await resposta.json().catch(() => null);
+    if (!resposta.ok || !resultado?.ok) {
+      throw new Error(resultado?.erro || 'Non foi posible completar a revisión.');
+    }
+    return resultado;
+  }
+
+  function debuxarFotos(fotos) {
+    if (!(lista instanceof HTMLElement) ||
+        !(contador instanceof HTMLElement) ||
+        !(etiquetaContador instanceof HTMLElement) ||
+        !(baleiro instanceof HTMLElement)) return;
+
+    contador.textContent = String(fotos.length);
+    etiquetaContador.textContent = fotos.length === 1
+      ? 'fotografía pendente' : 'fotografías pendentes';
+    baleiro.hidden = fotos.length !== 0;
+
+    lista.innerHTML = fotos.map((foto, indice) => `
+      <article class="photo-review-card" data-row-id="${escaparHtml(foto.rowId)}">
+        <div class="photo-media">
+          ${foto.miniaturaUrl
+            ? `<img src="${escaparHtml(foto.miniaturaUrl)}" alt="${escaparHtml(foto.titulo || `Fotografía ${indice + 1}`)}" loading="lazy" />`
+            : '<div class="photo-placeholder">Sen miniatura dispoñible</div>'}
+        </div>
+        <div class="photo-content">
+          <header class="photo-heading">
+            <p>Fotografía ${indice + 1}</p>
+            <div class="photo-meta">
+              <span>${escaparHtml(foto.data || foto.anoAproximado || 'Sen data')}</span>
+              <span>${escaparHtml(foto.lugar || 'Lugar sen indicar')}</span>
+            </div>
+          </header>
+
+          <label>
+            <span>Título</span>
+            <input name="titulo" value="${escaparHtml(foto.titulo)}" maxlength="120" />
+          </label>
+          <label>
+            <span>Pé de foto</span>
+            <textarea name="peFoto" rows="3" maxlength="600">${escaparHtml(foto.peFoto)}</textarea>
+          </label>
+
+          ${(foto.evento || foto.concerto || foto.autor) ? `
+            <p class="photo-details">
+              ${escaparHtml(foto.evento || foto.concerto || '')}
+              ${foto.autor ? `<span>Autoría: ${escaparHtml(foto.autor)}</span>` : ''}
+            </p>` : ''}
+
+          <label>
+            <span>Observacións internas</span>
+            <textarea name="observacions" rows="2" maxlength="500">${escaparHtml(foto.observacions)}</textarea>
+          </label>
+          <label class="featured-option">
+            <input type="checkbox" name="destacada" />
+            <span>Destacar na galería se se publica</span>
+          </label>
+
+          <div class="decision-actions">
+            <button type="button" data-review-action="publicar">
+              Aceptar e publicar
+            </button>
+            <button type="button" data-review-action="aceptar">
+              Aceptar sen publicar
+            </button>
+            <button type="button" data-review-action="rexeitar">
+              Rexeitar
+            </button>
+          </div>
+
+          ${foto.ficheiroUrl ? `
+            <a class="drive-link" href="${escaparHtml(foto.ficheiroUrl)}"
+              target="_blank" rel="noreferrer">Abrir o orixinal en Drive</a>` : ''}
+        </div>
+      </article>`).join('');
+  }
+
+  async function cargarFotos() {
+    if (actualizar instanceof HTMLButtonElement) {
+      actualizar.disabled = true;
+      actualizar.textContent = 'Actualizando…';
+    }
+    mostrarMensaxe('Cargando fotografías pendentes…', 'cargando');
+    try {
+      const resultado = await solicitar('listarFotosRevision');
+      if (estadoAcceso instanceof HTMLElement) estadoAcceso.hidden = true;
+      if (shell instanceof HTMLElement) shell.hidden = false;
+      debuxarFotos(Array.isArray(resultado.fotos) ? resultado.fotos : []);
+      mostrarMensaxe();
+    } catch (erro) {
+      if (shell instanceof HTMLElement) shell.hidden = true;
+      mostrarAcceso(
+        erro instanceof Error ? erro.message : 'Administración non autorizada.',
+        true
+      );
+    } finally {
+      if (actualizar instanceof HTMLButtonElement) {
+        actualizar.disabled = false;
+        actualizar.textContent = 'Actualizar';
+      }
+    }
+  }
+
+  onAuthStateChanged(auth, (usuario) => {
+    if (!usuario?.email) {
+      if (shell instanceof HTMLElement) shell.hidden = true;
+      mostrarAcceso(
+        'Identifícate primeiro no portal privado para revisar fotografías.',
+        true
+      );
+      return;
+    }
+    cargarFotos();
+  });
+
+  actualizar?.addEventListener('click', cargarFotos);
+
+  lista?.addEventListener('click', async (evento) => {
+    const pulsado = evento.target;
+    if (!(pulsado instanceof Element)) return;
+    const boton = pulsado.closest('button[data-review-action]');
+    if (!(boton instanceof HTMLButtonElement)) return;
+    const accion = boton.dataset.reviewAction;
+    const tarxeta = boton.closest('.photo-review-card');
+    if (!accion || !(tarxeta instanceof HTMLElement)) return;
+
+    if (accion === 'rexeitar' && !window.confirm(
+      'Queres rexeitar esta fotografía e eliminar o seu rexistro? O ficheiro orixinal conservarase en Drive.'
+    )) return;
+
+    const titulo = tarxeta.querySelector('[name="titulo"]');
+    const peFoto = tarxeta.querySelector('[name="peFoto"]');
+    const observacions = tarxeta.querySelector('[name="observacions"]');
+    const destacada = tarxeta.querySelector('[name="destacada"]');
+    const botons = tarxeta.querySelectorAll('button[data-review-action]');
+    botons.forEach((elemento) => {
+      if (elemento instanceof HTMLButtonElement) elemento.disabled = true;
+    });
+
+    try {
+      const resultado = await solicitar('actualizarRevisionFoto', {
+        rowId: tarxeta.dataset.rowId,
+        estado: accion === 'rexeitar' ? 'Rexeitada' : 'Aprobada',
+        publicar: accion === 'publicar',
+        eliminar: accion === 'rexeitar',
+        titulo: titulo instanceof HTMLInputElement ? titulo.value : '',
+        peFoto: peFoto instanceof HTMLTextAreaElement ? peFoto.value : '',
+        observacions: observacions instanceof HTMLTextAreaElement
+          ? observacions.value : '',
+        destacada: destacada instanceof HTMLInputElement && destacada.checked
+      });
+      await cargarFotos();
+      mostrarMensaxe(resultado.mensaxe, 'correcto');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (erro) {
+      mostrarMensaxe(
+        erro instanceof Error ? erro.message : 'Non foi posible revisar a fotografía.',
+        'erro'
+      );
+      botons.forEach((elemento) => {
+        if (elemento instanceof HTMLButtonElement) elemento.disabled = false;
+      });
+    }
+  });
+</script>
+
+<style>
+  .review-page {
+    max-width: 1060px;
+    padding-top: clamp(3.5rem, 8vw, 6.5rem);
+    padding-bottom: clamp(5rem, 10vw, 8rem);
+  }
+
+  .review-page-header {
+    max-width: 760px;
+    margin: 0 auto 3.25rem;
+    text-align: center;
+  }
+
+  .eyebrow {
+    margin: 0;
+    color: var(--color-acento);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .review-page-header h1 {
+    margin: 0.35rem 0 0;
+    color: var(--color-principal);
+    font-family: var(--fuente-minimalista);
+    font-size: clamp(2rem, 5vw, 3rem);
+    letter-spacing: -0.025em;
+  }
+
+  .section-line {
+    width: 48px;
+    height: 2px;
+    margin: 1.1rem auto 1.35rem;
+    background: var(--color-acento);
+  }
+
+  .intro {
+    margin: 0 auto;
+    color: #5f5b57;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .page-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1.6rem;
+  }
+
+  .page-actions a,
+  .page-actions button {
+    padding: 0.2rem 0 0.3rem;
+    border: 0;
+    border-bottom: 1px solid var(--color-acento);
+    background: transparent;
+    color: var(--color-principal);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+    cursor: pointer;
+  }
+
+  .page-actions button:disabled { cursor: wait; opacity: 0.55; }
+
+  .review-shell[hidden],
+  .access-state[hidden],
+  .review-message[hidden] { display: none; }
+
+  .review-summary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    margin: 0 0 1.2rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid #ded8d0;
+    color: #68625d;
+    font-size: 0.88rem;
+  }
+
+  .review-summary span:first-child {
+    color: var(--color-principal);
+    font-size: 1.35rem;
+    font-weight: 700;
+  }
+
+  .review-message,
+  .access-state,
+  .review-empty {
+    margin: 0 0 1.4rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid #ded8d0;
+    background: #fdfbf7;
+    color: #5f5b57;
+    font-size: 0.88rem;
+  }
+
+  .review-message[data-tipo='correcto'] {
+    border-left: 3px solid var(--color-acento);
+    color: var(--color-principal);
+  }
+
+  .review-message[data-tipo='erro'] { border-left: 3px solid var(--color-principal); }
+
+  .access-state { max-width: 620px; margin: 0 auto; text-align: center; }
+  .access-state p { margin: 0; }
+  .access-state a {
+    display: inline-block;
+    margin-top: 0.8rem;
+    color: var(--color-principal);
+    font-weight: 700;
+  }
+
+  .review-list { display: grid; gap: 2rem; }
+
+  .photo-review-card {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
+    overflow: hidden;
+    border: 1px solid #ded8d0;
+    background: #fdfbf7;
+    box-shadow: 0 12px 30px rgba(64, 43, 30, 0.055);
+  }
+
+  .photo-media {
+    min-height: 470px;
+    padding: 1.2rem;
+    border-right: 1px solid #ded8d0;
+    background: #f4f0e6;
+  }
+
+  .photo-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: 560px;
+    object-fit: contain;
+  }
+
+  .photo-placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    color: #77716b;
+    font-size: 0.85rem;
+  }
+
+  .photo-content {
+    display: grid;
+    align-content: start;
+    gap: 1.15rem;
+    padding: clamp(1.4rem, 3vw, 2.1rem);
+  }
+
+  .photo-heading {
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid #ded8d0;
+  }
+
+  .photo-heading > p {
+    margin: 0 0 0.45rem;
+    color: var(--color-acento);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .photo-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 1.2rem;
+    color: #6b655f;
+    font-size: 0.8rem;
+  }
+
+  .photo-content > label:not(.featured-option) {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .photo-content > label > span {
+    color: var(--color-principal);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .photo-content input:not([type='checkbox']),
+  .photo-content textarea {
+    width: 100%;
+    padding: 0.72rem 0.8rem;
+    border: 1px solid #cfc7bf;
+    border-radius: 0;
+    background: var(--color-blanco);
+    color: var(--color-texto);
+    font: inherit;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    resize: vertical;
+  }
+
+  .photo-content input:focus,
+  .photo-content textarea:focus {
+    border-color: var(--color-principal);
+    outline: 2px solid rgba(106, 27, 41, 0.12);
+    outline-offset: 1px;
+  }
+
+  .photo-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    margin: -0.2rem 0 0;
+    color: #68625d;
+    font-size: 0.8rem;
+  }
+
+  .featured-option {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: #514c48;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .featured-option input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--color-principal);
+  }
+
+  .featured-option span { color: #514c48 !important; font-weight: 600 !important; }
+
+  .decision-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+    padding-top: 0.25rem;
+  }
+
+  .decision-actions button {
+    min-height: 3rem;
+    padding: 0.65rem 0.7rem;
+    border: 1px solid var(--color-principal);
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-principal);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+    line-height: 1.3;
+    cursor: pointer;
+  }
+
+  .decision-actions button:hover:not(:disabled) {
+    background: rgba(106, 27, 41, 0.045);
+  }
+
+  .decision-actions button:disabled { cursor: wait; opacity: 0.5; }
+
+  .drive-link {
+    width: fit-content;
+    color: #625c56;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-bottom: 1px solid #b9afa6;
+  }
+
+  .review-empty { text-align: center; }
+
+  @media (max-width: 800px) {
+    .photo-review-card { grid-template-columns: 1fr; }
+    .photo-media {
+      min-height: 340px;
+      border-right: 0;
+      border-bottom: 1px solid #ded8d0;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .review-page { padding-right: 1.15rem; padding-left: 1.15rem; }
+    .page-actions { flex-direction: column; gap: 0.75rem; }
+    .decision-actions { grid-template-columns: 1fr; }
+    .photo-media { min-height: 280px; padding: 0.8rem; }
+  }
+</style>

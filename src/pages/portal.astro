@@ -111,6 +111,10 @@ import BaseLayout from '../layouts/Layout.astro';
               Envía unha fotografía ao arquivo da Coral. Quedará pendente de
               revisión antes de aparecer na galería pública.
             </p>
+            <a id="photo-review-link" class="photo-review-link"
+              href="/portal/revision-fotos/" hidden>
+              Revisar fotografías pendentes
+            </a>
           </header>
 
           <form id="photo-upload-form" class="photo-upload-form module-tile">
@@ -171,25 +175,6 @@ import BaseLayout from '../layouts/Layout.astro';
             </button>
           </form>
 
-          <section id="photo-review-module" class="photo-review-module module-tile" hidden>
-            <header class="review-header">
-              <div>
-                <span>Administración</span>
-                <h2>Revisión de fotografías</h2>
-              </div>
-              <button type="button" id="review-refresh" class="review-refresh">
-                Actualizar
-              </button>
-            </header>
-            <p class="review-summary">
-              <strong id="review-count">0</strong> fotografías pendentes
-            </p>
-            <p id="review-status" class="review-status" role="status"></p>
-            <div id="review-list" class="review-list"></div>
-            <p id="review-empty" class="review-empty" hidden>
-              Non hai fotografías pendentes de revisión.
-            </p>
-          </section>
         </section>
 
         <p
@@ -255,12 +240,7 @@ import BaseLayout from '../layouts/Layout.astro';
   const modulosPrivados = document.querySelector('#private-modules');
   const formularioFoto = document.querySelector('#photo-upload-form');
   const botonFoto = document.querySelector('#photo-submit');
-  const moduloRevision = document.querySelector('#photo-review-module');
-  const listaRevision = document.querySelector('#review-list');
-  const contadorRevision = document.querySelector('#review-count');
-  const baleiroRevision = document.querySelector('#review-empty');
-  const botonActualizarRevision = document.querySelector('#review-refresh');
-  const estadoRevision = document.querySelector('#review-status');
+  const enlaceRevision = document.querySelector('#photo-review-link');
   const tarxetaPortal = document.querySelector('.portal-login-card');
 
   let enlaceEmailPendente = isSignInWithEmailLink(
@@ -321,12 +301,7 @@ import BaseLayout from '../layouts/Layout.astro';
     if (zonaAutenticada instanceof HTMLElement) zonaAutenticada.hidden = true;
     if (modulosPrivados instanceof HTMLElement) modulosPrivados.hidden = false;
     if (tarxetaPortal instanceof HTMLElement) tarxetaPortal.classList.add('is-private');
-    await cargarFotosRevision();
-  }
-
-  function escaparHtml(texto) {
-    return String(texto ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    await comprobarAccesoRevision();
   }
 
   async function solicitarFotosAdmin(accion, datos = {}) {
@@ -349,93 +324,13 @@ import BaseLayout from '../layouts/Layout.astro';
     return resultado;
   }
 
-  function debuxarFotosRevision(fotos) {
-    if (!(listaRevision instanceof HTMLElement) ||
-        !(contadorRevision instanceof HTMLElement) ||
-        !(baleiroRevision instanceof HTMLElement)) return;
-    contadorRevision.textContent = String(fotos.length);
-    baleiroRevision.hidden = fotos.length !== 0;
-    listaRevision.innerHTML = fotos.map((foto) => `
-      <article class="review-card" data-row-id="${escaparHtml(foto.rowId)}">
-        <div class="review-image-wrap">
-          ${foto.miniaturaUrl
-            ? `<img src="${escaparHtml(foto.miniaturaUrl)}" alt="${escaparHtml(foto.titulo)}" loading="lazy" />`
-            : '<div class="review-image-placeholder">Sen miniatura</div>'}
-        </div>
-        <div class="review-card-body">
-          <div class="review-meta">
-            <span>${escaparHtml(foto.data || foto.anoAproximado || 'Sen data')}</span>
-            <span>${escaparHtml(foto.lugar || 'Lugar sen indicar')}</span>
-          </div>
-          <label>Título
-            <input name="titulo" value="${escaparHtml(foto.titulo)}" maxlength="120" />
-          </label>
-          <label>Pé de foto
-            <textarea name="peFoto" rows="3" maxlength="600">${escaparHtml(foto.peFoto)}</textarea>
-          </label>
-          <p class="review-details">
-            ${escaparHtml(foto.evento || foto.concerto || '')}
-            ${foto.autor ? ` · Autoría: ${escaparHtml(foto.autor)}` : ''}
-          </p>
-          <label>Observacións internas
-            <textarea name="observacions" rows="2" maxlength="500">${escaparHtml(foto.observacions)}</textarea>
-          </label>
-          <label class="review-featured">
-            <input type="checkbox" name="destacada" /> Destacar se se publica
-          </label>
-          <div class="review-actions">
-            <button type="button" data-review-action="publicar">
-              <strong>Aceptar e publicar</strong>
-              <span>Aprobar e mostrar na galería</span>
-            </button>
-            <button type="button" data-review-action="aceptar">
-              <strong>Aceptar</strong>
-              <span>Gardar no arquivo sen publicar</span>
-            </button>
-            <button type="button" data-review-action="rexeitar" class="reject">
-              <strong>Rexeitar</strong>
-              <span>Eliminar o rexistro da táboa</span>
-            </button>
-            ${foto.ficheiroUrl
-              ? `<a class="drive-tile" href="${escaparHtml(foto.ficheiroUrl)}" target="_blank" rel="noreferrer"><strong>Abrir en Drive</strong><span>Consultar o ficheiro orixinal</span></a>`
-              : ''}
-          </div>
-        </div>
-      </article>`).join('');
-  }
-
-  async function cargarFotosRevision() {
-    const éAdministradorCoñecido =
-      auth.currentUser?.email?.toLowerCase() === 'jcuinas@gmail.com';
-    if (éAdministradorCoñecido && moduloRevision instanceof HTMLElement) {
-      moduloRevision.hidden = false;
-    }
-    if (estadoRevision instanceof HTMLElement) {
-      estadoRevision.textContent = 'Cargando fotografías pendentes…';
-      estadoRevision.dataset.tipo = 'cargando';
-    }
+  async function comprobarAccesoRevision() {
+    if (!(enlaceRevision instanceof HTMLAnchorElement)) return;
+    enlaceRevision.hidden = true;
     try {
-      const resultado = await solicitarFotosAdmin('listarFotosRevision');
-      if (moduloRevision instanceof HTMLElement) moduloRevision.hidden = false;
-      debuxarFotosRevision(Array.isArray(resultado.fotos) ? resultado.fotos : []);
-      if (estadoRevision instanceof HTMLElement) {
-        estadoRevision.textContent = '';
-        delete estadoRevision.dataset.tipo;
-      }
-    } catch (erro) {
-      if (!éAdministradorCoñecido && erro instanceof Error &&
-          'status' in erro && erro.status === 403) {
-        if (moduloRevision instanceof HTMLElement) moduloRevision.hidden = true;
-        return;
-      }
-      if (estadoRevision instanceof HTMLElement) {
-        estadoRevision.textContent = erro instanceof Error
-          ? `Non foi posible cargar a revisión: ${erro.message}`
-          : 'Non foi posible cargar a revisión.';
-        estadoRevision.dataset.tipo = 'erro';
-      }
-      console.error(erro);
-    }
+      await solicitarFotosAdmin('listarFotosRevision');
+      enlaceRevision.hidden = false;
+    } catch { /* O acceso administrativo compróbase tamén no servidor. */ }
   }
 
   function lerComoBase64(ficheiro) {
@@ -692,53 +587,6 @@ import BaseLayout from '../layouts/Layout.astro';
     }
   });
 
-  botonActualizarRevision?.addEventListener('click', async () => {
-    definirBoton(botonActualizarRevision, true, 'Actualizando…');
-    await cargarFotosRevision();
-    definirBoton(botonActualizarRevision, false, 'Actualizar');
-  });
-
-  listaRevision?.addEventListener('click', async (evento) => {
-    const pulsado = evento.target;
-    if (!(pulsado instanceof Element)) return;
-    const obxectivo = pulsado.closest('button[data-review-action]');
-    if (!(obxectivo instanceof HTMLButtonElement)) return;
-    const accionRevision = obxectivo.dataset.reviewAction;
-    if (!accionRevision) return;
-    const tarxeta = obxectivo.closest('.review-card');
-    if (!(tarxeta instanceof HTMLElement)) return;
-    const titulo = tarxeta.querySelector('[name="titulo"]');
-    const peFoto = tarxeta.querySelector('[name="peFoto"]');
-    const observacions = tarxeta.querySelector('[name="observacions"]');
-    const destacada = tarxeta.querySelector('[name="destacada"]');
-
-    if (accionRevision === 'rexeitar' && !window.confirm(
-      'Queres rexeitar esta fotografía e eliminar o seu rexistro da táboa Fotos? O ficheiro orixinal conservarase en Drive.'
-    )) return;
-
-    obxectivo.disabled = true;
-    try {
-      const resultado = await solicitarFotosAdmin('actualizarRevisionFoto', {
-        rowId: tarxeta.dataset.rowId,
-        estado: accionRevision === 'rexeitar' ? 'Rexeitada' : 'Aprobada',
-        publicar: accionRevision === 'publicar',
-        eliminar: accionRevision === 'rexeitar',
-        titulo: titulo instanceof HTMLInputElement ? titulo.value : '',
-        peFoto: peFoto instanceof HTMLTextAreaElement ? peFoto.value : '',
-        observacions: observacions instanceof HTMLTextAreaElement
-          ? observacions.value : '',
-        destacada: destacada instanceof HTMLInputElement && destacada.checked
-      });
-      tarxeta.remove();
-      await cargarFotosRevision();
-      mostrarMensaxe(resultado.mensaxe, 'correcto');
-    } catch (erro) {
-      mostrarMensaxe(erro instanceof Error
-        ? erro.message : 'Non foi posible revisar a fotografía.');
-      obxectivo.disabled = false;
-    }
-  });
-
   if (enlaceEmailPendente) {
     const emailGardado =
       window.localStorage.getItem(EMAIL_GARDADO) || '';
@@ -876,6 +724,19 @@ import BaseLayout from '../layouts/Layout.astro';
     color: #6d6d6d;
     line-height: 1.5;
   }
+
+  .photo-review-link {
+    display: inline-block;
+    margin-top: 1rem;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid var(--color-acento);
+    color: var(--color-principal);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+  }
+
+  .photo-review-link[hidden] { display: none; }
 
   .photo-upload-form,
   .photo-file-field {
