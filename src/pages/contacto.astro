@@ -56,26 +56,34 @@ import BaseLayout from '../layouts/Layout.astro';
           
           <ul class="info-list">
             <li>
-              <strong>📍 Local de Ensaios:</strong><br />
-              [Enderezo do Local ou Sede]<br />
-              36002 Pontevedra
+              <strong>Sociedade Coral Polifónica de Pontevedra</strong>
             </li>
             <li>
-              <strong>⏰ Horarios de Ensaio:</strong><br />
-              Xoves xerais ás 20:00 h<br />
-              (Consultar sección Axenda para parciais)
+              <strong>📍 Enderezo:</strong><br />
+              Rúa Luís Braille 40<br />
+              36003 Pontevedra
             </li>
             <li>
               <strong>✉️ Correo electrónico:</strong><br />
-              <a href="mailto:info@polifonicapontevedra.gal" class="info-link">info@polifonicapontevedra.gal</a>
+              <a href="mailto:coralpolifonicapontevedra@gmail.com" class="info-link">coralpolifonicapontevedra@gmail.com</a>
+            </li>
+            <li>
+              <strong>☎️ Teléfono:</strong><br />
+              <a href="tel:+34681254688" class="info-link">681 254 688</a>
             </li>
           </ul>
         </div>
 
         <div class="map-card">
-          <div class="map-placeholder">
-            <span>🗺️ Espazo reservado para o Mapa de Google Maps</span>
-          </div>
+          <a
+            class="map-link"
+            href="https://www.google.com/maps/search/?api=1&query=R%C3%BAa+Lu%C3%ADs+Braille+40%2C+36003+Pontevedra"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>Ver o enderezo en Google Maps</span>
+            <span aria-hidden="true">↗</span>
+          </a>
         </div>
       </aside>
 
@@ -233,19 +241,22 @@ import BaseLayout from '../layouts/Layout.astro';
     color: var(--color-acento);
   }
 
-  /* Espazo do Mapa */
-  .map-placeholder {
-    background: #e5e5e5;
-    border: 1px solid #ccc;
-    height: 250px;
-    border-radius: 4px;
+  .map-link {
     display: flex;
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 2rem;
-    color: #666;
-    font-size: 0.9rem;
-    font-weight: 600;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    color: var(--color-principal);
+    background: var(--color-blanco);
+    border: 1px solid rgba(106, 27, 41, .15);
+    border-radius: 6px;
+    font-size: .9rem;
+    font-weight: 700;
+    transition: border-color .2s ease, transform .2s ease;
+  }
+  .map-link:hover {
+    border-color: var(--color-acento);
+    transform: translateY(-2px);
   }
 </style>
