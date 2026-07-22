@@ -170,6 +170,25 @@ import BaseLayout from '../layouts/Layout.astro';
               Enviar fotografía para revisión
             </button>
           </form>
+
+          <section id="photo-review-module" class="photo-review-module" hidden>
+            <header class="review-header">
+              <div>
+                <span>Administración</span>
+                <h2>Revisión de fotografías</h2>
+              </div>
+              <button type="button" id="review-refresh" class="review-refresh">
+                Actualizar
+              </button>
+            </header>
+            <p class="review-summary">
+              <strong id="review-count">0</strong> fotografías pendentes
+            </p>
+            <div id="review-list" class="review-list"></div>
+            <p id="review-empty" class="review-empty" hidden>
+              Non hai fotografías pendentes de revisión.
+            </p>
+          </section>
         </section>
 
         <p
@@ -235,6 +254,11 @@ import BaseLayout from '../layouts/Layout.astro';
   const modulosPrivados = document.querySelector('#private-modules');
   const formularioFoto = document.querySelector('#photo-upload-form');
   const botonFoto = document.querySelector('#photo-submit');
+  const moduloRevision = document.querySelector('#photo-review-module');
+  const listaRevision = document.querySelector('#review-list');
+  const contadorRevision = document.querySelector('#review-count');
+  const baleiroRevision = document.querySelector('#review-empty');
+  const botonActualizarRevision = document.querySelector('#review-refresh');
 
   let enlaceEmailPendente = isSignInWithEmailLink(
     auth,
@@ -290,9 +314,94 @@ import BaseLayout from '../layouts/Layout.astro';
     }
   }
 
-  function mostrarModulosPrivados() {
+  async function mostrarModulosPrivados() {
     if (zonaAutenticada instanceof HTMLElement) zonaAutenticada.hidden = true;
     if (modulosPrivados instanceof HTMLElement) modulosPrivados.hidden = false;
+    await cargarFotosRevision();
+  }
+
+  function escaparHtml(texto) {
+    return String(texto ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  async function solicitarFotosAdmin(accion, datos = {}) {
+    const usuario = auth.currentUser;
+    if (!usuario?.email) throw new Error('A sesión xa non está activa.');
+    const idToken = await usuario.getIdToken(true);
+    const resposta = await fetch('/api/fotos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion, ...datos })
+    });
+    const resultado = await resposta.json().catch(() => null);
+    if (!resposta.ok || !resultado?.ok) {
+      const erro = Object.assign(
+        new Error(resultado?.erro || 'Non foi posible cargar a revisión.'),
+        { status: resposta.status }
+      );
+      throw erro;
+    }
+    return resultado;
+  }
+
+  function debuxarFotosRevision(fotos) {
+    if (!(listaRevision instanceof HTMLElement) ||
+        !(contadorRevision instanceof HTMLElement) ||
+        !(baleiroRevision instanceof HTMLElement)) return;
+    contadorRevision.textContent = String(fotos.length);
+    baleiroRevision.hidden = fotos.length !== 0;
+    listaRevision.innerHTML = fotos.map((foto) => `
+      <article class="review-card" data-row-id="${escaparHtml(foto.rowId)}">
+        <div class="review-image-wrap">
+          ${foto.miniaturaUrl
+            ? `<img src="${escaparHtml(foto.miniaturaUrl)}" alt="${escaparHtml(foto.titulo)}" loading="lazy" />`
+            : '<div class="review-image-placeholder">Sen miniatura</div>'}
+        </div>
+        <div class="review-card-body">
+          <div class="review-meta">
+            <span>${escaparHtml(foto.data || foto.anoAproximado || 'Sen data')}</span>
+            <span>${escaparHtml(foto.lugar || 'Lugar sen indicar')}</span>
+          </div>
+          <label>Título
+            <input name="titulo" value="${escaparHtml(foto.titulo)}" maxlength="120" />
+          </label>
+          <label>Pé de foto
+            <textarea name="peFoto" rows="3" maxlength="600">${escaparHtml(foto.peFoto)}</textarea>
+          </label>
+          <p class="review-details">
+            ${escaparHtml(foto.evento || foto.concerto || '')}
+            ${foto.autor ? ` · Autoría: ${escaparHtml(foto.autor)}` : ''}
+          </p>
+          <label>Observacións internas
+            <textarea name="observacions" rows="2" maxlength="500">${escaparHtml(foto.observacions)}</textarea>
+          </label>
+          <label class="review-featured">
+            <input type="checkbox" name="destacada" /> Destacar na galería
+          </label>
+          <div class="review-actions">
+            <button type="button" data-review-action="Aprobada">Aprobar e publicar</button>
+            <button type="button" data-review-action="Rexeitada" class="reject">Rexeitar</button>
+            ${foto.ficheiroUrl
+              ? `<a href="${escaparHtml(foto.ficheiroUrl)}" target="_blank" rel="noreferrer">Abrir en Drive</a>`
+              : ''}
+          </div>
+        </div>
+      </article>`).join('');
+  }
+
+  async function cargarFotosRevision() {
+    try {
+      const resultado = await solicitarFotosAdmin('listarFotosRevision');
+      if (moduloRevision instanceof HTMLElement) moduloRevision.hidden = false;
+      debuxarFotosRevision(Array.isArray(resultado.fotos) ? resultado.fotos : []);
+    } catch (erro) {
+      if (erro instanceof Error && 'status' in erro && erro.status === 403) {
+        if (moduloRevision instanceof HTMLElement) moduloRevision.hidden = true;
+        return;
+      }
+      console.error(erro);
+    }
   }
 
   function lerComoBase64(ficheiro) {
@@ -549,6 +658,45 @@ import BaseLayout from '../layouts/Layout.astro';
     }
   });
 
+  botonActualizarRevision?.addEventListener('click', async () => {
+    definirBoton(botonActualizarRevision, true, 'Actualizando…');
+    await cargarFotosRevision();
+    definirBoton(botonActualizarRevision, false, 'Actualizar');
+  });
+
+  listaRevision?.addEventListener('click', async (evento) => {
+    const obxectivo = evento.target;
+    if (!(obxectivo instanceof HTMLButtonElement)) return;
+    const estado = obxectivo.dataset.reviewAction;
+    if (!estado) return;
+    const tarxeta = obxectivo.closest('.review-card');
+    if (!(tarxeta instanceof HTMLElement)) return;
+    const titulo = tarxeta.querySelector('[name="titulo"]');
+    const peFoto = tarxeta.querySelector('[name="peFoto"]');
+    const observacions = tarxeta.querySelector('[name="observacions"]');
+    const destacada = tarxeta.querySelector('[name="destacada"]');
+
+    obxectivo.disabled = true;
+    try {
+      const resultado = await solicitarFotosAdmin('actualizarRevisionFoto', {
+        rowId: tarxeta.dataset.rowId,
+        estado,
+        titulo: titulo instanceof HTMLInputElement ? titulo.value : '',
+        peFoto: peFoto instanceof HTMLTextAreaElement ? peFoto.value : '',
+        observacions: observacions instanceof HTMLTextAreaElement
+          ? observacions.value : '',
+        destacada: destacada instanceof HTMLInputElement && destacada.checked
+      });
+      tarxeta.remove();
+      await cargarFotosRevision();
+      mostrarMensaxe(resultado.mensaxe, 'correcto');
+    } catch (erro) {
+      mostrarMensaxe(erro instanceof Error
+        ? erro.message : 'Non foi posible revisar a fotografía.');
+      obxectivo.disabled = false;
+    }
+  });
+
   if (enlaceEmailPendente) {
     const emailGardado =
       window.localStorage.getItem(EMAIL_GARDADO) || '';
@@ -707,6 +855,138 @@ import BaseLayout from '../layouts/Layout.astro';
   }
 
   .photo-upload-form textarea { resize: vertical; }
+
+  .photo-review-module {
+    margin-top: 1.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-gris);
+  }
+
+  .photo-review-module[hidden] { display: none; }
+
+  .review-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .review-header span {
+    color: var(--color-acento);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .review-header h2 { margin: 0.25rem 0 0; color: var(--color-principal); }
+
+  .review-refresh {
+    border: 1px solid var(--color-principal);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-principal);
+    padding: 0.55rem 0.8rem;
+    cursor: pointer;
+  }
+
+  .review-summary { color: #666; font-size: 0.9rem; }
+
+  .review-summary strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.7rem;
+    height: 1.7rem;
+    margin-right: 0.35rem;
+    border-radius: 50%;
+    background: var(--color-principal);
+    color: white;
+  }
+
+  .review-list { display: grid; gap: 1.25rem; }
+
+  .review-card {
+    overflow: hidden;
+    border: 1px solid var(--color-gris);
+    border-radius: 6px;
+    background: white;
+  }
+
+  .review-image-wrap {
+    min-height: 210px;
+    background: #f2f2f2;
+  }
+
+  .review-image-wrap img {
+    display: block;
+    width: 100%;
+    height: 300px;
+    object-fit: contain;
+  }
+
+  .review-image-placeholder {
+    display: grid;
+    place-items: center;
+    min-height: 210px;
+    color: #888;
+  }
+
+  .review-card-body {
+    display: grid;
+    gap: 0.9rem;
+    padding: 1.2rem;
+  }
+
+  .review-card-body > label {
+    display: grid;
+    gap: 0.4rem;
+    color: var(--color-principal);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .review-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: #777;
+    font-size: 0.78rem;
+  }
+
+  .review-details { margin: 0; color: #666; font-size: 0.85rem; }
+
+  .review-featured { display: flex !important; grid-auto-flow: column; justify-content: start; }
+
+  .review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .review-actions button {
+    border: 1px solid var(--color-principal);
+    border-radius: 4px;
+    background: var(--color-principal);
+    color: white;
+    padding: 0.7rem 0.9rem;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .review-actions button.reject { background: transparent; color: var(--color-principal); }
+
+  .review-actions a { color: var(--color-principal); font-size: 0.82rem; }
+
+  .review-empty {
+    padding: 1.5rem;
+    border: 1px dashed #ccc;
+    text-align: center;
+    color: #777;
+  }
 
   .btn-google,
   .btn-email-link {
