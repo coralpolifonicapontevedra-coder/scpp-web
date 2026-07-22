@@ -201,11 +201,19 @@ function actualizarRevisionFotoPortal_(datos) {
   if (filaIndice === -1) return { ok: false, erro: 'Non se atopou a fotografía' };
 
   var numeroFila = filaIndice + 1;
+  if (estado === 'Rexeitada' && datos.eliminar === true) {
+    contexto.folla.deleteRow(numeroFila);
+    SpreadsheetApp.flush();
+    return { ok: true, rowId: rowId, estado: estado,
+      mensaxe: 'Fotografía rexeitada e rexistro eliminado' };
+  }
+
+  var publicar = estado === 'Aprobada' && datos.publicar === true;
   contexto.folla.getRange(numeroFila, indice.EstadoRevision + 1).setValue(estado);
   contexto.folla.getRange(numeroFila, indice.MostrarWeb + 1)
-    .setValue(estado === 'Aprobada');
+    .setValue(publicar);
   contexto.folla.getRange(numeroFila, indice.Destacada + 1)
-    .setValue(estado === 'Aprobada' && datos.destacada === true);
+    .setValue(publicar && datos.destacada === true);
   contexto.folla.getRange(numeroFila, indice.Observacions + 1)
     .setValue(String(datos.observacions || '').trim());
   contexto.folla.getRange(numeroFila, indice.Titulo + 1)
@@ -215,9 +223,9 @@ function actualizarRevisionFotoPortal_(datos) {
   SpreadsheetApp.flush();
 
   return { ok: true, rowId: rowId, estado: estado,
-    mensaxe: estado === 'Aprobada'
-      ? 'Fotografía aprobada para a súa publicación'
-      : 'Fotografía rexeitada' };
+    mensaxe: publicar
+      ? 'Fotografía aceptada e preparada para publicar'
+      : 'Fotografía aceptada no arquivo sen publicar' };
 }
 
 function obterContextoFotos_() {

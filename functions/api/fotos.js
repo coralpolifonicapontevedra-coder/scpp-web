@@ -100,6 +100,8 @@ export async function onRequest({ request, env }) {
         confirmaDereitos: datos.confirmaDereitos === true,
         rowId: String(datos.rowId || '').trim(),
         estado: String(datos.estado || '').trim(),
+        publicar: datos.publicar === true,
+        eliminar: datos.eliminar === true,
         destacada: datos.destacada === true,
         observacions: String(datos.observacions || '').trim()
       })

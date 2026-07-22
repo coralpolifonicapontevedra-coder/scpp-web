@@ -113,7 +113,7 @@ import BaseLayout from '../layouts/Layout.astro';
             </p>
           </header>
 
-          <form id="photo-upload-form" class="photo-upload-form">
+          <form id="photo-upload-form" class="photo-upload-form module-tile">
             <div class="photo-file-field">
               <label for="photo-file">Fotografía</label>
               <input id="photo-file" name="foto" type="file"
@@ -171,7 +171,7 @@ import BaseLayout from '../layouts/Layout.astro';
             </button>
           </form>
 
-          <section id="photo-review-module" class="photo-review-module" hidden>
+          <section id="photo-review-module" class="photo-review-module module-tile" hidden>
             <header class="review-header">
               <div>
                 <span>Administración</span>
@@ -261,6 +261,7 @@ import BaseLayout from '../layouts/Layout.astro';
   const baleiroRevision = document.querySelector('#review-empty');
   const botonActualizarRevision = document.querySelector('#review-refresh');
   const estadoRevision = document.querySelector('#review-status');
+  const tarxetaPortal = document.querySelector('.portal-login-card');
 
   let enlaceEmailPendente = isSignInWithEmailLink(
     auth,
@@ -319,6 +320,7 @@ import BaseLayout from '../layouts/Layout.astro';
   async function mostrarModulosPrivados() {
     if (zonaAutenticada instanceof HTMLElement) zonaAutenticada.hidden = true;
     if (modulosPrivados instanceof HTMLElement) modulosPrivados.hidden = false;
+    if (tarxetaPortal instanceof HTMLElement) tarxetaPortal.classList.add('is-private');
     await cargarFotosRevision();
   }
 
@@ -379,13 +381,23 @@ import BaseLayout from '../layouts/Layout.astro';
             <textarea name="observacions" rows="2" maxlength="500">${escaparHtml(foto.observacions)}</textarea>
           </label>
           <label class="review-featured">
-            <input type="checkbox" name="destacada" /> Destacar na galería
+            <input type="checkbox" name="destacada" /> Destacar se se publica
           </label>
           <div class="review-actions">
-            <button type="button" data-review-action="Aprobada">Aprobar e publicar</button>
-            <button type="button" data-review-action="Rexeitada" class="reject">Rexeitar</button>
+            <button type="button" data-review-action="publicar">
+              <strong>Aceptar e publicar</strong>
+              <span>Aprobar e mostrar na galería</span>
+            </button>
+            <button type="button" data-review-action="aceptar">
+              <strong>Aceptar</strong>
+              <span>Gardar no arquivo sen publicar</span>
+            </button>
+            <button type="button" data-review-action="rexeitar" class="reject">
+              <strong>Rexeitar</strong>
+              <span>Eliminar o rexistro da táboa</span>
+            </button>
             ${foto.ficheiroUrl
-              ? `<a href="${escaparHtml(foto.ficheiroUrl)}" target="_blank" rel="noreferrer">Abrir en Drive</a>`
+              ? `<a class="drive-tile" href="${escaparHtml(foto.ficheiroUrl)}" target="_blank" rel="noreferrer"><strong>Abrir en Drive</strong><span>Consultar o ficheiro orixinal</span></a>`
               : ''}
           </div>
         </div>
@@ -687,10 +699,12 @@ import BaseLayout from '../layouts/Layout.astro';
   });
 
   listaRevision?.addEventListener('click', async (evento) => {
-    const obxectivo = evento.target;
+    const pulsado = evento.target;
+    if (!(pulsado instanceof Element)) return;
+    const obxectivo = pulsado.closest('button[data-review-action]');
     if (!(obxectivo instanceof HTMLButtonElement)) return;
-    const estado = obxectivo.dataset.reviewAction;
-    if (!estado) return;
+    const accionRevision = obxectivo.dataset.reviewAction;
+    if (!accionRevision) return;
     const tarxeta = obxectivo.closest('.review-card');
     if (!(tarxeta instanceof HTMLElement)) return;
     const titulo = tarxeta.querySelector('[name="titulo"]');
@@ -698,11 +712,17 @@ import BaseLayout from '../layouts/Layout.astro';
     const observacions = tarxeta.querySelector('[name="observacions"]');
     const destacada = tarxeta.querySelector('[name="destacada"]');
 
+    if (accionRevision === 'rexeitar' && !window.confirm(
+      'Queres rexeitar esta fotografía e eliminar o seu rexistro da táboa Fotos? O ficheiro orixinal conservarase en Drive.'
+    )) return;
+
     obxectivo.disabled = true;
     try {
       const resultado = await solicitarFotosAdmin('actualizarRevisionFoto', {
         rowId: tarxeta.dataset.rowId,
-        estado,
+        estado: accionRevision === 'rexeitar' ? 'Rexeitada' : 'Aprobada',
+        publicar: accionRevision === 'publicar',
+        eliminar: accionRevision === 'rexeitar',
         titulo: titulo instanceof HTMLInputElement ? titulo.value : '',
         peFoto: peFoto instanceof HTMLTextAreaElement ? peFoto.value : '',
         observacions: observacions instanceof HTMLTextAreaElement
@@ -759,7 +779,10 @@ import BaseLayout from '../layouts/Layout.astro';
     max-width: 580px;
     width: 100%;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+    transition: max-width 0.25s ease;
   }
+
+  .portal-login-card.is-private { max-width: 1080px; }
 
   .portal-card-header {
     text-align: center;
@@ -825,7 +848,14 @@ import BaseLayout from '../layouts/Layout.astro';
   #private-modules {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.75rem;
+  }
+
+  .module-tile {
+    padding: clamp(1.2rem, 3vw, 2rem);
+    border: 1px solid #dedbd8;
+    border-radius: 3px;
+    background: var(--color-blanco);
   }
 
   .modules-header span {
@@ -854,7 +884,7 @@ import BaseLayout from '../layouts/Layout.astro';
     gap: 0.55rem;
   }
 
-  .photo-upload-form { gap: 1.15rem; }
+  .photo-upload-form { gap: 1.25rem; }
 
   .photo-fields-grid {
     display: grid;
@@ -863,10 +893,10 @@ import BaseLayout from '../layouts/Layout.astro';
   }
 
   .photo-file-field {
-    padding: 1.1rem;
+    padding: 1.25rem;
     border: 1px dashed #b7b7b7;
-    border-radius: 4px;
-    background: #fafafa;
+    border-radius: 2px;
+    background: transparent;
   }
 
   .photo-file-field label,
@@ -878,10 +908,46 @@ import BaseLayout from '../layouts/Layout.astro';
 
   .photo-upload-form textarea { resize: vertical; }
 
+  .photo-upload-form input:not([type='checkbox']):not([type='file']),
+  .photo-upload-form textarea,
+  .review-card-body input:not([type='checkbox']),
+  .review-card-body textarea {
+    width: 100%;
+    padding: 0.78rem 0.85rem;
+    border: 1px solid #d8d3cf;
+    border-radius: 2px;
+    background: transparent;
+    color: var(--color-texto);
+    font: inherit;
+    box-sizing: border-box;
+  }
+
+  .photo-upload-form input:focus,
+  .photo-upload-form textarea:focus,
+  .review-card-body input:focus,
+  .review-card-body textarea:focus {
+    border-color: var(--color-principal);
+    outline: 2px solid color-mix(
+      in srgb,
+      var(--color-principal) 16%,
+      transparent
+    );
+    outline-offset: 1px;
+  }
+
+  .photo-file-field input::file-selector-button {
+    margin-right: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #c9c2bd;
+    border-radius: 2px;
+    background: transparent;
+    color: var(--color-principal);
+    font: inherit;
+    cursor: pointer;
+  }
+
   .photo-review-module {
-    margin-top: 1.5rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--color-gris);
+    margin-top: 0.25rem;
   }
 
   .photo-review-module[hidden] { display: none; }
@@ -905,10 +971,14 @@ import BaseLayout from '../layouts/Layout.astro';
 
   .review-refresh {
     border: 1px solid var(--color-principal);
-    border-radius: 4px;
+    border-radius: 2px;
     background: transparent;
     color: var(--color-principal);
-    padding: 0.55rem 0.8rem;
+    padding: 0.7rem 1rem;
+    font: inherit;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     cursor: pointer;
   }
 
@@ -940,38 +1010,44 @@ import BaseLayout from '../layouts/Layout.astro';
     color: white;
   }
 
-  .review-list { display: grid; gap: 1.25rem; }
+  .review-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    align-items: start;
+  }
 
   .review-card {
     overflow: hidden;
-    border: 1px solid var(--color-gris);
-    border-radius: 6px;
+    border: 1px solid #dedbd8;
+    border-radius: 3px;
     background: white;
   }
 
   .review-image-wrap {
-    min-height: 210px;
-    background: #f2f2f2;
+    aspect-ratio: 1 / 1;
+    background: #f6f4f1;
+    border-bottom: 1px solid #e6e2de;
   }
 
   .review-image-wrap img {
     display: block;
     width: 100%;
-    height: 300px;
+    height: 100%;
     object-fit: contain;
   }
 
   .review-image-placeholder {
     display: grid;
     place-items: center;
-    min-height: 210px;
+    height: 100%;
     color: #888;
   }
 
   .review-card-body {
     display: grid;
-    gap: 0.9rem;
-    padding: 1.2rem;
+    gap: 1rem;
+    padding: 1.25rem;
   }
 
   .review-card-body > label {
@@ -992,30 +1068,62 @@ import BaseLayout from '../layouts/Layout.astro';
 
   .review-details { margin: 0; color: #666; font-size: 0.85rem; }
 
-  .review-featured { display: flex !important; grid-auto-flow: column; justify-content: start; }
+  .review-featured {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.55rem;
+  }
+
+  .review-featured input { width: auto; accent-color: var(--color-principal); }
 
   .review-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .review-actions button,
+  .review-actions .drive-tile {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.65rem;
-  }
-
-  .review-actions button {
-    border: 1px solid var(--color-principal);
-    border-radius: 4px;
-    background: var(--color-principal);
-    color: white;
-    padding: 0.7rem 0.9rem;
+    min-height: 4.7rem;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.25rem;
+    border: 1px solid #c9c2bd;
+    border-radius: 2px;
+    background: transparent;
+    color: var(--color-principal);
+    padding: 0.75rem;
     font: inherit;
-    font-size: 0.8rem;
-    font-weight: 700;
+    text-align: left;
+    text-decoration: none;
     cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
   }
 
-  .review-actions button.reject { background: transparent; color: var(--color-principal); }
+  .review-actions button:hover:not(:disabled),
+  .review-actions .drive-tile:hover {
+    border-color: var(--color-principal);
+    background: color-mix(in srgb, var(--color-principal) 3%, transparent);
+  }
 
-  .review-actions a { color: var(--color-principal); font-size: 0.82rem; }
+  .review-actions button:disabled { cursor: wait; opacity: 0.55; }
+
+  .review-actions strong {
+    font-size: 0.78rem;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+  }
+
+  .review-actions span {
+    color: #777;
+    font-size: 0.7rem;
+    line-height: 1.35;
+  }
+
+  .review-actions button.reject { border-color: #bda7a7; }
 
   .review-empty {
     padding: 1.5rem;
@@ -1281,10 +1389,10 @@ import BaseLayout from '../layouts/Layout.astro';
     display: block;
     width: 100%;
     padding: 0.9rem;
-    background-color: var(--color-principal);
-    color: var(--color-blanco);
-    border: none;
-    border-radius: 4px;
+    background-color: transparent;
+    color: var(--color-principal);
+    border: 1px solid var(--color-principal);
+    border-radius: 2px;
     text-transform: uppercase;
     font-size: 0.85rem;
     font-weight: 600;
@@ -1298,7 +1406,11 @@ import BaseLayout from '../layouts/Layout.astro';
   }
 
   .btn-portal-submit:hover:not(:disabled) {
-    background-color: var(--color-acento);
+    background-color: color-mix(
+      in srgb,
+      var(--color-principal) 4%,
+      transparent
+    );
   }
 
   .btn-portal-submit:disabled {
@@ -1330,7 +1442,9 @@ import BaseLayout from '../layouts/Layout.astro';
   }
 
   @media (max-width: 576px) {
-    .photo-fields-grid { grid-template-columns: 1fr; }
+    .photo-fields-grid,
+    .review-list,
+    .review-actions { grid-template-columns: 1fr; }
     .portal-page-wrapper {
       padding-top: 2.5rem;
       padding-bottom: 4rem;
