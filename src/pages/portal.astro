@@ -103,6 +103,62 @@ import BaseLayout from '../layouts/Layout.astro';
           </button>
         </section>
 
+        <section id="private-modules" hidden>
+          <header class="modules-header">
+            <span>Espazo privado</span>
+            <h2>Achegar fotografías</h2>
+            <p>
+              Envía unha fotografía ao arquivo da Coral. Quedará pendente de
+              revisión antes de aparecer na galería pública.
+            </p>
+          </header>
+
+          <form id="photo-upload-form" class="photo-upload-form">
+            <div class="photo-file-field">
+              <label for="photo-file">Fotografía</label>
+              <input id="photo-file" name="foto" type="file"
+                accept="image/jpeg,image/png,image/webp" required />
+              <small>JPG, PNG ou WebP. Tamaño máximo: 8 MB.</small>
+            </div>
+            <div class="form-group">
+              <label for="photo-title">Título</label>
+              <input id="photo-title" name="titulo" maxlength="120" required />
+            </div>
+            <div class="form-group">
+              <label for="photo-caption">Pé de foto</label>
+              <textarea id="photo-caption" name="peFoto" rows="3" maxlength="600"></textarea>
+            </div>
+            <div class="photo-fields-grid">
+              <div class="form-group">
+                <label for="photo-date">Data aproximada</label>
+                <input id="photo-date" name="dataFoto" type="date" />
+              </div>
+              <div class="form-group">
+                <label for="photo-place">Lugar</label>
+                <input id="photo-place" name="lugar" maxlength="120" />
+              </div>
+              <div class="form-group">
+                <label for="photo-author">Autoría</label>
+                <input id="photo-author" name="autoria" maxlength="120" />
+              </div>
+              <div class="form-group">
+                <label for="photo-origin">Procedencia</label>
+                <input id="photo-origin" name="procedencia" maxlength="160" />
+              </div>
+            </div>
+            <label class="privacy-consent" for="photo-rights">
+              <input id="photo-rights" name="confirmaDereitos" type="checkbox" required />
+              <span>
+                Confirmo que a Coral pode conservar esta imaxe e que dispoño
+                de autorización para achegala para a súa posible publicación.
+              </span>
+            </label>
+            <button type="submit" class="btn-portal-submit" id="photo-submit">
+              Enviar fotografía para revisión
+            </button>
+          </form>
+        </section>
+
         <p
           id="portal-message"
           class="portal-message"
@@ -163,6 +219,9 @@ import BaseLayout from '../layouts/Layout.astro';
   const mensaxe = document.querySelector('#portal-message');
   const botonAcceso = document.querySelector('#portal-submit');
   const textoLegal = document.querySelector('#privacy-text');
+  const modulosPrivados = document.querySelector('#private-modules');
+  const formularioFoto = document.querySelector('#photo-upload-form');
+  const botonFoto = document.querySelector('#photo-submit');
 
   let enlaceEmailPendente = isSignInWithEmailLink(
     auth,
@@ -213,6 +272,26 @@ import BaseLayout from '../layouts/Layout.astro';
     if (!autenticado && aceptaInput instanceof HTMLInputElement) {
       aceptaInput.checked = false;
     }
+    if (!autenticado && modulosPrivados instanceof HTMLElement) {
+      modulosPrivados.hidden = true;
+    }
+  }
+
+  function mostrarModulosPrivados() {
+    if (zonaAutenticada instanceof HTMLElement) zonaAutenticada.hidden = true;
+    if (modulosPrivados instanceof HTMLElement) modulosPrivados.hidden = false;
+  }
+
+  function lerComoBase64(ficheiro) {
+    return new Promise((resolve, reject) => {
+      const lector = new FileReader();
+      lector.onload = () => {
+        const resultado = String(lector.result || '');
+        resolve(resultado.split(',')[1] || '');
+      };
+      lector.onerror = () => reject(new Error('Non foi posible ler a fotografía.'));
+      lector.readAsDataURL(ficheiro);
+    });
   }
 
   function limparUrlEnlace() {
@@ -381,9 +460,7 @@ import BaseLayout from '../layouts/Layout.astro';
         'correcto'
       );
 
-      if (resultado.redirect) {
-        window.location.assign(resultado.redirect);
-      }
+      mostrarModulosPrivados();
     } catch (erro) {
       mostrarMensaxe(
         erro instanceof Error
@@ -396,6 +473,63 @@ import BaseLayout from '../layouts/Layout.astro';
         false,
         'Aceptar e acceder ao espazo privado'
       );
+    }
+  });
+
+  formularioFoto?.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    ocultarMensaxe();
+    if (!(formularioFoto instanceof HTMLFormElement)) return;
+
+    const usuario = auth.currentUser;
+    const ficheiroInput = formularioFoto.elements.namedItem('foto');
+    const dereitosInput = formularioFoto.elements.namedItem('confirmaDereitos');
+    const ficheiro = ficheiroInput instanceof HTMLInputElement
+      ? ficheiroInput.files?.[0] : null;
+
+    if (!usuario?.email || !ficheiro) {
+      mostrarMensaxe('Selecciona unha fotografía e comproba a túa sesión.');
+      return;
+    }
+    if (ficheiro.size > 8 * 1024 * 1024) {
+      mostrarMensaxe('A fotografía supera o máximo de 8 MB.');
+      return;
+    }
+    if (!(dereitosInput instanceof HTMLInputElement) || !dereitosInput.checked) {
+      mostrarMensaxe('É necesario confirmar os dereitos da imaxe.');
+      return;
+    }
+
+    definirBoton(botonFoto, true, 'Enviando fotografía…');
+    try {
+      const datosFormulario = new FormData(formularioFoto);
+      const base64 = await lerComoBase64(ficheiro);
+      const idToken = await usuario.getIdToken(true);
+      const resposta = await fetch('/api/fotos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idToken, nomeFicheiro: ficheiro.name, tipo: ficheiro.type, base64,
+          titulo: datosFormulario.get('titulo'),
+          peFoto: datosFormulario.get('peFoto'),
+          dataFoto: datosFormulario.get('dataFoto'),
+          lugar: datosFormulario.get('lugar'),
+          autoria: datosFormulario.get('autoria'),
+          procedencia: datosFormulario.get('procedencia'),
+          confirmaDereitos: true
+        })
+      });
+      const resultado = await resposta.json().catch(() => null);
+      if (!resposta.ok || !resultado?.ok) {
+        throw new Error(resultado?.erro || 'Non foi posible enviar a fotografía.');
+      }
+      formularioFoto.reset();
+      mostrarMensaxe(resultado.mensaxe, 'correcto');
+    } catch (erro) {
+      mostrarMensaxe(erro instanceof Error
+        ? erro.message : 'Non foi posible enviar a fotografía.');
+    } finally {
+      definirBoton(botonFoto, false, 'Enviar fotografía para revisión');
     }
   });
 
@@ -497,9 +631,66 @@ import BaseLayout from '../layouts/Layout.astro';
   }
 
   #auth-options[hidden],
-  #authenticated-area[hidden] {
+  #authenticated-area[hidden],
+  #private-modules[hidden] {
     display: none;
   }
+
+  #private-modules {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .modules-header span {
+    color: var(--color-acento);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .modules-header h2 {
+    margin: 0.35rem 0 0.65rem;
+    color: var(--color-principal);
+  }
+
+  .modules-header p,
+  .photo-file-field small {
+    color: #6d6d6d;
+    line-height: 1.5;
+  }
+
+  .photo-upload-form,
+  .photo-file-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .photo-upload-form { gap: 1.15rem; }
+
+  .photo-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .photo-file-field {
+    padding: 1.1rem;
+    border: 1px dashed #b7b7b7;
+    border-radius: 4px;
+    background: #fafafa;
+  }
+
+  .photo-file-field label,
+  .photo-upload-form label:not(.privacy-consent) {
+    color: var(--color-principal);
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .photo-upload-form textarea { resize: vertical; }
 
   .btn-google,
   .btn-email-link {
@@ -807,6 +998,7 @@ import BaseLayout from '../layouts/Layout.astro';
   }
 
   @media (max-width: 576px) {
+    .photo-fields-grid { grid-template-columns: 1fr; }
     .portal-page-wrapper {
       padding-top: 2.5rem;
       padding-bottom: 4rem;
