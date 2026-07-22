@@ -10,8 +10,8 @@ import BaseLayout from '../layouts/Layout.astro';
       <h1>Axenda</h1>
       <div class="section-line-center"></div>
       <p>
-        Consulta os próximos concertos confirmados da Sociedade Coral Polifónica de
-        Pontevedra e a memoria das actuacións xa realizadas.
+        Consulta os próximos concertos da Sociedade Coral Polifónica de Pontevedra
+        e descubre tamén a memoria das actuacións xa finalizadas.
       </p>
     </header>
 
@@ -20,7 +20,7 @@ import BaseLayout from '../layouts/Layout.astro';
     <section id="proximos" class="agenda-block" hidden>
       <div class="section-heading">
         <p class="eyebrow">Vindeiras actuacións</p>
-        <h2>Concertos confirmados</h2>
+        <h2>Próximos concertos</h2>
       </div>
       <div id="lista-proximos" class="concert-list"></div>
     </section>
@@ -36,7 +36,7 @@ import BaseLayout from '../layouts/Layout.astro';
     <section id="realizados" class="agenda-block" hidden>
       <div class="section-heading">
         <p class="eyebrow">Arquivo recente</p>
-        <h2>Concertos realizados</h2>
+        <h2>Concertos finalizados</h2>
       </div>
       <div id="lista-realizados" class="historical-list"></div>
     </section>
@@ -63,7 +63,11 @@ import BaseLayout from '../layouts/Layout.astro';
     .trim()
     .toLowerCase();
 
-  const escapar = (valor = '') => String(valor)
+  const corrixirErratas = (valor = '') => String(valor)
+    .replaceAll('Liceo Casinto', 'Liceo Casino')
+    .replaceAll('Real Acadademia', 'Real Academia');
+
+  const escapar = (valor = '') => corrixirErratas(valor)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -179,8 +183,11 @@ import BaseLayout from '../layouts/Layout.astro';
   };
 
   const renderCartel = (concerto) => {
-    const cartel = enlacePublico(concerto.cartel, 'cartel');
-    if (!cartel) return '';
+    const cartelOrixinal = enlacePublico(concerto.cartel, 'cartel');
+    if (!cartelOrixinal) return '';
+    const cartel = /\.pdf(?:$|\?)/i.test(cartelOrixinal)
+      ? cartelOrixinal.replace(/\.pdf(?=$|\?)/i, '.jpg')
+      : cartelOrixinal;
     const alt = `Cartel de ${concerto.nome}`;
     return `<button type="button" class="poster-thumb" data-poster="${escapar(cartel)}" data-alt="${escapar(alt)}" aria-label="Ampliar ${escapar(alt)}">
       <img src="${escapar(cartel)}" alt="${escapar(alt)}" loading="lazy" />
@@ -341,8 +348,8 @@ import BaseLayout from '../layouts/Layout.astro';
   .agenda-block { margin-top: 5rem; }
   .section-heading { margin-bottom: 2rem; border-bottom: 1px solid var(--color-gris); padding-bottom: 1rem; }
   .section-heading h2 { margin: .25rem 0 0; color: var(--color-principal); font-size: clamp(1.5rem, 3vw, 2rem); }
-  .concert-list { display: grid; gap: 2rem; }
-  .concert-card { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 2rem; align-items: start; padding: clamp(1.5rem, 4vw, 3rem); background: var(--color-gris); border: 1px solid rgba(0,0,0,.05); border-radius: 4px; }
+  .concert-list, .historical-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; align-items: stretch; }
+  .concert-card { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; height: 100%; padding: clamp(1.5rem, 3vw, 2rem); background: var(--color-gris); border: 1px solid rgba(106,27,41,.1); border-radius: 8px; box-shadow: 0 12px 30px rgba(64,43,30,.06); }
   .concert-card.is-featured { border-left: 4px solid var(--color-acento); }
   .concert-tag { display: inline-block; margin-bottom: 1rem; color: var(--color-principal); font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
   .concert-content time, .historical-item time { display: block; color: var(--color-acento); font-size: .92rem; font-weight: 650; text-transform: capitalize; }
@@ -365,8 +372,7 @@ import BaseLayout from '../layouts/Layout.astro';
   .documentos { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
   .documentos a { padding: .55rem 1rem; color: var(--color-principal); border: 1px solid var(--color-principal); border-radius: 3px; font-size: .82rem; font-weight: 700; text-decoration: none; }
   .documentos a:hover { color: var(--color-blanco); background: var(--color-principal); }
-  .historical-list { display: grid; gap: 1rem; }
-  .historical-item { padding: 1.5rem 0; border-bottom: 1px solid var(--color-gris); }
+  .historical-item { height: 100%; padding: clamp(1.4rem, 3vw, 1.8rem); background: #fff; border: 1px solid rgba(106,27,41,.12); border-radius: 8px; box-shadow: 0 12px 30px rgba(64,43,30,.05); }
   .historical-main { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; }
   .historical-main .poster-thumb { width: 150px; max-width: 150px; }
   .historical-main .poster-thumb img { width: 150px; max-width: 150px; height: auto; max-height: 210px; }
@@ -380,7 +386,11 @@ import BaseLayout from '../layouts/Layout.astro';
   .loading, .empty-state { padding: 2rem; text-align: center; background: var(--color-gris); border-radius: 4px; }
   .loading.error { color: #7a2525; }
   [hidden] { display: none !important; }
-  @media (max-width: 800px) {
+  @media (max-width: 900px) {
+    .concert-list, .historical-list { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 650px) {
+    .agenda-page { padding-inline: 1rem; }
     .concert-card { grid-template-columns: 1fr; }
     .poster-thumb, .poster-thumb img,
     .historical-main .poster-thumb, .historical-main .poster-thumb img { width: 150px; max-width: 150px; }
