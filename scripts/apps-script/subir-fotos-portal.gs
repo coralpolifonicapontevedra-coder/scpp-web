@@ -133,8 +133,8 @@ function subirFotoPortal_(datos) {
 
 function listarFotosRevisionPortal_(datos) {
   var email = String(datos.email || '').trim().toLowerCase();
-  var usuario = obterUsuarioWebPorEmail(email);
-  if (!usuario || usuario.administrador !== true) {
+  var usuario = obterAdministradorFotos_(email);
+  if (!usuario) {
     return { ok: false, erro: 'Administración non autorizada' };
   }
 
@@ -180,8 +180,8 @@ function listarFotosRevisionPortal_(datos) {
 
 function actualizarRevisionFotoPortal_(datos) {
   var email = String(datos.email || '').trim().toLowerCase();
-  var usuario = obterUsuarioWebPorEmail(email);
-  if (!usuario || usuario.administrador !== true) {
+  var usuario = obterAdministradorFotos_(email);
+  if (!usuario) {
     return { ok: false, erro: 'Administración non autorizada' };
   }
 
@@ -233,6 +233,33 @@ function obterContextoFotos_() {
     throw new Error('Non se atopou a folla Fotos co ID configurado');
   }
   return { folla: folla, folderId: folderId };
+}
+
+function obterAdministradorFotos_(email) {
+  var usuario = obterUsuarioWebPorEmail(email);
+  if (!usuario) return null;
+  var folla = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UsuariosWeb');
+  if (!folla) return null;
+  var valores = folla.getDataRange().getValues();
+  var cabeceiras = valores[0].map(function(v) { return String(v).trim(); });
+  var columnaEmail = cabeceiras.indexOf('Email');
+  var columnaActivo = cabeceiras.indexOf('Activo');
+  var columnaAdministrador = cabeceiras.indexOf('Administrador');
+  if (columnaEmail === -1 || columnaActivo === -1 || columnaAdministrador === -1) {
+    return null;
+  }
+  var fila = valores.find(function(f, i) {
+    return i > 0 && String(f[columnaEmail] || '').trim().toLowerCase() === email;
+  });
+  if (!fila || !valorBooleanoFotos_(fila[columnaActivo]) ||
+      !valorBooleanoFotos_(fila[columnaAdministrador])) return null;
+  return usuario;
+}
+
+function valorBooleanoFotos_(valor) {
+  if (valor === true) return true;
+  return ['true', 'verdadero', 'verdadeiro', 'si', 'sí', 'yes', '1']
+    .indexOf(String(valor || '').trim().toLowerCase()) !== -1;
 }
 
 function indiceCabeceirasFotos_(cabeceiras) {
