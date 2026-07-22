@@ -4,18 +4,6 @@ import BaseLayout from "../layouts/Layout.astro";
 import { Image } from "astro:assets";
 import rosetonImg from "../assets/roseton.jpg";
 
-const proximosConciertos = [
-  {
-    fecha: "10 SET 2026",
-    titulo: "Teatro Colón da Coruña",
-    nota: "Concerto co motivo do bicentenario do nacemento de Marcial del Adalid.",
-  },
-  {
-    fecha: "07 NOV 2026",
-    titulo: "Liceo Casino de Pontevedra",
-    nota: "Cantos do Outono.",
-  },
-];
 ---
 
 <BaseLayout title="Inicio" lang="gl">
@@ -44,7 +32,7 @@ const proximosConciertos = [
     <div class="container intro-content">
       <h2>Un Século de Canto</h2>
       <p>
-        Unha das agrupacións corais maiis antigas de Galicia e institución de
+        Unha das agrupacións corais máis antigas de Galicia e institución de
         referencia. Mantemos vivo o compromiso coa difusión do noso patrimonio a
         través da polifonía renacentista, a música medieval, sacra e a canción
         popular galega harmonizada.
@@ -58,19 +46,12 @@ const proximosConciertos = [
   <section class="agenda-section container">
     <div class="agenda-wrapper">
       <div class="agenda-title-row">
-        <h3>📋 Próximos Eventos</h3>
+        <p class="agenda-eyebrow">Axenda</p>
+        <h3>Próximos eventos</h3>
       </div>
 
-      <div class="grid-events">
-        {
-          proximosConciertos.map((concierto) => (
-            <div class="event-card">
-              <span class="date">{concierto.fecha}</span>
-              <h4>{concierto.titulo}</h4>
-              <p>{concierto.nota}</p>
-            </div>
-          ))
-        }
+      <div id="grid-proximos-eventos" class="grid-events" aria-live="polite">
+        <p class="events-status">Cargando os próximos eventos…</p>
       </div>
 
       <div class="agenda-actions">
@@ -80,7 +61,64 @@ const proximosConciertos = [
   </section>
 </BaseLayout>
 
-<style>
+<script>
+  import { obterConcertos, dataISO } from '../lib/concertos';
+
+  const normalizar = (valor = '') => String(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  const escapar = (valor = '') => String(valor)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+  const dataEnGalego = (data) => {
+    const iso = dataISO(data);
+    const obxecto = new Date(`${iso}T12:00:00`);
+    if (Number.isNaN(obxecto.getTime())) return escapar(data);
+    const meses = ['xaneiro', 'febreiro', 'marzo', 'abril', 'maio', 'xuño', 'xullo', 'agosto', 'setembro', 'outubro', 'novembro', 'decembro'];
+    return `${obxecto.getDate()} de ${meses[obxecto.getMonth()]} de ${obxecto.getFullYear()}`;
+  };
+
+  const horaLocal = (hora = '') => String(hora).trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1');
+
+  async function cargarProximosEventos() {
+    const contedor = document.querySelector('#grid-proximos-eventos');
+    if (!contedor) return;
+
+    const concertos = await obterConcertos();
+    const proximos = concertos
+      .filter((evento) => normalizar(evento.estado) === 'confirmado')
+      .sort((a, b) => dataISO(a.data).localeCompare(dataISO(b.data)))
+      .slice(0, 3);
+
+    if (!proximos.length) {
+      contedor.innerHTML = '<p class="events-status">Neste momento non hai próximos eventos publicados.</p>';
+      return;
+    }
+
+    contedor.innerHTML = proximos.map((evento) => {
+      const localizacion = [evento.lugar, evento.cidade].filter(Boolean).join(' · ');
+      const hora = horaLocal(evento.hora);
+      return `<a class="event-card" href="/axenda" aria-label="Ver ${escapar(evento.nome)} na axenda">
+        <time datetime="${escapar(dataISO(evento.data))}">${dataEnGalego(evento.data)}</time>
+        <h4>${escapar(evento.nome)}</h4>
+        ${hora || localizacion ? `<p class="event-meta">${hora ? `<span>${escapar(hora)}</span>` : ''}${localizacion ? `<span>${escapar(localizacion)}</span>` : ''}</p>` : ''}
+        ${evento.caracteristicas ? `<p class="event-description">${escapar(evento.caracteristicas)}</p>` : ''}
+        <span class="event-link">Ver evento</span>
+      </a>`;
+    }).join('');
+  }
+
+  cargarProximosEventos();
+</script>
+
+<style is:global>
   .hero-section {
     padding: 1.5rem 0;
   }
@@ -182,20 +220,28 @@ const proximosConciertos = [
   .agenda-section {
     padding-bottom: 5rem;
   }
-  .agenda-wrapper h3 {
-    font-size: 1.2rem;
+  .agenda-title-row {
     margin-bottom: 2rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-principal);
     border-bottom: 1px solid var(--color-gris);
-    padding-bottom: 0.5rem;
-    width: 100%;
+    padding-bottom: 1rem;
+  }
+  .agenda-eyebrow {
+    margin: 0 0 .2rem;
+    color: var(--color-acento);
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .agenda-wrapper h3 {
+    margin: 0;
+    color: var(--color-principal);
+    font-size: clamp(1.55rem, 3vw, 2rem);
   }
   .grid-events {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
     margin-bottom: 3rem;
   }
   @media (max-width: 768px) {
@@ -204,24 +250,63 @@ const proximosConciertos = [
     }
   }
   .event-card {
+    display: flex;
+    min-height: 255px;
+    flex-direction: column;
+    padding: 1.75rem;
+    color: var(--color-texto);
     background: var(--color-blanco);
-    padding: 2rem;
-    border-radius: 4px;
-    border: 1px solid var(--color-gris);
+    border: 1px solid rgba(106, 27, 41, .12);
+    border-left: 4px solid var(--color-acento);
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(64, 43, 30, .05);
+    transition: transform .2s ease, box-shadow .2s ease;
   }
-  .date {
-    font-size: 0.8rem;
-    font-weight: 700;
+  .event-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 36px rgba(64, 43, 30, .09);
+  }
+  .event-card time {
     color: var(--color-acento);
+    font-size: .82rem;
+    font-weight: 700;
+    text-transform: capitalize;
   }
   .event-card h4 {
-    margin: 0.5rem 0;
+    margin: .55rem 0 .9rem;
     color: var(--color-texto);
-    font-size: 1.15rem;
+    font-size: clamp(1.2rem, 2vw, 1.45rem);
+    line-height: 1.25;
   }
-  .event-card p {
-    font-size: 0.95rem;
+  .event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .8rem;
+    margin-bottom: .8rem;
+    color: var(--color-principal);
+    font-size: .9rem;
+    font-weight: 650;
+  }
+  .event-description {
     color: #666;
+    font-size: .92rem;
+    line-height: 1.55;
+  }
+  .event-link {
+    margin-top: auto;
+    padding-top: 1.25rem;
+    color: var(--color-principal);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .events-status {
+    grid-column: 1 / -1;
+    padding: 1.5rem;
+    text-align: center;
+    background: var(--color-gris);
+    border-radius: 6px;
   }
 
   .agenda-actions {
