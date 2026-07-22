@@ -92,6 +92,33 @@ import rosetonImg from "../assets/roseton.jpg";
         allowfullscreen
       ></iframe>
     </div>
+    <section class="more-videos" aria-labelledby="more-videos-title">
+      <div class="more-videos-heading">
+        <h3 id="more-videos-title">Máis interpretacións</h3>
+        <div class="carousel-controls" aria-label="Desprazar interpretacións">
+          <button id="videos-anteriores" type="button" aria-label="Ver vídeos anteriores">‹</button>
+          <button id="videos-seguintes" type="button" aria-label="Ver vídeos seguintes">›</button>
+        </div>
+      </div>
+      <div id="videos-strip" class="videos-strip">
+        <button class="video-option" type="button" data-video="zma99Yv4iUw" data-title="Cantata Leucoiña · O Canto das augas">
+          <img src="https://i.ytimg.com/vi/zma99Yv4iUw/hqdefault.jpg" alt="" loading="lazy" />
+          <span>Cantata Leucoiña · O Canto das augas</span>
+        </button>
+        <button class="video-option is-current" type="button" data-video="I-Rwf49lWt8" data-title="Ave María · J. Busto" aria-pressed="true">
+          <img src="https://i.ytimg.com/vi/I-Rwf49lWt8/hqdefault.jpg" alt="" loading="lazy" />
+          <span>Ave María · J. Busto</span>
+        </button>
+        <button class="video-option" type="button" data-video="HYMNtIUTEHk" data-title="Laudate Dominum KV 339 · W. A. Mozart">
+          <img src="https://i.ytimg.com/vi/HYMNtIUTEHk/hqdefault.jpg" alt="" loading="lazy" />
+          <span>Laudate Dominum KV 339 · W. A. Mozart</span>
+        </button>
+        <button class="video-option" type="button" data-video="2M8pzcK9WQA" data-title="Deitadiño está nas pallas">
+          <img src="https://i.ytimg.com/vi/2M8pzcK9WQA/hqdefault.jpg" alt="" loading="lazy" />
+          <span>Deitadiño está nas pallas</span>
+        </button>
+      </div>
+    </section>
   </dialog>
 
 </BaseLayout>
@@ -164,6 +191,22 @@ import rosetonImg from "../assets/roseton.jpg";
   const pecharVideo = document.querySelector('#pechar-video');
   const reproductor = document.querySelector('#youtube-player');
   const videoSrc = 'https://www.youtube-nocookie.com/embed/I-Rwf49lWt8?autoplay=1&rel=0';
+  const tituloVideo = document.querySelector('#video-title');
+  const tiraVideos = document.querySelector('#videos-strip');
+  const anteriores = document.querySelector('#videos-anteriores');
+  const seguintes = document.querySelector('#videos-seguintes');
+
+  const reproducirVideo = (id, titulo) => {
+    if (!reproductor || !id) return;
+    reproductor.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+    reproductor.title = `${titulo} interpretada pola Sociedade Coral Polifónica de Pontevedra`;
+    if (tituloVideo) tituloVideo.textContent = titulo;
+    document.querySelectorAll('.video-option').forEach((opcion) => {
+      const actual = opcion.dataset.video === id;
+      opcion.classList.toggle('is-current', actual);
+      opcion.setAttribute('aria-pressed', String(actual));
+    });
+  };
 
   const deterVideo = () => {
     if (reproductor) reproductor.src = '';
@@ -180,6 +223,12 @@ import rosetonImg from "../assets/roseton.jpg";
     if (evento.target === dialogoVideo) dialogoVideo.close();
   });
   dialogoVideo?.addEventListener('close', deterVideo);
+
+  document.querySelectorAll('.video-option').forEach((opcion) => {
+    opcion.addEventListener('click', () => reproducirVideo(opcion.dataset.video, opcion.dataset.title));
+  });
+  anteriores?.addEventListener('click', () => tiraVideos?.scrollBy({ left: -320, behavior: 'smooth' }));
+  seguintes?.addEventListener('click', () => tiraVideos?.scrollBy({ left: 320, behavior: 'smooth' }));
 </script>
 
 <style is:global>
@@ -399,6 +448,81 @@ import rosetonImg from "../assets/roseton.jpg";
     width: 100%;
     height: 100%;
     border: 0;
+  }
+  .more-videos {
+    margin-top: 1.25rem;
+  }
+  .more-videos-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .75rem;
+  }
+  .more-videos-heading h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .carousel-controls {
+    display: flex;
+    gap: .4rem;
+  }
+  .carousel-controls button {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    padding: 0;
+    color: var(--color-principal);
+    background: var(--color-blanco);
+    border: 1px solid rgba(106, 27, 41, .2);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+  .carousel-controls button:hover {
+    color: var(--color-blanco);
+    background: var(--color-principal);
+  }
+  .videos-strip {
+    display: flex;
+    gap: .8rem;
+    padding: 0 0 .75rem;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-color: var(--color-acento) var(--color-gris);
+    scrollbar-width: thin;
+  }
+  .video-option {
+    width: 190px;
+    flex: 0 0 190px;
+    padding: 0;
+    overflow: hidden;
+    color: var(--color-texto);
+    background: var(--color-blanco);
+    border: 1px solid rgba(106, 27, 41, .12);
+    border-radius: 6px;
+    cursor: pointer;
+    scroll-snap-align: start;
+    text-align: left;
+  }
+  .video-option.is-current {
+    border: 2px solid var(--color-acento);
+  }
+  .video-option img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+  .video-option span {
+    display: block;
+    padding: .65rem .75rem .75rem;
+    font-size: .78rem;
+    font-weight: 650;
+    line-height: 1.3;
   }
   .agenda-section {
     padding-bottom: 5rem;
