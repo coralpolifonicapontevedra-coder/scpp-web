@@ -190,7 +190,6 @@ import rosetonImg from "../assets/roseton.jpg";
   const abrirVideo = document.querySelector('#abrir-video');
   const pecharVideo = document.querySelector('#pechar-video');
   const reproductor = document.querySelector('#youtube-player');
-  const videoSrc = 'https://www.youtube-nocookie.com/embed/I-Rwf49lWt8?autoplay=1&rel=0';
   const tituloVideo = document.querySelector('#video-title');
   const tiraVideos = document.querySelector('#videos-strip');
   const anteriores = document.querySelector('#videos-anteriores');
@@ -214,7 +213,7 @@ import rosetonImg from "../assets/roseton.jpg";
 
   abrirVideo?.addEventListener('click', () => {
     if (!dialogoVideo || !reproductor) return;
-    reproductor.src = videoSrc;
+    reproducirVideo('I-Rwf49lWt8', 'Ave María · J. Busto');
     dialogoVideo.showModal();
   });
 
