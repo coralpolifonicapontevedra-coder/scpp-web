@@ -9,6 +9,9 @@
  *   return respostaJSON(resultadoFoto);
  * }
  *
+ * Para o panel de revisión, Código.gs tamén debe enviar a este ficheiro as
+ * accións listarFotosRevision e actualizarRevisionFoto.
+ *
  * Propiedades: FOTOS_FOLDER_ID e, opcionalmente, FOTOS_NOTIFY_EMAIL e
  * FOTOS_APPSHEET_PATH (por defecto: Fotos_Images/).
  * A fila constrúese polos encabezados, polo que non depende da orde de Fotos.
@@ -90,6 +93,123 @@ function subirFotoPortal_(datos) {
   });
   return { ok: true, rowId: rowId,
     mensaxe: 'Fotografía recibida e pendente de revisión' };
+}
+
+function listarFotosRevisionPortal_(datos) {
+  var email = String(datos.email || '').trim().toLowerCase();
+  var usuario = obterUsuarioWebPorEmail(email);
+  if (!usuario || usuario.administrador !== true) {
+    return { ok: false, erro: 'Administración non autorizada' };
+  }
+
+  var contexto = obterContextoFotos_();
+  var valores = contexto.folla.getDataRange().getDisplayValues();
+  if (valores.length < 2) return { ok: true, fotos: [] };
+  var cabeceiras = valores[0].map(function(v) { return String(v).trim(); });
+  var indice = indiceCabeceirasFotos_(cabeceiras);
+  var carpeta = DriveApp.getFolderById(contexto.folderId);
+
+  var fotos = valores.slice(1).filter(function(fila) {
+    return String(fila[indice.EstadoRevision] || '').trim().toLowerCase() ===
+      'pendente';
+  }).slice(0, 50).map(function(fila) {
+    var ruta = String(fila[indice.Foto] || '').trim();
+    var nome = ruta.split('/').pop();
+    var ficheiros = carpeta.getFilesByName(nome);
+    var ficheiro = ficheiros.hasNext() ? ficheiros.next() : null;
+    var fileId = ficheiro ? ficheiro.getId() : '';
+    return {
+      rowId: fila[indice['Row ID']],
+      titulo: fila[indice.Titulo],
+      data: fila[indice.Data],
+      anoAproximado: fila[indice.AnoAproximado],
+      lugar: fila[indice.Lugar],
+      concerto: fila[indice.Concerto],
+      evento: fila[indice.Evento],
+      peFoto: fila[indice.PeFoto],
+      autor: fila[indice.Autor],
+      procedencia: fila[indice.Procedencia],
+      subidaPor: fila[indice.SubidaPor],
+      dataSubida: fila[indice.DataSubida],
+      observacions: fila[indice.Observacions],
+      miniaturaUrl: fileId
+        ? 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w900'
+        : '',
+      ficheiroUrl: ficheiro ? ficheiro.getUrl() : ''
+    };
+  });
+
+  return { ok: true, administrador: true, fotos: fotos };
+}
+
+function actualizarRevisionFotoPortal_(datos) {
+  var email = String(datos.email || '').trim().toLowerCase();
+  var usuario = obterUsuarioWebPorEmail(email);
+  if (!usuario || usuario.administrador !== true) {
+    return { ok: false, erro: 'Administración non autorizada' };
+  }
+
+  var estado = String(datos.estado || '').trim();
+  if (['Aprobada', 'Rexeitada'].indexOf(estado) === -1) {
+    return { ok: false, erro: 'Estado de revisión non válido' };
+  }
+
+  var contexto = obterContextoFotos_();
+  var valores = contexto.folla.getDataRange().getValues();
+  var cabeceiras = valores[0].map(function(v) { return String(v).trim(); });
+  var indice = indiceCabeceirasFotos_(cabeceiras);
+  var rowId = String(datos.rowId || '').trim();
+  var filaIndice = valores.findIndex(function(fila, i) {
+    return i > 0 && String(fila[indice['Row ID']] || '').trim() === rowId;
+  });
+  if (filaIndice === -1) return { ok: false, erro: 'Non se atopou a fotografía' };
+
+  var numeroFila = filaIndice + 1;
+  contexto.folla.getRange(numeroFila, indice.EstadoRevision + 1).setValue(estado);
+  contexto.folla.getRange(numeroFila, indice.MostrarWeb + 1)
+    .setValue(estado === 'Aprobada');
+  contexto.folla.getRange(numeroFila, indice.Destacada + 1)
+    .setValue(estado === 'Aprobada' && datos.destacada === true);
+  contexto.folla.getRange(numeroFila, indice.Observacions + 1)
+    .setValue(String(datos.observacions || '').trim());
+  contexto.folla.getRange(numeroFila, indice.Titulo + 1)
+    .setValue(String(datos.titulo || '').trim());
+  contexto.folla.getRange(numeroFila, indice.PeFoto + 1)
+    .setValue(String(datos.peFoto || '').trim());
+  SpreadsheetApp.flush();
+
+  return { ok: true, rowId: rowId, estado: estado,
+    mensaxe: estado === 'Aprobada'
+      ? 'Fotografía aprobada para a súa publicación'
+      : 'Fotografía rexeitada' };
+}
+
+function obterContextoFotos_() {
+  var propiedades = PropertiesService.getScriptProperties();
+  var spreadsheetId = propiedades.getProperty('FOTOS_SPREADSHEET_ID');
+  var sheetId = Number(propiedades.getProperty('FOTOS_SHEET_ID'));
+  var folderId = propiedades.getProperty('FOTOS_FOLDER_ID');
+  if (!spreadsheetId || !sheetId || !folderId) {
+    throw new Error('Falta a configuración do módulo Fotos');
+  }
+  var folla = SpreadsheetApp.openById(spreadsheetId).getSheetById(sheetId);
+  if (!folla || folla.getName() !== 'Fotos') {
+    throw new Error('Non se atopou a folla Fotos co ID configurado');
+  }
+  return { folla: folla, folderId: folderId };
+}
+
+function indiceCabeceirasFotos_(cabeceiras) {
+  var necesarias = ['Row ID', 'Foto', 'Titulo', 'Data', 'AnoAproximado',
+    'Lugar', 'Concerto', 'Evento', 'PeFoto', 'Autor', 'Procedencia',
+    'EstadoRevision', 'MostrarWeb', 'Destacada', 'Observacions',
+    'DataSubida', 'SubidaPor'];
+  var indice = {};
+  necesarias.forEach(function(nome) {
+    indice[nome] = cabeceiras.indexOf(nome);
+    if (indice[nome] === -1) throw new Error('Falta a columna ' + nome);
+  });
+  return indice;
 }
 
 function valorFoto_(cabeceira, c) {
