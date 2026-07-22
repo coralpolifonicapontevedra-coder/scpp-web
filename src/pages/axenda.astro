@@ -19,30 +19,24 @@ import BaseLayout from '../layouts/Layout.astro';
 
     <section id="proximos" class="agenda-block" hidden>
       <div class="section-heading">
-        <div>
-          <p class="eyebrow">Vindeiras actuacións</p>
-          <h2>Concertos confirmados</h2>
-        </div>
+        <p class="eyebrow">Vindeiras actuacións</p>
+        <h2>Concertos confirmados</h2>
       </div>
       <div id="lista-proximos" class="concert-list"></div>
     </section>
 
     <section id="aprazados" class="agenda-block" hidden>
       <div class="section-heading">
-        <div>
-          <p class="eyebrow">Información</p>
-          <h2>Concertos aprazados</h2>
-        </div>
+        <p class="eyebrow">Información</p>
+        <h2>Concertos aprazados</h2>
       </div>
       <div id="lista-aprazados" class="concert-list"></div>
     </section>
 
     <section id="realizados" class="agenda-block" hidden>
       <div class="section-heading">
-        <div>
-          <p class="eyebrow">Arquivo recente</p>
-          <h2>Concertos realizados</h2>
-        </div>
+        <p class="eyebrow">Arquivo recente</p>
+        <h2>Concertos realizados</h2>
       </div>
       <div id="lista-realizados" class="historical-list"></div>
     </section>
@@ -51,6 +45,11 @@ import BaseLayout from '../layouts/Layout.astro';
       Neste momento non hai concertos publicados na axenda.
     </div>
   </main>
+
+  <dialog id="visor-cartel" class="poster-dialog" aria-label="Cartel ampliado">
+    <button type="button" class="poster-close" aria-label="Pechar cartel">×</button>
+    <img id="cartel-ampliado" src="" alt="" />
+  </dialog>
 </BaseLayout>
 
 <script>
@@ -142,14 +141,13 @@ import BaseLayout from '../layouts/Layout.astro';
   const enlacePublico = (valor, tipo = 'documento') => {
     const ruta = String(valor || '').trim().replaceAll('\\', '/');
     if (!ruta) return '';
-
     if (/^https?:\/\//i.test(ruta) || ruta.startsWith('/')) return ruta;
 
     const nomeFicheiro = ruta.split('/').filter(Boolean).pop();
     if (!nomeFicheiro) return '';
 
-    if (tipo === 'cartel' && normalizar(ruta).includes('concertos_images')) {
-      return `/img/concertos/${encodeURIComponent(nomeFicheiro)}`;
+    if (tipo === 'cartel') {
+      return `/img/concertos/${nomeFicheiro.split('/').map(encodeURIComponent).join('/')}`;
     }
 
     return '';
@@ -193,8 +191,18 @@ import BaseLayout from '../layouts/Layout.astro';
     ).join('')}</div>`;
   };
 
-  const renderConcerto = (concerto, etiqueta = 'Concerto confirmado') => {
+  const renderCartel = (concerto) => {
     const cartel = enlacePublico(concerto.cartel, 'cartel');
+    if (!cartel) return '';
+    const alt = `Cartel de ${concerto.nome}`;
+    return `
+      <button type="button" class="poster-thumb" data-poster="${escapar(cartel)}" data-alt="${escapar(alt)}" aria-label="Ampliar ${escapar(alt)}">
+        <img src="${escapar(cartel)}" alt="${escapar(alt)}" loading="lazy" />
+        <span>Ampliar cartel</span>
+      </button>`;
+  };
+
+  const renderConcerto = (concerto, etiqueta = 'Concerto confirmado') => {
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
     return `
       <article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''}">
@@ -210,7 +218,7 @@ import BaseLayout from '../layouts/Layout.astro';
           ${renderPrograma(concerto.programa)}
           ${renderDocumentos(concerto)}
         </div>
-        ${cartel ? `<figure class="poster"><img src="${escapar(cartel)}" alt="Cartel de ${escapar(concerto.nome)}" loading="lazy" /></figure>` : ''}
+        ${renderCartel(concerto)}
       </article>`;
   };
 
@@ -218,15 +226,38 @@ import BaseLayout from '../layouts/Layout.astro';
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
     return `
       <article class="historical-item">
-        <div>
-          <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
-          <h3>${escapar(concerto.nome)}</h3>
-          ${localizacion ? `<p>${escapar(localizacion)}</p>` : ''}
+        <div class="historical-main">
+          <div class="historical-content">
+            <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
+            <h3>${escapar(concerto.nome)}</h3>
+            ${localizacion ? `<p>${escapar(localizacion)}</p>` : ''}
+          </div>
+          ${renderCartel(concerto)}
         </div>
         ${renderPrograma(concerto.programa)}
         ${renderDocumentos(concerto)}
       </article>`;
   };
+
+  function activarVisor() {
+    const dialogo = document.querySelector('#visor-cartel');
+    const imaxe = document.querySelector('#cartel-ampliado');
+    const pechar = dialogo?.querySelector('.poster-close');
+    if (!dialogo || !imaxe || !pechar) return;
+
+    document.addEventListener('click', (evento) => {
+      const boton = evento.target.closest('.poster-thumb');
+      if (!boton) return;
+      imaxe.src = boton.dataset.poster || '';
+      imaxe.alt = boton.dataset.alt || 'Cartel ampliado';
+      dialogo.showModal();
+    });
+
+    pechar.addEventListener('click', () => dialogo.close());
+    dialogo.addEventListener('click', (evento) => {
+      if (evento.target === dialogo) dialogo.close();
+    });
+  }
 
   async function cargarAxenda() {
     const aviso = document.querySelector('#aviso-carga');
@@ -282,7 +313,7 @@ import BaseLayout from '../layouts/Layout.astro';
 
       const confirmados = concertos
         .filter((c) => c.estado === 'confirmado')
-        .sort((a, b) => dataISO(a.data).localeCompare(dataISO(b.data)));
+        .sort((a, b) => Number(b.destacadoWeb) - Number(a.destacadoWeb) || dataISO(a.data).localeCompare(dataISO(b.data)));
       const aprazados = concertos
         .filter((c) => c.estado === 'aprazado' || c.estado === 'aplazado')
         .sort((a, b) => dataISO(a.data).localeCompare(dataISO(b.data)));
@@ -291,21 +322,15 @@ import BaseLayout from '../layouts/Layout.astro';
         .sort((a, b) => dataISO(b.data).localeCompare(dataISO(a.data)));
 
       if (confirmados.length) {
-        document.querySelector('#lista-proximos').innerHTML = confirmados
-          .sort((a, b) => Number(b.destacadoWeb) - Number(a.destacadoWeb) || dataISO(a.data).localeCompare(dataISO(b.data)))
-          .map((c) => renderConcerto(c)).join('');
+        document.querySelector('#lista-proximos').innerHTML = confirmados.map((c) => renderConcerto(c)).join('');
         document.querySelector('#proximos').hidden = false;
       }
-
       if (aprazados.length) {
-        document.querySelector('#lista-aprazados').innerHTML = aprazados
-          .map((c) => renderConcerto(c, 'Concerto aprazado')).join('');
+        document.querySelector('#lista-aprazados').innerHTML = aprazados.map((c) => renderConcerto(c, 'Concerto aprazado')).join('');
         document.querySelector('#aprazados').hidden = false;
       }
-
       if (realizados.length) {
-        document.querySelector('#lista-realizados').innerHTML = realizados
-          .map(renderRealizado).join('');
+        document.querySelector('#lista-realizados').innerHTML = realizados.map(renderRealizado).join('');
         document.querySelector('#realizados').hidden = false;
       }
 
@@ -318,6 +343,7 @@ import BaseLayout from '../layouts/Layout.astro';
     }
   }
 
+  activarVisor();
   cargarAxenda();
 </script>
 
@@ -332,7 +358,7 @@ import BaseLayout from '../layouts/Layout.astro';
   .section-heading { margin-bottom: 2rem; border-bottom: 1px solid var(--color-gris); padding-bottom: 1rem; }
   .section-heading h2 { margin: .25rem 0 0; color: var(--color-principal); font-size: clamp(1.5rem, 3vw, 2rem); }
   .concert-list { display: grid; gap: 2rem; }
-  .concert-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 330px); gap: 2.5rem; padding: clamp(1.5rem, 4vw, 3rem); background: var(--color-gris); border: 1px solid rgba(0,0,0,.05); border-radius: 4px; }
+  .concert-card { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 2rem; align-items: start; padding: clamp(1.5rem, 4vw, 3rem); background: var(--color-gris); border: 1px solid rgba(0,0,0,.05); border-radius: 4px; }
   .concert-card.is-featured { border-left: 4px solid var(--color-acento); }
   .concert-tag { display: inline-block; margin-bottom: 1rem; color: var(--color-principal); font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
   .concert-content time, .historical-item time { display: block; color: var(--color-acento); font-size: .92rem; font-weight: 650; text-transform: capitalize; }
@@ -341,8 +367,9 @@ import BaseLayout from '../layouts/Layout.astro';
   .concert-meta span { font-size: .96rem; }
   .concert-meta strong { margin-right: .35rem; color: var(--color-principal); }
   .description { max-width: 720px; line-height: 1.7; opacity: .84; }
-  .poster { margin: 0; align-self: start; }
-  .poster img { display: block; width: 100%; max-height: 460px; object-fit: contain; background: #fff; border-radius: 3px; }
+  .poster-thumb { width: 150px; margin: 0; padding: 0; border: 0; background: transparent; cursor: zoom-in; text-align: center; }
+  .poster-thumb img { display: block; width: 100%; height: 190px; object-fit: contain; background: #fff; border: 1px solid rgba(0,0,0,.1); border-radius: 3px; }
+  .poster-thumb span { display: block; margin-top: .45rem; color: var(--color-principal); font-size: .72rem; font-weight: 700; }
   .programa { margin-top: 1.6rem; border-top: 1px solid rgba(0,0,0,.1); padding-top: 1rem; }
   .programa summary { cursor: pointer; color: var(--color-principal); font-weight: 700; }
   .programa ol { margin: 1.25rem 0 .25rem; padding-left: 1.4rem; }
@@ -356,15 +383,23 @@ import BaseLayout from '../layouts/Layout.astro';
   .documentos a:hover { color: var(--color-blanco); background: var(--color-principal); }
   .historical-list { display: grid; gap: 1rem; }
   .historical-item { padding: 1.5rem 0; border-bottom: 1px solid var(--color-gris); }
+  .historical-main { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 1.5rem; align-items: start; }
+  .historical-main .poster-thumb { width: 110px; }
+  .historical-main .poster-thumb img { height: 140px; }
   .historical-item h3 { margin: .35rem 0; font-size: 1.2rem; }
   .historical-item p { margin: 0; opacity: .7; }
   .historical-item .programa { max-width: 850px; }
+  .poster-dialog { width: min(92vw, 900px); max-height: 92vh; padding: 2.75rem 1rem 1rem; border: 0; border-radius: 6px; background: #fff; }
+  .poster-dialog::backdrop { background: rgba(0,0,0,.78); }
+  .poster-dialog img { display: block; max-width: 100%; max-height: calc(92vh - 4rem); margin: auto; object-fit: contain; }
+  .poster-close { position: absolute; top: .45rem; right: .7rem; width: 2rem; height: 2rem; border: 0; background: transparent; color: #222; font-size: 1.8rem; line-height: 1; cursor: pointer; }
   .loading, .empty-state { padding: 2rem; text-align: center; background: var(--color-gris); border-radius: 4px; }
   .loading.error { color: #7a2525; }
   [hidden] { display: none !important; }
   @media (max-width: 800px) {
     .concert-card { grid-template-columns: 1fr; }
-    .poster { order: -1; max-width: 420px; }
+    .poster-thumb { width: 120px; }
+    .poster-thumb img { height: 155px; }
     .obra-linea { display: block; }
     .autor { display: block; margin-top: .15rem; text-align: left; }
   }
