@@ -142,14 +142,9 @@ import BaseLayout from '../layouts/Layout.astro';
     const ruta = String(valor || '').trim().replaceAll('\\', '/');
     if (!ruta) return '';
     if (/^https?:\/\//i.test(ruta) || ruta.startsWith('/')) return ruta;
-
     const nomeFicheiro = ruta.split('/').filter(Boolean).pop();
     if (!nomeFicheiro) return '';
-
-    if (tipo === 'cartel') {
-      return `/img/concertos/${nomeFicheiro.split('/').map(encodeURIComponent).join('/')}`;
-    }
-
+    if (tipo === 'cartel') return `/img/concertos/${encodeURIComponent(nomeFicheiro)}`;
     return '';
   };
 
@@ -161,22 +156,15 @@ import BaseLayout from '../layouts/Layout.astro';
 
   const renderPrograma = (programa) => {
     if (!programa.length) return '';
-    return `
-      <details class="programa">
-        <summary>Ver programa</summary>
-        <ol>
-          ${programa.map((item) => `
-            <li>
-              <div class="obra-linea">
-                <span class="obra">${escapar(item.obra)}</span>
-                ${item.autor ? `<span class="autor">${escapar(item.autor)}</span>` : ''}
-              </div>
-              ${item.solista ? `<small><strong>Solista:</strong> ${escapar(item.solista)}</small>` : ''}
-              ${item.notas ? `<small>${escapar(item.notas)}</small>` : ''}
-            </li>
-          `).join('')}
-        </ol>
-      </details>`;
+    return `<details class="programa"><summary>Ver programa</summary><ol>${programa.map((item) => `
+      <li>
+        <div class="obra-linea">
+          <span class="obra">${escapar(item.obra)}</span>
+          ${item.autor ? `<span class="autor">${escapar(item.autor)}</span>` : ''}
+        </div>
+        ${item.solista ? `<small><strong>Solista:</strong> ${escapar(item.solista)}</small>` : ''}
+        ${item.notas ? `<small>${escapar(item.notas)}</small>` : ''}
+      </li>`).join('')}</ol></details>`;
   };
 
   const renderDocumentos = (concerto) => {
@@ -184,7 +172,6 @@ import BaseLayout from '../layouts/Layout.astro';
       ['Tríptico', enlacePublico(concerto.triptico)],
       ['Prensa', enlacePublico(concerto.prensa)],
     ].filter(([, url]) => url);
-
     if (!documentos.length) return '';
     return `<div class="documentos">${documentos.map(([nome, url]) =>
       `<a href="${escapar(url)}" target="_blank" rel="noopener noreferrer">${nome}</a>`
@@ -195,48 +182,45 @@ import BaseLayout from '../layouts/Layout.astro';
     const cartel = enlacePublico(concerto.cartel, 'cartel');
     if (!cartel) return '';
     const alt = `Cartel de ${concerto.nome}`;
-    return `
-      <button type="button" class="poster-thumb" data-poster="${escapar(cartel)}" data-alt="${escapar(alt)}" aria-label="Ampliar ${escapar(alt)}">
-        <img src="${escapar(cartel)}" alt="${escapar(alt)}" loading="lazy" />
-        <span>Ampliar cartel</span>
-      </button>`;
+    return `<button type="button" class="poster-thumb" data-poster="${escapar(cartel)}" data-alt="${escapar(alt)}" aria-label="Ampliar ${escapar(alt)}">
+      <img src="${escapar(cartel)}" alt="${escapar(alt)}" loading="lazy" />
+      <span>Ampliar cartel</span>
+    </button>`;
   };
 
   const renderConcerto = (concerto, etiqueta = 'Concerto confirmado') => {
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
-    return `
-      <article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''}">
-        <div class="concert-content">
-          <span class="concert-tag">${escapar(etiqueta)}</span>
-          <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
-          <h3>${escapar(concerto.nome)}</h3>
-          <div class="concert-meta">
-            ${concerto.hora ? `<span><strong>Hora</strong> ${escapar(concerto.hora)}</span>` : ''}
-            ${localizacion ? `<span><strong>Lugar</strong> ${escapar(localizacion)}</span>` : ''}
-          </div>
-          ${concerto.caracteristicas ? `<p class="description">${escapar(concerto.caracteristicas)}</p>` : ''}
-          ${renderPrograma(concerto.programa)}
-          ${renderDocumentos(concerto)}
+    return `<article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''}">
+      <div class="concert-content">
+        <span class="concert-tag">${escapar(etiqueta)}</span>
+        <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
+        <h3>${escapar(concerto.nome)}</h3>
+        <div class="concert-meta">
+          ${concerto.hora ? `<span><strong>Hora</strong> ${escapar(concerto.hora)}</span>` : ''}
+          ${localizacion ? `<span><strong>Lugar</strong> ${escapar(localizacion)}</span>` : ''}
         </div>
-        ${renderCartel(concerto)}
-      </article>`;
+        ${concerto.caracteristicas ? `<p class="description">${escapar(concerto.caracteristicas)}</p>` : ''}
+        ${renderPrograma(concerto.programa)}
+        ${renderDocumentos(concerto)}
+      </div>
+      ${renderCartel(concerto)}
+    </article>`;
   };
 
   const renderRealizado = (concerto) => {
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
-    return `
-      <article class="historical-item">
-        <div class="historical-main">
-          <div class="historical-content">
-            <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
-            <h3>${escapar(concerto.nome)}</h3>
-            ${localizacion ? `<p>${escapar(localizacion)}</p>` : ''}
-          </div>
-          ${renderCartel(concerto)}
+    return `<article class="historical-item">
+      <div class="historical-main">
+        <div class="historical-content">
+          <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
+          <h3>${escapar(concerto.nome)}</h3>
+          ${localizacion ? `<p>${escapar(localizacion)}</p>` : ''}
         </div>
-        ${renderPrograma(concerto.programa)}
-        ${renderDocumentos(concerto)}
-      </article>`;
+        ${renderCartel(concerto)}
+      </div>
+      ${renderPrograma(concerto.programa)}
+      ${renderDocumentos(concerto)}
+    </article>`;
   };
 
   function activarVisor() {
@@ -367,8 +351,8 @@ import BaseLayout from '../layouts/Layout.astro';
   .concert-meta span { font-size: .96rem; }
   .concert-meta strong { margin-right: .35rem; color: var(--color-principal); }
   .description { max-width: 720px; line-height: 1.7; opacity: .84; }
-  .poster-thumb { width: 150px; margin: 0; padding: 0; border: 0; background: transparent; cursor: zoom-in; text-align: center; }
-  .poster-thumb img { display: block; width: 100%; height: 190px; object-fit: contain; background: #fff; border: 1px solid rgba(0,0,0,.1); border-radius: 3px; }
+  .poster-thumb { display: block; width: 150px; max-width: 150px; margin: 0; padding: 0; border: 0; background: transparent; cursor: zoom-in; text-align: center; }
+  .poster-thumb img { display: block; width: 150px; max-width: 150px; height: auto; max-height: 210px; object-fit: contain; background: #fff; border: 1px solid rgba(0,0,0,.1); border-radius: 3px; }
   .poster-thumb span { display: block; margin-top: .45rem; color: var(--color-principal); font-size: .72rem; font-weight: 700; }
   .programa { margin-top: 1.6rem; border-top: 1px solid rgba(0,0,0,.1); padding-top: 1rem; }
   .programa summary { cursor: pointer; color: var(--color-principal); font-weight: 700; }
@@ -383,9 +367,9 @@ import BaseLayout from '../layouts/Layout.astro';
   .documentos a:hover { color: var(--color-blanco); background: var(--color-principal); }
   .historical-list { display: grid; gap: 1rem; }
   .historical-item { padding: 1.5rem 0; border-bottom: 1px solid var(--color-gris); }
-  .historical-main { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 1.5rem; align-items: start; }
-  .historical-main .poster-thumb { width: 110px; }
-  .historical-main .poster-thumb img { height: 140px; }
+  .historical-main { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; }
+  .historical-main .poster-thumb { width: 150px; max-width: 150px; }
+  .historical-main .poster-thumb img { width: 150px; max-width: 150px; height: auto; max-height: 210px; }
   .historical-item h3 { margin: .35rem 0; font-size: 1.2rem; }
   .historical-item p { margin: 0; opacity: .7; }
   .historical-item .programa { max-width: 850px; }
@@ -398,8 +382,9 @@ import BaseLayout from '../layouts/Layout.astro';
   [hidden] { display: none !important; }
   @media (max-width: 800px) {
     .concert-card { grid-template-columns: 1fr; }
-    .poster-thumb { width: 120px; }
-    .poster-thumb img { height: 155px; }
+    .poster-thumb, .poster-thumb img,
+    .historical-main .poster-thumb, .historical-main .poster-thumb img { width: 150px; max-width: 150px; }
+    .historical-main { grid-template-columns: 1fr; }
     .obra-linea { display: block; }
     .autor { display: block; margin-top: .15rem; text-align: left; }
   }
