@@ -184,6 +184,7 @@ import BaseLayout from '../layouts/Layout.astro';
             <p class="review-summary">
               <strong id="review-count">0</strong> fotografías pendentes
             </p>
+            <p id="review-status" class="review-status" role="status"></p>
             <div id="review-list" class="review-list"></div>
             <p id="review-empty" class="review-empty" hidden>
               Non hai fotografías pendentes de revisión.
@@ -259,6 +260,7 @@ import BaseLayout from '../layouts/Layout.astro';
   const contadorRevision = document.querySelector('#review-count');
   const baleiroRevision = document.querySelector('#review-empty');
   const botonActualizarRevision = document.querySelector('#review-refresh');
+  const estadoRevision = document.querySelector('#review-status');
 
   let enlaceEmailPendente = isSignInWithEmailLink(
     auth,
@@ -391,14 +393,34 @@ import BaseLayout from '../layouts/Layout.astro';
   }
 
   async function cargarFotosRevision() {
+    const éAdministradorCoñecido =
+      auth.currentUser?.email?.toLowerCase() === 'jcuinas@gmail.com';
+    if (éAdministradorCoñecido && moduloRevision instanceof HTMLElement) {
+      moduloRevision.hidden = false;
+    }
+    if (estadoRevision instanceof HTMLElement) {
+      estadoRevision.textContent = 'Cargando fotografías pendentes…';
+      estadoRevision.dataset.tipo = 'cargando';
+    }
     try {
       const resultado = await solicitarFotosAdmin('listarFotosRevision');
       if (moduloRevision instanceof HTMLElement) moduloRevision.hidden = false;
       debuxarFotosRevision(Array.isArray(resultado.fotos) ? resultado.fotos : []);
+      if (estadoRevision instanceof HTMLElement) {
+        estadoRevision.textContent = '';
+        delete estadoRevision.dataset.tipo;
+      }
     } catch (erro) {
-      if (erro instanceof Error && 'status' in erro && erro.status === 403) {
+      if (!éAdministradorCoñecido && erro instanceof Error &&
+          'status' in erro && erro.status === 403) {
         if (moduloRevision instanceof HTMLElement) moduloRevision.hidden = true;
         return;
+      }
+      if (estadoRevision instanceof HTMLElement) {
+        estadoRevision.textContent = erro instanceof Error
+          ? `Non foi posible cargar a revisión: ${erro.message}`
+          : 'Non foi posible cargar a revisión.';
+        estadoRevision.dataset.tipo = 'erro';
       }
       console.error(erro);
     }
@@ -891,6 +913,20 @@ import BaseLayout from '../layouts/Layout.astro';
   }
 
   .review-summary { color: #666; font-size: 0.9rem; }
+
+  .review-status {
+    min-height: 1.2rem;
+    color: #666;
+    font-size: 0.84rem;
+  }
+
+  .review-status[data-tipo='erro'] {
+    padding: 0.8rem;
+    border: 1px solid #e1a6a6;
+    border-radius: 4px;
+    background: #fff5f5;
+    color: #8a1f2d;
+  }
 
   .review-summary strong {
     display: inline-flex;
