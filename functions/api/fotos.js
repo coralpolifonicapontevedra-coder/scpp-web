@@ -80,8 +80,11 @@ export async function onRequest({ request, env }) {
         peFoto: String(datos.peFoto || '').trim(),
         lugar: String(datos.lugar || '').trim(),
         dataFoto: String(datos.dataFoto || '').trim(),
+        anoAproximado: String(datos.anoAproximado || '').trim(),
         autoria: String(datos.autoria || '').trim(),
         procedencia: String(datos.procedencia || '').trim(),
+        concerto: String(datos.concerto || '').trim(),
+        evento: String(datos.evento || '').trim(),
         confirmaDereitos: datos.confirmaDereitos === true
       })
     });
