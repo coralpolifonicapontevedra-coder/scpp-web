@@ -40,6 +40,33 @@ function probarPanelFotos() {
   console.log(JSON.stringify(resultado));
 }
 
+function diagnosticarAdministrador() {
+  var email = String(Session.getEffectiveUser().getEmail() ||
+    PropertiesService.getScriptProperties().getProperty('WEB_TEST_EMAIL') || '')
+    .trim().toLowerCase();
+  var libro = SpreadsheetApp.getActiveSpreadsheet();
+  var folla = libro.getSheetByName('UsuariosWeb');
+  console.log('Arquivo UsuariosWeb: ' + libro.getId() + ' | ' + libro.getName());
+  if (!folla) throw new Error('Non se atopou a pestana UsuariosWeb');
+  console.log('Pestana: ' + folla.getName() + ' | gid=' + folla.getSheetId());
+  var valores = folla.getDataRange().getValues();
+  var visibles = folla.getDataRange().getDisplayValues();
+  var cabeceiras = valores[0].map(function(v) { return String(v).trim(); });
+  var columnaEmail = cabeceiras.indexOf('Email');
+  var columnaAdministrador = cabeceiras.indexOf('Administrador');
+  console.log('Columna Administrador: ' + columnaAdministrador);
+  var indiceFila = valores.findIndex(function(fila, i) {
+    return i > 0 && String(fila[columnaEmail] || '').trim().toLowerCase() === email;
+  });
+  console.log('Fila atopada: ' + (indiceFila + 1));
+  if (indiceFila === -1) throw new Error('Non se atopou o correo ' + email);
+  var valor = valores[indiceFila][columnaAdministrador];
+  console.log('Administrador valor real: ' + JSON.stringify(valor));
+  console.log('Administrador valor visible: ' +
+    JSON.stringify(visibles[indiceFila][columnaAdministrador]));
+  console.log('Administrador tipo: ' + typeof valor);
+}
+
 function subirFotoPortal_(datos) {
   var email = String(datos.email || '').trim().toLowerCase();
   var usuario = obterUsuarioWebPorEmail(email);
