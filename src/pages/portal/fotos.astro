@@ -3,61 +3,106 @@ import BaseLayout from '../../layouts/Layout.astro';
 ---
 
 <BaseLayout title="Achegar fotografías" lang="gl">
-  <main class="photo-page">
-    <header class="photo-header">
-      <div>
-        <a href="/portal/" class="back-link">← Volver ao Portal</a>
-        <span>Galería privada</span>
-        <h1>Achegar fotografías</h1>
-        <p>Envía imaxes para incorporalas ao arquivo da Coral. Quedarán pendentes de revisión antes da súa publicación.</p>
-      </div>
-      <div class="session-box">
-        <span>Conta identificada</span>
-        <strong id="user-email"></strong>
-      </div>
-    </header>
-
-    <section id="loading" class="state-box">Comprobando o teu acceso…</section>
-
-    <form id="photo-form" class="photo-form" hidden>
-      <div class="file-field">
-        <label for="photo-file">Fotografía</label>
-        <input id="photo-file" name="foto" type="file" accept="image/jpeg,image/png,image/webp" required />
-        <small>Formatos JPG, PNG ou WebP. Tamaño máximo: 8 MB.</small>
+  <div class="portal-workspace">
+    <aside class="portal-sidebar" aria-label="Navegación do portal privado">
+      <div class="portal-brand">
+        <p class="portal-brand-name">Sociedade Coral Polifónica de Pontevedra</p>
+        <p class="portal-brand-subtitle">Portal do Coralista · Desde 1925</p>
       </div>
 
-      <div class="form-group full">
-        <label for="title">Título *</label>
-        <input id="title" name="titulo" maxlength="120" required />
+      <nav class="portal-nav">
+        <a href="/portal/">
+          <span aria-hidden="true">⌂</span>
+          Inicio
+        </a>
+        <a class="active" href="/portal/fotos/" aria-current="page">
+          <span aria-hidden="true">＋</span>
+          Subir fotografías
+        </a>
+        <a href="/portal/revision-fotos/">
+          <span aria-hidden="true">✓</span>
+          Revisar fotografías
+        </a>
+        <span class="portal-nav-disabled">
+          <span aria-hidden="true">♫</span>
+          Repertorio
+          <small>Próximamente</small>
+        </span>
+        <span class="portal-nav-disabled">
+          <span aria-hidden="true">▣</span>
+          Concertos
+          <small>Próximamente</small>
+        </span>
+        <span class="portal-nav-disabled">
+          <span aria-hidden="true">□</span>
+          Documentación
+          <small>Próximamente</small>
+        </span>
+      </nav>
+
+      <div class="portal-sidebar-footer">
+        <button id="photo-logout" type="button">
+          <span aria-hidden="true">↪</span>
+          Pechar sesión
+        </button>
       </div>
+    </aside>
 
-      <div class="form-group full">
-        <label for="caption">Pé de foto</label>
-        <textarea id="caption" name="peFoto" rows="4" maxlength="600"></textarea>
-      </div>
+    <main class="photo-page">
+      <header class="photo-header">
+        <div>
+          <span>Galería privada</span>
+          <h1>Achegar fotografías</h1>
+          <p>Envía imaxes para incorporalas ao arquivo da Coral. Quedarán pendentes de revisión antes da súa publicación.</p>
+        </div>
+        <div class="session-box">
+          <span>Conta identificada</span>
+          <strong id="user-email"></strong>
+        </div>
+      </header>
 
-      <div class="form-group"><label for="date">Data</label><input id="date" name="dataFoto" type="date" /></div>
-      <div class="form-group"><label for="year">Ano aproximado</label><input id="year" name="anoAproximado" type="number" min="1900" max="2100" /></div>
-      <div class="form-group"><label for="place">Lugar</label><input id="place" name="lugar" maxlength="120" /></div>
-      <div class="form-group"><label for="author">Autoría</label><input id="author" name="autoria" maxlength="120" /></div>
-      <div class="form-group"><label for="origin">Procedencia</label><input id="origin" name="procedencia" maxlength="160" /></div>
-      <div class="form-group"><label for="concert">Concerto</label><input id="concert" name="concerto" maxlength="160" /></div>
-      <div class="form-group full"><label for="event">Evento</label><input id="event" name="evento" maxlength="160" /></div>
+      <section id="loading" class="state-box">Comprobando o teu acceso…</section>
 
-      <label class="rights full" for="rights">
-        <input id="rights" name="confirmaDereitos" type="checkbox" required />
-        <span>Confirmo que a Coral pode conservar esta imaxe e que dispoño de autorización para achegala para a súa posible publicación.</span>
-      </label>
+      <form id="photo-form" class="photo-form" hidden>
+        <div class="file-field">
+          <label for="photo-file">Fotografía</label>
+          <input id="photo-file" name="foto" type="file" accept="image/jpeg,image/png,image/webp" required />
+          <small>Formatos JPG, PNG ou WebP. Tamaño máximo: 8 MB.</small>
+        </div>
 
-      <button id="submit-photo" class="submit-button full" type="submit">Enviar fotografía para revisión</button>
-      <p id="message" class="message full" role="status" hidden></p>
-    </form>
-  </main>
+        <div class="form-group full">
+          <label for="title">Título *</label>
+          <input id="title" name="titulo" maxlength="120" required />
+        </div>
+
+        <div class="form-group full">
+          <label for="caption">Pé de foto</label>
+          <textarea id="caption" name="peFoto" rows="4" maxlength="600"></textarea>
+        </div>
+
+        <div class="form-group"><label for="date">Data</label><input id="date" name="dataFoto" type="date" /></div>
+        <div class="form-group"><label for="year">Ano aproximado</label><input id="year" name="anoAproximado" type="number" min="1900" max="2100" /></div>
+        <div class="form-group"><label for="place">Lugar</label><input id="place" name="lugar" maxlength="120" /></div>
+        <div class="form-group"><label for="author">Autoría</label><input id="author" name="autoria" maxlength="120" /></div>
+        <div class="form-group"><label for="origin">Procedencia</label><input id="origin" name="procedencia" maxlength="160" /></div>
+        <div class="form-group"><label for="concert">Concerto</label><input id="concert" name="concerto" maxlength="160" /></div>
+        <div class="form-group full"><label for="event">Evento</label><input id="event" name="evento" maxlength="160" /></div>
+
+        <label class="rights full" for="rights">
+          <input id="rights" name="confirmaDereitos" type="checkbox" required />
+          <span>Confirmo que a Coral pode conservar esta imaxe e que dispoño de autorización para achegala para a súa posible publicación.</span>
+        </label>
+
+        <button id="submit-photo" class="submit-button full" type="submit">Enviar fotografía para revisión</button>
+        <p id="message" class="message full" role="status" hidden></p>
+      </form>
+    </main>
+  </div>
 </BaseLayout>
 
 <script>
   import { getApp, getApps, initializeApp } from 'firebase/app';
-  import { getAuth, onAuthStateChanged } from 'firebase/auth';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 
   const firebaseConfig = {
     apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
@@ -74,6 +119,7 @@ import BaseLayout from '../../layouts/Layout.astro';
   const userEmail = document.querySelector('#user-email');
   const message = document.querySelector('#message');
   const submit = document.querySelector('#submit-photo');
+  const logout = document.querySelector('#photo-logout');
 
   function showMessage(text, ok = false) {
     if (!(message instanceof HTMLElement)) return;
@@ -111,6 +157,15 @@ import BaseLayout from '../../layouts/Layout.astro';
     } catch { window.location.replace('/portal/'); }
   });
 
+  logout?.addEventListener('click', async () => {
+    if (logout instanceof HTMLButtonElement) {
+      logout.disabled = true;
+      logout.textContent = 'Pechando sesión…';
+    }
+    await signOut(auth);
+    window.location.href = '/portal/';
+  });
+
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!(form instanceof HTMLFormElement)) return;
@@ -146,5 +201,5 @@ import BaseLayout from '../../layouts/Layout.astro';
 </script>
 
 <style>
-  .photo-page{max-width:1050px;margin:0 auto;padding:3.5rem 1.25rem 5rem}.photo-header{display:flex;justify-content:space-between;gap:2rem;align-items:end;padding-bottom:1.5rem;border-bottom:1px solid #d8d1bc}.back-link{display:inline-block;margin-bottom:1.4rem;color:#7a263a;font-weight:800;text-decoration:none}.photo-header>div>span,.session-box span{display:block;color:#7a263a;font-size:.74rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.photo-header h1{margin:.45rem 0 .6rem;color:#24362f;font-size:clamp(2.2rem,4vw,3.7rem)}.photo-header p{max-width:690px;margin:0;color:#63706a;line-height:1.65}.session-box{min-width:250px;padding:1rem 1.2rem;background:#f8f5ec}.session-box strong{display:block;margin-top:.35rem;color:#24362f;font-size:.9rem;word-break:break-word}.state-box{margin-top:2rem;padding:1.2rem;background:#f8f5ec;color:#59655f}.photo-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.15rem;margin-top:2rem;padding:2rem;border:1px solid #d8d1bc;background:#fff}.photo-form[hidden]{display:none}.full,.file-field{grid-column:1/-1}.file-field{padding:1.25rem;border:1px dashed #b7b7b7}.form-group,.file-field{display:grid;gap:.45rem}.photo-form label{color:#24362f;font-size:.88rem;font-weight:700}.photo-form input:not([type=checkbox]):not([type=file]),.photo-form textarea{width:100%;box-sizing:border-box;padding:.82rem .9rem;border:1px solid #cec9bd;background:#fff;font:inherit}.rights{display:flex;gap:.7rem;align-items:flex-start;line-height:1.5}.rights input{margin-top:.25rem}.submit-button{padding:1rem;border:0;background:#7a263a;color:#fff;font:inherit;font-weight:800;cursor:pointer}.submit-button:disabled{opacity:.65}.message{margin:0;padding:1rem;background:#fff1ef;color:#7a263a;border-left:3px solid currentColor}.message[data-ok=true]{background:#edf6ef;color:#356345}@media(max-width:700px){.photo-header{align-items:start;flex-direction:column}.session-box{width:100%;box-sizing:border-box}.photo-form{grid-template-columns:1fr;padding:1.25rem}.full,.file-field{grid-column:auto}}
+  .photo-page{max-width:1050px;margin:0 auto;padding:3.5rem 1.25rem 5rem}.photo-header{display:flex;justify-content:space-between;gap:2rem;align-items:end;padding-bottom:1.5rem;border-bottom:1px solid #d8d1bc}.photo-header>div>span,.session-box span{display:block;color:#7a263a;font-size:.74rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.photo-header h1{margin:.45rem 0 .6rem;color:#24362f;font-size:clamp(2.2rem,4vw,3.7rem)}.photo-header p{max-width:690px;margin:0;color:#63706a;line-height:1.65}.session-box{min-width:250px;padding:1rem 1.2rem;background:#f8f5ec}.session-box strong{display:block;margin-top:.35rem;color:#24362f;font-size:.9rem;word-break:break-word}.state-box{margin-top:2rem;padding:1.2rem;background:#f8f5ec;color:#59655f}.photo-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.15rem;margin-top:2rem;padding:2rem;border:1px solid #d8d1bc;background:#fff}.photo-form[hidden]{display:none}.full,.file-field{grid-column:1/-1}.file-field{padding:1.25rem;border:1px dashed #b7b7b7}.form-group,.file-field{display:grid;gap:.45rem}.photo-form label{color:#24362f;font-size:.88rem;font-weight:700}.photo-form input:not([type=checkbox]):not([type=file]),.photo-form textarea{width:100%;box-sizing:border-box;padding:.82rem .9rem;border:1px solid #cec9bd;background:#fff;font:inherit}.rights{display:flex;gap:.7rem;align-items:flex-start;line-height:1.5}.rights input{margin-top:.25rem}.submit-button{padding:1rem;border:0;background:#7a263a;color:#fff;font:inherit;font-weight:800;cursor:pointer}.submit-button:disabled{opacity:.65}.message{margin:0;padding:1rem;background:#fff1ef;color:#7a263a;border-left:3px solid currentColor}.message[data-ok=true]{background:#edf6ef;color:#356345}@media(max-width:700px){.photo-header{align-items:start;flex-direction:column}.session-box{width:100%;box-sizing:border-box}.photo-form{grid-template-columns:1fr;padding:1.25rem}.full,.file-field{grid-column:auto}}
 </style>
