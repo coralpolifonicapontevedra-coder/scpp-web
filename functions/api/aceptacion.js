@@ -1,6 +1,6 @@
 /**
  * Función de Cloudflare Pages para validar a identidade con Firebase
- * e rexistrar a aceptación legal.
+ * e comprobar ou rexistrar a aceptación legal.
  *
  * Variables necesarias en Cloudflare Pages:
  * - APPS_SCRIPT_WEBAPP_URL
@@ -83,6 +83,9 @@ export async function onRequest(context) {
   }
 
   const idToken = String(datos.idToken || '').trim();
+  const accion = String(
+    datos.accion || 'rexistrarAceptacion'
+  ).trim();
   const textoLegal = String(datos.textoLegal || '').trim();
   const version = String(datos.version || '').trim();
 
@@ -93,18 +96,37 @@ export async function onRequest(context) {
     });
   }
 
-  if (datos.aceptaFines !== true) {
+  if (
+    accion !== 'comprobarAceptacion' &&
+    accion !== 'rexistrarAceptacion'
+  ) {
     return json(400, {
       ok: false,
-      erro: 'É necesario confirmar a aceptación'
+      erro: 'Acción non válida'
     });
   }
 
-  if (!textoLegal || !version) {
+  if (!version) {
     return json(400, {
       ok: false,
-      erro: 'Falta o texto legal ou a súa versión'
+      erro: 'Falta a versión do texto legal'
     });
+  }
+
+  if (accion === 'rexistrarAceptacion') {
+    if (datos.aceptaFines !== true) {
+      return json(400, {
+        ok: false,
+        erro: 'É necesario confirmar a aceptación'
+      });
+    }
+
+    if (!textoLegal) {
+      return json(400, {
+        ok: false,
+        erro: 'Falta o texto legal'
+      });
+    }
   }
 
   let usuarioFirebase;
@@ -123,23 +145,28 @@ export async function onRequest(context) {
   }
 
   try {
+    const corpoAppsScript = {
+      token: writeToken,
+      accion,
+      email: usuarioFirebase.email,
+      uidFirebase: usuarioFirebase.uid,
+      version
+    };
+
+    if (accion === 'rexistrarAceptacion') {
+      corpoAppsScript.textoLegal = textoLegal;
+      corpoAppsScript.aceptaFines = true;
+      corpoAppsScript.ambito = String(
+        datos.ambito || 'coralpolifonicapontevedra.org'
+      ).trim();
+    }
+
     const respostaAppsScript = await fetch(appsScriptUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8'
       },
-      body: JSON.stringify({
-        token: writeToken,
-        accion: 'rexistrarAceptacion',
-        email: usuarioFirebase.email,
-        uidFirebase: usuarioFirebase.uid,
-        version,
-        textoLegal,
-        aceptaFines: true,
-        ambito: String(
-          datos.ambito || 'coralpolifonicapontevedra.org'
-        ).trim()
-      })
+      body: JSON.stringify(corpoAppsScript)
     });
 
     const textoResposta = await respostaAppsScript.text();
@@ -159,6 +186,14 @@ export async function onRequest(context) {
         resultado.erro === 'Usuario non autorizado';
 
       return json(nonAutorizado ? 403 : 400, resultado);
+    }
+
+    if (accion === 'comprobarAceptacion') {
+      return json(200, {
+        ok: true,
+        email: usuarioFirebase.email,
+        aceptacionVixente: resultado.aceptacionVixente === true
+      });
     }
 
     return json(200, {
