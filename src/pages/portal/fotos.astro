@@ -98,6 +98,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             <input id="photo-file" name="foto" type="file" accept="image/jpeg,image/png,image/webp" required />
             <small id="selected-file-name">Formatos permitidos: JPG, PNG, WebP · Tamaño máximo: 8 MB</small>
 
+            <figure id="photo-preview" class="photo-preview" hidden>
+              <img id="photo-preview-image" alt="Previsualización da fotografía seleccionada" />
+              <figcaption>
+                <strong id="photo-preview-name"></strong>
+                <span id="photo-preview-size"></span>
+              </figcaption>
+            </figure>
+
             <button id="submit-photo" class="submit-photo" type="submit">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="13" height="13" rx="1.5" /><path d="m7 14 3-3 2.2 2.2 2-2L17 14M16 8h4v12H8v-3" /></svg>
               <span>Subir fotografía</span>
@@ -140,6 +148,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const fileInput = document.querySelector('#photo-file');
   const fileName = document.querySelector('#selected-file-name');
   const dropZone = document.querySelector('#file-drop-zone');
+  const preview = document.querySelector('#photo-preview');
+  const previewImage = document.querySelector('#photo-preview-image');
+  const previewName = document.querySelector('#photo-preview-name');
+  const previewSize = document.querySelector('#photo-preview-size');
+  let previewUrl = '';
 
   function showMessage(text, ok = false) {
     if (!(message instanceof HTMLElement)) return;
@@ -148,11 +161,38 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     message.hidden = false;
   }
 
-  function updateFileName(file) {
-    if (!(fileName instanceof HTMLElement)) return;
-    fileName.textContent = file
-      ? `Arquivo seleccionado: ${file.name}`
-      : 'Formatos permitidos: JPG, PNG, WebP · Tamaño máximo: 8 MB';
+  function updateSelectedFile(file) {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      previewUrl = '';
+    }
+
+    if (fileName instanceof HTMLElement) {
+      fileName.textContent = file
+        ? 'Fotografía incorporada ao formulario'
+        : 'Formatos permitidos: JPG, PNG, WebP · Tamaño máximo: 8 MB';
+    }
+
+    if (
+      !(preview instanceof HTMLElement) ||
+      !(previewImage instanceof HTMLImageElement) ||
+      !(previewName instanceof HTMLElement) ||
+      !(previewSize instanceof HTMLElement)
+    ) return;
+
+    if (!file) {
+      preview.hidden = true;
+      previewImage.removeAttribute('src');
+      previewName.textContent = '';
+      previewSize.textContent = '';
+      return;
+    }
+
+    previewUrl = URL.createObjectURL(file);
+    previewImage.src = previewUrl;
+    previewName.textContent = file.name;
+    previewSize.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    preview.hidden = false;
   }
 
   function readBase64(file) {
@@ -195,7 +235,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   });
 
   fileInput?.addEventListener('change', () => {
-    if (fileInput instanceof HTMLInputElement) updateFileName(fileInput.files?.[0]);
+    if (fileInput instanceof HTMLInputElement) updateSelectedFile(fileInput.files?.[0]);
   });
 
   if (dropZone instanceof HTMLElement && fileInput instanceof HTMLInputElement) {
@@ -217,7 +257,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       const transfer = new DataTransfer();
       transfer.items.add(file);
       fileInput.files = transfer.files;
-      updateFileName(file);
+      updateSelectedFile(file);
     });
   }
 
@@ -269,7 +309,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Non foi posible enviar a fotografía.');
       form.reset();
       if (uploaderEmail instanceof HTMLInputElement) uploaderEmail.value = user.email;
-      updateFileName(null);
+      updateSelectedFile(null);
       showMessage(result.mensaxe || 'Fotografía enviada correctamente para revisión.', true);
     } catch (error) {
       showMessage(error instanceof Error ? error.message : 'Produciuse un erro ao enviar a fotografía.');
@@ -528,6 +568,52 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     background: #f8f1f2;
   }
 
+  .photo-preview {
+    display: grid;
+    grid-template-columns: minmax(120px, 210px) minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+    width: min(100%, 620px);
+    margin: .85rem 0 0;
+    padding: .8rem;
+    border: 1px solid #ddd9d5;
+    border-radius: 4px;
+    background: #faf9f7;
+    text-align: left;
+  }
+
+  .photo-preview[hidden] {
+    display: none;
+  }
+
+  .photo-preview img {
+    display: block;
+    width: 100%;
+    height: 130px;
+    border-radius: 3px;
+    background: #eeeae6;
+    object-fit: contain;
+  }
+
+  .photo-preview figcaption {
+    display: grid;
+    gap: .3rem;
+    min-width: 0;
+  }
+
+  .photo-preview figcaption strong {
+    overflow: hidden;
+    color: var(--color-principal);
+    font-size: .82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .photo-preview figcaption span {
+    color: #77716c;
+    font-size: .75rem;
+  }
+
   .submit-photo {
     display: flex;
     align-items: center;
@@ -616,6 +702,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   @media (max-width: 680px) {
     .upload-main {
       padding: 1.7rem 1rem 3rem;
+    }
+
+    .photo-preview {
+      grid-template-columns: 1fr;
     }
 
     .private-page-header {
