@@ -1,5 +1,5 @@
 ---
-/* src/layouts/layout.astro */
+/* src/layouts/Layout.astro */
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PortalAcceptanceGate from '../components/PortalAcceptanceGate.astro';
@@ -12,7 +12,9 @@ const {
     'Web oficial da Sociedade Coral Polifónica de Pontevedra, fundada en 1925.'
 } = Astro.props;
 
-const ePortal = Astro.url.pathname === '/portal/' || Astro.url.pathname === '/portal';
+const ruta = Astro.url.pathname;
+const eZonaPortal = ruta === '/portal' || ruta.startsWith('/portal/');
+const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
 ---
 
 <!DOCTYPE html>
@@ -23,36 +25,47 @@ const ePortal = Astro.url.pathname === '/portal/' || Astro.url.pathname === '/po
     <title>{title} | SCPP</title>
     <meta name="description" content={description} />
   </head>
-  <body>
-    <Header lang={lang} />
-    
+  <body class:list={[eZonaPortal && 'portal-private-body']}>
+    {!eZonaPortal && <Header lang={lang} />}
+
     <main>
       <slot />
     </main>
 
-    <Footer lang={lang} />
-    {ePortal && <PortalAcceptanceGate />}
+    {!eZonaPortal && <Footer lang={lang} />}
+    {eInicioPortal && <PortalAcceptanceGate />}
+
+    {eZonaPortal && (
+      <script is:inline>
+        document.addEventListener('DOMContentLoaded', () => {
+          document.querySelectorAll('.portal-sidebar-footer').forEach((footer) => {
+            if (footer.querySelector('.public-site-link')) return;
+            const link = document.createElement('a');
+            link.className = 'public-site-link';
+            link.href = '/';
+            link.innerHTML = '<span aria-hidden="true">◎</span><span>Ir á web pública</span>';
+            footer.prepend(link);
+          });
+        });
+      </script>
+    )}
   </body>
 </html>
 
 <style is:global>
-  /* Variables y estilos base mínimos para que el diseño funcione */
   :root {
-    --color-principal: #6b1d2f; /* Granate institucional */
-    --color-acento: #bd9648;    /* Dorado */
+    --color-principal: #6b1d2f;
+    --color-acento: #bd9648;
     --color-blanco: #ffffff;
     --color-texto: #2d2d2d;
     --color-gris: #f7f7f7;
   }
 
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
+  * { box-sizing: border-box; }
 
   body {
-    font-family: 'Aptos', sans-serif;
+    margin: 0;
+    font-family: 'Aptos', 'Calibri', system-ui, sans-serif;
     color: var(--color-texto);
     background-color: var(--color-blanco);
     line-height: 1.6;
