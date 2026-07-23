@@ -1,0 +1,220 @@
+<style is:global>
+  /*
+   * As fichas de revisión créanse con JavaScript despois de cargar a páxina.
+   * Estes estilos deben ser globais para que Astro non lles engada un selector
+   * de ámbito que os elementos xerados dinamicamente non poden recibir.
+   */
+  .review-main #review-list {
+    display: block;
+    min-width: 0;
+  }
+
+  .review-main .review-card-v2 {
+    display: grid !important;
+    grid-template-columns: minmax(360px, 1.08fr) minmax(380px, .92fr) !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+    padding: 1.55rem !important;
+    border: 1px solid #ddd9d5 !important;
+    border-radius: 4px !important;
+    background: #fff !important;
+  }
+
+  .review-main .review-photo-column {
+    display: grid !important;
+    align-content: start !important;
+    justify-items: center !important;
+    gap: 1rem !important;
+    min-width: 0 !important;
+  }
+
+  .review-main .review-photo-frame {
+    display: grid !important;
+    width: 100% !important;
+    min-height: 500px !important;
+    place-items: center !important;
+    overflow: hidden !important;
+    border-radius: 4px !important;
+    background: #f4f2ef !important;
+  }
+
+  .review-main .review-photo-frame a {
+    display: grid !important;
+    width: 100% !important;
+    height: 100% !important;
+    place-items: center !important;
+    cursor: zoom-in !important;
+  }
+
+  .review-main .review-photo-frame img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 680px !important;
+    object-fit: contain !important;
+  }
+
+  .review-main .review-photo-placeholder {
+    display: grid !important;
+    min-height: 360px !important;
+    place-items: center !important;
+    color: #77716c !important;
+    font-size: .84rem !important;
+  }
+
+  .review-main .original-photo-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: .55rem !important;
+    min-height: 2.7rem !important;
+    padding: .62rem 1.05rem !important;
+    border: 1px solid var(--color-principal) !important;
+    border-radius: 3px !important;
+    background: #fff !important;
+    color: var(--color-principal) !important;
+    font-family: var(--fuente-minimalista) !important;
+    font-size: .84rem !important;
+    font-weight: 700 !important;
+  }
+
+  .review-main .original-photo-button:hover {
+    background: #f8f1f2 !important;
+  }
+
+  .review-main .review-form-column {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    align-content: start !important;
+    gap: .85rem !important;
+    min-width: 0 !important;
+  }
+
+  .review-main .review-field {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: .38rem !important;
+    min-width: 0 !important;
+  }
+
+  .review-main .review-field > span {
+    display: block !important;
+    color: #35312f !important;
+    font-family: var(--fuente-minimalista) !important;
+    font-size: .79rem !important;
+    font-weight: 700 !important;
+  }
+
+  .review-main .review-field input,
+  .review-main .review-field textarea {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 2.8rem !important;
+    margin: 0 !important;
+    padding: .7rem .8rem !important;
+    border: 1px solid #d4d0cc !important;
+    border-radius: 3px !important;
+    background: #fff !important;
+    color: #393532 !important;
+    font-family: var(--fuente-minimalista) !important;
+    font-size: .88rem !important;
+    line-height: 1.45 !important;
+  }
+
+  .review-main .review-field input[readonly] {
+    background: #faf9f7 !important;
+    color: #625e5a !important;
+  }
+
+  .review-main .review-field textarea {
+    min-height: 4.8rem !important;
+    resize: vertical !important;
+  }
+
+  .review-main .review-field input:focus,
+  .review-main .review-field textarea:focus {
+    border-color: var(--color-principal) !important;
+    outline: 2px solid rgba(106, 27, 41, .08) !important;
+    outline-offset: 1px !important;
+  }
+
+  .review-main .featured-option-v2 {
+    display: flex !important;
+    align-items: center !important;
+    gap: .6rem !important;
+    min-height: 2.5rem !important;
+    margin: .05rem 0 0 !important;
+    color: #5b5652 !important;
+    font-family: var(--fuente-minimalista) !important;
+    font-size: .82rem !important;
+  }
+
+  .review-main .featured-option-v2 input {
+    width: 1rem !important;
+    height: 1rem !important;
+    accent-color: var(--color-principal) !important;
+  }
+
+  .review-main .review-actions-v2 {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: .65rem !important;
+    margin-top: .35rem !important;
+  }
+
+  .review-main .review-actions-v2 button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 2.9rem !important;
+    padding: .68rem .75rem !important;
+    border-radius: 3px !important;
+    background: #fff !important;
+    font-family: var(--fuente-minimalista) !important;
+    font-size: .82rem !important;
+    font-weight: 750 !important;
+    cursor: pointer !important;
+  }
+
+  .review-main .reject-button {
+    border: 1px solid #c49b62 !important;
+    color: #9a641c !important;
+  }
+
+  .review-main .accept-button {
+    border: 1px solid var(--color-principal) !important;
+    color: var(--color-principal) !important;
+  }
+
+  .review-main .publish-button {
+    border: 1px solid var(--color-principal) !important;
+    background: var(--color-principal) !important;
+    color: #fff !important;
+  }
+
+  .review-main .review-actions-v2 button:disabled {
+    cursor: wait !important;
+    opacity: .55 !important;
+  }
+
+  @media (max-width: 1080px) {
+    .review-main .review-card-v2 {
+      grid-template-columns: 1fr !important;
+    }
+
+    .review-main .review-photo-frame {
+      min-height: 360px !important;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .review-main .review-card-v2 {
+      padding: 1rem !important;
+    }
+
+    .review-main .review-actions-v2 {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
