@@ -100,9 +100,10 @@ export async function onRequest({ request, env }) {
         confirmaDereitos: datos.confirmaDereitos === true,
         rowId: String(datos.rowId || '').trim(),
         estado: String(datos.estado || '').trim(),
-        publicar: datos.publicar === true,
-        eliminar: datos.eliminar === true,
-        destacada: datos.destacada === true,
+        publicarPublica: datos.publicarPublica === true,
+        publicarPrivada: datos.publicarPrivada === true,
+        destacadaPublica: datos.destacadaPublica === true,
+        destacadaPrivada: datos.destacadaPrivada === true,
         observacions: String(datos.observacions || '').trim()
       })
     });
