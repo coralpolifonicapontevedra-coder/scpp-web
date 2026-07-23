@@ -1,0 +1,258 @@
+---
+import { Image } from 'astro:assets';
+import escudoImg from '../assets/escudo-raw.svg';
+
+const {
+  active = '',
+  logoutId = 'portal-logout'
+} = Astro.props;
+---
+
+<aside class="private-sidebar" aria-label="Navegación do portal privado">
+  <a class="private-brand" href="/portal/" aria-label="Inicio do Portal do Coralista">
+    <Image src={escudoImg} alt="Escudo da Sociedade Coral Polifónica de Pontevedra" class="private-crest" />
+    <span class="private-brand-copy">
+      <strong>Sociedade Coral<br />Polifónica<br />de Pontevedra</strong>
+      <small>Desde 1925</small>
+    </span>
+  </a>
+
+  <p class="private-menu-title">Portal do Coralista</p>
+
+  <nav class="private-menu">
+    <a class:list={[active === 'inicio' && 'is-active']} href="/portal/">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10.5V20h5v-5h3v5h5v-9.5" /></svg>
+      <span>Inicio</span>
+    </a>
+
+    <a class:list={[active === 'subir' && 'is-active']} href="/portal/fotos/">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5m0 0L8 9m4-4 4 4M5.5 18.5a4 4 0 0 1 .6-7.95A6 6 0 0 1 17.6 9a4.5 4.5 0 0 1 .9 8.9" /></svg>
+      <span>Subir fotografías</span>
+    </a>
+
+    <a class:list={[active === 'revisar' && 'is-active']} href="/portal/revision-fotos/">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="13" height="13" rx="1.5" /><path d="m7 14 3-3 2.2 2.2 2-2L17 14M16 8h4v12H8v-3" /></svg>
+      <span>Revisar fotografías</span>
+    </a>
+
+    <span class="is-disabled">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12M9 10l10-2M6 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" /></svg>
+      <span>Repertorio</span>
+    </span>
+
+    <span class="is-disabled">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="1.5" /><path d="M8 3v6m8-6v6M4 11h16" /></svg>
+      <span>Concertos</span>
+    </span>
+
+    <span class="is-disabled">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3" /><circle cx="16.5" cy="9" r="2.5" /><path d="M2.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6m0-5c3.3-.8 6.2 1 7 5" /></svg>
+      <span>Ensaios</span>
+    </span>
+
+    <span class="is-disabled">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5" /><circle cx="9" cy="9" r="1.5" /><path d="m5.5 17 4.5-4.5 3 3 2-2 3.5 3.5" /></svg>
+      <span>Galería</span>
+    </span>
+
+    <span class="is-disabled">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6m-6 4h6" /></svg>
+      <span>Documentación</span>
+    </span>
+
+    <span class="is-disabled">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 21c.6-4.5 2.7-6.5 6.5-6.5s5.9 2 6.5 6.5" /></svg>
+      <span>O meu perfil</span>
+    </span>
+
+    <span class="is-disabled">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.8-2.8 8.2-7 10-4.2-1.8-7-5.2-7-10V6z" /><path d="m9 12 2 2 4-4" /></svg>
+      <span>Administración</span>
+    </span>
+  </nav>
+
+  <div class="private-sidebar-footer">
+    <a href="/" class="private-public-link">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
+      <span>Ir á web pública</span>
+    </a>
+    <button id={logoutId} type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4m4-4H9" /></svg>
+      <span>Pechar sesión</span>
+    </button>
+  </div>
+</aside>
+
+<style>
+  .private-sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    width: 282px;
+    height: 100vh;
+    padding: 1.8rem 1.1rem 1.25rem;
+    overflow-y: auto;
+    border-right: 1px solid #e7e3df;
+    background: #fafafa;
+  }
+
+  .private-brand {
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr);
+    align-items: center;
+    gap: .9rem;
+    padding: 0 .5rem 1.85rem;
+    color: #24211f;
+  }
+
+  .private-crest {
+    width: 58px;
+    height: 78px;
+    object-fit: contain;
+  }
+
+  .private-brand-copy {
+    display: grid;
+    gap: .3rem;
+  }
+
+  .private-brand-copy strong {
+    color: #24211f;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: .82rem;
+    font-weight: 700;
+    line-height: 1.42;
+    text-transform: uppercase;
+  }
+
+  .private-brand-copy small {
+    color: var(--color-acento);
+    font-size: .72rem;
+    font-weight: 700;
+  }
+
+  .private-menu-title {
+    margin: 0;
+    padding: .55rem .75rem .8rem;
+    color: var(--color-principal);
+    font-size: .84rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .private-menu {
+    display: grid;
+    gap: .12rem;
+  }
+
+  .private-menu a,
+  .private-menu .is-disabled,
+  .private-sidebar-footer a,
+  .private-sidebar-footer button {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    align-items: center;
+    gap: .72rem;
+    min-height: 2.72rem;
+    padding: .62rem .72rem;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #4e4a47;
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 500;
+    text-align: left;
+  }
+
+  .private-menu svg,
+  .private-sidebar-footer svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.65;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .private-menu a:hover,
+  .private-menu a.is-active,
+  .private-sidebar-footer a:hover,
+  .private-sidebar-footer button:hover {
+    background: #f2ecec;
+    color: var(--color-principal);
+  }
+
+  .private-menu a.is-active {
+    font-weight: 700;
+  }
+
+  .private-menu .is-disabled {
+    color: #4e4a47;
+    cursor: default;
+  }
+
+  .private-sidebar-footer {
+    display: grid;
+    gap: .25rem;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid #e4e0dc;
+  }
+
+  .private-sidebar-footer a,
+  .private-sidebar-footer button {
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .private-public-link {
+    color: var(--color-principal) !important;
+  }
+
+  @media (max-width: 900px) {
+    .private-sidebar {
+      position: relative;
+      width: 100%;
+      height: auto;
+      padding: 1rem;
+      border-right: 0;
+      border-bottom: 1px solid #e7e3df;
+    }
+
+    .private-brand {
+      grid-template-columns: 48px minmax(0, 1fr);
+      padding-bottom: 1rem;
+    }
+
+    .private-crest {
+      width: 44px;
+      height: 60px;
+    }
+
+    .private-menu {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .private-menu .is-disabled {
+      display: none;
+    }
+
+    .private-sidebar-footer {
+      grid-template-columns: 1fr 1fr;
+      margin-top: .8rem;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .private-menu {
+      grid-template-columns: 1fr;
+    }
+
+    .private-sidebar-footer {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
