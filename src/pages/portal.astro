@@ -162,6 +162,9 @@ import BaseLayout from '../layouts/Layout.astro';
         </span>
       </label>
 
+      <p id="privacy-message" class="privacy-message" role="status"
+        aria-live="polite" hidden></p>
+
       <div class="privacy-actions">
         <button type="button" class="btn-secondary" id="privacy-logout">Cancelar e saír</button>
         <button type="button" class="btn-primary" id="portal-submit">Aceptar e continuar</button>
@@ -207,6 +210,7 @@ import BaseLayout from '../layouts/Layout.astro';
   const dashboard = document.querySelector('#private-dashboard');
   const privacyModal = document.querySelector('#privacy-modal');
   const privacyText = document.querySelector('#privacy-text');
+  const privacyMessage = document.querySelector('#privacy-message');
   const consent = document.querySelector('#acepta-fines');
   const message = document.querySelector('#portal-message');
   const emailInput = document.querySelector('#email-socio');
@@ -232,6 +236,18 @@ import BaseLayout from '../layouts/Layout.astro';
     message.textContent = '';
     message.hidden = true;
     delete message.dataset.type;
+  }
+
+  function showPrivacyMessage(text) {
+    if (!(privacyMessage instanceof HTMLElement)) return;
+    privacyMessage.textContent = text;
+    privacyMessage.hidden = false;
+  }
+
+  function hidePrivacyMessage() {
+    if (!(privacyMessage instanceof HTMLElement)) return;
+    privacyMessage.textContent = '';
+    privacyMessage.hidden = true;
   }
 
   function setButton(button, disabled, text) {
@@ -264,6 +280,7 @@ import BaseLayout from '../layouts/Layout.astro';
     if (privacyModal instanceof HTMLElement) privacyModal.hidden = false;
     document.body.classList.add('modal-open');
     if (consent instanceof HTMLInputElement) consent.checked = false;
+    hidePrivacyMessage();
   }
 
   function hidePrivacyModal() {
@@ -405,8 +422,9 @@ import BaseLayout from '../layouts/Layout.astro';
 
   acceptButton?.addEventListener('click', async () => {
     hideMessage();
+    hidePrivacyMessage();
     if (!(consent instanceof HTMLInputElement) || !consent.checked) {
-      showMessage('É necesario aceptar as condicións para acceder ao espazo privado.');
+      showPrivacyMessage('É necesario aceptar as condicións para acceder ao espazo privado.');
       consent?.focus();
       return;
     }
@@ -421,7 +439,11 @@ import BaseLayout from '../layouts/Layout.astro';
       const user = auth.currentUser;
       if (user) await showDashboard(user);
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : 'Non foi posible rexistrar a aceptación.');
+      showPrivacyMessage(
+        error instanceof Error
+          ? error.message
+          : 'Non foi posible rexistrar a aceptación.'
+      );
     } finally {
       setButton(acceptButton, false, 'Aceptar e continuar');
     }
@@ -499,6 +521,8 @@ import BaseLayout from '../layouts/Layout.astro';
   .privacy-text { max-height:260px; overflow:auto; padding:1rem; border:1px solid #ded8c9; background:#fff; color:#55615b; line-height:1.65; }
   .privacy-consent { display:flex; gap:.75rem; align-items:flex-start; margin:1rem 0; color:#35443d; line-height:1.5; }
   .privacy-consent input { margin-top:.25rem; flex:0 0 auto; }
+  .privacy-message { margin:0 0 1rem; padding:.8rem 1rem; color:#7a263a; background:#fff2ef; border-left:3px solid currentColor; }
+  .privacy-message[hidden] { display:none; }
   .privacy-actions { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
   .btn-secondary { margin-top:.8rem; color:#35443d; background:#eeeae0; }
   @media (max-width:900px) {
