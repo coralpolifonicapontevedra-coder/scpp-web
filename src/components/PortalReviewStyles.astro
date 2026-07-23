@@ -150,10 +150,90 @@
     font-size: .82rem !important;
   }
 
+  .review-main .publication-destinations {
+    display: grid !important;
+    gap: .8rem !important;
+    min-width: 0 !important;
+    margin: .15rem 0 0 !important;
+    padding: 1rem !important;
+    border: 1px solid #d4d0cc !important;
+    border-radius: 4px !important;
+    background: #faf9f7 !important;
+  }
+
+  .review-main .publication-destinations legend {
+    padding: 0 .35rem !important;
+    color: var(--color-principal) !important;
+    font-family: var(--fuente-minimalista) !important;
+    font-size: .86rem !important;
+    font-weight: 800 !important;
+  }
+
+  .review-main .publication-destinations > p {
+    margin: -.15rem 0 .05rem !important;
+    color: #6b6560 !important;
+    font-family: var(--fuente-minimalista) !important;
+    font-size: .76rem !important;
+  }
+
+  .review-main .destination-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: .75rem !important;
+  }
+
+  .review-main .destination-card {
+    display: grid !important;
+    align-content: start !important;
+    gap: .6rem !important;
+    min-width: 0 !important;
+    padding: .8rem !important;
+    border: 1px solid #e1dcd8 !important;
+    border-radius: 3px !important;
+    background: #fff !important;
+  }
+
+  .review-main .destination-option {
+    display: grid !important;
+    grid-template-columns: 1.05rem minmax(0, 1fr) !important;
+    align-items: start !important;
+    gap: .6rem !important;
+    color: #35312f !important;
+    font-family: var(--fuente-minimalista) !important;
+    cursor: pointer !important;
+  }
+
+  .review-main .destination-option input,
   .review-main .featured-option-v2 input {
     width: 1rem !important;
     height: 1rem !important;
+    margin: .12rem 0 0 !important;
     accent-color: var(--color-principal) !important;
+  }
+
+  .review-main .destination-option span {
+    display: grid !important;
+    gap: .16rem !important;
+  }
+
+  .review-main .destination-option strong {
+    color: var(--color-principal) !important;
+    font-size: .82rem !important;
+  }
+
+  .review-main .destination-option small {
+    color: #706a65 !important;
+    font-size: .7rem !important;
+    font-weight: 500 !important;
+    line-height: 1.35 !important;
+  }
+
+  .review-main .featured-option-v2 {
+    padding-left: 1.65rem !important;
+  }
+
+  .review-main .featured-option-v2:has(input:disabled) {
+    opacity: .5 !important;
   }
 
   .review-main .review-actions-v2 {
@@ -237,6 +317,10 @@
     }
 
     .review-main .review-actions-v2 {
+      grid-template-columns: 1fr !important;
+    }
+
+    .review-main .destination-grid {
       grid-template-columns: 1fr !important;
     }
   }

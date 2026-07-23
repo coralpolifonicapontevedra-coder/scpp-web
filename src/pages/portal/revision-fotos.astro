@@ -11,7 +11,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       <header class="private-page-header">
         <div>
           <h1>Revisar fotografías</h1>
-          <p>Revisa, completa os datos e decide se a fotografía será publicada na galería.</p>
+          <p>Revisa, completa os datos e decide se a fotografía queda no arquivo ou se se publica na galería pública, na privada do Portal ou en ambas.</p>
         </div>
 
         <div class="pending-card" aria-label="Fotografías pendentes de revisión">
@@ -210,15 +210,45 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             <textarea name="observacions" rows="3" maxlength="500">${escaparHtml(foto.observacions)}</textarea>
           </label>
 
-          <label class="featured-option-v2">
-            <input type="checkbox" name="destacada" />
-            <span>Destacar na galería se se publica</span>
-          </label>
+          <fieldset class="publication-destinations">
+            <legend>Destino da publicación</legend>
+            <p>Selecciona unha ou as dúas galerías antes de premer en Publicar.</p>
+
+            <div class="destination-grid">
+              <div class="destination-card">
+                <label class="destination-option">
+                  <input type="checkbox" name="publicarPublica" />
+                  <span>
+                    <strong>Galería pública</strong>
+                    <small>Visible para calquera visitante da web</small>
+                  </span>
+                </label>
+                <label class="featured-option-v2">
+                  <input type="checkbox" name="destacadaPublica" disabled />
+                  <span>Destacar na galería pública</span>
+                </label>
+              </div>
+
+              <div class="destination-card">
+                <label class="destination-option">
+                  <input type="checkbox" name="publicarPrivada" />
+                  <span>
+                    <strong>Galería privada do Portal</strong>
+                    <small>Visible só para as persoas autorizadas</small>
+                  </span>
+                </label>
+                <label class="featured-option-v2">
+                  <input type="checkbox" name="destacadaPrivada" disabled />
+                  <span>Destacar na galería privada</span>
+                </label>
+              </div>
+            </div>
+          </fieldset>
 
           <div class="review-actions-v2">
             <button class="reject-button" type="button" data-review-action="rexeitar">Rexeitar</button>
             <button class="accept-button" type="button" data-review-action="aceptar">Aceptar</button>
-            <button class="publish-button" type="button" data-review-action="publicar">Publicar na galería</button>
+            <button class="publish-button" type="button" data-review-action="publicar">Publicar</button>
           </div>
         </div>
       </article>`;
@@ -293,14 +323,30 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (!accion || !(tarxeta instanceof HTMLElement)) return;
 
     if (accion === 'rexeitar' && !window.confirm(
-      'Queres rexeitar esta fotografía e eliminar o seu rexistro? O ficheiro orixinal conservarase en Drive.'
+      'Queres marcar esta fotografía como rexeitada? Deixará de aparecer entre as pendentes.'
     )) return;
 
     const titulo = tarxeta.querySelector('[name="titulo"]');
     const peFoto = tarxeta.querySelector('[name="peFoto"]');
     const observacions = tarxeta.querySelector('[name="observacions"]');
-    const destacada = tarxeta.querySelector('[name="destacada"]');
+    const publicarPublica = tarxeta.querySelector('[name="publicarPublica"]');
+    const publicarPrivada = tarxeta.querySelector('[name="publicarPrivada"]');
+    const destacadaPublica = tarxeta.querySelector('[name="destacadaPublica"]');
+    const destacadaPrivada = tarxeta.querySelector('[name="destacadaPrivada"]');
     const botons = tarxeta.querySelectorAll('button[data-review-action]');
+
+    const publicaNaPublica =
+      publicarPublica instanceof HTMLInputElement && publicarPublica.checked;
+    const publicaNaPrivada =
+      publicarPrivada instanceof HTMLInputElement && publicarPrivada.checked;
+
+    if (accion === 'publicar' && !publicaNaPublica && !publicaNaPrivada) {
+      mostrarMensaxe(
+        'Selecciona a galería pública, a galería privada do Portal ou ambas antes de publicar.',
+        'erro'
+      );
+      return;
+    }
 
     botons.forEach((elemento) => {
       if (elemento instanceof HTMLButtonElement) elemento.disabled = true;
@@ -310,12 +356,21 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       const resultado = await solicitar('actualizarRevisionFoto', {
         rowId: tarxeta.dataset.rowId,
         estado: accion === 'rexeitar' ? 'Rexeitada' : 'Aprobada',
-        publicar: accion === 'publicar',
-        eliminar: accion === 'rexeitar',
+        publicarPublica: accion === 'publicar' && publicaNaPublica,
+        publicarPrivada: accion === 'publicar' && publicaNaPrivada,
         titulo: titulo instanceof HTMLInputElement ? titulo.value : '',
         peFoto: peFoto instanceof HTMLTextAreaElement ? peFoto.value : '',
         observacions: observacions instanceof HTMLTextAreaElement ? observacions.value : '',
-        destacada: destacada instanceof HTMLInputElement && destacada.checked
+        destacadaPublica:
+          accion === 'publicar' &&
+          publicaNaPublica &&
+          destacadaPublica instanceof HTMLInputElement &&
+          destacadaPublica.checked,
+        destacadaPrivada:
+          accion === 'publicar' &&
+          publicaNaPrivada &&
+          destacadaPrivada instanceof HTMLInputElement &&
+          destacadaPrivada.checked
       });
 
       await cargarFotos();
@@ -330,6 +385,25 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         if (elemento instanceof HTMLButtonElement) elemento.disabled = false;
       });
     }
+  });
+
+  lista?.addEventListener('change', (eventoCambio) => {
+    const control = eventoCambio.target;
+    if (!(control instanceof HTMLInputElement)) return;
+
+    const vinculacions = new Map([
+      ['publicarPublica', 'destacadaPublica'],
+      ['publicarPrivada', 'destacadaPrivada']
+    ]);
+    const nomeDestacada = vinculacions.get(control.name);
+    if (!nomeDestacada) return;
+
+    const tarxeta = control.closest('.review-card-v2');
+    const destacada = tarxeta?.querySelector(`[name="${nomeDestacada}"]`);
+    if (!(destacada instanceof HTMLInputElement)) return;
+
+    destacada.disabled = !control.checked;
+    if (!control.checked) destacada.checked = false;
   });
 </script>
 
