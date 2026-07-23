@@ -11,40 +11,16 @@ import BaseLayout from '../../layouts/Layout.astro';
       </div>
 
       <nav class="portal-nav">
-        <a href="/portal/">
-          <span aria-hidden="true">⌂</span>
-          Inicio
-        </a>
-        <a class="active" href="/portal/fotos/" aria-current="page">
-          <span aria-hidden="true">＋</span>
-          Subir fotografías
-        </a>
-        <a href="/portal/revision-fotos/">
-          <span aria-hidden="true">✓</span>
-          Revisar fotografías
-        </a>
-        <span class="portal-nav-disabled">
-          <span aria-hidden="true">♫</span>
-          Repertorio
-          <small>Próximamente</small>
-        </span>
-        <span class="portal-nav-disabled">
-          <span aria-hidden="true">▣</span>
-          Concertos
-          <small>Próximamente</small>
-        </span>
-        <span class="portal-nav-disabled">
-          <span aria-hidden="true">□</span>
-          Documentación
-          <small>Próximamente</small>
-        </span>
+        <a href="/portal/"><span aria-hidden="true">⌂</span><span>Inicio</span></a>
+        <a class="active" href="/portal/fotos/" aria-current="page"><span aria-hidden="true">＋</span><span>Subir fotografías</span></a>
+        <a href="/portal/revision-fotos/"><span aria-hidden="true">✓</span><span>Revisar fotografías</span></a>
+        <span class="portal-nav-disabled"><span aria-hidden="true">♫</span><span>Repertorio</span><small>Próximamente</small></span>
+        <span class="portal-nav-disabled"><span aria-hidden="true">▣</span><span>Concertos</span><small>Próximamente</small></span>
+        <span class="portal-nav-disabled"><span aria-hidden="true">□</span><span>Documentación</span><small>Próximamente</small></span>
       </nav>
 
       <div class="portal-sidebar-footer">
-        <button id="photo-logout" type="button">
-          <span aria-hidden="true">↪</span>
-          Pechar sesión
-        </button>
+        <button id="photo-logout" type="button"><span aria-hidden="true">↪</span><span>Pechar sesión</span></button>
       </div>
     </aside>
 
@@ -52,7 +28,7 @@ import BaseLayout from '../../layouts/Layout.astro';
       <header class="photo-header">
         <div>
           <span>Galería privada</span>
-          <h1>Achegar fotografías</h1>
+          <h1>Subir fotografías</h1>
           <p>Envía imaxes para incorporalas ao arquivo da Coral. Quedarán pendentes de revisión antes da súa publicación.</p>
         </div>
         <div class="session-box">
@@ -64,12 +40,6 @@ import BaseLayout from '../../layouts/Layout.astro';
       <section id="loading" class="state-box">Comprobando o teu acceso…</section>
 
       <form id="photo-form" class="photo-form" hidden>
-        <div class="file-field">
-          <label for="photo-file">Fotografía</label>
-          <input id="photo-file" name="foto" type="file" accept="image/jpeg,image/png,image/webp" required />
-          <small>Formatos JPG, PNG ou WebP. Tamaño máximo: 8 MB.</small>
-        </div>
-
         <div class="form-group full">
           <label for="title">Título *</label>
           <input id="title" name="titulo" maxlength="120" required />
@@ -88,12 +58,18 @@ import BaseLayout from '../../layouts/Layout.astro';
         <div class="form-group"><label for="concert">Concerto</label><input id="concert" name="concerto" maxlength="160" /></div>
         <div class="form-group full"><label for="event">Evento</label><input id="event" name="evento" maxlength="160" /></div>
 
+        <div class="file-field">
+          <label for="photo-file">Selecciona a fotografía *</label>
+          <input id="photo-file" name="foto" type="file" accept="image/jpeg,image/png,image/webp" required />
+          <small>Formatos JPG, PNG ou WebP. Tamaño máximo: 8 MB.</small>
+        </div>
+
         <label class="rights full" for="rights">
           <input id="rights" name="confirmaDereitos" type="checkbox" required />
           <span>Confirmo que a Coral pode conservar esta imaxe e que dispoño de autorización para achegala para a súa posible publicación.</span>
         </label>
 
-        <button id="submit-photo" class="submit-button full" type="submit">Enviar fotografía para revisión</button>
+        <button id="submit-photo" class="submit-button full" type="submit">Subir fotografía para revisión</button>
         <p id="message" class="message full" role="status" hidden></p>
       </form>
     </main>
@@ -140,7 +116,8 @@ import BaseLayout from '../../layouts/Layout.astro';
   async function hasValidAcceptance(user) {
     const idToken = await user.getIdToken(true);
     const response = await fetch('/api/aceptacion', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken, accion: 'comprobarAceptacion', version: 'PRIVACIDADE-WEB-1.0' })
     });
     const result = await response.json().catch(() => null);
@@ -154,14 +131,13 @@ import BaseLayout from '../../layouts/Layout.astro';
       if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
       if (loading instanceof HTMLElement) loading.hidden = true;
       if (form instanceof HTMLFormElement) form.hidden = false;
-    } catch { window.location.replace('/portal/'); }
+    } catch {
+      window.location.replace('/portal/');
+    }
   });
 
   logout?.addEventListener('click', async () => {
-    if (logout instanceof HTMLButtonElement) {
-      logout.disabled = true;
-      logout.textContent = 'Pechando sesión…';
-    }
+    if (logout instanceof HTMLButtonElement) logout.disabled = true;
     await signOut(auth);
     window.location.href = '/portal/';
   });
@@ -175,17 +151,29 @@ import BaseLayout from '../../layouts/Layout.astro';
     const file = fileInput instanceof HTMLInputElement ? fileInput.files?.[0] : null;
     if (!user?.email || !file) { showMessage('Selecciona unha fotografía e comproba a sesión.'); return; }
     if (file.size > 8 * 1024 * 1024) { showMessage('A fotografía supera o máximo de 8 MB.'); return; }
-    if (submit instanceof HTMLButtonElement) { submit.disabled = true; submit.textContent = 'Enviando fotografía…'; }
+    if (submit instanceof HTMLButtonElement) { submit.disabled = true; submit.textContent = 'Subindo fotografía…'; }
+
     try {
       const idToken = await user.getIdToken(true);
       const response = await fetch('/api/fotos', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          idToken, accion: 'subirFoto', nomeFicheiro: file.name, tipo: file.type,
-          base64: await readBase64(file), titulo: data.get('titulo'), peFoto: data.get('peFoto'),
-          dataFoto: data.get('dataFoto'), anoAproximado: data.get('anoAproximado'),
-          lugar: data.get('lugar'), autoria: data.get('autoria'), procedencia: data.get('procedencia'),
-          concerto: data.get('concerto'), evento: data.get('evento'), confirmaDereitos: true
+          idToken,
+          accion: 'subirFoto',
+          nomeFicheiro: file.name,
+          tipo: file.type,
+          base64: await readBase64(file),
+          titulo: data.get('titulo'),
+          peFoto: data.get('peFoto'),
+          dataFoto: data.get('dataFoto'),
+          anoAproximado: data.get('anoAproximado'),
+          lugar: data.get('lugar'),
+          autoria: data.get('autoria'),
+          procedencia: data.get('procedencia'),
+          concerto: data.get('concerto'),
+          evento: data.get('evento'),
+          confirmaDereitos: true
         })
       });
       const result = await response.json().catch(() => null);
@@ -195,11 +183,7 @@ import BaseLayout from '../../layouts/Layout.astro';
     } catch (error) {
       showMessage(error instanceof Error ? error.message : 'Produciuse un erro ao enviar a fotografía.');
     } finally {
-      if (submit instanceof HTMLButtonElement) { submit.disabled = false; submit.textContent = 'Enviar fotografía para revisión'; }
+      if (submit instanceof HTMLButtonElement) { submit.disabled = false; submit.textContent = 'Subir fotografía para revisión'; }
     }
   });
 </script>
-
-<style>
-  .photo-page{max-width:1050px;margin:0 auto;padding:3.5rem 1.25rem 5rem}.photo-header{display:flex;justify-content:space-between;gap:2rem;align-items:end;padding-bottom:1.5rem;border-bottom:1px solid #d8d1bc}.photo-header>div>span,.session-box span{display:block;color:#7a263a;font-size:.74rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.photo-header h1{margin:.45rem 0 .6rem;color:#24362f;font-size:clamp(2.2rem,4vw,3.7rem)}.photo-header p{max-width:690px;margin:0;color:#63706a;line-height:1.65}.session-box{min-width:250px;padding:1rem 1.2rem;background:#f8f5ec}.session-box strong{display:block;margin-top:.35rem;color:#24362f;font-size:.9rem;word-break:break-word}.state-box{margin-top:2rem;padding:1.2rem;background:#f8f5ec;color:#59655f}.photo-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.15rem;margin-top:2rem;padding:2rem;border:1px solid #d8d1bc;background:#fff}.photo-form[hidden]{display:none}.full,.file-field{grid-column:1/-1}.file-field{padding:1.25rem;border:1px dashed #b7b7b7}.form-group,.file-field{display:grid;gap:.45rem}.photo-form label{color:#24362f;font-size:.88rem;font-weight:700}.photo-form input:not([type=checkbox]):not([type=file]),.photo-form textarea{width:100%;box-sizing:border-box;padding:.82rem .9rem;border:1px solid #cec9bd;background:#fff;font:inherit}.rights{display:flex;gap:.7rem;align-items:flex-start;line-height:1.5}.rights input{margin-top:.25rem}.submit-button{padding:1rem;border:0;background:#7a263a;color:#fff;font:inherit;font-weight:800;cursor:pointer}.submit-button:disabled{opacity:.65}.message{margin:0;padding:1rem;background:#fff1ef;color:#7a263a;border-left:3px solid currentColor}.message[data-ok=true]{background:#edf6ef;color:#356345}@media(max-width:700px){.photo-header{align-items:start;flex-direction:column}.session-box{width:100%;box-sizing:border-box}.photo-form{grid-template-columns:1fr;padding:1.25rem}.full,.file-field{grid-column:auto}}
-</style>
