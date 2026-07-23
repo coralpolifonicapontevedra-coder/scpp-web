@@ -167,30 +167,53 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    min-height: 2.9rem !important;
-    padding: .68rem .75rem !important;
+    min-width: 0 !important;
+    min-height: 2.95rem !important;
+    padding: .7rem .8rem !important;
+    border: 1px solid var(--color-principal) !important;
     border-radius: 3px !important;
-    background: #fff !important;
+    background-color: #fff !important;
+    color: var(--color-principal) !important;
+    -webkit-text-fill-color: var(--color-principal) !important;
     font-family: var(--fuente-minimalista) !important;
-    font-size: .82rem !important;
+    font-size: .84rem !important;
     font-weight: 750 !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    visibility: visible !important;
+    opacity: 1;
     cursor: pointer !important;
   }
 
-  .review-main .reject-button {
-    border: 1px solid #c49b62 !important;
-    color: #9a641c !important;
-  }
-
-  .review-main .accept-button {
-    border: 1px solid var(--color-principal) !important;
+  .review-main .review-actions-v2 .reject-button,
+  .review-main .review-actions-v2 .accept-button {
+    border-color: var(--color-principal) !important;
+    background-color: #fff !important;
     color: var(--color-principal) !important;
+    -webkit-text-fill-color: var(--color-principal) !important;
   }
 
-  .review-main .publish-button {
-    border: 1px solid var(--color-principal) !important;
-    background: var(--color-principal) !important;
+  .review-main .review-actions-v2 .reject-button:hover:not(:disabled),
+  .review-main .review-actions-v2 .accept-button:hover:not(:disabled) {
+    background-color: #f8f1f2 !important;
+  }
+
+  .review-main .review-actions-v2 .publish-button {
+    border-color: var(--color-principal) !important;
+    background-color: var(--color-principal) !important;
     color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    font-size: .84rem !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+    visibility: visible !important;
+  }
+
+  .review-main .review-actions-v2 .publish-button:hover:not(:disabled) {
+    background-color: #53131f !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
   }
 
   .review-main .review-actions-v2 button:disabled {
