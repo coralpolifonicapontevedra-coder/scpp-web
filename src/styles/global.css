@@ -78,3 +78,226 @@ a {
   font-size: .72rem;
   font-weight: 700;
 }
+
+/* Revisión de fotografías: axustes visuais do portal privado. */
+.portal-workspace {
+  display: block !important;
+  min-height: 100vh !important;
+  padding-left: 286px;
+}
+
+.portal-sidebar {
+  position: fixed !important;
+  inset: 0 auto 0 0 !important;
+  width: 286px;
+  height: 100vh !important;
+  padding: 2.2rem 1.35rem 1.4rem !important;
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.portal-brand-name {
+  font-size: 1.02rem !important;
+  line-height: 1.38 !important;
+}
+
+.portal-brand-subtitle {
+  font-size: .78rem !important;
+}
+
+.portal-nav a,
+.portal-nav-disabled,
+.portal-sidebar-footer button {
+  min-height: 3.25rem !important;
+  padding: .78rem .85rem !important;
+  font-family: var(--fuente-minimalista) !important;
+  font-size: .96rem !important;
+  line-height: 1.3 !important;
+}
+
+.portal-nav-disabled small {
+  font-size: .61rem !important;
+}
+
+.review-page {
+  max-width: 1320px !important;
+}
+
+.review-list {
+  gap: 1.6rem !important;
+}
+
+.photo-review-card {
+  display: grid !important;
+  grid-template-columns: minmax(310px, 42%) minmax(0, 1fr) !important;
+  overflow: hidden !important;
+  border: 1px solid #d8d1bc !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.photo-media {
+  min-height: 100% !important;
+  max-height: none !important;
+  padding: 1.25rem !important;
+  border-right: 1px solid #e0d9ce !important;
+  border-bottom: 0 !important;
+  background: #f8f5ec !important;
+}
+
+.photo-media img {
+  max-height: 680px !important;
+}
+
+.photo-content {
+  gap: 1.15rem !important;
+  padding: 1.65rem 1.8rem 1.75rem !important;
+}
+
+.photo-heading {
+  padding-bottom: .9rem !important;
+}
+
+.photo-heading h2 {
+  font-size: 1.12rem !important;
+}
+
+.form-grid {
+  grid-template-columns: 1fr !important;
+  gap: .9rem !important;
+}
+
+.form-field-wide {
+  grid-column: auto !important;
+}
+
+.form-field > span,
+.info-field > span {
+  font-size: .8rem !important;
+  font-weight: 700 !important;
+  color: #24362f !important;
+}
+
+.form-field input,
+.form-field textarea {
+  min-height: auto !important;
+  padding: .72rem .1rem .62rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid #cfc8bc !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #24362f !important;
+  font-family: var(--fuente-minimalista) !important;
+  font-size: .95rem !important;
+  line-height: 1.55 !important;
+  box-shadow: none !important;
+}
+
+.form-field textarea {
+  min-height: 5rem !important;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+  border-color: var(--color-principal) !important;
+  outline: 0 !important;
+}
+
+.info-field {
+  display: grid !important;
+  grid-template-columns: minmax(120px, .32fr) minmax(0, 1fr) !important;
+  align-items: baseline !important;
+  gap: 1rem !important;
+  padding: .55rem 0 !important;
+  border-bottom: 1px solid #eee9e1 !important;
+}
+
+.info-field p {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #63706a !important;
+  font-family: var(--fuente-minimalista) !important;
+  font-size: .92rem !important;
+}
+
+.featured-option {
+  min-height: auto !important;
+  padding: .65rem 0 !important;
+  border: 0 !important;
+  border-top: 1px solid #eee9e1 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-size: .9rem !important;
+}
+
+.decision-actions {
+  gap: .6rem !important;
+}
+
+.decision-actions button {
+  min-height: 3.45rem !important;
+  padding: .72rem .75rem !important;
+  border-radius: 2px !important;
+  font-family: var(--fuente-minimalista) !important;
+}
+
+.decision-actions button strong {
+  font-size: .82rem !important;
+}
+
+.decision-actions button small {
+  font-size: .68rem !important;
+}
+
+@media (max-width: 1000px) {
+  .photo-review-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .photo-media {
+    min-height: 320px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid #e0d9ce !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .portal-workspace {
+    padding-left: 0;
+  }
+
+  .portal-sidebar {
+    position: sticky !important;
+    inset: auto !important;
+    top: 0 !important;
+    width: 100%;
+    height: auto !important;
+    max-height: none;
+    padding: 1rem !important;
+  }
+
+  .portal-brand-name {
+    font-size: .96rem !important;
+  }
+
+  .portal-nav a,
+  .portal-nav-disabled,
+  .portal-sidebar-footer button {
+    min-height: 2.85rem !important;
+    font-size: .88rem !important;
+  }
+}
+
+@media (max-width: 650px) {
+  .photo-content {
+    padding: 1.2rem !important;
+  }
+
+  .info-field {
+    grid-template-columns: 1fr !important;
+    gap: .2rem !important;
+  }
+}
