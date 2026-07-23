@@ -1,0 +1,73 @@
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const VERSION_TEXTO_LEGAL = 'PRIVACIDADE-WEB-1.0';
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  function abrirEspazoPrivado() {
+    const opcionesAcceso = document.querySelector('#auth-options');
+    const zonaAutenticada = document.querySelector('#authenticated-area');
+    const modulosPrivados = document.querySelector('#private-modules');
+    const tarxetaPortal = document.querySelector('.portal-login-card');
+    const mensaxe = document.querySelector('#portal-message');
+
+    if (opcionesAcceso instanceof HTMLElement) opcionesAcceso.hidden = true;
+    if (zonaAutenticada instanceof HTMLElement) zonaAutenticada.hidden = true;
+    if (modulosPrivados instanceof HTMLElement) modulosPrivados.hidden = false;
+    if (tarxetaPortal instanceof HTMLElement) {
+      tarxetaPortal.classList.add('is-private');
+    }
+
+    if (mensaxe instanceof HTMLElement) {
+      mensaxe.textContent = '';
+      mensaxe.hidden = true;
+      delete mensaxe.dataset.tipo;
+    }
+  }
+
+  async function comprobarAceptacionVixente(usuario) {
+    if (!usuario?.email) return;
+
+    try {
+      const idToken = await usuario.getIdToken(true);
+      const resposta = await fetch('/api/aceptacion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          idToken,
+          accion: 'comprobarAceptacion',
+          version: VERSION_TEXTO_LEGAL
+        })
+      });
+
+      const resultado = await resposta.json().catch(() => null);
+
+      if (
+        resposta.ok &&
+        resultado?.ok &&
+        resultado.aceptacionVixente === true
+      ) {
+        abrirEspazoPrivado();
+      }
+    } catch (erro) {
+      console.error('Non foi posible comprobar a aceptación:', erro);
+    }
+  }
+
+  if (document.querySelector('#portal-auth')) {
+    onAuthStateChanged(auth, comprobarAceptacionVixente);
+  }
+</script>
