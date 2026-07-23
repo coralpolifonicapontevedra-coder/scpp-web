@@ -3,38 +3,83 @@ import BaseLayout from '../../layouts/Layout.astro';
 ---
 
 <BaseLayout title="Revisión de fotografías" lang="gl">
-  <div class="container review-page">
-    <header class="review-page-header">
-      <p class="eyebrow">Espazo de administración</p>
-      <h1>Revisión de fotografías</h1>
-      <div class="section-line"></div>
-      <p class="intro">
-        Revisa cada achega antes de incorporala ao arquivo ou publicala na
-        galería da Coral.
-      </p>
-      <nav class="page-actions" aria-label="Accións da revisión">
-        <a href="/portal/">Volver ao envío de fotografías</a>
-        <button id="review-refresh" type="button">Actualizar</button>
-        <button id="review-logout" type="button">Pechar sesión</button>
+  <div class="portal-workspace">
+    <aside class="portal-sidebar" aria-label="Navegación do portal privado">
+      <div class="portal-brand">
+        <p class="portal-brand-name">Sociedade Coral Polifónica de Pontevedra</p>
+        <p class="portal-brand-subtitle">Portal do Coralista · Desde 1925</p>
+      </div>
+
+      <nav class="portal-nav">
+        <a href="/portal/">
+          <span aria-hidden="true">⌂</span>
+          Inicio
+        </a>
+        <a href="/portal/fotos/">
+          <span aria-hidden="true">＋</span>
+          Subir fotografías
+        </a>
+        <a class="active" href="/portal/revision-fotos/" aria-current="page">
+          <span aria-hidden="true">✓</span>
+          Revisar fotografías
+        </a>
+        <span class="portal-nav-disabled">
+          <span aria-hidden="true">♫</span>
+          Repertorio
+          <small>Próximamente</small>
+        </span>
+        <span class="portal-nav-disabled">
+          <span aria-hidden="true">▣</span>
+          Concertos
+          <small>Próximamente</small>
+        </span>
+        <span class="portal-nav-disabled">
+          <span aria-hidden="true">□</span>
+          Documentación
+          <small>Próximamente</small>
+        </span>
       </nav>
-    </header>
 
-    <section id="review-shell" class="review-shell" hidden>
-      <p class="review-summary">
-        <span id="review-count">0</span>
-        <span id="review-count-label">fotografías pendentes</span>
-      </p>
-      <p id="review-message" class="review-message" role="status"
-        aria-live="polite"></p>
-      <div id="review-list" class="review-list"></div>
-      <p id="review-empty" class="review-empty" hidden>
-        Non hai fotografías pendentes de revisión.
-      </p>
-    </section>
+      <div class="portal-sidebar-footer">
+        <button id="review-logout" type="button">
+          <span aria-hidden="true">↪</span>
+          Pechar sesión
+        </button>
+      </div>
+    </aside>
 
-    <section id="access-state" class="access-state" aria-live="polite">
-      <p>Comprobando a sesión e os permisos de administración…</p>
-    </section>
+    <main class="review-page">
+      <header class="review-page-header">
+        <div>
+          <p class="eyebrow">Espazo de administración</p>
+          <h1>Revisión de fotografías</h1>
+          <p class="intro">
+            Revisa cada achega antes de incorporala ao arquivo ou publicala na
+            galería da Coral.
+          </p>
+        </div>
+        <button id="review-refresh" class="refresh-button" type="button">
+          Actualizar
+        </button>
+      </header>
+
+      <section id="review-shell" class="review-shell" hidden>
+        <div class="review-summary">
+          <span id="review-count">0</span>
+          <span id="review-count-label">fotografías pendentes</span>
+        </div>
+        <p id="review-message" class="review-message" role="status"
+          aria-live="polite"></p>
+        <div id="review-list" class="review-list"></div>
+        <p id="review-empty" class="review-empty" hidden>
+          Non hai fotografías pendentes de revisión.
+        </p>
+      </section>
+
+      <section id="access-state" class="access-state" aria-live="polite">
+        <p>Comprobando a sesión e os permisos de administración…</p>
+      </section>
+    </main>
   </div>
 </BaseLayout>
 
@@ -68,6 +113,11 @@ import BaseLayout from '../../layouts/Layout.astro';
   function escaparHtml(texto) {
     return String(texto ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function urlSegura(valor) {
+    const url = String(valor ?? '').trim();
+    return /^https:\/\//i.test(url) ? url : '';
   }
 
   function mostrarMensaxe(texto = '', tipo = '') {
@@ -112,63 +162,86 @@ import BaseLayout from '../../layouts/Layout.astro';
       ? 'fotografía pendente' : 'fotografías pendentes';
     baleiro.hidden = fotos.length !== 0;
 
-    lista.innerHTML = fotos.map((foto, indice) => `
-      <article class="photo-review-card" data-row-id="${escaparHtml(foto.rowId)}">
-        <div class="photo-media">
-          ${foto.miniaturaUrl
-            ? `<img src="${escaparHtml(foto.miniaturaUrl)}" alt="${escaparHtml(foto.titulo || `Fotografía ${indice + 1}`)}" loading="lazy" />`
-            : '<div class="photo-placeholder">Sen miniatura dispoñible</div>'}
-        </div>
-        <div class="photo-content">
-          <header class="photo-heading">
-            <p>Fotografía ${indice + 1}</p>
-            <div class="photo-meta">
-              <span>${escaparHtml(foto.data || foto.anoAproximado || 'Sen data')}</span>
-              <span>${escaparHtml(foto.lugar || 'Lugar sen indicar')}</span>
-            </div>
-          </header>
+    lista.innerHTML = fotos.map((foto, indice) => {
+      const miniaturaUrl = urlSegura(foto.miniaturaUrl);
+      const ficheiroUrl = urlSegura(foto.ficheiroUrl);
+      const evento = foto.evento || foto.concerto || '';
 
-          <label>
-            <span>Título</span>
-            <input name="titulo" value="${escaparHtml(foto.titulo)}" maxlength="120" />
-          </label>
-          <label>
-            <span>Pé de foto</span>
-            <textarea name="peFoto" rows="3" maxlength="600">${escaparHtml(foto.peFoto)}</textarea>
-          </label>
-
-          ${(foto.evento || foto.concerto || foto.autor) ? `
-            <p class="photo-details">
-              ${escaparHtml(foto.evento || foto.concerto || '')}
-              ${foto.autor ? `<span>Autoría: ${escaparHtml(foto.autor)}</span>` : ''}
-            </p>` : ''}
-
-          <label>
-            <span>Observacións internas</span>
-            <textarea name="observacions" rows="2" maxlength="500">${escaparHtml(foto.observacions)}</textarea>
-          </label>
-          <label class="featured-option">
-            <input type="checkbox" name="destacada" />
-            <span>Destacar na galería se se publica</span>
-          </label>
-
-          <div class="decision-actions">
-            <button type="button" data-review-action="publicar">
-              Aceptar e publicar
-            </button>
-            <button type="button" data-review-action="aceptar">
-              Aceptar sen publicar
-            </button>
-            <button type="button" data-review-action="rexeitar">
-              Rexeitar
-            </button>
+      return `
+        <article class="photo-review-card" data-row-id="${escaparHtml(foto.rowId)}">
+          <div class="photo-media">
+            ${miniaturaUrl
+              ? `<a class="photo-preview-link" href="${escaparHtml(ficheiroUrl || miniaturaUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir a fotografía orixinal">
+                  <img src="${escaparHtml(miniaturaUrl)}" alt="${escaparHtml(foto.titulo || `Fotografía ${indice + 1}`)}" loading="lazy" />
+                </a>`
+              : '<div class="photo-placeholder">Sen miniatura dispoñible</div>'}
           </div>
 
-          ${foto.ficheiroUrl ? `
-            <a class="drive-link" href="${escaparHtml(foto.ficheiroUrl)}"
-              target="_blank" rel="noreferrer">Abrir o orixinal en Drive</a>` : ''}
-        </div>
-      </article>`).join('');
+          <div class="photo-content">
+            <header class="photo-heading">
+              <div>
+                <p class="photo-number">Fotografía ${indice + 1}</p>
+                <h2>${escaparHtml(foto.titulo || 'Fotografía sen título')}</h2>
+              </div>
+              <div class="photo-meta">
+                <span>${escaparHtml(foto.data || foto.anoAproximado || 'Sen data')}</span>
+                <span>${escaparHtml(foto.lugar || 'Lugar sen indicar')}</span>
+              </div>
+            </header>
+
+            <div class="form-grid">
+              <label class="form-field form-field-wide">
+                <span>Título</span>
+                <input name="titulo" value="${escaparHtml(foto.titulo)}" maxlength="120" />
+              </label>
+
+              <label class="form-field form-field-wide">
+                <span>Pé de foto</span>
+                <textarea name="peFoto" rows="4" maxlength="600">${escaparHtml(foto.peFoto)}</textarea>
+              </label>
+
+              <div class="info-field">
+                <span>Evento ou concerto</span>
+                <p>${escaparHtml(evento || 'Sen indicar')}</p>
+              </div>
+
+              <div class="info-field">
+                <span>Autoría</span>
+                <p>${escaparHtml(foto.autor || 'Sen indicar')}</p>
+              </div>
+
+              <label class="form-field form-field-wide">
+                <span>Observacións internas</span>
+                <textarea name="observacions" rows="3" maxlength="500">${escaparHtml(foto.observacions)}</textarea>
+              </label>
+            </div>
+
+            <label class="featured-option">
+              <input type="checkbox" name="destacada" />
+              <span>Destacar na galería se se publica</span>
+            </label>
+
+            <div class="decision-actions">
+              <button class="primary-action" type="button" data-review-action="publicar">
+                <strong>Aceptar e publicar</strong>
+                <small>Incorporar á galería pública</small>
+              </button>
+              <button type="button" data-review-action="aceptar">
+                <strong>Aceptar sen publicar</strong>
+                <small>Conservar só no arquivo</small>
+              </button>
+              <button class="reject-action" type="button" data-review-action="rexeitar">
+                <strong>Rexeitar</strong>
+                <small>Eliminar o rexistro</small>
+              </button>
+            </div>
+
+            ${ficheiroUrl ? `
+              <a class="drive-link" href="${escaparHtml(ficheiroUrl)}"
+                target="_blank" rel="noopener noreferrer">Abrir o orixinal en Drive ↗</a>` : ''}
+          </div>
+        </article>`;
+    }).join('');
   }
 
   async function cargarFotos() {
@@ -270,77 +343,170 @@ import BaseLayout from '../../layouts/Layout.astro';
 </script>
 
 <style>
-  .review-page {
-    max-width: 1060px;
-    padding-top: clamp(3.5rem, 8vw, 6.5rem);
-    padding-bottom: clamp(5rem, 10vw, 8rem);
-    font-family: 'Aptos', 'Segoe UI', Arial, Helvetica, sans-serif;
+  .portal-workspace {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    min-height: calc(100vh - 1px);
+    font-family: var(--fuente-minimalista);
   }
 
-  .review-page :where(button, input, textarea, select) {
-    font-family: 'Aptos', 'Segoe UI', Arial, Helvetica, sans-serif;
+  .portal-workspace :where(button, input, textarea) {
+    font-family: var(--fuente-minimalista);
+  }
+
+  .portal-sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 2rem 1.35rem 1.3rem;
+    border-right: 1px solid #ddd5cc;
+    background: #f7f3eb;
+  }
+
+  .portal-brand {
+    padding: 0 0.65rem 1.6rem;
+    border-bottom: 1px solid #ddd5cc;
+  }
+
+  .portal-brand-name {
+    margin: 0;
+    color: var(--color-principal);
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .portal-brand-subtitle {
+    margin: 0.4rem 0 0;
+    color: #716a64;
+    font-size: 0.68rem;
+    letter-spacing: 0.035em;
+  }
+
+  .portal-nav {
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 1.45rem;
+  }
+
+  .portal-nav a,
+  .portal-nav-disabled,
+  .portal-sidebar-footer button {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    min-height: 2.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #4e4945;
+    font-size: 0.8rem;
+    font-weight: 650;
+    text-align: left;
+  }
+
+  .portal-nav a:hover,
+  .portal-nav a.active {
+    background: var(--color-blanco);
+    color: var(--color-principal);
+    box-shadow: 0 4px 16px rgba(60, 40, 28, 0.06);
+  }
+
+  .portal-nav a.active {
+    border-left: 3px solid var(--color-acento);
+  }
+
+  .portal-nav-disabled {
+    color: #99918a;
+    cursor: default;
+  }
+
+  .portal-nav-disabled small {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .portal-sidebar-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid #ddd5cc;
+  }
+
+  .portal-sidebar-footer button {
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .portal-sidebar-footer button:hover {
+    background: rgba(106, 27, 41, 0.06);
+    color: var(--color-principal);
+  }
+
+  .review-page {
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: clamp(2.5rem, 5vw, 4.5rem) clamp(1.5rem, 5vw, 4.5rem) 6rem;
   }
 
   .review-page-header {
-    max-width: 760px;
-    margin: 0 auto 3.25rem;
-    text-align: center;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 2.4rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #ddd5cc;
   }
 
-  .eyebrow {
+  .eyebrow,
+  .photo-number {
     margin: 0;
     color: var(--color-acento);
-    font-size: 0.74rem;
+    font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.13em;
     text-transform: uppercase;
   }
 
   .review-page-header h1 {
-    margin: 0.35rem 0 0;
-    color: var(--color-principal);
-    font-family: 'Aptos', 'Segoe UI', Arial, Helvetica, sans-serif;
-    font-size: clamp(2rem, 5vw, 3rem);
+    margin: 0.25rem 0 0;
+    font-size: clamp(1.85rem, 4vw, 2.65rem);
     letter-spacing: -0.025em;
   }
 
-  .section-line {
-    width: 48px;
-    height: 2px;
-    margin: 1.1rem auto 1.35rem;
-    background: var(--color-acento);
-  }
-
   .intro {
-    margin: 0 auto;
-    color: #5f5b57;
-    font-size: 1rem;
+    max-width: 680px;
+    margin: 0.55rem 0 0;
+    color: #625c57;
+    font-size: 0.95rem;
     line-height: 1.65;
   }
 
-  .page-actions {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1.5rem;
-    margin-top: 1.6rem;
-  }
-
-  .page-actions a,
-  .page-actions button {
-    padding: 0.2rem 0 0.3rem;
-    border: 0;
-    border-bottom: 1px solid var(--color-acento);
+  .refresh-button {
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+    padding: 0.65rem 1.15rem;
+    border: 1px solid var(--color-principal);
     background: transparent;
     color: var(--color-principal);
-    font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    letter-spacing: 0.025em;
     cursor: pointer;
   }
 
-  .page-actions button:disabled { cursor: wait; opacity: 0.55; }
+  .refresh-button:hover:not(:disabled) {
+    background: var(--color-principal);
+    color: var(--color-blanco);
+  }
+
+  .refresh-button:disabled { cursor: wait; opacity: 0.55; }
 
   .review-shell[hidden],
   .access-state[hidden],
@@ -350,16 +516,14 @@ import BaseLayout from '../../layouts/Layout.astro';
     display: flex;
     align-items: baseline;
     gap: 0.55rem;
-    margin: 0 0 1.2rem;
-    padding-bottom: 0.9rem;
-    border-bottom: 1px solid #ded8d0;
+    margin-bottom: 1.25rem;
     color: #68625d;
-    font-size: 0.88rem;
+    font-size: 0.86rem;
   }
 
   .review-summary span:first-child {
     color: var(--color-principal);
-    font-size: 1.35rem;
+    font-size: 1.45rem;
     font-weight: 700;
   }
 
@@ -380,8 +544,7 @@ import BaseLayout from '../../layouts/Layout.astro';
   }
 
   .review-message[data-tipo='erro'] { border-left: 3px solid var(--color-principal); }
-
-  .access-state { max-width: 620px; margin: 0 auto; text-align: center; }
+  .access-state { max-width: 620px; margin: 5rem auto; text-align: center; }
   .access-state p { margin: 0; }
   .access-state a {
     display: inline-block;
@@ -390,36 +553,45 @@ import BaseLayout from '../../layouts/Layout.astro';
     font-weight: 700;
   }
 
-  .review-list { display: grid; gap: 2rem; }
+  .review-list { display: grid; gap: 2.2rem; }
 
   .photo-review-card {
-    display: grid;
-    grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
     overflow: hidden;
-    border: 1px solid #ded8d0;
-    background: #fdfbf7;
-    box-shadow: 0 12px 30px rgba(64, 43, 30, 0.055);
+    border: 1px solid #d9d1c8;
+    border-radius: 6px;
+    background: var(--color-blanco);
+    box-shadow: 0 14px 38px rgba(64, 43, 30, 0.07);
   }
 
   .photo-media {
-    min-height: 470px;
-    padding: 1.2rem;
-    border-right: 1px solid #ded8d0;
-    background: #f4f0e6;
+    display: grid;
+    min-height: 440px;
+    max-height: 620px;
+    padding: 1.5rem;
+    place-items: center;
+    border-bottom: 1px solid #ddd5cc;
+    background: #f2eee5;
+  }
+
+  .photo-preview-link {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    cursor: zoom-in;
   }
 
   .photo-media img {
     display: block;
     width: 100%;
     height: 100%;
-    max-height: 560px;
+    max-height: 570px;
     object-fit: contain;
   }
 
   .photo-placeholder {
     display: grid;
-    width: 100%;
-    height: 100%;
+    min-height: 360px;
     place-items: center;
     color: #77716b;
     font-size: 0.85rem;
@@ -427,81 +599,100 @@ import BaseLayout from '../../layouts/Layout.astro';
 
   .photo-content {
     display: grid;
-    align-content: start;
-    gap: 1.15rem;
-    padding: clamp(1.4rem, 3vw, 2.1rem);
+    gap: 1.4rem;
+    padding: clamp(1.5rem, 3vw, 2.25rem);
   }
 
   .photo-heading {
-    padding-bottom: 0.85rem;
-    border-bottom: 1px solid #ded8d0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding-bottom: 1.15rem;
+    border-bottom: 1px solid #e3ddd6;
   }
 
-  .photo-heading > p {
-    margin: 0 0 0.45rem;
-    color: var(--color-acento);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
+  .photo-heading h2 {
+    margin: 0.25rem 0 0;
+    font-size: 1.22rem;
   }
 
   .photo-meta {
     display: flex;
     flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 0.45rem 1.2rem;
     color: #6b655f;
-    font-size: 0.8rem;
-  }
-
-  .photo-content > label:not(.featured-option) {
-    display: grid;
-    gap: 0.4rem;
-  }
-
-  .photo-content > label > span {
-    color: var(--color-principal);
     font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
   }
 
-  .photo-content input:not([type='checkbox']),
-  .photo-content textarea {
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .form-field,
+  .info-field {
+    display: grid;
+    align-content: start;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .form-field-wide { grid-column: 1 / -1; }
+
+  .form-field > span,
+  .info-field > span {
+    color: var(--color-principal);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+  }
+
+  .form-field input,
+  .form-field textarea,
+  .info-field p {
     width: 100%;
-    padding: 0.72rem 0.8rem;
-    border: 1px solid #cfc7bf;
-    border-radius: 0;
-    background: var(--color-blanco);
+    min-height: 3rem;
+    margin: 0;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #cbc3ba;
+    border-radius: 3px;
+    background: #fff;
     color: var(--color-texto);
-    font: inherit;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     line-height: 1.5;
+  }
+
+  .form-field textarea {
     resize: vertical;
   }
 
-  .photo-content input:focus,
-  .photo-content textarea:focus {
-    border-color: var(--color-principal);
-    outline: 2px solid rgba(106, 27, 41, 0.12);
-    outline-offset: 1px;
+  .info-field p {
+    background: #faf8f4;
+    color: #625c57;
   }
 
-  .photo-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 1rem;
-    margin: -0.2rem 0 0;
-    color: #68625d;
-    font-size: 0.8rem;
+  .form-field input:focus,
+  .form-field textarea:focus {
+    border-color: var(--color-principal);
+    outline: 2px solid rgba(106, 27, 41, 0.1);
+    outline-offset: 1px;
   }
 
   .featured-option {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.6rem;
+    min-height: 3rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid #ddd5cc;
+    border-radius: 3px;
+    background: #faf8f4;
     color: #514c48;
     font-size: 0.82rem;
+    font-weight: 600;
     cursor: pointer;
   }
 
@@ -511,59 +702,98 @@ import BaseLayout from '../../layouts/Layout.astro';
     accent-color: var(--color-principal);
   }
 
-  .featured-option span { color: #514c48 !important; font-weight: 600 !important; }
-
   .decision-actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.55rem;
-    padding-top: 0.25rem;
+    gap: 0.75rem;
   }
 
   .decision-actions button {
-    min-height: 3rem;
-    padding: 0.65rem 0.7rem;
-    border: 1px solid var(--color-principal);
-    border-radius: 0;
+    display: grid;
+    align-content: center;
+    gap: 0.2rem;
+    min-height: 4.6rem;
+    padding: 0.8rem;
+    border: 1px solid #bcb3aa;
+    border-radius: 3px;
     background: transparent;
     color: var(--color-principal);
-    font: inherit;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.025em;
-    line-height: 1.3;
     cursor: pointer;
   }
 
-  .decision-actions button:hover:not(:disabled) {
-    background: rgba(106, 27, 41, 0.045);
+  .decision-actions button strong {
+    font-size: 0.76rem;
   }
 
+  .decision-actions button small {
+    color: #77706a;
+    font-size: 0.65rem;
+    font-weight: 500;
+  }
+
+  .decision-actions button:hover:not(:disabled) {
+    border-color: var(--color-principal);
+    background: rgba(106, 27, 41, 0.04);
+  }
+
+  .decision-actions .primary-action {
+    border-color: var(--color-principal);
+    background: var(--color-principal);
+    color: var(--color-blanco);
+  }
+
+  .decision-actions .primary-action small { color: rgba(255, 255, 255, 0.76); }
+  .decision-actions .primary-action:hover:not(:disabled) { background: #53131f; }
+  .decision-actions .reject-action { color: #6c5555; }
   .decision-actions button:disabled { cursor: wait; opacity: 0.5; }
 
   .drive-link {
     width: fit-content;
-    color: #625c56;
+    color: var(--color-principal);
     font-size: 0.78rem;
-    font-weight: 600;
-    border-bottom: 1px solid #b9afa6;
+    font-weight: 700;
+    border-bottom: 1px solid var(--color-acento);
   }
 
   .review-empty { text-align: center; }
 
-  @media (max-width: 800px) {
-    .photo-review-card { grid-template-columns: 1fr; }
-    .photo-media {
-      min-height: 340px;
+  @media (max-width: 900px) {
+    .portal-workspace { grid-template-columns: 1fr; }
+    .portal-sidebar {
+      position: static;
+      height: auto;
+      padding: 1.2rem;
       border-right: 0;
-      border-bottom: 1px solid #ded8d0;
+      border-bottom: 1px solid #ddd5cc;
     }
+    .portal-brand { padding: 0 0 1rem; }
+    .portal-nav {
+      display: flex;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+    }
+    .portal-nav a,
+    .portal-nav-disabled {
+      flex: 0 0 auto;
+      grid-template-columns: 1.1rem auto;
+      white-space: nowrap;
+    }
+    .portal-nav-disabled small { display: none; }
+    .portal-sidebar-footer {
+      margin-top: 0.8rem;
+      padding-top: 0.8rem;
+    }
+    .portal-sidebar-footer button { max-width: 190px; }
   }
 
-  @media (max-width: 560px) {
-    .review-page { padding-right: 1.15rem; padding-left: 1.15rem; }
-    .page-actions { flex-direction: column; gap: 0.75rem; }
-    .decision-actions { grid-template-columns: 1fr; }
+  @media (max-width: 650px) {
+    .review-page { padding: 2.2rem 1rem 4rem; }
+    .review-page-header { align-items: flex-start; flex-direction: column; }
     .photo-media { min-height: 280px; padding: 0.8rem; }
+    .photo-heading { flex-direction: column; }
+    .photo-meta { justify-content: flex-start; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-field-wide { grid-column: auto; }
+    .decision-actions { grid-template-columns: 1fr; }
   }
 </style>
