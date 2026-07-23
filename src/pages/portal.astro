@@ -3,196 +3,170 @@
 import BaseLayout from '../layouts/Layout.astro';
 ---
 
-<BaseLayout title="Portal de Socios" lang="gl">
-  <div class="container portal-page-wrapper">
-    <div class="portal-login-card">
-      <header class="portal-card-header">
-        <span class="portal-lock-icon" aria-hidden="true">🔒</span>
-        <h1>Portal de Socios</h1>
-        <div class="section-line-center"></div>
-        <p>
-          Introduce as túas credenciais autorizadas para acceder ao espazo
-          interno da Sociedade Coral Polifónica de Pontevedra.
+<BaseLayout title="Portal do Coralista" lang="gl">
+  <main class="portal-shell">
+    <section class="portal-hero" aria-labelledby="portal-title">
+      <div class="portal-intro">
+        <span class="portal-eyebrow">Espazo privado</span>
+        <h1 id="portal-title">Portal do Coralista</h1>
+        <p class="portal-lead">
+          Un punto de encontro para consultar a información interna da Coral,
+          acceder ao repertorio, coñecer os próximos concertos e colaborar no
+          arquivo fotográfico da Sociedade.
         </p>
-      </header>
 
-      <div class="portal-form" id="portal-auth">
-        <section id="auth-options" aria-labelledby="auth-title">
-          <h2 id="auth-title" class="sr-only">Identificación</h2>
+        <div class="portal-feature-grid" aria-label="Contidos do portal">
+          <article><span>01</span><strong>Concertos</strong><p>Convocatorias, horarios, programa e información práctica.</p></article>
+          <article><span>02</span><strong>Repertorio</strong><p>Partituras, audios por corda, vídeos e notas de traballo.</p></article>
+          <article><span>03</span><strong>Ensaios</strong><p>Calendario, avisos, asistencia e materiais de preparación.</p></article>
+          <article><span>04</span><strong>Galería</strong><p>Consulta, achega e revisión das fotografías da Coral.</p></article>
+          <article><span>05</span><strong>Documentación</strong><p>Actas, estatutos, normativa e información interna.</p></article>
+          <article><span>06</span><strong>Perfil</strong><p>Datos persoais, voz, contacto e preferencias do usuario.</p></article>
+        </div>
+      </div>
+
+      <aside class="portal-access-card" aria-labelledby="auth-title">
+        <div id="auth-options">
+          <span class="access-kicker">Acceso reservado</span>
+          <h2 id="auth-title">Identifícate para continuar</h2>
+          <p>
+            Emprega a conta autorizada pola Sociedade Coral Polifónica de
+            Pontevedra.
+          </p>
 
           <button type="button" class="btn-google" id="google-login">
-            <span class="google-mark" aria-hidden="true">G</span>
+            <span aria-hidden="true">G</span>
             Continuar con Google
           </button>
 
-          <div class="auth-separator" aria-hidden="true">
-            <span>ou</span>
-          </div>
+          <div class="auth-separator" aria-hidden="true"><span>ou</span></div>
 
-          <div class="form-group">
-            <label for="email-socio">Correo electrónico</label>
-            <input
-              type="email"
-              id="email-socio"
-              name="email"
-              required
-              autocomplete="email"
-              placeholder="Ex. socio@correo.gal"
-            />
-          </div>
+          <label for="email-socio">Correo electrónico</label>
+          <input
+            type="email"
+            id="email-socio"
+            autocomplete="email"
+            placeholder="nome@correo.gal"
+          />
 
-          <button type="button" class="btn-email-link" id="email-link-login">
+          <button type="button" class="btn-email" id="email-link-login">
             Recibir unha ligazón de acceso
           </button>
+          <small>Non necesitas contrasinal. Enviarémosche unha ligazón ao correo.</small>
+        </div>
 
-          <p class="email-help">
-            Enviarémosche unha ligazón para entrar sen contrasinal.
+        <div id="session-status" hidden>
+          <span class="access-kicker">Sesión iniciada</span>
+          <h2>Comprobando o teu acceso</h2>
+          <p id="authenticated-email"></p>
+          <div class="loading-line" aria-hidden="true"></div>
+        </div>
+
+        <p id="portal-message" class="portal-message" role="status" aria-live="polite" hidden></p>
+
+        <footer>
+          <p>
+            Es membro da agrupación pero aínda non tes acceso?
+            <a href="/contacto">Solicítao á Xunta Directiva</a>.
           </p>
-        </section>
+        </footer>
+      </aside>
+    </section>
 
-        <section id="authenticated-area" hidden>
-          <div class="authenticated-user">
-            <div>
-              <span>Identificación verificada</span>
-              <strong id="authenticated-email"></strong>
-            </div>
-            <button type="button" id="logout-button">Cambiar conta</button>
-          </div>
+    <section id="private-dashboard" class="private-dashboard" hidden aria-labelledby="dashboard-title">
+      <header class="dashboard-header">
+        <div>
+          <span class="portal-eyebrow">Portal do Coralista</span>
+          <h2 id="dashboard-title">Benvido ao espazo privado</h2>
+          <p>
+            Desde aquí poderás acceder aos distintos servizos internos da Coral.
+          </p>
+        </div>
+        <div class="session-card">
+          <span>Conta identificada</span>
+          <strong id="dashboard-email"></strong>
+          <button type="button" id="logout-button">Pechar sesión</button>
+        </div>
+      </header>
 
-          <section class="privacy-box" aria-labelledby="privacy-title">
-          <h2 id="privacy-title">Protección de datos e condicións de acceso</h2>
+      <div class="dashboard-grid">
+        <a class="module-card module-active" href="/portal/fotos/">
+          <span class="module-number">01</span>
+          <div><strong>Achegar fotografías</strong><p>Envía novas imaxes ao arquivo da Coral para a súa revisión.</p></div>
+          <span class="module-arrow" aria-hidden="true">→</span>
+        </a>
 
-          <div class="privacy-text" id="privacy-text" tabindex="0">
-            <p>
-              Os datos facilitados serán tratados pola Sociedade Coral
-              Polifónica de Pontevedra coa finalidade de xestionar o acceso á
-              zona privada da web e á aplicación SCPP Xestión, así como as
-              comunicacións e funcionalidades internas vinculadas á entidade.
-            </p>
-            <p>
-              O acceso é persoal e non transferible. A persoa usuaria
-              comprométese a custodiar as súas credenciais e a empregar a
-              información dispoñible exclusivamente para os fins propios da
-              Sociedade.
-            </p>
-            <p>
-              A aceptación quedará rexistrada coa data e hora, o correo
-              electrónico, a versión do texto legal e os identificadores
-              internos da persoa usuaria. Poderá solicitarse a retirada do
-              consentimento ou o exercicio dos dereitos correspondentes a
-              través da páxina de contacto.
-            </p>
-          </div>
+        <a id="photo-review-link" class="module-card module-admin" href="/portal/revision-fotos/" hidden>
+          <span class="module-number">02</span>
+          <div><strong>Revisión de fotografías</strong><p>Aproba, rexeita e completa a información das imaxes recibidas.</p></div>
+          <span class="module-arrow" aria-hidden="true">→</span>
+        </a>
 
-          <label class="privacy-consent" for="acepta-fines">
-            <input
-              type="checkbox"
-              id="acepta-fines"
-              name="aceptaFines"
-              required
-            />
-            <span>
-              Lin e acepto as condicións de acceso e o tratamento dos meus
-              datos para a xestión da zona privada da web e de SCPP Xestión.
-            </span>
-          </label>
-          </section>
+        <article class="module-card module-soon">
+          <span class="module-number">03</span>
+          <div><strong>Concertos</strong><p>Convocatorias, horarios, programa, uniforme e desprazamentos.</p></div>
+          <span class="module-state">Próximamente</span>
+        </article>
 
-          <button type="button" class="btn-portal-submit" id="portal-submit">
-            Aceptar e acceder ao espazo privado
-          </button>
-        </section>
+        <article class="module-card module-soon">
+          <span class="module-number">04</span>
+          <div><strong>Repertorio</strong><p>Partituras, audios, vídeos e notas para preparar cada obra.</p></div>
+          <span class="module-state">Próximamente</span>
+        </article>
 
-        <section id="private-modules" hidden>
-          <header class="modules-header">
-            <span>Espazo privado</span>
-            <h2>Achegar fotografías</h2>
-            <p>
-              Envía unha fotografía ao arquivo da Coral. Quedará pendente de
-              revisión antes de aparecer na galería pública.
-            </p>
-            <a id="photo-review-link" class="photo-review-link"
-              href="/portal/revision-fotos/" hidden>
-              Revisar fotografías pendentes
-            </a>
-          </header>
+        <article class="module-card module-soon">
+          <span class="module-number">05</span>
+          <div><strong>Ensaios</strong><p>Calendario, avisos, asistencia e materiais de traballo.</p></div>
+          <span class="module-state">Próximamente</span>
+        </article>
 
-          <form id="photo-upload-form" class="photo-upload-form module-tile">
-            <div class="photo-file-field">
-              <label for="photo-file">Fotografía</label>
-              <input id="photo-file" name="foto" type="file"
-                accept="image/jpeg,image/png,image/webp" required />
-              <small>JPG, PNG ou WebP. Tamaño máximo: 8 MB.</small>
-            </div>
-            <div class="form-group">
-              <label for="photo-title">Título</label>
-              <input id="photo-title" name="titulo" maxlength="120" required />
-            </div>
-            <div class="form-group">
-              <label for="photo-caption">Pé de foto</label>
-              <textarea id="photo-caption" name="peFoto" rows="3" maxlength="600"></textarea>
-            </div>
-            <div class="photo-fields-grid">
-              <div class="form-group">
-                <label for="photo-date">Data</label>
-                <input id="photo-date" name="dataFoto" type="date" />
-              </div>
-              <div class="form-group">
-                <label for="photo-year">Ano aproximado</label>
-                <input id="photo-year" name="anoAproximado" type="number"
-                  min="1900" max="2100" inputmode="numeric" />
-              </div>
-              <div class="form-group">
-                <label for="photo-place">Lugar</label>
-                <input id="photo-place" name="lugar" maxlength="120" />
-              </div>
-              <div class="form-group">
-                <label for="photo-author">Autoría</label>
-                <input id="photo-author" name="autoria" maxlength="120" />
-              </div>
-              <div class="form-group">
-                <label for="photo-origin">Procedencia</label>
-                <input id="photo-origin" name="procedencia" maxlength="160" />
-              </div>
-              <div class="form-group">
-                <label for="photo-concert">Concerto</label>
-                <input id="photo-concert" name="concerto" maxlength="160" />
-              </div>
-              <div class="form-group">
-                <label for="photo-event">Evento</label>
-                <input id="photo-event" name="evento" maxlength="160" />
-              </div>
-            </div>
-            <label class="privacy-consent" for="photo-rights">
-              <input id="photo-rights" name="confirmaDereitos" type="checkbox" required />
-              <span>
-                Confirmo que a Coral pode conservar esta imaxe e que dispoño
-                de autorización para achegala para a súa posible publicación.
-              </span>
-            </label>
-            <button type="submit" class="btn-portal-submit" id="photo-submit">
-              Enviar fotografía para revisión
-            </button>
-          </form>
+        <article class="module-card module-soon">
+          <span class="module-number">06</span>
+          <div><strong>Documentación</strong><p>Estatutos, actas, normativa e documentación interna.</p></div>
+          <span class="module-state">Próximamente</span>
+        </article>
+      </div>
+    </section>
+  </main>
 
-        </section>
-
-        <p
-          id="portal-message"
-          class="portal-message"
-          role="status"
-          aria-live="polite"
-          hidden
-        ></p>
+  <div id="privacy-modal" class="privacy-modal" hidden>
+    <div class="privacy-backdrop"></div>
+    <section class="privacy-dialog" role="dialog" aria-modal="true" aria-labelledby="privacy-title">
+      <span class="access-kicker">Primeiro acceso</span>
+      <h2 id="privacy-title">Protección de datos e condicións de acceso</h2>
+      <div class="privacy-text" id="privacy-text" tabindex="0">
+        <p>
+          Os datos facilitados serán tratados pola Sociedade Coral Polifónica de
+          Pontevedra coa finalidade de xestionar o acceso á zona privada da web e
+          á aplicación SCPP Xestión, así como as comunicacións e funcionalidades
+          internas vinculadas á entidade.
+        </p>
+        <p>
+          O acceso é persoal e non transferible. A persoa usuaria comprométese a
+          custodiar as súas credenciais e a empregar a información dispoñible
+          exclusivamente para os fins propios da Sociedade.
+        </p>
+        <p>
+          A aceptación quedará rexistrada coa data e hora, o correo electrónico,
+          a versión do texto legal e os identificadores internos da persoa
+          usuaria. Poderá solicitarse a retirada do consentimento ou o exercicio
+          dos dereitos correspondentes a través da páxina de contacto.
+        </p>
       </div>
 
-      <footer class="portal-card-footer">
-        <p>
-          Es membro da agrupación pero aínda non tes conta?
-          <a href="/contacto">Solicita o teu acceso á Xunta Directiva</a>.
-        </p>
-      </footer>
-    </div>
+      <label class="privacy-consent" for="acepta-fines">
+        <input id="acepta-fines" type="checkbox" />
+        <span>
+          Lin e acepto as condicións de acceso e o tratamento dos meus datos para
+          a xestión da zona privada da web e de SCPP Xestión.
+        </span>
+      </label>
+
+      <div class="privacy-actions">
+        <button type="button" class="btn-secondary" id="privacy-logout">Cancelar e saír</button>
+        <button type="button" class="btn-primary" id="portal-submit">Aceptar e continuar</button>
+      </div>
+    </section>
   </div>
 </BaseLayout>
 
@@ -226,1104 +200,318 @@ import BaseLayout from '../layouts/Layout.astro';
   const AMBITO = 'coralpolifonicapontevedra.org';
   const EMAIL_GARDADO = 'scpp-email-acceso';
 
-  const opcionesAcceso = document.querySelector('#auth-options');
-  const zonaAutenticada = document.querySelector('#authenticated-area');
-  const correoAutenticado = document.querySelector('#authenticated-email');
-  const correoInput = document.querySelector('#email-socio');
-  const botonGoogle = document.querySelector('#google-login');
-  const botonEmail = document.querySelector('#email-link-login');
-  const botonSaida = document.querySelector('#logout-button');
-  const aceptaInput = document.querySelector('#acepta-fines');
-  const mensaxe = document.querySelector('#portal-message');
-  const botonAcceso = document.querySelector('#portal-submit');
-  const textoLegal = document.querySelector('#privacy-text');
-  const modulosPrivados = document.querySelector('#private-modules');
-  const formularioFoto = document.querySelector('#photo-upload-form');
-  const botonFoto = document.querySelector('#photo-submit');
-  const enlaceRevision = document.querySelector('#photo-review-link');
-  const tarxetaPortal = document.querySelector('.portal-login-card');
+  const authOptions = document.querySelector('#auth-options');
+  const sessionStatus = document.querySelector('#session-status');
+  const authenticatedEmail = document.querySelector('#authenticated-email');
+  const dashboardEmail = document.querySelector('#dashboard-email');
+  const dashboard = document.querySelector('#private-dashboard');
+  const privacyModal = document.querySelector('#privacy-modal');
+  const privacyText = document.querySelector('#privacy-text');
+  const consent = document.querySelector('#acepta-fines');
+  const message = document.querySelector('#portal-message');
+  const emailInput = document.querySelector('#email-socio');
+  const googleButton = document.querySelector('#google-login');
+  const emailButton = document.querySelector('#email-link-login');
+  const acceptButton = document.querySelector('#portal-submit');
+  const logoutButton = document.querySelector('#logout-button');
+  const privacyLogout = document.querySelector('#privacy-logout');
+  const reviewLink = document.querySelector('#photo-review-link');
 
-  let enlaceEmailPendente = isSignInWithEmailLink(
-    auth,
-    window.location.href
-  );
+  let emailLinkPending = isSignInWithEmailLink(auth, window.location.href);
+  let checkingUser = false;
 
-  function mostrarMensaxe(texto, tipo = 'erro') {
-    if (!(mensaxe instanceof HTMLElement)) return;
-
-    mensaxe.textContent = texto;
-    mensaxe.hidden = false;
-    mensaxe.dataset.tipo = tipo;
+  function showMessage(text, type = 'erro') {
+    if (!(message instanceof HTMLElement)) return;
+    message.textContent = text;
+    message.dataset.type = type;
+    message.hidden = false;
   }
 
-  function ocultarMensaxe() {
-    if (!(mensaxe instanceof HTMLElement)) return;
-
-    mensaxe.textContent = '';
-    mensaxe.hidden = true;
-    delete mensaxe.dataset.tipo;
+  function hideMessage() {
+    if (!(message instanceof HTMLElement)) return;
+    message.textContent = '';
+    message.hidden = true;
+    delete message.dataset.type;
   }
 
-  function definirBoton(
-    boton,
-    bloqueado,
-    texto
-  ) {
-    if (!(boton instanceof HTMLButtonElement)) return;
-
-    boton.disabled = bloqueado;
-    boton.textContent = texto;
+  function setButton(button, disabled, text) {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.disabled = disabled;
+    button.textContent = text;
   }
 
-  function actualizarVista(usuario) {
-    if (
-      !(opcionesAcceso instanceof HTMLElement) ||
-      !(zonaAutenticada instanceof HTMLElement) ||
-      !(correoAutenticado instanceof HTMLElement)
-    ) {
-      return;
-    }
-
-    const autenticado = Boolean(usuario?.email);
-    opcionesAcceso.hidden = autenticado;
-    zonaAutenticada.hidden = !autenticado;
-    correoAutenticado.textContent = usuario?.email || '';
-
-    if (!autenticado && aceptaInput instanceof HTMLInputElement) {
-      aceptaInput.checked = false;
-    }
-    if (!autenticado && modulosPrivados instanceof HTMLElement) {
-      modulosPrivados.hidden = true;
-    }
+  function cleanEmailLinkUrl() {
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 
-  async function mostrarModulosPrivados() {
-    if (zonaAutenticada instanceof HTMLElement) zonaAutenticada.hidden = true;
-    if (modulosPrivados instanceof HTMLElement) modulosPrivados.hidden = false;
-    if (tarxetaPortal instanceof HTMLElement) tarxetaPortal.classList.add('is-private');
-    await comprobarAccesoRevision();
+  function showSignedOut() {
+    if (authOptions instanceof HTMLElement) authOptions.hidden = false;
+    if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = true;
+    if (dashboard instanceof HTMLElement) dashboard.hidden = true;
+    if (privacyModal instanceof HTMLElement) privacyModal.hidden = true;
+    document.body.classList.remove('modal-open');
+    if (reviewLink instanceof HTMLElement) reviewLink.hidden = true;
   }
 
-  async function solicitarFotosAdmin(accion, datos = {}) {
-    const usuario = auth.currentUser;
-    if (!usuario?.email) throw new Error('A sesión xa non está activa.');
-    const idToken = await usuario.getIdToken(true);
-    const resposta = await fetch('/api/fotos', {
+  function showChecking(email) {
+    if (authOptions instanceof HTMLElement) authOptions.hidden = true;
+    if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = false;
+    if (authenticatedEmail instanceof HTMLElement) authenticatedEmail.textContent = email;
+    if (dashboard instanceof HTMLElement) dashboard.hidden = true;
+  }
+
+  function showPrivacyModal() {
+    if (privacyModal instanceof HTMLElement) privacyModal.hidden = false;
+    document.body.classList.add('modal-open');
+    if (consent instanceof HTMLInputElement) consent.checked = false;
+  }
+
+  function hidePrivacyModal() {
+    if (privacyModal instanceof HTMLElement) privacyModal.hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
+  async function requestAcceptance(action, extra = {}) {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('A sesión xa non está activa.');
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/aceptacion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion, ...datos })
+      body: JSON.stringify({ idToken, accion: action, version: VERSION_TEXTO_LEGAL, ...extra })
     });
-    const resultado = await resposta.json().catch(() => null);
-    if (!resposta.ok || !resultado?.ok) {
-      const erro = Object.assign(
-        new Error(resultado?.erro || 'Non foi posible cargar a revisión.'),
-        { status: resposta.status }
-      );
-      throw erro;
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      throw new Error(result?.erro || result?.detalle || 'Non foi posible comprobar o acceso.');
     }
-    return resultado;
+    return result;
   }
 
-  async function comprobarAccesoRevision() {
-    if (!(enlaceRevision instanceof HTMLAnchorElement)) return;
-    enlaceRevision.hidden = true;
-    try {
-      await solicitarFotosAdmin('listarFotosRevision');
-      enlaceRevision.hidden = false;
-    } catch { /* O acceso administrativo compróbase tamén no servidor. */ }
-  }
-
-  function lerComoBase64(ficheiro) {
-    return new Promise((resolve, reject) => {
-      const lector = new FileReader();
-      lector.onload = () => {
-        const resultado = String(lector.result || '');
-        resolve(resultado.split(',')[1] || '');
-      };
-      lector.onerror = () => reject(new Error('Non foi posible ler a fotografía.'));
-      lector.readAsDataURL(ficheiro);
+  async function requestPhotoAdmin() {
+    const user = auth.currentUser;
+    if (!user?.email) return false;
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/fotos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: 'listarFotosRevision' })
     });
+    const result = await response.json().catch(() => null);
+    return response.ok && result?.ok === true;
   }
 
-  function limparUrlEnlace() {
-    window.history.replaceState(
-      {},
-      document.title,
-      window.location.pathname
-    );
+  async function showDashboard(user) {
+    hidePrivacyModal();
+    if (authOptions instanceof HTMLElement) authOptions.hidden = true;
+    if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = true;
+    if (dashboard instanceof HTMLElement) dashboard.hidden = false;
+    if (dashboardEmail instanceof HTMLElement) dashboardEmail.textContent = user.email || '';
+    if (reviewLink instanceof HTMLElement) {
+      reviewLink.hidden = true;
+      try {
+        reviewLink.hidden = !(await requestPhotoAdmin());
+      } catch {
+        reviewLink.hidden = true;
+      }
+    }
   }
 
-  async function completarAccesoPorEmail(email) {
-    definirBoton(botonEmail, true, 'Comprobando ligazón…');
+  async function checkCurrentUser(user) {
+    if (checkingUser) return;
+    checkingUser = true;
+    hideMessage();
+    showChecking(user.email || '');
+    try {
+      const result = await requestAcceptance('comprobarAceptacion');
+      if (result.aceptacionVixente === true) {
+        await showDashboard(user);
+      } else {
+        showPrivacyModal();
+      }
+    } catch (error) {
+      await signOut(auth);
+      showMessage(error instanceof Error ? error.message : 'Non foi posible comprobar o acceso.');
+    } finally {
+      checkingUser = false;
+    }
+  }
 
+  async function completeEmailAccess(email) {
+    setButton(emailButton, true, 'Comprobando ligazón…');
     try {
       await signInWithEmailLink(auth, email, window.location.href);
       window.localStorage.removeItem(EMAIL_GARDADO);
-      enlaceEmailPendente = false;
-      limparUrlEnlace();
-      mostrarMensaxe('Identificación verificada correctamente.', 'correcto');
-    } catch (erro) {
-      console.error(erro);
-      mostrarMensaxe(
-        'A ligazón non é válida ou xa caducou. Solicita unha nova.'
-      );
+      emailLinkPending = false;
+      cleanEmailLinkUrl();
+    } catch (error) {
+      console.error(error);
+      showMessage('A ligazón non é válida ou xa caducou. Solicita unha nova.');
     } finally {
-      definirBoton(
-        botonEmail,
-        false,
-        'Recibir unha ligazón de acceso'
-      );
+      setButton(emailButton, false, 'Recibir unha ligazón de acceso');
     }
   }
 
-  onAuthStateChanged(auth, (usuario) => {
-    actualizarVista(usuario);
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) {
+      showSignedOut();
+      return;
+    }
+    await checkCurrentUser(user);
   });
 
-  botonGoogle?.addEventListener('click', async () => {
-    ocultarMensaxe();
-    definirBoton(botonGoogle, true, 'Abrindo Google…');
-
+  googleButton?.addEventListener('click', async () => {
+    hideMessage();
+    setButton(googleButton, true, 'Abrindo Google…');
     try {
-      const provedor = new GoogleAuthProvider();
-      provedor.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provedor);
-      mostrarMensaxe('Identificación verificada correctamente.', 'correcto');
-    } catch (erro) {
-      console.error(erro);
-      mostrarMensaxe(
-        'Non foi posible completar o acceso con Google.'
-      );
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error(error);
+      showMessage('Non foi posible completar o acceso con Google.');
     } finally {
-      definirBoton(botonGoogle, false, 'Continuar con Google');
+      setButton(googleButton, false, 'Continuar con Google');
     }
   });
 
-  botonEmail?.addEventListener('click', async () => {
-    ocultarMensaxe();
-
-    if (!(correoInput instanceof HTMLInputElement)) return;
-
-    const email = correoInput.value.trim().toLowerCase();
-
+  emailButton?.addEventListener('click', async () => {
+    hideMessage();
+    if (!(emailInput instanceof HTMLInputElement)) return;
+    const email = emailInput.value.trim().toLowerCase();
     if (!email) {
-      mostrarMensaxe('Introduce o teu correo electrónico.');
-      correoInput.focus();
+      showMessage('Introduce o teu correo electrónico.');
+      emailInput.focus();
       return;
     }
-
-    if (enlaceEmailPendente) {
-      await completarAccesoPorEmail(email);
+    if (emailLinkPending) {
+      await completeEmailAccess(email);
       return;
     }
-
-    definirBoton(botonEmail, true, 'Enviando ligazón…');
-
+    setButton(emailButton, true, 'Enviando ligazón…');
     try {
       await sendSignInLinkToEmail(auth, email, {
         url: `${window.location.origin}/portal/`,
         handleCodeInApp: true
       });
-
       window.localStorage.setItem(EMAIL_GARDADO, email);
-      mostrarMensaxe(
-        'Enviámosche unha ligazón de acceso. Revisa tamén o cartafol de correo non desexado.',
-        'correcto'
-      );
-    } catch (erro) {
-      console.error(erro);
-      mostrarMensaxe(
-        'Non foi posible enviar a ligazón. Comproba o correo e inténtao de novo.'
-      );
+      showMessage('Enviámosche unha ligazón de acceso. Revisa tamén o correo non desexado.', 'correcto');
+    } catch (error) {
+      console.error(error);
+      showMessage('Non foi posible enviar a ligazón. Comproba o correo e inténtao de novo.');
     } finally {
-      definirBoton(
-        botonEmail,
-        false,
-        'Recibir unha ligazón de acceso'
-      );
+      setButton(emailButton, false, 'Recibir unha ligazón de acceso');
     }
   });
 
-  botonSaida?.addEventListener('click', async () => {
-    ocultarMensaxe();
-    await signOut(auth);
-  });
-
-  botonAcceso?.addEventListener('click', async () => {
-    ocultarMensaxe();
-
-    if (
-      !(aceptaInput instanceof HTMLInputElement) ||
-      !(botonAcceso instanceof HTMLButtonElement) ||
-      !(textoLegal instanceof HTMLElement)
-    ) {
-      mostrarMensaxe('Non foi posible iniciar o formulario.');
+  acceptButton?.addEventListener('click', async () => {
+    hideMessage();
+    if (!(consent instanceof HTMLInputElement) || !consent.checked) {
+      showMessage('É necesario aceptar as condicións para acceder ao espazo privado.');
+      consent?.focus();
       return;
     }
-
-    const usuario = auth.currentUser;
-
-    if (!usuario?.email) {
-      mostrarMensaxe('É necesario identificarse primeiro.');
-      actualizarVista(null);
-      return;
-    }
-
-    if (!aceptaInput.checked) {
-      mostrarMensaxe(
-        'É necesario aceptar as condicións para acceder ao espazo privado.'
-      );
-      aceptaInput.focus();
-      return;
-    }
-
-    definirBoton(botonAcceso, true, 'Comprobando acceso…');
-
+    if (!(privacyText instanceof HTMLElement)) return;
+    setButton(acceptButton, true, 'Rexistrando aceptación…');
     try {
-      const idToken = await usuario.getIdToken(true);
-      const resposta = await fetch('/api/aceptacion', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          idToken,
-          accion: 'rexistrarAceptacion',
-          version: VERSION_TEXTO_LEGAL,
-          textoLegal: textoLegal.innerText.trim(),
-          aceptaFines: true,
-          ambito: AMBITO
-        })
+      await requestAcceptance('rexistrarAceptacion', {
+        textoLegal: privacyText.innerText.trim(),
+        aceptaFines: true,
+        ambito: AMBITO
       });
-
-      const resultado = await resposta.json().catch(() => null);
-
-      if (!resposta.ok || !resultado?.ok) {
-        throw new Error(
-          resultado?.erro ||
-          resultado?.detalle ||
-          'Non foi posible comprobar o acceso.'
-        );
-      }
-
-      mostrarMensaxe(
-        resultado.mensaxe || 'Aceptación rexistrada correctamente.',
-        'correcto'
-      );
-
-      mostrarModulosPrivados();
-    } catch (erro) {
-      mostrarMensaxe(
-        erro instanceof Error
-          ? erro.message
-          : 'Produciuse un erro ao comprobar o acceso.'
-      );
+      const user = auth.currentUser;
+      if (user) await showDashboard(user);
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Non foi posible rexistrar a aceptación.');
     } finally {
-      definirBoton(
-        botonAcceso,
-        false,
-        'Aceptar e acceder ao espazo privado'
-      );
+      setButton(acceptButton, false, 'Aceptar e continuar');
     }
   });
 
-  formularioFoto?.addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-    ocultarMensaxe();
-    if (!(formularioFoto instanceof HTMLFormElement)) return;
+  logoutButton?.addEventListener('click', () => signOut(auth));
+  privacyLogout?.addEventListener('click', () => signOut(auth));
 
-    const usuario = auth.currentUser;
-    const ficheiroInput = formularioFoto.elements.namedItem('foto');
-    const dereitosInput = formularioFoto.elements.namedItem('confirmaDereitos');
-    const ficheiro = ficheiroInput instanceof HTMLInputElement
-      ? ficheiroInput.files?.[0] : null;
-
-    if (!usuario?.email || !ficheiro) {
-      mostrarMensaxe('Selecciona unha fotografía e comproba a túa sesión.');
-      return;
-    }
-    if (ficheiro.size > 8 * 1024 * 1024) {
-      mostrarMensaxe('A fotografía supera o máximo de 8 MB.');
-      return;
-    }
-    if (!(dereitosInput instanceof HTMLInputElement) || !dereitosInput.checked) {
-      mostrarMensaxe('É necesario confirmar os dereitos da imaxe.');
-      return;
-    }
-
-    definirBoton(botonFoto, true, 'Enviando fotografía…');
-    try {
-      const datosFormulario = new FormData(formularioFoto);
-      const base64 = await lerComoBase64(ficheiro);
-      const idToken = await usuario.getIdToken(true);
-      const resposta = await fetch('/api/fotos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idToken, nomeFicheiro: ficheiro.name, tipo: ficheiro.type, base64,
-          titulo: datosFormulario.get('titulo'),
-          peFoto: datosFormulario.get('peFoto'),
-          dataFoto: datosFormulario.get('dataFoto'),
-          anoAproximado: datosFormulario.get('anoAproximado'),
-          lugar: datosFormulario.get('lugar'),
-          concerto: datosFormulario.get('concerto'),
-          evento: datosFormulario.get('evento'),
-          autoria: datosFormulario.get('autoria'),
-          procedencia: datosFormulario.get('procedencia'),
-          confirmaDereitos: true
-        })
-      });
-      const resultado = await resposta.json().catch(() => null);
-      if (!resposta.ok || !resultado?.ok) {
-        throw new Error(resultado?.erro || 'Non foi posible enviar a fotografía.');
-      }
-      formularioFoto.reset();
-      mostrarMensaxe(resultado.mensaxe, 'correcto');
-    } catch (erro) {
-      mostrarMensaxe(erro instanceof Error
-        ? erro.message : 'Non foi posible enviar a fotografía.');
-    } finally {
-      definirBoton(botonFoto, false, 'Enviar fotografía para revisión');
-    }
-  });
-
-  if (enlaceEmailPendente) {
-    const emailGardado =
-      window.localStorage.getItem(EMAIL_GARDADO) || '';
-
-    if (
-      emailGardado &&
-      correoInput instanceof HTMLInputElement
-    ) {
-      correoInput.value = emailGardado;
-      completarAccesoPorEmail(emailGardado);
-    } else {
-      definirBoton(botonEmail, false, 'Completar o acceso');
-      mostrarMensaxe(
-        'Introduce o mesmo correo ao que recibiches a ligazón para completar o acceso.'
-      );
-      if (correoInput instanceof HTMLInputElement) {
-        correoInput.focus();
-      }
+  if (emailLinkPending) {
+    const savedEmail = window.localStorage.getItem(EMAIL_GARDADO);
+    if (savedEmail) {
+      completeEmailAccess(savedEmail);
+    } else if (emailInput instanceof HTMLInputElement) {
+      emailInput.focus();
+      showMessage('Introduce o correo no que recibiches a ligazón para completar o acceso.', 'aviso');
     }
   }
 </script>
 
 <style>
-  .portal-page-wrapper {
-    padding-top: 5rem;
-    padding-bottom: 7rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: calc(100vh - 250px);
-  }
-
-  .portal-login-card {
-    background: var(--color-blanco);
-    border: 1px solid var(--color-gris);
-    border-radius: 6px;
-    padding: 3.5rem;
-    max-width: 580px;
-    width: 100%;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-    transition: max-width 0.25s ease;
-  }
-
-  .portal-login-card.is-private { max-width: 1080px; }
-
-  .portal-card-header {
-    text-align: center;
-    margin-bottom: 2.5rem;
-  }
-
-  .portal-lock-icon {
-    font-size: 2.5rem;
-    display: block;
-    margin-bottom: 1rem;
-  }
-
-  .portal-card-header h1 {
-    color: var(--color-principal);
-    font-size: 2rem;
-    font-weight: 700;
-  }
-
-  .section-line-center {
-    width: 45px;
-    height: 2px;
-    background-color: var(--color-acento);
-    margin: 0.8rem auto 1.2rem;
-  }
-
-  .portal-card-header p {
-    font-size: 0.95rem;
-    color: #666;
-    line-height: 1.5;
-  }
-
-  .portal-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  #auth-options,
-  #authenticated-area {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  #auth-options[hidden],
-  #authenticated-area[hidden],
-  #private-modules[hidden] {
-    display: none;
-  }
-
-  #private-modules {
-    display: flex;
-    flex-direction: column;
-    gap: 1.75rem;
-  }
-
-  .module-tile {
-    padding: clamp(1.2rem, 3vw, 2rem);
-    border: 1px solid #dedbd8;
-    border-radius: 3px;
-    background: var(--color-blanco);
-  }
-
-  .modules-header span {
-    color: var(--color-acento);
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .modules-header h2 {
-    margin: 0.35rem 0 0.65rem;
-    color: var(--color-principal);
-  }
-
-  .modules-header p,
-  .photo-file-field small {
-    color: #6d6d6d;
-    line-height: 1.5;
-  }
-
-  .photo-review-link {
-    display: inline-block;
-    margin-top: 1rem;
-    padding-bottom: 0.2rem;
-    border-bottom: 1px solid var(--color-acento);
-    color: var(--color-principal);
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.025em;
-  }
-
-  .photo-review-link[hidden] { display: none; }
-
-  .photo-upload-form,
-  .photo-file-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-  }
-
-  .photo-upload-form { gap: 1.25rem; }
-
-  .photo-fields-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-  }
-
-  .photo-file-field {
-    padding: 1.25rem;
-    border: 1px dashed #b7b7b7;
-    border-radius: 2px;
-    background: transparent;
-  }
-
-  .photo-file-field label,
-  .photo-upload-form label:not(.privacy-consent) {
-    color: var(--color-principal);
-    font-size: 0.86rem;
-    font-weight: 600;
-  }
-
-  .photo-upload-form textarea { resize: vertical; }
-
-  .photo-upload-form input:not([type='checkbox']):not([type='file']),
-  .photo-upload-form textarea,
-  .review-card-body input:not([type='checkbox']),
-  .review-card-body textarea {
-    width: 100%;
-    padding: 0.78rem 0.85rem;
-    border: 1px solid #d8d3cf;
-    border-radius: 2px;
-    background: transparent;
-    color: var(--color-texto);
-    font: inherit;
-    box-sizing: border-box;
-  }
-
-  .photo-upload-form input:focus,
-  .photo-upload-form textarea:focus,
-  .review-card-body input:focus,
-  .review-card-body textarea:focus {
-    border-color: var(--color-principal);
-    outline: 2px solid color-mix(
-      in srgb,
-      var(--color-principal) 16%,
-      transparent
-    );
-    outline-offset: 1px;
-  }
-
-  .photo-file-field input::file-selector-button {
-    margin-right: 0.8rem;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid #c9c2bd;
-    border-radius: 2px;
-    background: transparent;
-    color: var(--color-principal);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .photo-review-module {
-    margin-top: 0.25rem;
-  }
-
-  .photo-review-module[hidden] { display: none; }
-
-  .review-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .review-header span {
-    color: var(--color-acento);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .review-header h2 { margin: 0.25rem 0 0; color: var(--color-principal); }
-
-  .review-refresh {
-    border: 1px solid var(--color-principal);
-    border-radius: 2px;
-    background: transparent;
-    color: var(--color-principal);
-    padding: 0.7rem 1rem;
-    font: inherit;
-    font-size: 0.78rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    cursor: pointer;
-  }
-
-  .review-summary { color: #666; font-size: 0.9rem; }
-
-  .review-status {
-    min-height: 1.2rem;
-    color: #666;
-    font-size: 0.84rem;
-  }
-
-  .review-status[data-tipo='erro'] {
-    padding: 0.8rem;
-    border: 1px solid #e1a6a6;
-    border-radius: 4px;
-    background: #fff5f5;
-    color: #8a1f2d;
-  }
-
-  .review-summary strong {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.7rem;
-    height: 1.7rem;
-    margin-right: 0.35rem;
-    border-radius: 50%;
-    background: var(--color-principal);
-    color: white;
-  }
-
-  .review-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
-    align-items: start;
-  }
-
-  .review-card {
-    overflow: hidden;
-    border: 1px solid #dedbd8;
-    border-radius: 3px;
-    background: white;
-  }
-
-  .review-image-wrap {
-    aspect-ratio: 1 / 1;
-    background: #f6f4f1;
-    border-bottom: 1px solid #e6e2de;
-  }
-
-  .review-image-wrap img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  .review-image-placeholder {
-    display: grid;
-    place-items: center;
-    height: 100%;
-    color: #888;
-  }
-
-  .review-card-body {
-    display: grid;
-    gap: 1rem;
-    padding: 1.25rem;
-  }
-
-  .review-card-body > label {
-    display: grid;
-    gap: 0.4rem;
-    color: var(--color-principal);
-    font-size: 0.82rem;
-    font-weight: 600;
-  }
-
-  .review-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    color: #777;
-    font-size: 0.78rem;
-  }
-
-  .review-details { margin: 0; color: #666; font-size: 0.85rem; }
-
-  .review-featured {
-    display: flex !important;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.55rem;
-  }
-
-  .review-featured input { width: auto; accent-color: var(--color-principal); }
-
-  .review-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.6rem;
-  }
-
-  .review-actions button,
-  .review-actions .drive-tile {
-    display: flex;
-    min-height: 4.7rem;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 0.25rem;
-    border: 1px solid #c9c2bd;
-    border-radius: 2px;
-    background: transparent;
-    color: var(--color-principal);
-    padding: 0.75rem;
-    font: inherit;
-    text-align: left;
-    text-decoration: none;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background-color 0.2s ease;
-  }
-
-  .review-actions button:hover:not(:disabled),
-  .review-actions .drive-tile:hover {
-    border-color: var(--color-principal);
-    background: color-mix(in srgb, var(--color-principal) 3%, transparent);
-  }
-
-  .review-actions button:disabled { cursor: wait; opacity: 0.55; }
-
-  .review-actions strong {
-    font-size: 0.78rem;
-    letter-spacing: 0.035em;
-    text-transform: uppercase;
-  }
-
-  .review-actions span {
-    color: #777;
-    font-size: 0.7rem;
-    line-height: 1.35;
-  }
-
-  .review-actions button.reject { border-color: #bda7a7; }
-
-  .review-empty {
-    padding: 1.5rem;
-    border: 1px dashed #ccc;
-    text-align: center;
-    color: #777;
-  }
-
-  .btn-google,
-  .btn-email-link {
-    width: 100%;
-    padding: 0.85rem 1rem;
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 0.92rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      border-color 0.2s ease,
-      background-color 0.2s ease,
-      opacity 0.2s ease;
-  }
-
-  .btn-google {
-    border: 1px solid #c8c8c8;
-    background: var(--color-blanco);
-    color: #333;
-  }
-
-  .btn-google:hover:not(:disabled) {
-    border-color: var(--color-principal);
-    background: rgba(0, 0, 0, 0.018);
-  }
-
-  .google-mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.35rem;
-    height: 1.35rem;
-    margin-right: 0.55rem;
-    border-radius: 50%;
-    color: #1a73e8;
-    font-weight: 700;
-  }
-
-  .btn-email-link {
-    border: 1px solid var(--color-principal);
-    background: transparent;
-    color: var(--color-principal);
-  }
-
-  .btn-email-link:hover:not(:disabled) {
-    background: color-mix(
-      in srgb,
-      var(--color-principal) 7%,
-      transparent
-    );
-  }
-
-  .btn-google:disabled,
-  .btn-email-link:disabled {
-    cursor: wait;
-    opacity: 0.65;
-  }
-
-  .auth-separator {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    color: #888;
-    font-size: 0.8rem;
-  }
-
-  .auth-separator::before,
-  .auth-separator::after {
-    content: '';
-    height: 1px;
-    flex: 1;
-    background: var(--color-gris);
-  }
-
-  .email-help {
-    margin: -0.7rem 0 0;
-    color: #777;
-    font-size: 0.82rem;
-    line-height: 1.45;
-    text-align: center;
-  }
-
-  .authenticated-user {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.9rem 1rem;
-    border: 1px solid #b9dbc1;
-    border-radius: 4px;
-    background: #f2fbf4;
-  }
-
-  .authenticated-user div {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    min-width: 0;
-  }
-
-  .authenticated-user span {
-    color: #396842;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-  }
-
-  .authenticated-user strong {
-    color: #24552f;
-    font-size: 0.9rem;
-    overflow-wrap: anywhere;
-  }
-
-  #logout-button {
-    flex: 0 0 auto;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--color-principal);
-    font-family: inherit;
-    font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  #logout-button:hover {
-    color: var(--color-acento);
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .form-group label,
-  .privacy-consent {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--color-texto);
-  }
-
-  .label-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .forgot-password-link {
-    font-size: 0.8rem;
-    color: var(--color-principal);
-    text-decoration: none;
-    font-weight: 600;
-  }
-
-  .forgot-password-link:hover {
-    color: var(--color-acento);
-  }
-
-  .form-group input {
-    padding: 0.8rem 1rem;
-    border: 1px solid var(--color-gris);
-    border-radius: 4px;
-    font-size: 1rem;
-    font-family: inherit;
-    color: var(--color-texto);
-    background-color: var(--color-blanco);
-    transition: border-color 0.2s ease;
-  }
-
-  .form-group input:focus,
-  .privacy-text:focus {
-    outline: 2px solid color-mix(
-      in srgb,
-      var(--color-principal) 28%,
-      transparent
-    );
-    outline-offset: 2px;
-    border-color: var(--color-principal);
-  }
-
-  .privacy-box {
-    padding: 1.25rem;
-    border: 1px solid var(--color-gris);
-    border-radius: 5px;
-    background: rgba(0, 0, 0, 0.018);
-  }
-
-  .privacy-box h2 {
-    margin: 0 0 0.9rem;
-    color: var(--color-principal);
-    font-size: 1rem;
-  }
-
-  .privacy-text {
-    max-height: 190px;
-    overflow-y: auto;
-    padding: 0.9rem;
-    border: 1px solid var(--color-gris);
-    border-radius: 4px;
-    background: var(--color-blanco);
-    font-size: 0.84rem;
-    line-height: 1.55;
-    color: #555;
-  }
-
-  .privacy-text p {
-    margin: 0 0 0.8rem;
-  }
-
-  .privacy-text p:last-child {
-    margin-bottom: 0;
-  }
-
-  .privacy-consent {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    margin-top: 1rem;
-    line-height: 1.45;
-    cursor: pointer;
-  }
-
-  .privacy-consent input {
-    width: 1.05rem;
-    height: 1.05rem;
-    margin-top: 0.12rem;
-    flex: 0 0 auto;
-    accent-color: var(--color-principal);
-  }
-
-  .portal-message {
-    margin: 0;
-    padding: 0.85rem 1rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    line-height: 1.4;
-  }
-
-  .portal-message[data-tipo='erro'] {
-    border: 1px solid #b42318;
-    background: #fff4f2;
-    color: #8a1c13;
-  }
-
-  .portal-message[data-tipo='correcto'] {
-    border: 1px solid #39854a;
-    background: #f2fbf4;
-    color: #236532;
-  }
-
-  .btn-portal-submit {
-    display: block;
-    width: 100%;
-    padding: 0.9rem;
-    background-color: transparent;
-    color: var(--color-principal);
-    border: 1px solid var(--color-principal);
-    border-radius: 2px;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    transition:
-      background-color 0.2s ease,
-      opacity 0.2s ease;
-    margin-top: 0.25rem;
-    text-align: center;
-  }
-
-  .btn-portal-submit:hover:not(:disabled) {
-    background-color: color-mix(
-      in srgb,
-      var(--color-principal) 4%,
-      transparent
-    );
-  }
-
-  .btn-portal-submit:disabled {
-    cursor: wait;
-    opacity: 0.65;
-  }
-
-  .portal-card-footer {
-    margin-top: 2.5rem;
-    border-top: 1px solid var(--color-gris);
-    padding-top: 1.5rem;
-    text-align: center;
-  }
-
-  .portal-card-footer p {
-    font-size: 0.85rem;
-    color: #777;
-    line-height: 1.4;
-  }
-
-  .portal-card-footer a {
-    color: var(--color-principal);
-    text-decoration: none;
-    font-weight: 600;
-  }
-
-  .portal-card-footer a:hover {
-    color: var(--color-acento);
-  }
-
-  @media (max-width: 576px) {
-    .photo-fields-grid,
-    .review-list,
-    .review-actions { grid-template-columns: 1fr; }
-    .portal-page-wrapper {
-      padding-top: 2.5rem;
-      padding-bottom: 4rem;
-    }
-
-    .portal-login-card {
-      padding: 2rem 1.25rem;
-    }
-
-    .label-row {
-      align-items: flex-start;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .authenticated-user {
-      align-items: flex-start;
-      flex-direction: column;
-    }
+  :global(body.modal-open) { overflow: hidden; }
+  .portal-shell { max-width: 1240px; margin: 0 auto; padding: 3.5rem 1.25rem 5rem; }
+  .portal-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .75fr); gap: 3rem; align-items: start; }
+  .portal-eyebrow,.access-kicker { display: block; color: #7a263a; font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+  .portal-intro h1 { margin: .55rem 0 1rem; font-size: clamp(2.4rem, 5vw, 4.6rem); line-height: .98; color: #24362f; }
+  .portal-lead { max-width: 720px; margin: 0 0 2.2rem; font-size: 1.08rem; line-height: 1.75; color: #4a5751; }
+  .portal-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
+  .portal-feature-grid article { border-top: 1px solid #c9b77f; padding: 1rem 0 .3rem; }
+  .portal-feature-grid article span { display: block; margin-bottom: .45rem; color: #a18331; font-size: .72rem; font-weight: 800; }
+  .portal-feature-grid strong { display: block; color: #24362f; font-size: 1.02rem; }
+  .portal-feature-grid p { margin: .35rem 0 0; color: #69746f; font-size: .9rem; line-height: 1.5; }
+  .portal-access-card { position: sticky; top: 2rem; padding: 2rem; background: #f8f5ec; border: 1px solid #dfd6bd; box-shadow: 0 18px 50px rgba(44,55,49,.1); }
+  .portal-access-card h2 { margin: .5rem 0 .8rem; color: #24362f; font-size: 1.65rem; }
+  .portal-access-card p { color: #5b6661; line-height: 1.55; }
+  .portal-access-card label { display: block; margin: 0 0 .45rem; color: #24362f; font-weight: 700; }
+  .portal-access-card input[type=email] { width: 100%; box-sizing: border-box; padding: .9rem 1rem; border: 1px solid #bfc6c2; border-radius: 3px; font: inherit; background: #fff; }
+  .btn-google,.btn-email,.btn-primary,.btn-secondary { width: 100%; border: 0; padding: .95rem 1rem; font: inherit; font-weight: 800; cursor: pointer; }
+  .btn-google { display: flex; justify-content: center; gap: .7rem; margin-top: 1.4rem; color: #24362f; background: #fff; border: 1px solid #bfc6c2; }
+  .btn-google span { color: #7a263a; }
+  .btn-email,.btn-primary { margin-top: .8rem; color: #fff; background: #7a263a; }
+  button:disabled { opacity: .65; cursor: wait; }
+  .portal-access-card small { display: block; margin-top: .7rem; color: #727d78; line-height: 1.45; }
+  .auth-separator { display: flex; align-items: center; gap: .75rem; margin: 1.1rem 0; color: #8b938f; font-size: .8rem; }
+  .auth-separator::before,.auth-separator::after { content:""; flex:1; height:1px; background:#d7d8d2; }
+  .portal-access-card footer { margin-top: 1.4rem; padding-top: 1.1rem; border-top: 1px solid #ded8c9; font-size: .86rem; }
+  .portal-access-card a { color: #7a263a; font-weight: 700; }
+  .portal-message { margin: 1rem 0 0; padding: .8rem 1rem; background: #fff2ef; color: #7a263a; border-left: 3px solid currentColor; }
+  .portal-message[data-type=correcto] { background:#eef6ef; color:#356345; }
+  .portal-message[data-type=aviso] { background:#fff8e6; color:#7a6022; }
+  .loading-line { height: 3px; margin-top: 1.5rem; overflow: hidden; background: #ded8c9; }
+  .loading-line::after { content:""; display:block; width:45%; height:100%; background:#7a263a; animation: load 1.2s infinite ease-in-out; }
+  @keyframes load { from { transform:translateX(-110%); } to { transform:translateX(260%); } }
+  .private-dashboard { margin-top: 2rem; }
+  .dashboard-header { display:flex; justify-content:space-between; gap:2rem; align-items:end; padding-bottom:1.4rem; border-bottom:1px solid #d8d1bc; }
+  .dashboard-header h2 { margin:.45rem 0 .45rem; color:#24362f; font-size:clamp(2rem,4vw,3.2rem); }
+  .dashboard-header p { margin:0; color:#63706a; }
+  .session-card { min-width:260px; padding:1rem 1.2rem; background:#f8f5ec; }
+  .session-card span { display:block; color:#7a263a; font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; }
+  .session-card strong { display:block; margin:.35rem 0 .7rem; color:#24362f; font-size:.9rem; word-break:break-word; }
+  .session-card button { border:0; padding:0; color:#7a263a; background:none; font:inherit; font-weight:800; cursor:pointer; }
+  .dashboard-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1.5rem; }
+  .module-card { position:relative; display:grid; grid-template-columns:auto 1fr auto; gap:1rem; align-items:start; min-height:135px; padding:1.35rem; border:1px solid #d8d1bc; background:#fff; color:inherit; text-decoration:none; transition:.2s ease; }
+  a.module-card:hover { transform:translateY(-3px); border-color:#a18331; box-shadow:0 12px 28px rgba(44,55,49,.08); }
+  .module-number { color:#a18331; font-size:.75rem; font-weight:800; }
+  .module-card strong { display:block; margin-bottom:.4rem; color:#24362f; font-size:1.15rem; }
+  .module-card p { margin:0; color:#69746f; line-height:1.5; }
+  .module-arrow { align-self:center; color:#7a263a; font-size:1.5rem; }
+  .module-state { align-self:center; color:#8a918d; font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+  .module-soon { background:#faf9f5; }
+  .privacy-modal[hidden] { display:none; }
+  .privacy-modal { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:1.25rem; }
+  .privacy-backdrop { position:absolute; inset:0; background:rgba(24,34,29,.72); backdrop-filter:blur(4px); }
+  .privacy-dialog { position:relative; width:min(680px,100%); max-height:calc(100vh - 2.5rem); overflow:auto; padding:2rem; background:#fffdf8; box-shadow:0 24px 70px rgba(0,0,0,.28); }
+  .privacy-dialog h2 { margin:.5rem 0 1rem; color:#24362f; font-size:1.8rem; }
+  .privacy-text { max-height:260px; overflow:auto; padding:1rem; border:1px solid #ded8c9; background:#fff; color:#55615b; line-height:1.65; }
+  .privacy-consent { display:flex; gap:.75rem; align-items:flex-start; margin:1rem 0; color:#35443d; line-height:1.5; }
+  .privacy-consent input { margin-top:.25rem; flex:0 0 auto; }
+  .privacy-actions { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+  .btn-secondary { margin-top:.8rem; color:#35443d; background:#eeeae0; }
+  @media (max-width:900px) {
+    .portal-hero { grid-template-columns:1fr; }
+    .portal-access-card { position:static; }
+    .dashboard-header { align-items:start; flex-direction:column; }
+    .session-card { width:100%; box-sizing:border-box; }
+  }
+  @media (max-width:640px) {
+    .portal-shell { padding-top:2rem; }
+    .portal-feature-grid,.dashboard-grid,.privacy-actions { grid-template-columns:1fr; }
+    .portal-access-card,.privacy-dialog { padding:1.35rem; }
+    .module-card { grid-template-columns:auto 1fr; }
+    .module-arrow,.module-state { grid-column:2; justify-self:start; }
   }
 </style>
