@@ -6,8 +6,9 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "posters:thumbs": "node scripts/generate-poster-thumbnails.mjs",
+    "dev": "npm run posters:thumbs && astro dev",
+    "build": "npm run posters:thumbs && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
