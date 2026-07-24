@@ -513,10 +513,12 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   .private-layout,
   .dashboard-main { display: contents; }
   :global(.private-dashboard .private-sidebar) {
-    position: fixed;
-    top: 0;
-    left: 0;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
     z-index: 50;
+    width: 282px !important;
+    height: 100vh !important;
   }
   .dashboard-header { display:flex; justify-content:space-between; gap:2rem; align-items:end; padding-bottom:1.4rem; border-bottom:1px solid #d8d1bc; }
   .dashboard-header h2 { margin:.45rem 0 .45rem; color:#24362f; font-size:clamp(2rem,4vw,3.2rem); }
@@ -547,7 +549,6 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   .privacy-actions { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
   .btn-secondary { margin-top:.8rem; color:#35443d; background:#eeeae0; }
   @media (max-width:900px) {
-    :global(.private-dashboard .private-sidebar) { position: relative; }
     .portal-hero { grid-template-columns:1fr; }
     .portal-access-card { position:static; }
     .dashboard-header { align-items:start; flex-direction:column; }
