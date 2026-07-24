@@ -10,7 +10,7 @@ const menuItems = {
   gl: [
     { name: 'Inicio', url: '/' },
     { name: 'A Coral', url: '/acoral' },
-    { name: 'Axenda', url: '/axenda' }, /* Corrixido aquí */
+    { name: 'Axenda', url: '/axenda' },
     { name: 'Actualidade', url: '/actualidade' },
     { name: 'Galería', url: '/galeria' },
     { name: 'Colabora', url: '/colabora' },
@@ -20,7 +20,7 @@ const menuItems = {
   es: [
     { name: 'Inicio', url: '/' },
     { name: 'La Coral', url: '/acoral' },
-    { name: 'Agenda', url: '/axenda' }, /* Corrixido aquí */
+    { name: 'Agenda', url: '/axenda' },
     { name: 'Actualidad', url: '/actualidad' },
     { name: 'Galería', url: '/galeria' },
     { name: 'Colabora', url: '/colabora' },
@@ -34,7 +34,6 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
 
 <header class="site-header">
   <div class="header-wrap">
-
     <a href="/" class="logo-link">
       <Image
         src={escudoImg}
@@ -53,13 +52,17 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
     <button
       id="menuToggle"
       class="menu-toggle"
-      aria-label="Abrir menú">
+      type="button"
+      aria-label="Abrir menú"
+      aria-expanded="false"
+      aria-controls="navMenu"
+    >
       <span class="bar"></span>
       <span class="bar"></span>
       <span class="bar"></span>
     </button>
 
-    <nav id="navMenu" class="nav-menu">
+    <nav id="navMenu" class="nav-menu" aria-label="Navegación principal">
       {currentMenu.map((item) => (
         <a
           href={item.url}
@@ -94,17 +97,39 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
         <span class={lang === 'es' ? 'active-lang' : ''}>ES</span>
       </div>
     </div>
-
   </div>
 </header>
 
 <script>
-  const menuToggle = document.getElementById("menuToggle");
-  const navMenu = document.getElementById("navMenu");
+  const menuToggle = document.getElementById('menuToggle');
+  const navMenu = document.getElementById('navMenu');
+  const mobileMenuQuery = window.matchMedia('(max-width: 992px)');
 
-  menuToggle?.addEventListener("click", () => {
-    menuToggle.classList.toggle("is-active");
-    navMenu?.classList.toggle("is-open");
+  const setMenuOpen = (open: boolean) => {
+    if (!(menuToggle instanceof HTMLButtonElement) || !(navMenu instanceof HTMLElement)) return;
+    menuToggle.classList.toggle('is-active', open);
+    navMenu.classList.toggle('is-open', open);
+    menuToggle.setAttribute('aria-expanded', String(open));
+    menuToggle.setAttribute('aria-label', open ? 'Pechar menú' : 'Abrir menú');
+  };
+
+  menuToggle?.addEventListener('click', () => {
+    setMenuOpen(menuToggle.getAttribute('aria-expanded') !== 'true');
+  });
+
+  navMenu?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => setMenuOpen(false));
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && menuToggle?.getAttribute('aria-expanded') === 'true') {
+      setMenuOpen(false);
+      menuToggle.focus();
+    }
+  });
+
+  mobileMenuQuery.addEventListener('change', (event) => {
+    if (!event.matches) setMenuOpen(false);
   });
 </script>
 
@@ -122,9 +147,9 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
   align-items:center;
   justify-content:space-between;
   padding:1.2rem 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
+  max-width:1400px;
+  margin:0 auto;
+  width:100%;
 }
 
 .logo-link{
@@ -168,7 +193,7 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
 }
 
 .nav-menu a{
-  margin:0 0.65rem;
+  margin:0 .65rem;
   font-size:.85rem;
   font-weight:600;
   letter-spacing:.05em;
@@ -188,29 +213,29 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
   font-weight:700;
 }
 
-.header-right-zone {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
+.header-right-zone{
+  display:flex;
+  align-items:center;
+  gap:1.5rem;
 }
 
-.header-social-links {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
+.header-social-links{
+  display:flex;
+  align-items:center;
+  gap:.9rem;
 }
 
-.social-icon {
-  width: 20px;
-  height: 20px;
-  fill: var(--color-principal);
-  transition: transform 0.2s ease, fill 0.2s ease;
-  display: block;
+.social-icon{
+  width:20px;
+  height:20px;
+  fill:var(--color-principal);
+  transition:transform .2s ease, fill .2s ease;
+  display:block;
 }
 
-.header-social-links a:hover .social-icon {
-  fill: var(--color-acento);
-  transform: scale(1.1);
+.header-social-links a:hover .social-icon{
+  fill:var(--color-acento);
+  transform:scale(1.1);
 }
 
 .lang-selector{
@@ -225,14 +250,22 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
 
 .menu-toggle{
   display:none;
-  width:24px;
-  height:18px;
-  padding:0;
-  border:none;
-  background:none;
+  flex:0 0 auto;
+  width:46px;
+  height:46px;
+  padding:12px 10px;
+  border:1px solid #ddd8d4;
+  border-radius:6px;
+  background:#fff;
   cursor:pointer;
   flex-direction:column;
   justify-content:space-between;
+}
+
+.menu-toggle:hover,
+.menu-toggle:focus-visible{
+  border-color:var(--color-principal);
+  background:#f8f3f3;
 }
 
 .bar{
@@ -243,7 +276,7 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
 }
 
 .menu-toggle.is-active .bar:nth-child(1){
-  transform:translateY(8px) rotate(45deg);
+  transform:translateY(9px) rotate(45deg);
 }
 
 .menu-toggle.is-active .bar:nth-child(2){
@@ -251,51 +284,90 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
 }
 
 .menu-toggle.is-active .bar:nth-child(3){
-  transform:translateY(-8px) rotate(-45deg);
+  transform:translateY(-9px) rotate(-45deg);
 }
 
 @media (max-width:1150px){
-  .header-social-links {
-    display: none;
+  .header-social-links{
+    display:none;
   }
 }
 
 @media (max-width:992px){
   .header-wrap{
-    padding:1.2rem 2rem;
+    flex-wrap:wrap;
+    gap:.75rem;
+    padding:.85rem 1rem;
+  }
+
+  .logo-link{
+    flex:1 1 auto;
+    min-width:0;
+    gap:.85rem;
+  }
+
+  .main-logo{
+    height:78px;
+  }
+
+  .brand-sub{
+    max-width:250px;
+    font-size:.7rem;
+    line-height:1.35;
   }
 
   .menu-toggle{
     display:flex;
   }
 
-  .lang-selector{
+  .header-right-zone{
     display:none;
   }
 
   .nav-menu{
-    position:fixed;
-    top:0;
-    right:-100%;
-    width:260px;
-    height:100vh;
-    background:white;
-    box-shadow:-4px 0 15px rgba(0,0,0,.08);
-    display:flex;
-    flex-direction:column;
-    align-items:flex-start;
-    justify-content: flex-start;
-    padding:6rem 2rem;
-    transition:right .3s;
+    position:static;
+    display:none;
+    flex:0 0 100%;
+    width:100%;
+    height:auto;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:.3rem;
+    padding:.45rem 0 0;
+    background:transparent;
+    box-shadow:none;
   }
 
   .nav-menu.is-open{
-    right:0;
+    display:grid;
   }
 
   .nav-menu a{
-    margin:1rem 0;
-    font-size:1rem;
+    display:flex;
+    align-items:center;
+    min-height:44px;
+    margin:0;
+    padding:.72rem .8rem;
+    border-radius:4px;
+    font-size:.88rem;
+  }
+
+  .nav-menu a:hover,
+  .nav-menu a:focus-visible,
+  .nav-menu a.active-link{
+    background:#f2ecec;
+    color:var(--color-principal);
+  }
+}
+
+@media (max-width:620px){
+  .nav-menu{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (max-width:430px){
+  .brand-sub{
+    display:none;
   }
 }
 </style>
