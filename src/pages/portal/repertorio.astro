@@ -260,7 +260,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       audios.forEach((audio) => {
         const card = crear('div', 'audio-card');
         const heading = crear('div', 'audio-heading');
-        heading.append(crear('strong', '', audio.voz || 'Audio'), crear('small', '', audio.tipo || 'Estudo'));
+        heading.append(crear('strong', '', audio.voz || 'Audio'));
         const button = crear('button', 'audio-play', 'Escoitar');
         button.type = 'button';
         const player = document.createElement('audio');
@@ -373,7 +373,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .work-item { display:block!important; width:100%; margin:0; padding:1rem 1.1rem; border:0; border-top:1px solid #e5e1dd; background:transparent; color:#3f3b38; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:inherit; text-align:left!important; cursor:pointer; }
   .work-item:hover,.work-item.is-active { background:#f2ecec; }
   .work-item.is-active { box-shadow:inset 3px 0 var(--color-principal); }
-  .work-label { display:block; width:100%; margin:0; color:#312e2c; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.94rem; font-weight:600; line-height:1.45; text-align:left!important; }
+  .works-panel .works-list .work-item { display:block!important; justify-content:flex-start!important; align-items:flex-start!important; text-align:left!important; }
+  .works-panel .works-list .work-item .work-label { display:block; width:100%; margin:0; color:#312e2c; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.94rem; font-weight:600; line-height:1.45; text-align:left!important; }
   .no-results { padding:1rem; color:#77716c; font-size:.78rem; }
   .work-detail { min-width:0; border:1px solid #ddd9d5; border-radius:4px; background:#fff; }
   .work-heading { padding:1.7rem 1.8rem 1.4rem; border-bottom:1px solid #e5e1dd; }
