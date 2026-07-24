@@ -16,9 +16,23 @@ const seccions = [
 
 <BaseLayout title="A Coral" lang="gl">
   <div class="container coral-page-wrapper">
-    
-    <aside class="coral-sidebar">
-      <nav class="sidebar-nav">
+    <aside class="coral-sidebar" aria-label="Seccións de A Coral">
+      <button
+        id="coralMenuToggle"
+        class="coral-mobile-toggle"
+        type="button"
+        aria-label="Abrir seccións de A Coral"
+        aria-expanded="false"
+        aria-controls="coralSectionMenu"
+      >
+        <span class="coral-mobile-toggle-copy">
+          <small>Menú auxiliar</small>
+          <strong>Seccións de A Coral</strong>
+        </span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+
+      <nav id="coralSectionMenu" class="sidebar-nav">
         <h3>A Coral</h3>
         <ul>
           {seccions.map(sec => (
@@ -43,7 +57,6 @@ const seccions = [
     </aside>
 
     <main class="coral-content-elements">
-      
       <!-- HISTORIA -->
       <section id="historia" class="coral-section-card">
         <h2>Historia</h2>
@@ -56,7 +69,6 @@ const seccions = [
         </p>
         <a href="/historia" class="btn-institucional">Descubrir a nosa historia</a>
       </section>
-
 
       <!-- CENTENARIO -->
       <section id="centenario" class="coral-section-card">
@@ -153,10 +165,49 @@ const seccions = [
         <p>Información para concellos, entidades culturais, comisións ou eventos privados interesados en concertar unha actuación ou concerto da nosa coral.</p>
         <a href="/contacto" class="btn-institucional">Solicitar Información</a>
       </section>
-
     </main>
   </div>
 </BaseLayout>
+
+<script>
+  const coralSidebar = document.querySelector<HTMLElement>('.coral-sidebar');
+  const coralMenuToggle = document.querySelector<HTMLButtonElement>('#coralMenuToggle');
+  const coralSectionMenu = document.querySelector<HTMLElement>('#coralSectionMenu');
+  const coralMobileQuery = window.matchMedia('(max-width: 992px)');
+
+  if (coralSidebar && coralMenuToggle && coralSectionMenu) {
+    coralSidebar.classList.add('has-mobile-menu');
+
+    const setCoralMenuOpen = (open: boolean) => {
+      coralMenuToggle.classList.toggle('is-open', open);
+      coralSectionMenu.classList.toggle('is-open', open);
+      coralMenuToggle.setAttribute('aria-expanded', String(open));
+      coralMenuToggle.setAttribute(
+        'aria-label',
+        open ? 'Pechar seccións de A Coral' : 'Abrir seccións de A Coral'
+      );
+    };
+
+    coralMenuToggle.addEventListener('click', () => {
+      setCoralMenuOpen(coralMenuToggle.getAttribute('aria-expanded') !== 'true');
+    });
+
+    coralSectionMenu.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => setCoralMenuOpen(false));
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && coralMenuToggle.getAttribute('aria-expanded') === 'true') {
+        setCoralMenuOpen(false);
+        coralMenuToggle.focus();
+      }
+    });
+
+    coralMobileQuery.addEventListener('change', (event) => {
+      if (!event.matches) setCoralMenuOpen(false);
+    });
+  }
+</script>
 
 <style>
   .coral-page-wrapper {
@@ -166,7 +217,11 @@ const seccions = [
     padding-top: 4rem;
     padding-bottom: 6rem;
   }
+
   .coral-sidebar { position: relative; }
+
+  .coral-mobile-toggle { display: none; }
+
   .sidebar-nav {
     position: sticky;
     top: 160px;
@@ -175,6 +230,7 @@ const seccions = [
     border-radius: 4px;
     border: 1px solid rgba(0,0,0,0.03);
   }
+
   .sidebar-nav h3 {
     color: var(--color-principal);
     font-size: 1.1rem;
@@ -183,8 +239,10 @@ const seccions = [
     letter-spacing: 0.05em;
     font-weight: 700;
   }
+
   .sidebar-nav ul { list-style: none; }
   .sidebar-nav li { margin-bottom: 0.9rem; }
+
   .sidebar-nav a {
     text-decoration: none;
     color: var(--color-texto);
@@ -193,11 +251,13 @@ const seccions = [
     transition: 0.2s ease;
     display: inline-block;
   }
+
   .sidebar-nav a:hover {
     color: var(--color-acento);
     opacity: 1;
     transform: translateX(4px);
   }
+
   .coral-content-elements { display: flex; flex-direction: column; gap: 4.5rem; }
   .coral-section-card { scroll-margin-top: 160px; }
   .coral-section-card h2 { color: var(--color-principal); font-size: 2rem; font-weight: 700; }
@@ -206,6 +266,7 @@ const seccions = [
   .clean-list { list-style: none; margin-top: 1.2rem; }
   .clean-list li { margin-bottom: 0.6rem; font-size: 1.1rem; }
   .contratacion-box { background: var(--color-gris); padding: 2.5rem; border-radius: 4px; border-left: 4px solid var(--color-principal); }
+
   .btn-institucional {
     display: inline-block;
     margin-top: 1rem;
@@ -220,13 +281,118 @@ const seccions = [
     border-radius: 4px;
     transition: background-color 0.2s ease;
   }
+
   .btn-institucional:hover { background-color: var(--color-acento); }
 
   @media (max-width: 992px) {
-    .coral-page-wrapper { grid-template-columns: 1fr; gap: 3rem; padding-top: 2rem; }
-    .sidebar-nav { position: relative; top: 0; padding: 1.5rem; }
-    .sidebar-nav ul { display: flex; flex-wrap: wrap; gap: 1rem; }
-    .sidebar-nav li { margin-bottom: 0; }
-    .sidebar-nav a { background: var(--color-blanco); padding: 0.4rem 0.8rem; border-radius: 4px; border: 1px solid rgba(0,0,0,0.05); }
+    .coral-page-wrapper {
+      grid-template-columns: 1fr;
+      gap: 2.25rem;
+      padding-top: 2rem;
+    }
+
+    .coral-mobile-toggle {
+      display: none;
+      grid-template-columns: minmax(0, 1fr) 1.25rem;
+      align-items: center;
+      gap: .75rem;
+      width: 100%;
+      min-height: 3.25rem;
+      padding: .55rem .75rem;
+      border: 1px solid #ddd6d2;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--color-principal);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .coral-sidebar.has-mobile-menu .coral-mobile-toggle { display: grid; }
+
+    .coral-mobile-toggle:hover,
+    .coral-mobile-toggle:focus-visible {
+      border-color: var(--color-principal);
+      background: #f8f3f3;
+    }
+
+    .coral-mobile-toggle-copy {
+      display: grid;
+      gap: .1rem;
+      min-width: 0;
+    }
+
+    .coral-mobile-toggle-copy small {
+      color: #6b6561;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .coral-mobile-toggle-copy strong {
+      overflow: hidden;
+      font-size: .9rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .coral-mobile-toggle svg {
+      justify-self: end;
+      width: 17px;
+      height: 17px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.65;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: transform .2s ease;
+    }
+
+    .coral-mobile-toggle.is-open svg { transform: rotate(180deg); }
+
+    .sidebar-nav {
+      position: relative;
+      top: 0;
+      margin-top: .5rem;
+      padding: .35rem;
+      background: #fff;
+      border: 1px solid #e4dfdb;
+    }
+
+    .coral-sidebar.has-mobile-menu .sidebar-nav { display: none; }
+    .coral-sidebar.has-mobile-menu .sidebar-nav.is-open { display: block; }
+    .sidebar-nav h3 { display: none; }
+    .sidebar-nav ul { display: grid; gap: .15rem; margin: 0; padding: 0; }
+    .sidebar-nav li { margin: 0; }
+
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      width: 100%;
+      padding: .68rem .8rem;
+      border-radius: 4px;
+      background: transparent;
+      border: 0;
+      opacity: 1;
+    }
+
+    .sidebar-nav a:hover,
+    .sidebar-nav a:focus-visible {
+      background: #f2ecec;
+      color: var(--color-principal);
+      transform: none;
+    }
+
+    .coral-section-card { scroll-margin-top: 245px; }
+  }
+
+  @media (max-width: 620px) {
+    .coral-page-wrapper { padding-left: 1rem; padding-right: 1rem; }
+    .coral-content-elements { gap: 3.25rem; }
+    .coral-section-card h2 { font-size: 1.7rem; }
+    .coral-section-card p { font-size: 1rem; }
+    .contratacion-box { padding: 1.5rem; }
   }
 </style>
