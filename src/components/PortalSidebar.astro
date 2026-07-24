@@ -115,6 +115,8 @@ const activeLabel =
 
     if (!toggle || !panel) return;
 
+    sidebar.classList.add('has-mobile-menu');
+
     const setOpen = (open: boolean) => {
       toggle.setAttribute('aria-expanded', String(open));
       toggle.classList.toggle('is-open', open);
@@ -280,6 +282,18 @@ const activeLabel =
   }
 
   @media (max-width: 900px) {
+    :global(body .portal-sidebar-container) {
+      position: relative;
+      width: 100%;
+      height: auto;
+    }
+
+    :global(body .portal-sidebar-container .private-sidebar) {
+      position: relative !important;
+      width: 100% !important;
+      height: auto !important;
+    }
+
     .private-sidebar {
       position: relative;
       width: 100%;
@@ -328,7 +342,7 @@ const activeLabel =
     }
 
     .private-mobile-toggle {
-      display: grid;
+      display: none;
       grid-template-columns: minmax(0, 1fr) 1.25rem;
       align-items: center;
       gap: .75rem;
@@ -342,6 +356,10 @@ const activeLabel =
       font: inherit;
       text-align: left;
       cursor: pointer;
+    }
+
+    .private-sidebar.has-mobile-menu .private-mobile-toggle {
+      display: grid;
     }
 
     .private-mobile-toggle:hover,
@@ -381,11 +399,14 @@ const activeLabel =
     }
 
     .private-navigation-panel {
-      display: none;
       padding-top: .5rem;
     }
 
-    .private-navigation-panel.is-open {
+    .private-sidebar.has-mobile-menu .private-navigation-panel {
+      display: none;
+    }
+
+    .private-sidebar.has-mobile-menu .private-navigation-panel.is-open {
       display: flex;
     }
 
