@@ -6,6 +6,14 @@ const {
   active = '',
   logoutId = 'portal-logout'
 } = Astro.props;
+
+const activeLabel =
+  active === 'inicio' ? 'Inicio' :
+  active === 'subir' ? 'Subir fotografías' :
+  active === 'revisar' ? 'Revisar fotografías' :
+  active === 'repertorio' ? 'Repertorio' :
+  active === 'concertos' ? 'Concertos' :
+  'Menú do portal';
 ---
 
 <aside class="private-sidebar" aria-label="Navegación do portal privado">
@@ -19,69 +27,116 @@ const {
 
   <p class="private-menu-title">Portal do Coralista</p>
 
-  <nav class="private-menu">
-    <a class:list={[active === 'inicio' && 'is-active']} href="/portal/">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10.5V20h5v-5h3v5h5v-9.5" /></svg>
-      <span>Inicio</span>
-    </a>
-
-    <a class:list={[active === 'subir' && 'is-active']} href="/portal/fotos/">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5m0 0L8 9m4-4 4 4M5.5 18.5a4 4 0 0 1 .6-7.95A6 6 0 0 1 17.6 9a4.5 4.5 0 0 1 .9 8.9" /></svg>
-      <span>Subir fotografías</span>
-    </a>
-
-    <a class:list={[active === 'revisar' && 'is-active']} href="/portal/revision-fotos/">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="13" height="13" rx="1.5" /><path d="m7 14 3-3 2.2 2.2 2-2L17 14M16 8h4v12H8v-3" /></svg>
-      <span>Revisar fotografías</span>
-    </a>
-
-    <a class:list={[active === 'repertorio' && 'is-active']} href="/portal/repertorio/">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12M9 10l10-2M6 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" /></svg>
-      <span>Repertorio</span>
-    </a>
-
-    <a class:list={[active === 'concertos' && 'is-active']} href="/portal/concertos/">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="1.5" /><path d="M8 3v6m8-6v6M4 11h16" /></svg>
-      <span>Concertos</span>
-    </a>
-
-    <span class="is-disabled">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3" /><circle cx="16.5" cy="9" r="2.5" /><path d="M2.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6m0-5c3.3-.8 6.2 1 7 5" /></svg>
-      <span>Ensaios</span>
+  <button
+    class="private-mobile-toggle"
+    type="button"
+    aria-expanded="false"
+    aria-controls="private-navigation-panel"
+  >
+    <span class="private-mobile-toggle-copy">
+      <small>Menú do portal</small>
+      <strong>{activeLabel}</strong>
     </span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+  </button>
 
-    <span class="is-disabled">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5" /><circle cx="9" cy="9" r="1.5" /><path d="m5.5 17 4.5-4.5 3 3 2-2 3.5 3.5" /></svg>
-      <span>Galería</span>
-    </span>
+  <div id="private-navigation-panel" class="private-navigation-panel">
+    <nav class="private-menu">
+      <a class:list={[active === 'inicio' && 'is-active']} href="/portal/">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10.5V20h5v-5h3v5h5v-9.5" /></svg>
+        <span>Inicio</span>
+      </a>
 
-    <span class="is-disabled">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6m-6 4h6" /></svg>
-      <span>Documentación</span>
-    </span>
+      <a class:list={[active === 'subir' && 'is-active']} href="/portal/fotos/">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5m0 0L8 9m4-4 4 4M5.5 18.5a4 4 0 0 1 .6-7.95A6 6 0 0 1 17.6 9a4.5 4.5 0 0 1 .9 8.9" /></svg>
+        <span>Subir fotografías</span>
+      </a>
 
-    <span class="is-disabled">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 21c.6-4.5 2.7-6.5 6.5-6.5s5.9 2 6.5 6.5" /></svg>
-      <span>O meu perfil</span>
-    </span>
+      <a class:list={[active === 'revisar' && 'is-active']} href="/portal/revision-fotos/">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="13" height="13" rx="1.5" /><path d="m7 14 3-3 2.2 2.2 2-2L17 14M16 8h4v12H8v-3" /></svg>
+        <span>Revisar fotografías</span>
+      </a>
 
-    <span class="is-disabled">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.8-2.8 8.2-7 10-4.2-1.8-7-5.2-7-10V6z" /><path d="m9 12 2 2 4-4" /></svg>
-      <span>Administración</span>
-    </span>
-  </nav>
+      <a class:list={[active === 'repertorio' && 'is-active']} href="/portal/repertorio/">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12M9 10l10-2M6 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" /></svg>
+        <span>Repertorio</span>
+      </a>
 
-  <div class="private-sidebar-footer">
-    <a href="/" class="private-public-link">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
-      <span>Ir á web pública</span>
-    </a>
-    <button id={logoutId} type="button">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4m4-4H9" /></svg>
-      <span>Pechar sesión</span>
-    </button>
+      <a class:list={[active === 'concertos' && 'is-active']} href="/portal/concertos/">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="1.5" /><path d="M8 3v6m8-6v6M4 11h16" /></svg>
+        <span>Concertos</span>
+      </a>
+
+      <span class="is-disabled">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3" /><circle cx="16.5" cy="9" r="2.5" /><path d="M2.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6m0-5c3.3-.8 6.2 1 7 5" /></svg>
+        <span>Ensaios</span>
+      </span>
+
+      <span class="is-disabled">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5" /><circle cx="9" cy="9" r="1.5" /><path d="m5.5 17 4.5-4.5 3 3 2-2 3.5 3.5" /></svg>
+        <span>Galería</span>
+      </span>
+
+      <span class="is-disabled">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6m-6 4h6" /></svg>
+        <span>Documentación</span>
+      </span>
+
+      <span class="is-disabled">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 21c.6-4.5 2.7-6.5 6.5-6.5s5.9 2 6.5 6.5" /></svg>
+        <span>O meu perfil</span>
+      </span>
+
+      <span class="is-disabled">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.8-2.8 8.2-7 10-4.2-1.8-7-5.2-7-10V6z" /><path d="m9 12 2 2 4-4" /></svg>
+        <span>Administración</span>
+      </span>
+    </nav>
+
+    <div class="private-sidebar-footer">
+      <a href="/" class="private-public-link">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
+        <span>Ir á web pública</span>
+      </a>
+      <button id={logoutId} type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4m4-4H9" /></svg>
+        <span>Pechar sesión</span>
+      </button>
+    </div>
   </div>
 </aside>
+
+<script>
+  const mobileMenuQuery = window.matchMedia('(max-width: 620px)');
+
+  document.querySelectorAll<HTMLElement>('.private-sidebar').forEach((sidebar) => {
+    const toggle = sidebar.querySelector<HTMLButtonElement>('.private-mobile-toggle');
+    const panel = sidebar.querySelector<HTMLElement>('.private-navigation-panel');
+
+    if (!toggle || !panel) return;
+
+    const setOpen = (open: boolean) => {
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.classList.toggle('is-open', open);
+      panel.classList.toggle('is-open', open);
+    };
+
+    toggle.addEventListener('click', () => {
+      setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+    });
+
+    sidebar.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+
+    mobileMenuQuery.addEventListener('change', (event) => {
+      if (!event.matches) setOpen(false);
+    });
+  });
+</script>
 
 <style>
   .private-sidebar {
@@ -141,6 +196,17 @@ const {
     text-transform: uppercase;
   }
 
+  .private-mobile-toggle {
+    display: none;
+  }
+
+  .private-navigation-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   .private-menu {
     display: grid;
     gap: .12rem;
@@ -167,7 +233,8 @@ const {
   }
 
   .private-menu svg,
-  .private-sidebar-footer svg {
+  .private-sidebar-footer svg,
+  .private-mobile-toggle svg {
     width: 17px;
     height: 17px;
     fill: none;
@@ -247,10 +314,82 @@ const {
   }
 
   @media (max-width: 620px) {
-    .private-menu {
-      grid-template-columns: 1fr;
+    .private-sidebar {
+      padding: .85rem 1rem 1rem;
+      overflow: visible;
     }
 
+    .private-brand {
+      padding-bottom: .75rem;
+    }
+
+    .private-menu-title {
+      display: none;
+    }
+
+    .private-mobile-toggle {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 1.25rem;
+      align-items: center;
+      gap: .75rem;
+      width: 100%;
+      min-height: 3.25rem;
+      padding: .55rem .75rem;
+      border: 1px solid #ddd6d2;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--color-principal);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .private-mobile-toggle:hover,
+    .private-mobile-toggle:focus-visible {
+      border-color: var(--color-principal);
+      background: #f8f3f3;
+    }
+
+    .private-mobile-toggle-copy {
+      display: grid;
+      gap: .1rem;
+      min-width: 0;
+    }
+
+    .private-mobile-toggle-copy small {
+      color: #6b6561;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .private-mobile-toggle-copy strong {
+      overflow: hidden;
+      font-size: .9rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .private-mobile-toggle svg {
+      justify-self: end;
+      transition: transform .2s ease;
+    }
+
+    .private-mobile-toggle.is-open svg {
+      transform: rotate(180deg);
+    }
+
+    .private-navigation-panel {
+      display: none;
+      padding-top: .5rem;
+    }
+
+    .private-navigation-panel.is-open {
+      display: flex;
+    }
+
+    .private-menu,
     .private-sidebar-footer {
       grid-template-columns: 1fr;
     }
