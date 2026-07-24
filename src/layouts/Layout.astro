@@ -79,4 +79,20 @@ const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
     margin: 0 auto;
     padding: 0 2rem;
   }
+
+  @media (max-width: 900px) {
+    body.portal-private-body .portal-sidebar-container {
+      position: relative !important;
+      top: auto !important;
+      left: auto !important;
+      z-index: auto !important;
+      width: 100% !important;
+      height: auto !important;
+    }
+
+    body.portal-private-body .portal-sidebar-container + #portal-shell {
+      clear: both;
+      width: 100%;
+    }
+  }
 </style>
