@@ -296,7 +296,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           programa
         };
       }).filter((c) => c.id && c.data && c.nome)
-        .sort((a, b) => dataISO(b.data).localeCompare(dataISO(a.data)));
+        .sort((a, b) => {
+          const aArquivo = a.estado === 'realizado';
+          const bArquivo = b.estado === 'realizado';
+          if (aArquivo !== bArquivo) return Number(aArquivo) - Number(bArquivo);
+          return aArquivo
+            ? dataISO(b.data).localeCompare(dataISO(a.data))
+            : dataISO(a.data).localeCompare(dataISO(b.data));
+        });
       debuxarTarxetas();
       if (app instanceof HTMLElement) app.hidden = false;
       const requested = new URLSearchParams(window.location.search).get('id');
