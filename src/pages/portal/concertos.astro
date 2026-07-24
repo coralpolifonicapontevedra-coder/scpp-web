@@ -243,7 +243,9 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (list instanceof HTMLOListElement) {
       list.innerHTML = concerto.programa.map((item) => `<li>
         <span class="program-order">${String(item.orde).padStart(2, '0')}</span>
-        <span class="program-work"><strong>${escapar(item.obra)}</strong><span>${escapar(item.autor)}</span>${item.solista ? `<small>${escapar(item.solista)}</small>` : ''}</span>
+        <a class="program-work" href="/portal/repertorio/?id=${encodeURIComponent(item.id)}" aria-label="Abrir ${escapar(item.obra)} no repertorio">
+          <strong>${escapar(item.obra)}</strong><span>${escapar(item.autor)}</span>${item.solista ? `<small>${escapar(item.solista)}</small>` : ''}
+        </a>
       </li>`).join('');
     }
     if (empty instanceof HTMLElement) empty.hidden = concerto.programa.length > 0;
@@ -277,6 +279,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           .map((p) => {
             const obra = obras.get(valor(p, 'Id_Obras')) || {};
             return {
+              id: valor(p, 'Id_Obras'),
               orde: Number(valor(p, 'Orde')) || 999,
               obra: obra.nome || valor(p, 'Id_Obras'),
               autor: obra.autor || '',
@@ -376,7 +379,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .filters button.is-active { background:var(--color-principal); color:#fff; }
   .concert-count { justify-self:end; margin:0; color:#6b6561; font-size:.75rem; }
   .concert-count strong { color:var(--color-principal); font-size:1rem; }
-  .concert-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.9rem; }
+  .concert-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,250px)); gap:.8rem; justify-content:start; }
   .concert-grid :global(.concert-square) { display:flex; flex-direction:column; box-sizing:border-box; aspect-ratio:1/1; min-width:0; padding:1.15rem; border:1px solid #d8d2cc; border-radius:0; background:#fff; color:#393532; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; text-align:left; cursor:pointer; transition:border-color .18s,transform .18s,box-shadow .18s; }
   .concert-grid :global(.concert-square:hover) { transform:translateY(-2px); border-color:#a18331; box-shadow:0 10px 25px rgba(54,42,36,.08); }
   .concert-grid :global(.concert-square.is-past) { background:#fafafa; }
@@ -409,12 +412,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .program-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin:0; padding:0; border-top:1px solid #e0dcd8; border-left:1px solid #e0dcd8; list-style:none; }
   .program-list :global(li) { display:grid; grid-template-columns:2.1rem minmax(0,1fr); gap:.6rem; min-height:82px; padding:.8rem; border-right:1px solid #e0dcd8; border-bottom:1px solid #e0dcd8; }
   .program-list :global(.program-order) { color:#a18331; font-size:.68rem; font-weight:800; }
-  .program-list :global(.program-work) { display:grid; align-content:start; gap:.18rem; }
+  .program-list :global(.program-work) { display:grid; align-content:start; gap:.18rem; color:inherit; text-decoration:none; }
+  .program-list :global(.program-work:hover strong) { color:var(--color-principal); text-decoration:underline; text-underline-offset:3px; }
   .program-list :global(.program-work strong) { color:#34302d; font-size:.82rem; line-height:1.35; }
   .program-list :global(.program-work span),.program-list :global(.program-work small) { color:#716b66; font-size:.68rem; line-height:1.35; }
   .program-list :global(.program-work small) { color:var(--color-principal); font-weight:700; }
   .program-empty { margin:0; color:#77716c; font-size:.8rem; }
-  @media(max-width:1100px){ .concert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start} }
+  @media(max-width:1100px){ .concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start} }
   @media(max-width:900px){ .private-layout{grid-template-columns:1fr}.concertos-main{padding:1.7rem 1rem 3rem} }
   @media(max-width:680px){ .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-grid :global(.concert-square){aspect-ratio:auto;min-height:280px}.detail-grid{grid-template-columns:1fr;padding-right:0}.detail-poster-wrap{width:150px}.program-list{grid-template-columns:1fr}.concert-dialog{padding:1.35rem} }
 </style>
