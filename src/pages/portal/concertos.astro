@@ -1,0 +1,413 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Concertos" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="concertos" logoutId="concertos-logout" />
+
+    <main class="concertos-main">
+      <header class="private-page-header">
+        <div>
+          <span class="section-kicker">Portal do Coralista</span>
+          <h1>Concertos</h1>
+          <p>Consulta as próximas actuacións e o arquivo de concertos da Coral, cos seus programas e información práctica.</p>
+        </div>
+        <div class="account-card" aria-label="Conta identificada">
+          <small>Conta identificada</small>
+          <strong id="user-email">—</strong>
+        </div>
+      </header>
+
+      <section id="loading" class="portal-state">Cargando os concertos…</section>
+      <section id="error-state" class="portal-state error-state" hidden>
+        <strong>Non foi posible cargar os concertos</strong>
+        <p id="error-message"></p>
+        <button id="retry-button" type="button">Tentar de novo</button>
+      </section>
+
+      <section id="concertos-app" class="concertos-app" hidden>
+        <div class="concert-toolbar">
+          <label class="search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
+            <input id="concert-search" type="search" placeholder="Buscar concerto, cidade ou lugar" autocomplete="off" />
+          </label>
+          <div class="filters" aria-label="Filtrar concertos">
+            <button type="button" class="is-active" data-filter="todos">Todos</button>
+            <button type="button" data-filter="proximos">Próximos</button>
+            <button type="button" data-filter="arquivo">Arquivo</button>
+          </div>
+          <p class="concert-count"><strong id="concert-count">0</strong> concertos</p>
+        </div>
+
+        <div id="concert-grid" class="concert-grid"></div>
+        <p id="no-results" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="concert-dialog" class="concert-dialog" aria-labelledby="detail-title">
+    <button id="dialog-close" type="button" class="dialog-close" aria-label="Pechar">×</button>
+    <div class="detail-grid">
+      <div>
+        <span id="detail-state" class="detail-state"></span>
+        <time id="detail-date"></time>
+        <h2 id="detail-title"></h2>
+        <p id="detail-location" class="detail-location"></p>
+        <p id="detail-description" class="detail-description"></p>
+      </div>
+      <figure id="detail-poster-wrap" class="detail-poster-wrap" hidden>
+        <img id="detail-poster" src="" alt="" />
+      </figure>
+    </div>
+    <section class="program-section">
+      <header>
+        <span>Programa</span>
+        <strong id="program-count"></strong>
+      </header>
+      <ol id="program-list" class="program-list"></ol>
+      <p id="program-empty" class="program-empty" hidden>O programa deste concerto aínda non está incorporado.</p>
+    </section>
+  </dialog>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
+  const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
+  const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const loading = document.querySelector('#loading');
+  const app = document.querySelector('#concertos-app');
+  const errorState = document.querySelector('#error-state');
+  const errorMessage = document.querySelector('#error-message');
+  const retryButton = document.querySelector('#retry-button');
+  const userEmail = document.querySelector('#user-email');
+  const logout = document.querySelector('#concertos-logout');
+  const search = document.querySelector('#concert-search');
+  const grid = document.querySelector('#concert-grid');
+  const count = document.querySelector('#concert-count');
+  const noResults = document.querySelector('#no-results');
+  const filters = document.querySelector('.filters');
+  const dialog = document.querySelector('#concert-dialog');
+  const dialogClose = document.querySelector('#dialog-close');
+
+  let concertos = [];
+  let filtroActivo = 'todos';
+
+  const normalizar = (valor = '') => String(valor)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+  const corrixir = (valor = '') => String(valor)
+    .replaceAll('Liceo Casinto', 'Liceo Casino')
+    .replaceAll('Real Acadademia', 'Real Academia')
+    .replace(/\s+/g, ' ').trim();
+
+  const escapar = (valor = '') => corrixir(valor)
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+
+  function parseCSV(texto) {
+    const filas = [];
+    let fila = [], campo = '', entreComillas = false;
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i], seguinte = texto[i + 1];
+      if (c === '"' && entreComillas && seguinte === '"') { campo += '"'; i++; }
+      else if (c === '"') entreComillas = !entreComillas;
+      else if (c === ',' && !entreComillas) { fila.push(campo); campo = ''; }
+      else if ((c === '\n' || c === '\r') && !entreComillas) {
+        if (c === '\r' && seguinte === '\n') i++;
+        fila.push(campo);
+        if (fila.some((v) => v.trim() !== '')) filas.push(fila);
+        fila = []; campo = '';
+      } else campo += c;
+    }
+    if (campo || fila.length) { fila.push(campo); filas.push(fila); }
+    const cabeceiras = (filas.shift() || []).map(normalizar);
+    return filas.map((valores) => Object.fromEntries(cabeceiras.map((cab, i) => [cab, (valores[i] || '').trim()])));
+  }
+
+  const valor = (fila, ...nomes) => {
+    for (const nome of nomes) {
+      const atopado = fila[normalizar(nome)];
+      if (atopado !== undefined && atopado !== '') return atopado;
+    }
+    return '';
+  };
+
+  const dataISO = (data) => {
+    const p = String(data).split(/[\/-]/).map(Number);
+    if (p.length !== 3 || p.some(Number.isNaN)) return String(data);
+    if (p[0] > 31) return `${p[0]}-${String(p[1]).padStart(2, '0')}-${String(p[2]).padStart(2, '0')}`;
+    return `${p[2]}-${String(p[1]).padStart(2, '0')}-${String(p[0]).padStart(2, '0')}`;
+  };
+
+  const partesData = (data) => {
+    const d = new Date(`${dataISO(data)}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return { dia: data, mes: '', ano: '' };
+    const meses = ['XAN','FEB','MAR','ABR','MAI','XUÑ','XUL','AGO','SET','OUT','NOV','DEC'];
+    return { dia: String(d.getDate()).padStart(2, '0'), mes: meses[d.getMonth()], ano: String(d.getFullYear()) };
+  };
+
+  const dataLonga = (data) => {
+    const d = new Date(`${dataISO(data)}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return data;
+    return new Intl.DateTimeFormat('gl-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  };
+
+  const horaLocal = (hora = '') => String(hora).trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1');
+
+  const cartelPublico = (ruta = '') => {
+    const nome = String(ruta).replaceAll('\\', '/').split('/').filter(Boolean).pop();
+    if (!nome) return '';
+    const limpo = nome.replace(/\.pdf$/i, '.jpg');
+    return `/img/concertos/${encodeURIComponent(limpo)}`;
+  };
+
+  async function lerCSV(url) {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Erro ${response.status}`);
+    return parseCSV(await response.text());
+  }
+
+  async function aceptacionVixente(user) {
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/aceptacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: 'comprobarAceptacion', version: 'PRIVACIDADE-WEB-1.0' })
+    });
+    const result = await response.json().catch(() => null);
+    return response.ok && result?.ok && result.aceptacionVixente === true;
+  }
+
+  function etiquetaEstado(concerto) {
+    if (concerto.estado === 'realizado') return 'Arquivo';
+    if (concerto.estado === 'aprazado' || concerto.estado === 'aplazado') return 'Aprazado';
+    return 'Próximo concerto';
+  }
+
+  function debuxarTarxetas() {
+    if (!(grid instanceof HTMLElement)) return;
+    const busca = normalizar(search instanceof HTMLInputElement ? search.value : '');
+    const filtrados = concertos.filter((concerto) => {
+      const coincideFiltro = filtroActivo === 'todos'
+        || (filtroActivo === 'proximos' && concerto.estado !== 'realizado')
+        || (filtroActivo === 'arquivo' && concerto.estado === 'realizado');
+      const coincideBusca = normalizar([concerto.nome, concerto.cidade, concerto.lugar, concerto.data].join(' ')).includes(busca);
+      return coincideFiltro && coincideBusca;
+    });
+    if (count instanceof HTMLElement) count.textContent = String(filtrados.length);
+    if (noResults instanceof HTMLElement) noResults.hidden = filtrados.length > 0;
+    grid.innerHTML = filtrados.map((concerto) => {
+      const data = partesData(concerto.data);
+      const lugar = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
+      return `<button type="button" class="concert-square ${concerto.estado === 'realizado' ? 'is-past' : ''}" data-id="${escapar(concerto.id)}">
+        <span class="square-top"><span class="square-state">${escapar(etiquetaEstado(concerto))}</span><span class="square-year">${escapar(data.ano)}</span></span>
+        <span class="square-date"><strong>${escapar(data.dia)}</strong><span>${escapar(data.mes)}</span></span>
+        <span class="square-copy"><strong>${escapar(concerto.nome)}</strong><span>${escapar(lugar)}</span></span>
+        <span class="square-bottom"><span>${concerto.programa.length} obra${concerto.programa.length === 1 ? '' : 's'}</span><span aria-hidden="true">→</span></span>
+      </button>`;
+    }).join('');
+  }
+
+  function abrirConcerto(concerto) {
+    if (!(dialog instanceof HTMLDialogElement)) return;
+    const set = (selector, value) => {
+      const element = dialog.querySelector(selector);
+      if (element instanceof HTMLElement) element.textContent = value || '';
+    };
+    set('#detail-state', etiquetaEstado(concerto));
+    const time = dialog.querySelector('#detail-date');
+    if (time instanceof HTMLTimeElement) { time.textContent = dataLonga(concerto.data); time.dateTime = dataISO(concerto.data); }
+    set('#detail-title', concerto.nome);
+    const info = [concerto.hora && `${horaLocal(concerto.hora)} h`, concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
+    set('#detail-location', info);
+    set('#detail-description', concerto.caracteristicas);
+    set('#program-count', concerto.programa.length ? `${concerto.programa.length} obras` : '');
+    const list = dialog.querySelector('#program-list');
+    const empty = dialog.querySelector('#program-empty');
+    if (list instanceof HTMLOListElement) {
+      list.innerHTML = concerto.programa.map((item) => `<li>
+        <span class="program-order">${String(item.orde).padStart(2, '0')}</span>
+        <span class="program-work"><strong>${escapar(item.obra)}</strong><span>${escapar(item.autor)}</span>${item.solista ? `<small>${escapar(item.solista)}</small>` : ''}</span>
+      </li>`).join('');
+    }
+    if (empty instanceof HTMLElement) empty.hidden = concerto.programa.length > 0;
+    const posterWrap = dialog.querySelector('#detail-poster-wrap');
+    const poster = dialog.querySelector('#detail-poster');
+    const posterUrl = cartelPublico(concerto.cartel);
+    if (posterWrap instanceof HTMLElement && poster instanceof HTMLImageElement) {
+      posterWrap.hidden = !posterUrl;
+      poster.src = posterUrl;
+      poster.alt = posterUrl ? `Cartel de ${concerto.nome}` : '';
+      poster.onerror = () => { posterWrap.hidden = true; };
+    }
+    dialog.showModal();
+  }
+
+  async function cargar() {
+    if (loading instanceof HTMLElement) loading.hidden = false;
+    if (app instanceof HTMLElement) app.hidden = true;
+    if (errorState instanceof HTMLElement) errorState.hidden = true;
+    try {
+      const [concertosRaw, programasRaw, repertorioRaw] = await Promise.all([
+        lerCSV(URL_CONCERTOS), lerCSV(URL_PROGRAMAS), lerCSV(URL_REPERTORIO)
+      ]);
+      const obras = new Map(repertorioRaw.map((fila) => [valor(fila, 'Id', 'Row ID'), {
+        nome: valor(fila, 'NomeObra', 'Nome', 'Obra'),
+        autor: valor(fila, 'Compositor', 'Autor')
+      }]));
+      concertos = concertosRaw.map((fila) => {
+        const id = valor(fila, 'Id', 'Row ID');
+        const programa = programasRaw.filter((p) => valor(p, 'Id_Conciertos', 'Id_Concertos') === id)
+          .map((p) => {
+            const obra = obras.get(valor(p, 'Id_Obras')) || {};
+            return {
+              orde: Number(valor(p, 'Orde')) || 999,
+              obra: obra.nome || valor(p, 'Id_Obras'),
+              autor: obra.autor || '',
+              solista: valor(p, 'Solista')
+            };
+          }).sort((a, b) => a.orde - b.orde);
+        return {
+          id,
+          data: valor(fila, 'Data'),
+          nome: corrixir(valor(fila, 'Nome')),
+          cidade: valor(fila, 'Cidade'),
+          lugar: valor(fila, 'Lugar'),
+          caracteristicas: corrixir(valor(fila, 'Características', 'Caracteristicas')),
+          cartel: valor(fila, 'Cartel'),
+          hora: valor(fila, 'Hora'),
+          estado: normalizar(valor(fila, 'Estado')) || 'confirmado',
+          programa
+        };
+      }).filter((c) => c.id && c.data && c.nome)
+        .sort((a, b) => dataISO(b.data).localeCompare(dataISO(a.data)));
+      debuxarTarxetas();
+      if (app instanceof HTMLElement) app.hidden = false;
+      const requested = new URLSearchParams(window.location.search).get('id');
+      const concerto = requested && concertos.find((c) => c.id === requested);
+      if (concerto) abrirConcerto(concerto);
+    } catch (error) {
+      if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Erro descoñecido.';
+      if (errorState instanceof HTMLElement) errorState.hidden = false;
+    } finally {
+      if (loading instanceof HTMLElement) loading.hidden = true;
+    }
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) { window.location.replace('/portal/'); return; }
+    try {
+      if (!(await aceptacionVixente(user))) { window.location.replace('/portal/'); return; }
+      if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
+      await cargar();
+    } catch {
+      window.location.replace('/portal/');
+    }
+  });
+
+  grid?.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('button[data-id]');
+    const concerto = concertos.find((item) => item.id === button?.getAttribute('data-id'));
+    if (concerto) abrirConcerto(concerto);
+  });
+  filters?.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement) || !target.dataset.filter) return;
+    filtroActivo = target.dataset.filter;
+    filters.querySelectorAll('button').forEach((button) => button.classList.toggle('is-active', button === target));
+    debuxarTarxetas();
+  });
+  search?.addEventListener('input', debuxarTarxetas);
+  retryButton?.addEventListener('click', cargar);
+  dialogClose?.addEventListener('click', () => dialog instanceof HTMLDialogElement && dialog.close());
+  dialog?.addEventListener('click', (event) => {
+    if (event.target === dialog && dialog instanceof HTMLDialogElement) dialog.close();
+  });
+  logout?.addEventListener('click', async () => { await signOut(auth); window.location.href = '/portal/'; });
+</script>
+
+<style>
+  .private-layout { display:grid; grid-template-columns:282px minmax(0,1fr); min-height:100vh; background:#fff; }
+  .concertos-main { box-sizing:border-box; width:100%; max-width:1500px; margin:0 auto; padding:2.7rem clamp(1.5rem,4vw,4.2rem) 4rem clamp(.85rem,1.4vw,1.5rem); font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; }
+  .private-page-header { display:flex; justify-content:space-between; gap:2rem; align-items:flex-start; margin-bottom:2rem; }
+  .section-kicker { color:var(--color-principal); font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+  .private-page-header h1 { margin:.35rem 0 .45rem; color:var(--color-principal); font-size:clamp(2rem,3.4vw,2.75rem); }
+  .private-page-header p { max-width:760px; margin:0; color:#5f5b58; font-size:.94rem; line-height:1.55; }
+  .account-card { display:grid; gap:.18rem; min-width:245px; padding:.9rem 1rem; border:1px solid #ddd9d5; border-radius:4px; background:#fff; }
+  .account-card small { color:#6f6965; font-size:.7rem; }
+  .account-card strong { max-width:210px; overflow:hidden; color:var(--color-principal); font-size:.78rem; text-overflow:ellipsis; white-space:nowrap; }
+  .portal-state { padding:1rem 1.1rem; border:1px solid #ddd9d5; border-radius:4px; background:#faf9f7; color:#5d5956; }
+  .portal-state[hidden],.concertos-app[hidden],.no-results[hidden],.program-empty[hidden],.detail-poster-wrap[hidden] { display:none; }
+  .error-state strong { color:var(--color-principal); }
+  .error-state p { margin:.4rem 0 .8rem; }
+  .error-state button { border:1px solid var(--color-principal); padding:.55rem .8rem; background:#fff; color:var(--color-principal); font:inherit; font-weight:700; cursor:pointer; }
+  .concert-toolbar { display:grid; grid-template-columns:minmax(270px,430px) auto 1fr; gap:1rem; align-items:center; margin-bottom:1.2rem; }
+  .search-box { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:.55rem; padding:.65rem .75rem; border:1px solid #d5d0cb; background:#fff; }
+  .search-box svg { width:18px; height:18px; fill:none; stroke:#766f6a; stroke-width:1.7; }
+  .search-box input { min-width:0; border:0; outline:0; background:transparent; font:inherit; font-size:.8rem; }
+  .filters { display:flex; border:1px solid #d5d0cb; }
+  .filters button { min-height:2.55rem; padding:.55rem .85rem; border:0; border-right:1px solid #d5d0cb; background:#fff; color:#5f5955; font:inherit; font-size:.76rem; cursor:pointer; }
+  .filters button:last-child { border-right:0; }
+  .filters button.is-active { background:var(--color-principal); color:#fff; }
+  .concert-count { justify-self:end; margin:0; color:#6b6561; font-size:.75rem; }
+  .concert-count strong { color:var(--color-principal); font-size:1rem; }
+  .concert-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.9rem; }
+  .concert-grid :global(.concert-square) { display:flex; flex-direction:column; box-sizing:border-box; aspect-ratio:1/1; min-width:0; padding:1.15rem; border:1px solid #d8d2cc; border-radius:0; background:#fff; color:#393532; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; text-align:left; cursor:pointer; transition:border-color .18s,transform .18s,box-shadow .18s; }
+  .concert-grid :global(.concert-square:hover) { transform:translateY(-2px); border-color:#a18331; box-shadow:0 10px 25px rgba(54,42,36,.08); }
+  .concert-grid :global(.concert-square.is-past) { background:#fafafa; }
+  .concert-grid :global(.square-top),.concert-grid :global(.square-bottom) { display:flex; justify-content:space-between; gap:.7rem; align-items:center; width:100%; }
+  .concert-grid :global(.square-state) { color:var(--color-principal); font-size:.64rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .concert-grid :global(.square-year) { color:#77716c; font-size:.7rem; }
+  .concert-grid :global(.square-date) { display:flex; gap:.5rem; align-items:baseline; margin:auto 0 .7rem; color:#a18331; }
+  .concert-grid :global(.square-date strong) { font-size:clamp(2.1rem,3.5vw,3.2rem); font-weight:500; line-height:1; }
+  .concert-grid :global(.square-date span) { font-size:.8rem; font-weight:800; }
+  .concert-grid :global(.square-copy) { display:grid; gap:.35rem; width:100%; }
+  .concert-grid :global(.square-copy strong) { color:#2f2b29; font-size:1rem; line-height:1.3; }
+  .concert-grid :global(.square-copy span) { color:#6d6762; font-size:.75rem; line-height:1.4; }
+  .concert-grid :global(.square-bottom) { margin-top:auto; padding-top:.8rem; border-top:1px solid #e5e1dd; color:var(--color-principal); font-size:.7rem; font-weight:700; }
+  .no-results { padding:1.5rem; border:1px solid #ddd9d5; color:#77716c; text-align:center; }
+  .concert-dialog { width:min(900px,calc(100vw - 2rem)); max-height:calc(100vh - 2rem); padding:2rem; overflow:auto; border:0; border-top:5px solid var(--color-principal); background:#fff; color:#393532; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; box-shadow:0 30px 80px rgba(0,0,0,.28); }
+  .concert-dialog::backdrop { background:rgba(31,28,26,.7); }
+  .dialog-close { position:absolute; top:.65rem; right:.8rem; width:2rem; height:2rem; border:0; background:transparent; color:var(--color-principal); font:inherit; font-size:1.7rem; cursor:pointer; }
+  .detail-grid { display:grid; grid-template-columns:minmax(0,1fr) 180px; gap:1.6rem; align-items:start; padding-right:2rem; }
+  .detail-state { color:var(--color-principal); font-size:.68rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  .concert-dialog time { display:block; margin:.8rem 0 .3rem; color:#a18331; font-size:.84rem; font-weight:800; text-transform:capitalize; }
+  .concert-dialog h2 { margin:.25rem 0 .65rem; color:#2f2b29; font-size:clamp(1.7rem,4vw,2.6rem); line-height:1.15; }
+  .detail-location { margin:0; color:var(--color-principal); font-weight:700; }
+  .detail-description { max-width:650px; margin:1rem 0 0; color:#625d59; font-size:.84rem; line-height:1.6; }
+  .detail-poster-wrap { margin:0; }
+  .detail-poster-wrap img { display:block; width:100%; max-height:250px; object-fit:contain; border:1px solid #e0dcd8; }
+  .program-section { margin-top:1.8rem; padding-top:1.3rem; border-top:1px solid #d8d2cc; }
+  .program-section>header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.8rem; }
+  .program-section>header span { color:var(--color-principal); font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  .program-section>header strong { color:#77716c; font-size:.72rem; }
+  .program-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin:0; padding:0; border-top:1px solid #e0dcd8; border-left:1px solid #e0dcd8; list-style:none; }
+  .program-list :global(li) { display:grid; grid-template-columns:2.1rem minmax(0,1fr); gap:.6rem; min-height:82px; padding:.8rem; border-right:1px solid #e0dcd8; border-bottom:1px solid #e0dcd8; }
+  .program-list :global(.program-order) { color:#a18331; font-size:.68rem; font-weight:800; }
+  .program-list :global(.program-work) { display:grid; align-content:start; gap:.18rem; }
+  .program-list :global(.program-work strong) { color:#34302d; font-size:.82rem; line-height:1.35; }
+  .program-list :global(.program-work span),.program-list :global(.program-work small) { color:#716b66; font-size:.68rem; line-height:1.35; }
+  .program-list :global(.program-work small) { color:var(--color-principal); font-weight:700; }
+  .program-empty { margin:0; color:#77716c; font-size:.8rem; }
+  @media(max-width:1100px){ .concert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start} }
+  @media(max-width:900px){ .private-layout{grid-template-columns:1fr}.concertos-main{padding:1.7rem 1rem 3rem} }
+  @media(max-width:680px){ .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-grid :global(.concert-square){aspect-ratio:auto;min-height:280px}.detail-grid{grid-template-columns:1fr;padding-right:0}.detail-poster-wrap{width:150px}.program-list{grid-template-columns:1fr}.concert-dialog{padding:1.35rem} }
+</style>
