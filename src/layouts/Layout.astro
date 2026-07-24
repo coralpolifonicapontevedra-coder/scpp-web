@@ -16,6 +16,7 @@ const {
 const ruta = Astro.url.pathname;
 const eZonaPortal = ruta === '/portal' || ruta.startsWith('/portal/');
 const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
+const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
 ---
 
 <!DOCTYPE html>
@@ -36,6 +37,7 @@ const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
     {!eZonaPortal && <Footer lang={lang} />}
     {eInicioPortal && <PortalAcceptanceGate />}
     {eZonaPortal && <PortalReviewStyles />}
+    {eAxenda && <script is:inline src="/js/poster-thumbnails.js" defer></script>}
 
     {eZonaPortal && (
       <script is:inline>
