@@ -66,7 +66,11 @@ export async function onRequest({ request, env }) {
   }
 
   const accion = String(datos.accion || 'listarRepertorioPortal').trim();
-  if (!['listarRepertorioPortal', 'obterFicheiroRepertorio'].includes(accion)) {
+  if (![
+    'listarRepertorioPortal',
+    'listarAsistenciasConcertosPortal',
+    'obterFicheiroRepertorio'
+  ].includes(accion)) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
   }
 
