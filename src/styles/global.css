@@ -20,6 +20,9 @@ a { text-decoration: none !important; }
 .agenda-page .poster-thumb img { display:block!important; width:150px!important; max-width:150px!important; height:auto!important; max-height:210px!important; object-fit:contain!important; margin:0 auto!important; background:#fff; border:1px solid rgba(0,0,0,.1); border-radius:3px; }
 .agenda-page .poster-thumb span { display:block; width:150px; margin-top:.45rem; color:var(--color-principal); font-size:.72rem; font-weight:700; }
 
+/* Actualidade */
+.actualidade .destacada h2 { font-size:clamp(1.9rem,4.3vw,4rem)!important; }
+
 /* Portal privado */
 .portal-private-body { background:#fff; }
 .portal-private-body > main { min-height:100vh; }
