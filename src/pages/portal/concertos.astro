@@ -69,6 +69,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       <ol id="program-list" class="program-list"></ol>
       <p id="program-empty" class="program-empty" hidden>O programa deste concerto aínda non está incorporado.</p>
     </section>
+
+    <details class="attendees-section">
+      <summary><span>Asistentes</span><strong id="attendees-count"></strong></summary>
+      <div id="attendees-groups" class="attendees-groups"></div>
+      <p id="attendees-empty" class="attendees-empty" hidden>Non hai asistentes rexistrados para este concerto.</p>
+    </details>
   </dialog>
 </BaseLayout>
 
@@ -183,6 +189,20 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     return parseCSV(await response.text());
   }
 
+  async function solicitarAsistencias() {
+    const user = auth.currentUser;
+    if (!user?.email) return { asistenciasPorConcerto: {} };
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/repertorio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: 'listarAsistenciasConcertosPortal' })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Non foi posible consultar as asistencias.');
+    return result;
+  }
+
   async function aceptacionVixente(user) {
     const idToken = await user.getIdToken(true);
     const response = await fetch('/api/aceptacion', {
@@ -249,6 +269,30 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       </li>`).join('');
     }
     if (empty instanceof HTMLElement) empty.hidden = concerto.programa.length > 0;
+
+    const asistentes = Array.isArray(concerto.asistentes) ? concerto.asistentes : [];
+    set('#attendees-count', asistentes.length ? `${asistentes.length} persoas` : '0 persoas');
+    const groups = dialog.querySelector('#attendees-groups');
+    const attendeesEmpty = dialog.querySelector('#attendees-empty');
+    if (groups instanceof HTMLElement) {
+      const orde = ['Soprano', 'Contralto', 'Tenor', 'Baixo'];
+      const porVoz = asistentes.reduce((acc, persoa) => {
+        const voz = persoa.voz || 'Sen voz indicada';
+        if (!acc[voz]) acc[voz] = [];
+        acc[voz].push(persoa.nome);
+        return acc;
+      }, {});
+      const voces = Object.keys(porVoz).sort((a, b) => {
+        const ia = orde.indexOf(a), ib = orde.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b, 'gl');
+      });
+      groups.innerHTML = voces.map((voz) => `<section class="voice-group">
+        <h3>${escapar(voz)} <span>${porVoz[voz].length}</span></h3>
+        <ul>${porVoz[voz].map((nome) => `<li>${escapar(nome)}</li>`).join('')}</ul>
+      </section>`).join('');
+    }
+    if (attendeesEmpty instanceof HTMLElement) attendeesEmpty.hidden = asistentes.length > 0;
+
     const posterWrap = dialog.querySelector('#detail-poster-wrap');
     const poster = dialog.querySelector('#detail-poster');
     const posterUrl = cartelPublico(concerto.cartel);
@@ -266,9 +310,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (app instanceof HTMLElement) app.hidden = true;
     if (errorState instanceof HTMLElement) errorState.hidden = true;
     try {
-      const [concertosRaw, programasRaw, repertorioRaw] = await Promise.all([
-        lerCSV(URL_CONCERTOS), lerCSV(URL_PROGRAMAS), lerCSV(URL_REPERTORIO)
+      const [concertosRaw, programasRaw, repertorioRaw, asistenciasResult] = await Promise.all([
+        lerCSV(URL_CONCERTOS),
+        lerCSV(URL_PROGRAMAS),
+        lerCSV(URL_REPERTORIO),
+        solicitarAsistencias().catch(() => ({ asistenciasPorConcerto: {} }))
       ]);
+      const asistenciasPorConcerto = asistenciasResult.asistenciasPorConcerto || {};
       const obras = new Map(repertorioRaw.map((fila) => [valor(fila, 'Id', 'Row ID'), {
         nome: valor(fila, 'NomeObra', 'Nome', 'Obra'),
         autor: valor(fila, 'Compositor', 'Autor')
@@ -296,7 +344,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           cartel: valor(fila, 'Cartel'),
           hora: valor(fila, 'Hora'),
           estado: normalizar(valor(fila, 'Estado')) || 'confirmado',
-          programa
+          programa,
+          asistentes: Array.isArray(asistenciasPorConcerto[id])
+            ? asistenciasPorConcerto[id]
+            : []
         };
       }).filter((c) => c.id && c.data && c.nome)
         .sort((a, b) => {
@@ -418,7 +469,17 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .program-list :global(.program-work span),.program-list :global(.program-work small) { color:#716b66; font-size:.68rem; line-height:1.35; }
   .program-list :global(.program-work small) { color:var(--color-principal); font-weight:700; }
   .program-empty { margin:0; color:#77716c; font-size:.8rem; }
+  .attendees-section { margin-top:1.1rem; border-top:1px solid #d8d2cc; }
+  .attendees-section summary { display:flex; justify-content:space-between; align-items:center; padding:1rem 0; color:var(--color-principal); font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; }
+  .attendees-section summary strong { color:#77716c; font-size:.72rem; letter-spacing:0; text-transform:none; }
+  .attendees-groups { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.7rem; padding-bottom:.5rem; }
+  .attendees-groups :global(.voice-group) { border:1px solid #e0dcd8; background:#fafafa; }
+  .attendees-groups :global(.voice-group h3) { display:flex; justify-content:space-between; gap:.5rem; margin:0; padding:.65rem .75rem; border-bottom:1px solid #e0dcd8; color:var(--color-principal); font-size:.76rem; }
+  .attendees-groups :global(.voice-group h3 span) { color:#a18331; }
+  .attendees-groups :global(.voice-group ul) { margin:0; padding:.55rem .75rem .7rem; list-style:none; }
+  .attendees-groups :global(.voice-group li) { padding:.22rem 0; color:#5f5a56; font-size:.7rem; line-height:1.35; }
+  .attendees-empty { margin:0 0 .5rem; color:#77716c; font-size:.78rem; }
   @media(max-width:1100px){ .concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start} }
   @media(max-width:900px){ .private-layout{grid-template-columns:1fr}.concertos-main{padding:1.7rem 1rem 3rem} }
-  @media(max-width:680px){ .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-grid :global(.concert-square){aspect-ratio:auto;min-height:280px}.detail-grid{grid-template-columns:1fr;padding-right:0}.detail-poster-wrap{width:150px}.program-list{grid-template-columns:1fr}.concert-dialog{padding:1.35rem} }
+  @media(max-width:680px){ .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-grid :global(.concert-square){aspect-ratio:auto;min-height:280px}.detail-grid{grid-template-columns:1fr;padding-right:0}.detail-poster-wrap{width:150px}.program-list{grid-template-columns:1fr}.attendees-groups{grid-template-columns:1fr}.concert-dialog{padding:1.35rem} }
 </style>
