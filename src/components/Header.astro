@@ -30,6 +30,11 @@ const menuItems = {
 };
 
 const currentMenu = menuItems[lang] ?? menuItems.gl;
+const isActive = (url) =>
+  currentPath === url || (url !== '/' && currentPath.startsWith(url));
+const activeItem = currentMenu.find((item) => isActive(item.url)) ?? currentMenu[0];
+const openMenuLabel = lang === 'es' ? 'Abrir menú' : 'Abrir menú';
+const closeMenuLabel = lang === 'es' ? 'Cerrar menú' : 'Pechar menú';
 ---
 
 <header class="site-header">
@@ -49,29 +54,11 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
       </div>
     </a>
 
-    <button
-      id="menuToggle"
-      class="menu-toggle"
-      type="button"
-      aria-label="Abrir menú"
-      aria-expanded="false"
-      aria-controls="navMenu"
-    >
-      <span class="bar"></span>
-      <span class="bar"></span>
-      <span class="bar"></span>
-    </button>
-
     <nav id="navMenu" class="nav-menu" aria-label="Navegación principal">
       {currentMenu.map((item) => (
         <a
           href={item.url}
-          class={
-            currentPath === item.url ||
-            (item.url !== "/" && currentPath.startsWith(item.url))
-              ? "active-link"
-              : ""
-          }
+          class={isActive(item.url) ? 'active-link' : ''}
         >
           {item.name}
         </a>
@@ -97,6 +84,23 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
         <span class={lang === 'es' ? 'active-lang' : ''}>ES</span>
       </div>
     </div>
+
+    <button
+      id="menuToggle"
+      class="menu-toggle"
+      type="button"
+      aria-label={openMenuLabel}
+      aria-expanded="false"
+      aria-controls="navMenu"
+      data-open-label={openMenuLabel}
+      data-close-label={closeMenuLabel}
+    >
+      <span class="menu-toggle-copy">
+        <small>Menú principal</small>
+        <strong>{activeItem.name}</strong>
+      </span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+    </button>
   </div>
 </header>
 
@@ -107,10 +111,15 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
 
   const setMenuOpen = (open: boolean) => {
     if (!(menuToggle instanceof HTMLButtonElement) || !(navMenu instanceof HTMLElement)) return;
-    menuToggle.classList.toggle('is-active', open);
+    menuToggle.classList.toggle('is-open', open);
     navMenu.classList.toggle('is-open', open);
     menuToggle.setAttribute('aria-expanded', String(open));
-    menuToggle.setAttribute('aria-label', open ? 'Pechar menú' : 'Abrir menú');
+    menuToggle.setAttribute(
+      'aria-label',
+      open
+        ? menuToggle.dataset.closeLabel || 'Pechar menú'
+        : menuToggle.dataset.openLabel || 'Abrir menú'
+    );
   };
 
   menuToggle?.addEventListener('click', () => {
@@ -250,41 +259,6 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
 
 .menu-toggle{
   display:none;
-  flex:0 0 auto;
-  width:46px;
-  height:46px;
-  padding:12px 10px;
-  border:1px solid #ddd8d4;
-  border-radius:6px;
-  background:#fff;
-  cursor:pointer;
-  flex-direction:column;
-  justify-content:space-between;
-}
-
-.menu-toggle:hover,
-.menu-toggle:focus-visible{
-  border-color:var(--color-principal);
-  background:#f8f3f3;
-}
-
-.bar{
-  width:100%;
-  height:2px;
-  background:var(--color-principal);
-  transition:.3s;
-}
-
-.menu-toggle.is-active .bar:nth-child(1){
-  transform:translateY(9px) rotate(45deg);
-}
-
-.menu-toggle.is-active .bar:nth-child(2){
-  opacity:0;
-}
-
-.menu-toggle.is-active .bar:nth-child(3){
-  transform:translateY(-9px) rotate(-45deg);
 }
 
 @media (max-width:1150px){
@@ -297,11 +271,11 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
   .header-wrap{
     flex-wrap:wrap;
     gap:.75rem;
-    padding:.85rem 1rem;
+    padding:.85rem 1rem 1rem;
   }
 
   .logo-link{
-    flex:1 1 auto;
+    flex:1 1 100%;
     min-width:0;
     gap:.85rem;
   }
@@ -316,12 +290,69 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
     line-height:1.35;
   }
 
-  .menu-toggle{
-    display:flex;
-  }
-
   .header-right-zone{
     display:none;
+  }
+
+  .menu-toggle{
+    display:grid;
+    flex:0 0 100%;
+    grid-template-columns:minmax(0, 1fr) 1.25rem;
+    align-items:center;
+    gap:.75rem;
+    width:100%;
+    min-height:3.25rem;
+    padding:.55rem .75rem;
+    border:1px solid #ddd6d2;
+    border-radius:6px;
+    background:#fff;
+    color:var(--color-principal);
+    font:inherit;
+    text-align:left;
+    cursor:pointer;
+  }
+
+  .menu-toggle:hover,
+  .menu-toggle:focus-visible{
+    border-color:var(--color-principal);
+    background:#f8f3f3;
+  }
+
+  .menu-toggle-copy{
+    display:grid;
+    gap:.1rem;
+    min-width:0;
+  }
+
+  .menu-toggle-copy small{
+    color:#6b6561;
+    font-size:.68rem;
+    font-weight:700;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+
+  .menu-toggle-copy strong{
+    overflow:hidden;
+    font-size:.9rem;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .menu-toggle svg{
+    justify-self:end;
+    width:17px;
+    height:17px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.65;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    transition:transform .2s ease;
+  }
+
+  .menu-toggle.is-open svg{
+    transform:rotate(180deg);
   }
 
   .nav-menu{
@@ -330,9 +361,9 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
     flex:0 0 100%;
     width:100%;
     height:auto;
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:.3rem;
-    padding:.45rem 0 0;
+    grid-template-columns:1fr;
+    gap:.15rem;
+    padding:.05rem 0 0;
     background:transparent;
     box-shadow:none;
   }
@@ -346,7 +377,7 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
     align-items:center;
     min-height:44px;
     margin:0;
-    padding:.72rem .8rem;
+    padding:.68rem .8rem;
     border-radius:4px;
     font-size:.88rem;
   }
@@ -356,12 +387,6 @@ const currentMenu = menuItems[lang] ?? menuItems.gl;
   .nav-menu a.active-link{
     background:#f2ecec;
     color:var(--color-principal);
-  }
-}
-
-@media (max-width:620px){
-  .nav-menu{
-    grid-template-columns:1fr;
   }
 }
 
