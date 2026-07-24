@@ -281,7 +281,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (concertsList instanceof HTMLElement) {
       concertsList.replaceChildren();
       concerts.forEach((concert) => {
-        const card = crear('div', 'concert-card');
+        const card = crear(concert.id ? 'a' : 'div', 'concert-card');
+        if (card instanceof HTMLAnchorElement) {
+          card.href = `/portal/concertos/?id=${encodeURIComponent(concert.id)}`;
+          card.setAttribute('aria-label', `Abrir o concerto ${concert.nome || ''}`);
+        }
         const date = crear('time', '', concert.data || 'Data non indicada');
         const copy = crear('div', '');
         copy.append(
@@ -307,9 +311,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       obras = Array.isArray(result.obras) ? result.obras : [];
       obras.sort((a, b) => String(a.nomeObra || '').localeCompare(String(b.nomeObra || ''), 'gl'));
       if (!obras.length) throw new Error('O repertorio non contén obras dispoñibles.');
-      obraActiva = obras[0].id;
+      const requested = new URLSearchParams(window.location.search).get('id');
+      const seleccionada = obras.find((obra) => obra.id === requested) || obras[0];
+      obraActiva = seleccionada.id;
       debuxarLista();
-      debuxarObra(obras[0]);
+      debuxarObra(seleccionada);
       if (app instanceof HTMLElement) app.hidden = false;
     } catch (error) {
       if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Erro descoñecido.';
@@ -417,6 +423,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .concert-meta { display:flex; align-items:center; gap:.7rem; margin-top:auto; }
   .concert-card time { color:var(--color-principal); font-size:.72rem; font-weight:800; }
   .concert-order { color:#a18331!important; font-weight:800; white-space:nowrap; }
+  .concerts-list :global(.concert-card) { display:grid; grid-template-columns:1fr; align-content:start; gap:.55rem; min-height:145px; padding:1rem; border:0; border-right:1px solid #d8d2cc; border-bottom:1px solid #d8d2cc; background:#fff; color:#393532!important; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; text-align:left; text-decoration:none; }
+  .concerts-list :global(a.concert-card:hover) { background:#f7eff1; box-shadow:inset 0 0 0 1px var(--color-principal); }
+  .concerts-list :global(.concert-card div) { display:grid; gap:.38rem; }
+  .concerts-list :global(.concert-card strong) { color:#393532!important; font-size:.84rem; line-height:1.4; }
+  .concerts-list :global(.concert-card span),.concerts-list :global(.concert-card small) { color:#6d6762!important; line-height:1.45; }
+  .concerts-list :global(.concert-card time) { color:var(--color-principal)!important; font-size:.72rem; font-weight:800; }
   .empty-resource { margin:0; color:#7b746f; font-size:.78rem; }
   @media(max-width:1050px){ .repertorio-app{grid-template-columns:1fr}.works-panel{position:static;max-height:420px}.work-metadata{grid-template-columns:1fr}.work-metadata div{padding:.6rem 0}.work-metadata div+div{padding-left:0;border-left:0;border-top:1px solid #e5e1dd}.audio-card{grid-template-columns:1fr auto}.audio-card audio{grid-column:1/-1}.concerts-list{grid-template-columns:repeat(2,minmax(0,1fr))}.concert-order{grid-column:auto} }
   @media(max-width:900px){ .private-layout{grid-template-columns:1fr} }
