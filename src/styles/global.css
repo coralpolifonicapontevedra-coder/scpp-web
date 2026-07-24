@@ -27,6 +27,8 @@ a { text-decoration: none !important; }
 .agenda-page .poster-thumb span { display:block; width:150px; margin-top:.45rem; color:var(--color-principal); font-size:.72rem; font-weight:700; }
 
 /* Escala pública común: corrección dos casos máis descompensados */
+.actualidade .cabeceira h1 { font-size:var(--titulo-paxina-funcional)!important; line-height:1.02!important; letter-spacing:-.03em!important; }
+.actualidade .introducion { font-size:var(--texto-introducion)!important; }
 .actualidade .destacada h2 { font-size:var(--titulo-destacado)!important; line-height:1.08!important; letter-spacing:-.035em!important; }
 .actualidade .destacada { padding-top:clamp(1.9rem,4vw,3.5rem)!important; padding-bottom:clamp(2.3rem,4.5vw,3.8rem)!important; }
 .actualidade .arquivo { margin-top:clamp(3rem,5.5vw,4.75rem)!important; }
