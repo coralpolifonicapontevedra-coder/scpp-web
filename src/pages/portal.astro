@@ -509,10 +509,15 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   .loading-line { height: 3px; margin-top: 1.5rem; overflow: hidden; background: #ded8c9; }
   .loading-line::after { content:""; display:block; width:45%; height:100%; background:#7a263a; animation: load 1.2s infinite ease-in-out; }
   @keyframes load { from { transform:translateX(-110%); } to { transform:translateX(260%); } }
-  .portal-shell.private-active { max-width: none; padding: 0; }
-  .private-dashboard { margin-top: 0; }
-  .private-layout { display: grid; grid-template-columns: 282px minmax(0, 1fr); min-height: 100vh; background: #fff; }
-  .dashboard-main { width: 100%; max-width: 1400px; margin: 0 auto; padding: 2.7rem clamp(1.5rem, 4vw, 4.2rem) 4rem; }
+  .private-dashboard { margin-top: 2rem; }
+  .private-layout,
+  .dashboard-main { display: contents; }
+  :global(.private-dashboard .private-sidebar) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+  }
   .dashboard-header { display:flex; justify-content:space-between; gap:2rem; align-items:end; padding-bottom:1.4rem; border-bottom:1px solid #d8d1bc; }
   .dashboard-header h2 { margin:.45rem 0 .45rem; color:#24362f; font-size:clamp(2rem,4vw,3.2rem); }
   .dashboard-header p { margin:0; color:#63706a; }
@@ -542,7 +547,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   .privacy-actions { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
   .btn-secondary { margin-top:.8rem; color:#35443d; background:#eeeae0; }
   @media (max-width:900px) {
-    .private-layout { grid-template-columns: 1fr; }
+    :global(.private-dashboard .private-sidebar) { position: relative; }
     .portal-hero { grid-template-columns:1fr; }
     .portal-access-card { position:static; }
     .dashboard-header { align-items:start; flex-direction:column; }
@@ -550,8 +555,6 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   }
   @media (max-width:640px) {
     .portal-shell { padding-top:2rem; }
-    .portal-shell.private-active { padding-top:0; }
-    .dashboard-main { padding: 1.7rem 1rem 3rem; }
     .portal-feature-grid,.dashboard-grid,.privacy-actions { grid-template-columns:1fr; }
     .portal-access-card,.privacy-dialog { padding:1.35rem; }
     .module-card { grid-template-columns:auto 1fr; }
