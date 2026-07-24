@@ -28,21 +28,41 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       </section>
 
       <section id="concertos-app" class="concertos-app" hidden>
-        <div class="concert-toolbar">
-          <label class="search-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
-            <input id="concert-search" type="search" placeholder="Buscar concerto, cidade ou lugar" autocomplete="off" />
-          </label>
-          <div class="filters" aria-label="Filtrar concertos">
-            <button type="button" class="is-active" data-filter="todos">Todos</button>
-            <button type="button" data-filter="proximos">Próximos</button>
-            <button type="button" data-filter="arquivo">Arquivo</button>
-          </div>
-          <p class="concert-count"><strong id="concert-count">0</strong> concertos</p>
+        <div class="view-switch" aria-label="Vista de concertos">
+          <button type="button" class="is-active" data-view="concertos">Concertos</button>
+          <button type="button" data-view="asistencia">Informe de asistencia</button>
         </div>
 
-        <div id="concert-grid" class="concert-grid"></div>
-        <p id="no-results" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
+        <div id="concerts-view">
+          <div class="concert-toolbar">
+            <label class="search-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
+              <input id="concert-search" type="search" placeholder="Buscar concerto, cidade ou lugar" autocomplete="off" />
+            </label>
+            <div class="filters" aria-label="Filtrar concertos">
+              <button type="button" class="is-active" data-filter="todos">Todos</button>
+              <button type="button" data-filter="proximos">Próximos</button>
+              <button type="button" data-filter="arquivo">Arquivo</button>
+            </div>
+            <p class="concert-count"><strong id="concert-count">0</strong> concertos</p>
+          </div>
+
+          <div id="concert-grid" class="concert-grid"></div>
+          <p id="no-results" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
+        </div>
+
+        <section id="attendance-report" class="attendance-report" hidden>
+          <header class="report-heading">
+            <div>
+              <span>Participación da Coral</span>
+              <h2>Informe de asistencia</h2>
+              <p>Clasificación por número de concertos, corda e orde alfabética.</p>
+            </div>
+            <strong id="report-summary"></strong>
+          </header>
+          <div id="report-content" class="report-content"></div>
+          <p id="report-empty" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
+        </section>
       </section>
     </main>
   </div>
@@ -110,6 +130,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const filters = document.querySelector('.filters');
   const dialog = document.querySelector('#concert-dialog');
   const dialogClose = document.querySelector('#dialog-close');
+  const viewSwitch = document.querySelector('.view-switch');
+  const concertsView = document.querySelector('#concerts-view');
+  const attendanceReport = document.querySelector('#attendance-report');
+  const reportContent = document.querySelector('#report-content');
+  const reportSummary = document.querySelector('#report-summary');
+  const reportEmpty = document.querySelector('#report-empty');
 
   let concertos = [];
   let filtroActivo = 'todos';
@@ -244,6 +270,58 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     }).join('');
   }
 
+  function debuxarInforme() {
+    if (!(reportContent instanceof HTMLElement)) return;
+
+    const persoas = new Map();
+    concertos.forEach((concerto) => {
+      (concerto.asistentes || []).forEach((asistente) => {
+        const nome = String(asistente.nome || '').trim();
+        const voz = String(asistente.voz || 'Sen voz indicada').trim();
+        if (!nome) return;
+        const clave = `${voz}|${nome}`;
+        if (!persoas.has(clave)) persoas.set(clave, { nome, voz, concertos: [] });
+        const persoa = persoas.get(clave);
+        if (!persoa.concertos.some((item) => item.id === concerto.id)) {
+          persoa.concertos.push({ id: concerto.id, data: concerto.data, nome: concerto.nome });
+        }
+      });
+    });
+
+    const listado = Array.from(persoas.values());
+    listado.forEach((persoa) => persoa.concertos.sort((a, b) => dataISO(b.data).localeCompare(dataISO(a.data))));
+    const totais = [...new Set(listado.map((persoa) => persoa.concertos.length))].sort((a, b) => b - a);
+    const ordeVoces = ['Soprano', 'Contralto', 'Tenor', 'Baixo'];
+
+    reportContent.innerHTML = totais.map((total) => {
+      const persoasTotal = listado.filter((persoa) => persoa.concertos.length === total);
+      const voces = [...new Set(persoasTotal.map((persoa) => persoa.voz))].sort((a, b) => {
+        const ia = ordeVoces.indexOf(a), ib = ordeVoces.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b, 'gl');
+      });
+      return `<section class="attendance-tier">
+        <header><strong>${total} concerto${total === 1 ? '' : 's'}</strong><span>${persoasTotal.length} persoa${persoasTotal.length === 1 ? '' : 's'}</span></header>
+        <div class="report-voices">${voces.map((voz) => {
+          const persoasVoz = persoasTotal.filter((persoa) => persoa.voz === voz)
+            .sort((a, b) => a.nome.localeCompare(b.nome, 'gl', { sensitivity: 'base' }));
+          return `<section class="report-voice">
+            <h3>${escapar(voz)} <span>${persoasVoz.length}</span></h3>
+            <div>${persoasVoz.map((persoa) => `<article class="person-report">
+              <header><strong>${escapar(persoa.nome)}</strong><span>${persoa.concertos.length}</span></header>
+              <ul>${persoa.concertos.map((concerto) => `<li><a href="/portal/concertos/?id=${encodeURIComponent(concerto.id)}"><time>${escapar(concerto.data)}</time><span>${escapar(concerto.nome)}</span></a></li>`).join('')}</ul>
+            </article>`).join('')}</div>
+          </section>`;
+        }).join('')}</div>
+      </section>`;
+    }).join('');
+
+    if (reportSummary instanceof HTMLElement) {
+      const totalAsistencias = listado.reduce((suma, persoa) => suma + persoa.concertos.length, 0);
+      reportSummary.textContent = `${listado.length} persoas · ${totalAsistencias} asistencias`;
+    }
+    if (reportEmpty instanceof HTMLElement) reportEmpty.hidden = listado.length > 0;
+  }
+
   function abrirConcerto(concerto) {
     if (!(dialog instanceof HTMLDialogElement)) return;
     const set = (selector, value) => {
@@ -352,6 +430,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       }).filter((c) => c.id && c.data && c.nome)
         .sort((a, b) => dataISO(b.data).localeCompare(dataISO(a.data)));
       debuxarTarxetas();
+      debuxarInforme();
       if (app instanceof HTMLElement) app.hidden = false;
       const requested = new URLSearchParams(window.location.search).get('id');
       const concerto = requested && concertos.find((c) => c.id === requested);
@@ -373,6 +452,15 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     } catch {
       window.location.replace('/portal/');
     }
+  });
+
+  viewSwitch?.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement) || !target.dataset.view) return;
+    const informe = target.dataset.view === 'asistencia';
+    viewSwitch.querySelectorAll('button').forEach((button) => button.classList.toggle('is-active', button === target));
+    if (concertsView instanceof HTMLElement) concertsView.hidden = informe;
+    if (attendanceReport instanceof HTMLElement) attendanceReport.hidden = !informe;
   });
 
   grid?.addEventListener('click', (event) => {
@@ -413,6 +501,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .error-state strong { color:var(--color-principal); }
   .error-state p { margin:.4rem 0 .8rem; }
   .error-state button { border:1px solid var(--color-principal); padding:.55rem .8rem; background:#fff; color:var(--color-principal); font:inherit; font-weight:700; cursor:pointer; }
+  .view-switch { display:flex; width:max-content; margin-bottom:1.2rem; border:1px solid #d5d0cb; }
+  .view-switch button { min-height:2.5rem; padding:.55rem 1rem; border:0; border-right:1px solid #d5d0cb; background:#fff; color:#5f5955; font:inherit; font-size:.78rem; cursor:pointer; }
+  .view-switch button:last-child { border-right:0; }
+  .view-switch button.is-active { background:var(--color-principal); color:#fff; }
+  #concerts-view[hidden],.attendance-report[hidden] { display:none; }
   .concert-toolbar { display:grid; grid-template-columns:minmax(270px,430px) auto 1fr; gap:1rem; align-items:center; margin-bottom:1.2rem; }
   .search-box { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:.55rem; padding:.65rem .75rem; border:1px solid #d5d0cb; background:#fff; }
   .search-box svg { width:18px; height:18px; fill:none; stroke:#766f6a; stroke-width:1.7; }
@@ -472,7 +565,30 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .attendees-groups :global(.voice-group ul) { margin:0; padding:.55rem .75rem .7rem; list-style:none; }
   .attendees-groups :global(.voice-group li) { padding:.22rem 0; color:#5f5a56; font-size:.7rem; line-height:1.35; }
   .attendees-empty { margin:0 0 .5rem; color:#77716c; font-size:.78rem; }
+  .report-heading { display:flex; justify-content:space-between; gap:2rem; align-items:end; padding:1.2rem 0; border-top:1px solid #d8d2cc; border-bottom:1px solid #d8d2cc; }
+  .report-heading span { color:var(--color-principal); font-size:.68rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  .report-heading h2 { margin:.28rem 0; color:#2f2b29; font-size:1.55rem; }
+  .report-heading p { margin:0; color:#6d6762; font-size:.82rem; }
+  .report-heading>strong { color:var(--color-principal); font-size:.8rem; white-space:nowrap; }
+  .report-content { display:grid; gap:1.4rem; margin-top:1.4rem; }
+  .report-content :global(.attendance-tier) { border:1px solid #d8d2cc; }
+  .report-content :global(.attendance-tier>header) { display:flex; justify-content:space-between; align-items:baseline; padding:.75rem 1rem; background:#f2ecec; }
+  .report-content :global(.attendance-tier>header strong) { color:var(--color-principal); font-size:1rem; }
+  .report-content :global(.attendance-tier>header span) { color:#6d6762; font-size:.72rem; }
+  .report-content :global(.report-voices) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; }
+  .report-content :global(.report-voice) { min-width:0; border-right:1px solid #e0dcd8; border-bottom:1px solid #e0dcd8; }
+  .report-content :global(.report-voice h3) { display:flex; justify-content:space-between; margin:0; padding:.65rem .85rem; border-bottom:1px solid #e0dcd8; color:var(--color-principal); font-size:.78rem; }
+  .report-content :global(.report-voice h3 span) { color:#a18331; }
+  .report-content :global(.person-report) { padding:.75rem .85rem; }
+  .report-content :global(.person-report+.person-report) { border-top:1px solid #ece9e6; }
+  .report-content :global(.person-report>header) { display:flex; justify-content:space-between; gap:.6rem; align-items:baseline; }
+  .report-content :global(.person-report>header strong) { color:#34302d; font-size:.82rem; font-weight:600; }
+  .report-content :global(.person-report>header span) { color:var(--color-principal); font-size:.68rem; font-weight:800; }
+  .report-content :global(.person-report ul) { display:grid; gap:.18rem; margin:.45rem 0 0; padding:0; list-style:none; }
+  .report-content :global(.person-report a) { display:grid; grid-template-columns:76px minmax(0,1fr); gap:.5rem; color:#68625e; font-size:.68rem; line-height:1.35; text-decoration:none; }
+  .report-content :global(.person-report a:hover span) { color:var(--color-principal); text-decoration:underline; text-underline-offset:2px; }
+  .report-content :global(.person-report time) { color:var(--color-principal); font-weight:700; }
   @media(max-width:1100px){ .concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start} }
   @media(max-width:900px){ .private-layout{grid-template-columns:1fr}.concertos-main{padding:1.7rem 1rem 3rem} }
-  @media(max-width:680px){ .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-grid :global(.concert-square){aspect-ratio:auto;min-height:280px}.detail-grid{grid-template-columns:1fr;padding-right:0}.detail-poster-wrap{width:150px}.program-list{grid-template-columns:1fr}.attendees-groups{grid-template-columns:1fr}.concert-dialog{padding:1.35rem} }
+  @media(max-width:680px){ .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-grid :global(.concert-square){aspect-ratio:auto;min-height:280px}.detail-grid{grid-template-columns:1fr;padding-right:0}.detail-poster-wrap{width:150px}.program-list{grid-template-columns:1fr}.attendees-groups,.report-content :global(.report-voices){grid-template-columns:1fr}.report-heading{align-items:start;flex-direction:column}.view-switch{width:100%}.view-switch button{flex:1}.concert-dialog{padding:1.35rem} }
 </style>
