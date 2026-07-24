@@ -5,6 +5,10 @@ import PortalSidebar from '../components/PortalSidebar.astro';
 ---
 
 <BaseLayout title="Portal do Coralista" lang="gl">
+  <div id="portal-sidebar-container" class="portal-sidebar-container" hidden>
+    <PortalSidebar active="inicio" logoutId="portal-sidebar-logout" />
+  </div>
+
   <main id="portal-shell" class="portal-shell">
     <section class="portal-hero" aria-labelledby="portal-title">
       <div class="portal-intro">
@@ -76,8 +80,6 @@ import PortalSidebar from '../components/PortalSidebar.astro';
 
     <section id="private-dashboard" class="private-dashboard" hidden aria-labelledby="dashboard-title">
       <div class="private-layout">
-        <PortalSidebar active="inicio" logoutId="portal-sidebar-logout" />
-
         <div class="dashboard-main">
           <header class="dashboard-header">
         <div>
@@ -216,6 +218,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   const dashboardEmail = document.querySelector('#dashboard-email');
   const dashboard = document.querySelector('#private-dashboard');
   const portalShell = document.querySelector('#portal-shell');
+  const sidebarContainer = document.querySelector('#portal-sidebar-container');
   const privacyModal = document.querySelector('#privacy-modal');
   const privacyText = document.querySelector('#privacy-text');
   const privacyMessage = document.querySelector('#privacy-message');
@@ -274,6 +277,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
     if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = true;
     if (dashboard instanceof HTMLElement) dashboard.hidden = true;
     if (portalShell instanceof HTMLElement) portalShell.classList.remove('private-active');
+    if (sidebarContainer instanceof HTMLElement) sidebarContainer.hidden = true;
     if (privacyModal instanceof HTMLElement) privacyModal.hidden = true;
     document.body.classList.remove('modal-open');
     if (reviewLink instanceof HTMLElement) reviewLink.hidden = true;
@@ -285,6 +289,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
     if (authenticatedEmail instanceof HTMLElement) authenticatedEmail.textContent = email;
     if (dashboard instanceof HTMLElement) dashboard.hidden = true;
     if (portalShell instanceof HTMLElement) portalShell.classList.remove('private-active');
+    if (sidebarContainer instanceof HTMLElement) sidebarContainer.hidden = true;
   }
 
   function showPrivacyModal() {
@@ -334,6 +339,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
     if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = true;
     if (dashboard instanceof HTMLElement) dashboard.hidden = false;
     if (portalShell instanceof HTMLElement) portalShell.classList.add('private-active');
+    if (sidebarContainer instanceof HTMLElement) sidebarContainer.hidden = false;
     if (dashboardEmail instanceof HTMLElement) dashboardEmail.textContent = user.email || '';
     if (reviewLink instanceof HTMLElement) {
       reviewLink.hidden = true;
@@ -512,11 +518,17 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   .private-dashboard { margin-top: 2rem; }
   .private-layout,
   .dashboard-main { display: contents; }
-  :global(.private-dashboard .private-sidebar) {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
+  .portal-sidebar-container[hidden] { display: none; }
+  .portal-sidebar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
     z-index: 50;
+    width: 282px;
+    height: 100vh;
+  }
+  :global(.portal-sidebar-container .private-sidebar) {
+    position: static !important;
     width: 282px !important;
     height: 100vh !important;
   }
