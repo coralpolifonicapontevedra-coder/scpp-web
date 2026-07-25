@@ -82,6 +82,13 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     padding: 0 2rem;
   }
 
+  body.portal-private-body .portal-sidebar-container + #portal-shell.private-active {
+    width: calc(100% - 282px);
+    max-width: none;
+    margin-right: 0;
+    margin-left: 282px;
+  }
+
   @media (max-width: 900px) {
     body.portal-private-body .portal-sidebar-container {
       position: relative !important;
@@ -95,6 +102,8 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     body.portal-private-body .portal-sidebar-container + #portal-shell {
       clear: both;
       width: 100%;
+      max-width: none;
+      margin-left: 0;
     }
   }
 </style>
