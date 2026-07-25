@@ -20,6 +20,7 @@ const CONFIG_MEDIOS = [
 ];
 
 function sincronizarMediosConcertos() {
+  const inicioSincro = new Date();
   const props = PropertiesService.getScriptProperties();
   const token = props.getProperty('GITHUB_TOKEN');
   const owner = props.getProperty('GITHUB_OWNER') || 'coralpolifonicapontevedra-coder';
@@ -82,14 +83,14 @@ function sincronizarMediosConcertos() {
     }
   });
 
-  props.setProperty(ultimaSincroProp, new Date().toISOString());
+  props.setProperty(ultimaSincroProp, inicioSincro.toISOString());
 
   console.log(JSON.stringify({ subidos, senCambios, ignorados }));
   return { subidos, senCambios, ignorados };
 }
 
 function subirOuActualizarGitHub_(blob, nomeFicheiro, ruta, github) {
-  const api = `<https://api.github.com/repos/${github.owner}/${github.repo}/contents/${encodePath_(ruta)}>`;
+  const api = `https://api.github.com/repos/${github.owner}/${github.repo}/contents/${encodePath_(ruta)}`;
   const existente = obterFicheiroGitHub_(api, github);
   const base64 = Utilities.base64Encode(blob.getBytes());
   const gitBlobSha = calcularGitBlobSha_(blob.getBytes());
