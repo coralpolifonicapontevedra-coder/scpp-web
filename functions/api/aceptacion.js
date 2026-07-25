@@ -5,13 +5,11 @@
  * Variables necesarias en Cloudflare Pages:
  * - APPS_SCRIPT_WEBAPP_URL
  * - WEB_WRITE_TOKEN
+ * - FIREBASE_API_KEY
  *
  * A clave web de Firebase é un identificador público, igual que no
  * firebaseConfig que se entrega ao navegador. Non é un contrasinal.
  */
-
-const FIREBASE_API_KEY =
-  'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs';
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), {
@@ -22,9 +20,9 @@ const json = (status, body) =>
     }
   });
 
-async function verificarTokenFirebase(idToken) {
+async function verificarTokenFirebase(idToken, apiKey) {
   const resposta = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
     {
       method: 'POST',
       headers: {
@@ -63,8 +61,9 @@ export async function onRequest(context) {
 
   const appsScriptUrl = env.APPS_SCRIPT_WEBAPP_URL;
   const writeToken = env.WEB_WRITE_TOKEN;
+  const firebaseApiKey = env.FIREBASE_API_KEY;
 
-  if (!appsScriptUrl || !writeToken) {
+  if (!appsScriptUrl || !writeToken || !firebaseApiKey) {
     return json(500, {
       ok: false,
       erro: 'Falta a configuración segura do servizo'
@@ -132,7 +131,7 @@ export async function onRequest(context) {
   let usuarioFirebase;
 
   try {
-    usuarioFirebase = await verificarTokenFirebase(idToken);
+    usuarioFirebase = await verificarTokenFirebase(idToken, firebaseApiKey);
   } catch (erro) {
     console.error('Erro ao validar Firebase:', erro);
   }

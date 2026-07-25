@@ -1,5 +1,3 @@
-const FIREBASE_API_KEY = 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs';
-
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -8,9 +6,9 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   }
 });
 
-async function verificarTokenFirebase(idToken) {
+async function verificarTokenFirebase(idToken, apiKey) {
   const resposta = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -46,7 +44,7 @@ export async function onRequest({ request, env }) {
   if (request.method !== 'POST') {
     return json(405, { ok: false, erro: 'Método non permitido' });
   }
-  if (!env.APPS_SCRIPT_WEBAPP_URL || !env.WEB_WRITE_TOKEN) {
+  if (!env.APPS_SCRIPT_WEBAPP_URL || !env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
     return json(500, { ok: false, erro: 'Falta a configuración segura do servizo' });
   }
 
@@ -57,7 +55,7 @@ export async function onRequest({ request, env }) {
 
   let usuario;
   try {
-    usuario = await verificarTokenFirebase(String(datos.idToken || '').trim());
+    usuario = await verificarTokenFirebase(String(datos.idToken || '').trim(), env.FIREBASE_API_KEY);
   } catch (erro) {
     console.error('Erro ao validar Firebase:', erro);
   }

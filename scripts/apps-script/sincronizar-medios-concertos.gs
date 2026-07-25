@@ -26,6 +26,9 @@ function sincronizarMediosConcertos() {
   const repo = props.getProperty('GITHUB_REPO') || 'scpp-web';
   const branch = props.getProperty('GITHUB_BRANCH') || 'main';
 
+  const ultimaSincroProp = 'ULTIMA_SINCRO_CONCERTOS';
+  const ultimaSincro = new Date(props.getProperty(ultimaSincroProp) || 0);
+
   if (!token) throw new Error('Falta a propiedade GITHUB_TOKEN.');
 
   let subidos = 0;
@@ -45,6 +48,11 @@ function sincronizarMediosConcertos() {
     while (files.hasNext()) {
       const file = files.next();
       const nome = file.getName();
+
+      if (file.getLastUpdated() < ultimaSincro) {
+        ignorados++;
+        continue;
+      }
       const extension = nome.includes('.') ? nome.split('.').pop().toLowerCase() : '';
 
       if (!config.extensiones.includes(extension)) {
@@ -74,12 +82,14 @@ function sincronizarMediosConcertos() {
     }
   });
 
+  props.setProperty(ultimaSincroProp, new Date().toISOString());
+
   console.log(JSON.stringify({ subidos, senCambios, ignorados }));
   return { subidos, senCambios, ignorados };
 }
 
 function subirOuActualizarGitHub_(blob, nomeFicheiro, ruta, github) {
-  const api = `https://api.github.com/repos/${github.owner}/${github.repo}/contents/${encodePath_(ruta)}`;
+  const api = `<https://api.github.com/repos/${github.owner}/${github.repo}/contents/${encodePath_(ruta)}>`;
   const existente = obterFicheiroGitHub_(api, github);
   const base64 = Utilities.base64Encode(blob.getBytes());
   const gitBlobSha = calcularGitBlobSha_(blob.getBytes());
