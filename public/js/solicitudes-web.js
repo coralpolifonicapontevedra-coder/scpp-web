@@ -160,12 +160,8 @@
       boton.textContent = 'Preparando PDF…';
       try {
         await descargarXustificantePdf(xustificante);
-        boton.textContent = 'PDF descargado';
-        window.setTimeout(() => {
-          boton.disabled = false;
-          boton.textContent = texto;
-          dialogo.querySelector('[data-modal-close]')?.focus();
-        }, 1200);
+        boton.textContent = 'Descarga iniciada…';
+        window.setTimeout(() => pecharModal(formulario), 350);
       } catch (erro) {
         boton.disabled = false;
         boton.textContent = texto;
