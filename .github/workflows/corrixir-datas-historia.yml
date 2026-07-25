@@ -1,0 +1,48 @@
+name: Corrixir datas da historia
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/corrixir-datas-historia.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  corrixir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar o repositorio
+        uses: actions/checkout@v4
+
+      - name: Corrixir os períodos da dirección musical
+        shell: python
+        run: |
+          from pathlib import Path
+
+          ruta = Path('src/pages/historia.astro')
+          contido = ruta.read_text(encoding='utf-8')
+
+          antigo_cayeiro = "periodo: '1998 — 2006'"
+          novo_cayeiro = "periodo: '1998 — 2008'"
+          antiga_marlene = "periodo: '2006 — 2013'"
+          nova_marlene = "periodo: '2008 — 2013'"
+
+          if contido.count(antigo_cayeiro) != 1:
+              raise SystemExit('Non se atopou exactamente unha vez o período antigo de Cayeiro.')
+          if contido.count(antiga_marlene) != 1:
+              raise SystemExit('Non se atopou exactamente unha vez o período antigo de Marlene.')
+
+          contido = contido.replace(antigo_cayeiro, novo_cayeiro)
+          contido = contido.replace(antiga_marlene, nova_marlene)
+          ruta.write_text(contido, encoding='utf-8')
+
+      - name: Gardar a corrección
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/historia.astro
+          git commit -m "Corrixe as datas da dirección musical"
+          git push
