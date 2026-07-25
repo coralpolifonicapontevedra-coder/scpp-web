@@ -82,14 +82,16 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     padding: 0 2rem;
   }
 
-  body.portal-private-body .portal-sidebar-container + #portal-shell.private-active {
-    width: calc(100% - 282px);
-    max-width: none;
-    margin-right: 0;
-    margin-left: 282px;
+  @media (min-width: 1181px) {
+    body.portal-private-body .portal-sidebar-container + #portal-shell.private-active {
+      width: calc(100% - 282px);
+      max-width: none;
+      margin-right: 0;
+      margin-left: 282px;
+    }
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 1180px) {
     body.portal-private-body .portal-sidebar-container {
       position: relative !important;
       top: auto !important;
@@ -99,11 +101,48 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
       height: auto !important;
     }
 
-    body.portal-private-body .portal-sidebar-container + #portal-shell {
+    body.portal-private-body .portal-sidebar-container + #portal-shell,
+    body.portal-private-body .portal-sidebar-container + #portal-shell.private-active {
       clear: both;
       width: 100%;
-      max-width: none;
-      margin-left: 0;
+      max-width: 1240px;
+      margin-right: auto;
+      margin-left: auto;
+    }
+  }
+
+  @media (min-width: 621px) and (max-width: 1180px) {
+    body.portal-private-body .portal-sidebar-container .private-sidebar {
+      position: relative !important;
+      width: 100% !important;
+      height: auto !important;
+      padding: 1rem !important;
+      overflow: visible !important;
+      border-right: 0 !important;
+      border-bottom: 1px solid #e7e3df !important;
+    }
+
+    body.portal-private-body .portal-sidebar-container .private-brand {
+      grid-template-columns: 48px minmax(0, 1fr);
+      padding-bottom: 1rem;
+    }
+
+    body.portal-private-body .portal-sidebar-container .private-crest {
+      width: 44px;
+      height: 60px;
+    }
+
+    body.portal-private-body .portal-sidebar-container .private-menu {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    body.portal-private-body .portal-sidebar-container .private-menu .is-disabled {
+      display: none;
+    }
+
+    body.portal-private-body .portal-sidebar-container .private-sidebar-footer {
+      grid-template-columns: 1fr 1fr;
+      margin-top: .8rem;
     }
   }
 </style>
