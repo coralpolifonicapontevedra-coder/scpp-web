@@ -59,8 +59,13 @@
     if (!modal) return;
     const contido = modal.querySelector('[data-modal-form-content]');
     const confirmacion = modal.querySelector('[data-modal-confirmacion]');
+    const botonDescarga = modal.querySelector('[data-descargar-xustificante]');
     if (contido) contido.hidden = false;
     if (confirmacion) confirmacion.hidden = true;
+    if (botonDescarga instanceof HTMLButtonElement) {
+      botonDescarga.disabled = false;
+      botonDescarga.textContent = 'Descargar xustificante en PDF';
+    }
     xustificantes.delete(formulario);
     mostrarEstado(formulario, '', '');
   }
@@ -180,8 +185,13 @@
     xustificantes.set(formulario, xustificante);
     const contido = modal.querySelector('[data-modal-form-content]');
     const confirmacion = modal.querySelector('[data-modal-confirmacion]');
+    const botonDescarga = modal.querySelector('[data-descargar-xustificante]');
     if (contido) contido.hidden = true;
     if (confirmacion) confirmacion.hidden = false;
+    if (botonDescarga instanceof HTMLButtonElement) {
+      botonDescarga.disabled = false;
+      botonDescarga.textContent = 'Descargar xustificante en PDF';
+    }
 
     const referencia = modal.querySelector('[data-confirmacion-referencia]');
     const tipo = modal.querySelector('[data-confirmacion-tipo]');
@@ -191,7 +201,7 @@
     if (data) data.textContent = formatoDataHora(xustificante.dataHora);
 
     confirmacion?.scrollIntoView({ block: 'start' });
-    modal.querySelector('[data-descargar-xustificante]')?.focus();
+    botonDescarga?.focus();
     return true;
   }
 
