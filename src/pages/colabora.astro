@@ -1,38 +1,37 @@
 ---
-/* src/pages/colabora.astro */
 import BaseLayout from '../layouts/Layout.astro';
 
 const viasColaboracion = [
   {
-    id: "cantar",
-    titulo: "Quero cantar",
-    descripcion: "Buscamos novas voces para todas as cordas (sopranos, contraltos, tenores e baixos). Se tes oído musical, ilusión por aprender e queres formar parte dunha agrupación centenaria, convídamosche a participar nos nosos ensaios.",
-    botonText: "Unirme á Coral",
-    url: "/contacto",
+    id: 'cantar',
+    tipo: 'Quero cantar',
+    titulo: 'Quero cantar',
+    descripcion: 'Buscamos novas voces para todas as cordas. Se tes oído musical, ilusión por aprender e queres formar parte dunha agrupación centenaria, convidámoste a coñecer os nosos ensaios.',
+    botonText: 'Quero participar',
     destacado: true
   },
   {
-    id: "socio",
-    titulo: "Feizme socio",
-    descripcion: "Apoia a nosa actividade regular cunha achega periódica. Como socio, axudarás a soster os ensaios, a escola de canto, a conservación do arquivo histórico e terás acceso preferente e gratuíto aos nosos concertos de tempada.",
-    botonText: "Solicitar alta de socio",
-    url: "/contacto",
+    id: 'socio',
+    tipo: 'Alta de socio/a',
+    titulo: 'Quero facerme socio/a',
+    descripcion: 'Apoia a actividade regular da Coral cunha colaboración periódica e axúdanos a soster os ensaios, a formación vocal, os concertos e a conservación do arquivo histórico.',
+    botonText: 'Solicitar información',
     destacado: false
   },
   {
-    id: "economica",
-    titulo: "Colaboración económica puntual",
-    descripcion: "Calquera axuda, por pequena que sexa, é fundamental para o mantemento do noso patrimonio vocal. Podes realizar unha doazón puntual destinada a proxectos específicos, edición de partituras ou gravacións institucionais.",
-    botonText: "Facer unha doazón",
-    url: "/contacto",
+    id: 'economica',
+    tipo: 'Colaboración económica',
+    titulo: 'Colaboración económica',
+    descripcion: 'Unha colaboración puntual pode destinarse a proxectos artísticos, edición de partituras, gravacións, desprazamentos ou iniciativas de conservación e difusión do patrimonio da Coral.',
+    botonText: 'Quero colaborar',
     destacado: false
   },
   {
-    id: "empresas",
-    titulo: "Empresas e Mecenado",
-    descripcion: "Asociar o nome da túa empresa á Sociedade Coral Polifónica de Pontevedra é apoiar a excelencia cultural. Ofrecemos convenios de mecenado e patrocinio a medida con importantes vantaxes fiscais e visibilidade de marca.",
-    botonText: "Dossier para Empresas",
-    url: "/contacto",
+    id: 'empresas',
+    tipo: 'Empresa ou mecenado',
+    titulo: 'Empresas e mecenado',
+    descripcion: 'Deseñamos acordos de patrocinio, mecenado e colaboración en especie adaptados a empresas e entidades que desexen apoiar un proxecto cultural centenario.',
+    botonText: 'Falar sobre colaboración',
     destacado: false
   }
 ];
@@ -40,159 +39,469 @@ const viasColaboracion = [
 
 <BaseLayout title="Colabora" lang="gl">
   <div class="container colabora-page-wrapper">
-    
     <header class="colabora-header">
+      <p class="sobrelinea">Forma parte do proxecto</p>
       <h1>Colabora con nós</h1>
       <div class="section-line-center"></div>
-      <p class="colabora-intro">A Sociedade Coral Polifónica de Pontevedra mantén vivo un legado cultural único dende 1925. Descobre as diferentes formas en que podes formar parte e apoiar o noso proxecto musical.</p>
+      <p class="colabora-intro">
+        A Sociedade Coral Polifónica de Pontevedra mantén vivo un legado cultural
+        único desde 1925. Descubre as diferentes formas de participar e apoiar a
+        nosa actividade musical.
+      </p>
     </header>
 
     <div class="colabora-grid">
       {viasColaboracion.map((via) => (
-        <div class={via.destacado ? "colabora-card featured-card" : "colabora-card"}>
-          {via.destacado && <span class="badge-destacado">Recomendado</span>}
+        <article class={via.destacado ? 'colabora-card featured-card' : 'colabora-card'}>
+          {via.destacado && <span class="badge-destacado">Novas voces</span>}
           <div class="colabora-content">
             <h2>{via.titulo}</h2>
             <div class="card-line"></div>
             <p>{via.descripcion}</p>
           </div>
-          <div class="colabora-action">
-            <a href={via.url} class="btn-colabora">
-              {via.botonText}
-            </a>
-          </div>
-        </div>
+          <button
+            type="button"
+            class="btn-colabora"
+            data-select-solicitude={via.tipo}
+            data-form-target="#form-colabora"
+          >
+            {via.botonText}
+          </button>
+        </article>
       ))}
     </div>
 
+    <section class="formulario-colabora" aria-labelledby="titulo-form-colabora">
+      <div class="formulario-intro">
+        <p class="sobrelinea">Primeiro contacto</p>
+        <h2 id="titulo-form-colabora">Cóntanos como queres colaborar</h2>
+        <p>
+          Enviarás unha solicitude sen compromiso. A Coral revisaraa e poñerase en
+          contacto contigo para explicar os seguintes pasos.
+        </p>
+      </div>
+
+      <form
+        id="form-colabora"
+        class="colabora-form"
+        data-solicitude-form
+        data-orixe="Colabora"
+        data-version-legal="formularios-web-v1-2026-07-25"
+      >
+        <div class="form-group">
+          <label for="colabora-tipo">Forma de colaboración *</label>
+          <select id="colabora-tipo" name="tipoSolicitude" required>
+            <option value="" selected disabled>Selecciona unha opción…</option>
+            <option value="Quero cantar">Quero cantar</option>
+            <option value="Alta de socio/a">Quero facerme socio/a</option>
+            <option value="Colaboración económica">Colaboración económica</option>
+            <option value="Empresa ou mecenado">Empresa, patrocinio ou mecenado</option>
+            <option value="Colaboración en especie">Colaboración en especie</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="colabora-nome">Nome completo *</label>
+            <input
+              type="text"
+              id="colabora-nome"
+              name="nomeCompleto"
+              maxlength="140"
+              autocomplete="name"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="colabora-email">Correo electrónico *</label>
+            <input
+              type="email"
+              id="colabora-email"
+              name="correoElectronico"
+              maxlength="160"
+              autocomplete="email"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="colabora-telefono">Teléfono</label>
+            <input
+              type="tel"
+              id="colabora-telefono"
+              name="telefono"
+              maxlength="40"
+              autocomplete="tel"
+            />
+          </div>
+
+          <div
+            class="form-group"
+            data-visible-para="Empresa ou mecenado|Colaboración en especie"
+            hidden
+          >
+            <label for="colabora-entidade">Empresa ou entidade *</label>
+            <input
+              type="text"
+              id="colabora-entidade"
+              name="entidade"
+              maxlength="180"
+              autocomplete="organization"
+              data-required-when-visible="true"
+            />
+          </div>
+        </div>
+
+        <div
+          class="form-row"
+          data-visible-para="Quero cantar"
+          hidden
+        >
+          <div class="form-group">
+            <label for="colabora-corda">Corda preferente *</label>
+            <select
+              id="colabora-corda"
+              name="cordaPreferente"
+              data-required-when-visible="true"
+            >
+              <option value="" selected>Selecciona unha opción…</option>
+              <option value="Soprano">Soprano</option>
+              <option value="Contralto">Contralto</option>
+              <option value="Tenor">Tenor</option>
+              <option value="Baixo">Baixo</option>
+              <option value="Non o sei">Non o sei</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="colabora-experiencia">Experiencia musical ou coral</label>
+            <textarea
+              id="colabora-experiencia"
+              name="experienciaCoral"
+              rows="4"
+              maxlength="1200"
+              placeholder="Non é necesario ter experiencia previa."
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="colabora-mensaxe">Mensaxe *</label>
+          <textarea
+            id="colabora-mensaxe"
+            name="mensaxe"
+            rows="6"
+            maxlength="4000"
+            required
+            placeholder="Cóntanos brevemente o teu interese ou a proposta de colaboración…"
+          ></textarea>
+        </div>
+
+        <div class="campo-trampa" aria-hidden="true">
+          <label for="colabora-website">Sitio web</label>
+          <input
+            type="text"
+            id="colabora-website"
+            name="website"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </div>
+
+        <label class="privacidade">
+          <input type="checkbox" name="aceptacionProteccionDatos" required />
+          <span>
+            Acepto que a Sociedade Coral Polifónica de Pontevedra trate estes
+            datos exclusivamente para atender esta solicitude. *
+          </span>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-enviar">Enviar solicitude</button>
+          <p class="form-status" data-form-status aria-live="polite" hidden></p>
+        </div>
+      </form>
+    </section>
+
+    <aside class="empresas-adianto">
+      <div>
+        <p class="sobrelinea">Recoñecemento público</p>
+        <h2>Empresas e entidades colaboradoras</h2>
+      </div>
+      <p>
+        A futura páxina de entidades colaboradoras mostrará unicamente relacións
+        activas e formalizadas, co logo e a ligazón autorizados expresamente pola
+        empresa ou institución correspondente.
+      </p>
+    </aside>
   </div>
+
+  <script src="/js/solicitudes-web.js" defer></script>
 </BaseLayout>
 
 <style>
   .colabora-page-wrapper {
-    padding-top: 4rem;
+    padding-top: clamp(2.5rem, 6vw, 4rem);
     padding-bottom: 6rem;
   }
 
-  /* Cabeceira */
   .colabora-header {
+    max-width: 820px;
+    margin: 0 auto clamp(2.75rem, 6vw, 4rem);
     text-align: center;
-    max-width: 800px;
-    margin: 0 auto 4rem auto;
   }
+
+  .sobrelinea {
+    color: var(--color-principal);
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    margin: 0 0 .85rem;
+    text-transform: uppercase;
+  }
+
   .colabora-header h1 {
     color: var(--color-principal);
-    font-size: 2.5rem;
+    font-size: clamp(2.25rem, 5vw, 3.8rem);
     font-weight: 700;
+    line-height: 1;
+    margin: 0;
   }
+
   .section-line-center {
     width: 60px;
     height: 2px;
     background-color: var(--color-acento);
-    margin: 1rem auto 1.5rem auto;
-  }
-  .colabora-intro {
-    font-size: 1.15rem;
-    color: var(--color-texto);
-    opacity: 0.85;
-    line-height: 1.6;
+    margin: 1rem auto 1.5rem;
   }
 
-  /* Distribución das tarxetas */
+  .colabora-intro {
+    color: var(--color-texto);
+    font-size: clamp(1.02rem, 2vw, 1.15rem);
+    line-height: 1.65;
+    margin: 0;
+    opacity: .85;
+  }
+
   .colabora-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-    gap: 3rem;
-  }
-
-  @media (max-width: 992px) {
-    .colabora-grid {
-      grid-template-columns: 1fr;
-    }
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1.25rem, 3vw, 2rem);
   }
 
   .colabora-card {
-    background: var(--color-blanco);
-    border: 1px solid var(--color-gris);
-    border-radius: 4px;
-    padding: 3rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     position: relative;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-height: 310px;
+    border: 1px solid rgba(106, 27, 41, .12);
+    border-radius: 5px;
+    background: var(--color-blanco);
+    padding: clamp(1.6rem, 4vw, 2.5rem);
+    transition: transform .2s ease, box-shadow .2s ease;
   }
 
   .colabora-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, .05);
   }
 
-  /* Estilo especial para "Quero cantar" */
   .featured-card {
     border-left: 4px solid var(--color-principal);
-    background: linear-gradient(to bottom right, #ffffff, var(--color-gris));
+    background: linear-gradient(to bottom right, #fff, var(--color-gris));
   }
 
   .badge-destacado {
     position: absolute;
-    top: 1.5rem;
-    right: 2rem;
+    top: 1.25rem;
+    right: 1.5rem;
+    border-radius: 3px;
     background: var(--color-principal);
     color: var(--color-blanco);
-    font-size: 0.7rem;
+    font-size: .68rem;
     font-weight: 700;
+    letter-spacing: .06em;
+    padding: .32rem .75rem;
     text-transform: uppercase;
-    padding: 0.3rem 0.8rem;
-    border-radius: 3px;
-    letter-spacing: 0.05em;
   }
 
-  .colabora-content h2 {
-    font-size: 1.6rem;
+  .colabora-content h2,
+  .formulario-intro h2,
+  .empresas-adianto h2 {
     color: var(--color-texto);
+    font-size: clamp(1.35rem, 2.5vw, 1.65rem);
     font-weight: 700;
+    margin: 0;
   }
 
   .card-line {
     width: 35px;
     height: 2px;
     background-color: var(--color-acento);
-    margin: 0.8rem 0 1.5rem 0;
+    margin: .8rem 0 1.4rem;
   }
 
   .colabora-content p {
-    font-size: 1.05rem;
     color: #444;
+    font-size: 1rem;
     line-height: 1.65;
-    margin-bottom: 2.5rem;
+    margin: 0 0 2rem;
   }
 
-  /* Botón de acción institucional */
-  .btn-colabora {
-    display: inline-block;
-    padding: 0.8rem 2rem;
+  .btn-colabora,
+  .btn-enviar {
+    border: 0;
+    border-radius: 4px;
     background-color: var(--color-principal);
     color: var(--color-blanco);
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-decoration: none;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
+    cursor: pointer;
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: .9rem 1.35rem;
     text-align: center;
-    width: auto;
+    text-transform: uppercase;
+    transition: background-color .2s ease, opacity .2s ease;
   }
 
-  .btn-colabora:hover {
-    background-color: var(--color-acento);
+  .btn-colabora { align-self: flex-start; }
+  .btn-colabora:hover,
+  .btn-enviar:hover { background-color: var(--color-acento); }
+  .btn-enviar:disabled { cursor: wait; opacity: .65; }
+
+  .formulario-colabora {
+    display: grid;
+    grid-template-columns: minmax(240px, .7fr) minmax(0, 1.3fr);
+    gap: clamp(2.5rem, 6vw, 5rem);
+    scroll-margin-top: 2rem;
+    margin-top: clamp(4rem, 9vw, 7rem);
+    padding-top: clamp(2.5rem, 6vw, 4rem);
+    border-top: 1px solid rgba(106, 27, 41, .22);
   }
 
-  .featured-card .btn-colabora {
-    background-color: var(--color-principal);
+  .formulario-intro p:last-child,
+  .empresas-adianto > p {
+    color: var(--color-texto);
+    line-height: 1.65;
+    opacity: .82;
   }
-  .featured-card .btn-colabora:hover {
-    background-color: var(--color-acento);
+
+  .colabora-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.35rem;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+
+  .form-group label,
+  .privacidade {
+    color: var(--color-texto);
+    font-size: .9rem;
+    font-weight: 600;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    border: 1px solid rgba(106, 27, 41, .22);
+    border-radius: 5px;
+    background-color: var(--color-blanco);
+    color: var(--color-texto);
+    font: inherit;
+    font-size: 1rem;
+    padding: .85rem 1rem;
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+
+  .form-group textarea { resize: vertical; }
+
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-principal);
+    box-shadow: 0 0 0 3px rgba(106, 27, 41, .08);
+  }
+
+  [hidden] { display: none !important; }
+
+  .privacidade {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .75rem;
+    align-items: start;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .privacidade input { margin-top: .25rem; }
+
+  .campo-trampa {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.25rem;
+    align-items: center;
+  }
+
+  .form-status {
+    flex: 1 1 260px;
+    font-size: .9rem;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  .form-status[data-state="success"] { color: #23633b; }
+  .form-status[data-state="error"] { color: var(--color-principal); }
+  .form-status[data-state="loading"] { color: var(--color-texto); opacity: .75; }
+
+  .empresas-adianto {
+    display: grid;
+    grid-template-columns: minmax(240px, .75fr) minmax(0, 1.25fr);
+    gap: clamp(2rem, 6vw, 5rem);
+    align-items: start;
+    margin-top: clamp(4rem, 8vw, 6rem);
+    padding: clamp(1.75rem, 4vw, 2.5rem);
+    border-left: 3px solid var(--color-acento);
+    background: var(--color-gris);
+  }
+
+  .empresas-adianto p { margin-top: 0; }
+
+  @media (max-width: 900px) {
+    .formulario-colabora,
+    .empresas-adianto { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 720px) {
+    .colabora-grid,
+    .form-row { grid-template-columns: 1fr; }
+    .colabora-card { min-height: 0; }
+    .btn-colabora,
+    .btn-enviar { width: 100%; }
   }
 </style>
