@@ -1,0 +1,252 @@
+.solicitude-modal {
+  width: min(920px, calc(100vw - 2rem));
+  max-height: min(92dvh, 980px);
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-texto);
+  box-shadow: 0 28px 80px rgba(24, 12, 14, .28);
+  overflow: hidden;
+}
+
+.solicitude-modal::backdrop {
+  background: rgba(31, 20, 22, .72);
+  backdrop-filter: blur(3px);
+}
+
+.solicitude-modal__panel {
+  max-height: min(92dvh, 980px);
+  overflow-y: auto;
+  background: var(--color-blanco);
+}
+
+.solicitude-modal__topbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 58px;
+  padding: .8rem 1.1rem .8rem 1.4rem;
+  background: var(--color-principal);
+  color: var(--color-blanco);
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.solicitude-modal__close {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.55rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.solicitude-modal__close:hover,
+.solicitude-modal__close:focus-visible {
+  background: rgba(255,255,255,.12);
+  outline: 2px solid rgba(255,255,255,.75);
+  outline-offset: 2px;
+}
+
+.solicitude-modal__content {
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+.solicitude-modal__form-section {
+  display: grid;
+  grid-template-columns: minmax(210px, .62fr) minmax(0, 1.38fr);
+  gap: clamp(2rem, 5vw, 4rem);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.solicitude-modal__form-section .formulario-intro {
+  position: sticky;
+  top: 82px;
+  align-self: start;
+}
+
+.solicitude-modal__form-section .formulario-intro p:last-child {
+  color: var(--color-texto);
+  line-height: 1.65;
+  opacity: .82;
+}
+
+.solicitude-modal__form-section .colabora-form {
+  min-width: 0;
+}
+
+.solicitude-modal .btn-secundario {
+  border: 1px solid rgba(106, 27, 41, .28);
+  border-radius: 4px;
+  background: var(--color-blanco);
+  color: var(--color-principal);
+  cursor: pointer;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  padding: .9rem 1.35rem;
+  text-transform: uppercase;
+}
+
+.solicitude-modal .btn-secundario:hover {
+  border-color: var(--color-principal);
+  background: var(--color-gris);
+}
+
+.solicitude-confirmacion {
+  padding: clamp(2.25rem, 7vw, 5rem);
+  text-align: center;
+}
+
+.solicitude-confirmacion__icon {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  margin: 0 auto 1.5rem;
+  border-radius: 50%;
+  background: #edf6f0;
+  color: #23633b;
+  font-size: 2.1rem;
+  font-weight: 700;
+}
+
+.solicitude-confirmacion h2 {
+  margin: 0;
+  color: var(--color-principal);
+  font-size: clamp(1.8rem, 4vw, 2.55rem);
+}
+
+.solicitude-confirmacion__texto {
+  max-width: 590px;
+  margin: 1rem auto 2rem;
+  color: var(--color-texto);
+  line-height: 1.65;
+  opacity: .84;
+}
+
+.solicitude-confirmacion__datos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  max-width: 720px;
+  margin: 0 auto 2rem;
+  overflow: hidden;
+  border: 1px solid rgba(106, 27, 41, .14);
+  border-radius: 6px;
+  background: rgba(106, 27, 41, .14);
+  text-align: left;
+}
+
+.solicitude-confirmacion__datos > div {
+  min-width: 0;
+  padding: 1rem 1.15rem;
+  background: var(--color-blanco);
+}
+
+.solicitude-confirmacion__datos dt {
+  margin-bottom: .4rem;
+  color: var(--color-principal);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.solicitude-confirmacion__datos dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-texto);
+  font-size: .94rem;
+  line-height: 1.45;
+}
+
+.solicitude-confirmacion__nota {
+  max-width: 720px;
+  margin: 0 auto 2rem;
+  padding: 1rem 1.2rem;
+  border-left: 3px solid var(--color-acento);
+  background: var(--color-gris);
+  color: var(--color-texto);
+  font-size: .86rem;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.solicitude-confirmacion__actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: .9rem;
+}
+
+.solicitude-confirmacion__actions button:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+
+@media (max-width: 760px) {
+  .solicitude-modal {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .solicitude-modal__panel {
+    min-height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .solicitude-modal__topbar {
+    min-height: 54px;
+    padding-left: 1rem;
+    font-size: .66rem;
+  }
+
+  .solicitude-modal__content {
+    padding: 1.25rem;
+  }
+
+  .solicitude-modal__form-section {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .solicitude-modal__form-section .formulario-intro {
+    position: static;
+  }
+
+  .solicitude-confirmacion {
+    padding: 2.25rem 1.25rem;
+  }
+
+  .solicitude-confirmacion__datos {
+    grid-template-columns: 1fr;
+  }
+
+  .solicitude-confirmacion__actions,
+  .solicitude-confirmacion__actions button {
+    width: 100%;
+  }
+}
