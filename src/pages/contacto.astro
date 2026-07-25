@@ -1,262 +1,421 @@
 ---
-/* src/pages/contacto.astro */
 import BaseLayout from '../layouts/Layout.astro';
 ---
 
 <BaseLayout title="Contacto" lang="gl">
   <div class="container contacto-page-wrapper">
-    
     <header class="contacto-header">
+      <p class="sobrelinea">Fala connosco</p>
       <h1>Contacto</h1>
       <div class="section-line-center"></div>
-      <p class="contacto-intro">Tes algunha dúbida, queres solicitar a nosa participación nun evento ou queres visitarnos nun ensaio? Envíanos unha mensaxe ou achégate ao noso local.</p>
+      <p class="contacto-intro">
+        Tes algunha dúbida, queres solicitar a participación da Coral nun acto ou
+        visitar un ensaio? Envíanos a túa mensaxe e responderemos o antes posible.
+      </p>
     </header>
 
     <div class="contacto-grid">
-      
-      <section class="contacto-form-block">
-        <h2>Envíanos unha mensaxe</h2>
+      <section class="contacto-form-block" aria-labelledby="titulo-form-contacto">
+        <h2 id="titulo-form-contacto">Envíanos unha mensaxe</h2>
         <div class="section-line"></div>
-        
-        <form class="contacto-form" action="#" method="POST">
-          <div class="form-group">
-            <label for="nome">Nome completo *</label>
-            <input type="text" id="nome" name="nome" required placeholder="Ex. Xiao García" />
+
+        <form
+          id="form-contacto"
+          class="contacto-form"
+          data-solicitude-form
+          data-orixe="Contacto"
+          data-version-legal="formularios-web-v1-2026-07-25"
+        >
+          <div class="form-row">
+            <div class="form-group">
+              <label for="contacto-nome">Nome completo *</label>
+              <input
+                type="text"
+                id="contacto-nome"
+                name="nomeCompleto"
+                maxlength="140"
+                autocomplete="name"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="contacto-email">Correo electrónico *</label>
+              <input
+                type="email"
+                id="contacto-email"
+                name="correoElectronico"
+                maxlength="160"
+                autocomplete="email"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="contacto-telefono">Teléfono</label>
+              <input
+                type="tel"
+                id="contacto-telefono"
+                name="telefono"
+                maxlength="40"
+                autocomplete="tel"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="contacto-entidade">Entidade ou organización</label>
+              <input
+                type="text"
+                id="contacto-entidade"
+                name="entidade"
+                maxlength="180"
+                autocomplete="organization"
+              />
+            </div>
           </div>
 
           <div class="form-group">
-            <label for="email">Correo electrónico *</label>
-            <input type="email" id="email" name="email" required placeholder="Ex. xiao@correo.com" />
-          </div>
-
-          <div class="form-group">
-            <label for="asunto">Asunto de interese *</label>
-            <select id="asunto" name="asunto" required>
-              <option value="" disabled selected>Selecciona unha opción...</option>
-              <option value="contratacion">Contratación de concertos</option>
-              <option value="voces">Incorporación de novas voces</option>
-              <option value="socio">Alta de socio / Colaboración</option>
-              <option value="outro">Outras consultas</option>
+            <label for="contacto-tipo">Asunto de interese *</label>
+            <select id="contacto-tipo" name="tipoSolicitude" required>
+              <option value="" selected disabled>Selecciona unha opción…</option>
+              <option value="Contratación artística">Contratación artística</option>
+              <option value="Consulta xeral">Consulta xeral</option>
+              <option value="Visita a ensaio">Visita a ensaio</option>
+              <option value="Prensa e comunicación">Prensa e comunicación</option>
+              <option value="Outra">Outra consulta</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="mensaxe">Mensaxe *</label>
-            <textarea id="mensaxe" name="mensaxe" rows="6" required placeholder="Escribe aquí o motivo da túa consulta con todo o detalle posible..."></textarea>
+            <label for="contacto-mensaxe">Mensaxe *</label>
+            <textarea
+              id="contacto-mensaxe"
+              name="mensaxe"
+              rows="7"
+              maxlength="4000"
+              required
+              placeholder="Explícanos con detalle o motivo da túa consulta…"
+            ></textarea>
           </div>
 
-          <button type="submit" class="btn-enviar">Enviar mensaxe</button>
+          <div class="campo-trampa" aria-hidden="true">
+            <label for="contacto-website">Sitio web</label>
+            <input
+              type="text"
+              id="contacto-website"
+              name="website"
+              tabindex="-1"
+              autocomplete="off"
+            />
+          </div>
+
+          <label class="privacidade">
+            <input type="checkbox" name="aceptacionProteccionDatos" required />
+            <span>
+              Acepto que a Sociedade Coral Polifónica de Pontevedra trate estes
+              datos exclusivamente para responder á miña solicitude. *
+            </span>
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-enviar">Enviar mensaxe</button>
+            <p class="form-status" data-form-status aria-live="polite" hidden></p>
+          </div>
         </form>
       </section>
 
       <aside class="contacto-info-block">
         <div class="info-card">
-          <h2>Datos Institucionais</h2>
+          <h2>Datos institucionais</h2>
           <div class="section-line"></div>
-          
+
           <ul class="info-list">
+            <li><strong>Sociedade Coral Polifónica de Pontevedra</strong></li>
             <li>
-              <strong>Sociedade Coral Polifónica de Pontevedra</strong>
-            </li>
-            <li>
-              <strong>📍 Enderezo:</strong><br />
+              <strong>Enderezo</strong><br />
               Rúa Luís Braille 40<br />
               36003 Pontevedra
             </li>
             <li>
-              <strong>✉️ Correo electrónico:</strong><br />
-              <a href="mailto:coralpolifonicapontevedra@gmail.com" class="info-link">coralpolifonicapontevedra@gmail.com</a>
+              <strong>Correo electrónico</strong><br />
+              <a href="mailto:coralpolifonicapontevedra@gmail.com" class="info-link">
+                coralpolifonicapontevedra@gmail.com
+              </a>
             </li>
             <li>
-              <strong>☎️ Teléfono:</strong><br />
+              <strong>Teléfono</strong><br />
               <a href="tel:+34681254688" class="info-link">681 254 688</a>
             </li>
           </ul>
         </div>
 
-        <div class="map-card">
-          <a
-            class="map-link"
-            href="https://www.google.com/maps/search/?api=1&query=R%C3%BAa+Lu%C3%ADs+Braille+40%2C+36003+Pontevedra"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span>Ver o enderezo en Google Maps</span>
-            <span aria-hidden="true">↗</span>
-          </a>
-        </div>
+        <a
+          class="map-link"
+          href="https://www.google.com/maps/search/?api=1&query=R%C3%BAa+Lu%C3%ADs+Braille+40%2C+36003+Pontevedra"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>Ver o enderezo en Google Maps</span>
+          <span aria-hidden="true">↗</span>
+        </a>
       </aside>
-
     </div>
   </div>
+
+  <script src="/js/solicitudes-web.js" defer></script>
 </BaseLayout>
 
 <style>
   .contacto-page-wrapper {
-    padding-top: 4rem;
+    padding-top: clamp(2.5rem, 6vw, 4rem);
     padding-bottom: 6rem;
   }
 
-  /* Cabeceira */
   .contacto-header {
-    text-align: center;
     max-width: 800px;
-    margin: 0 auto 4rem auto;
+    margin: 0 auto clamp(2.75rem, 6vw, 4rem);
+    text-align: center;
   }
+
+  .sobrelinea {
+    color: var(--color-principal);
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    margin: 0 0 .85rem;
+    text-transform: uppercase;
+  }
+
   .contacto-header h1 {
     color: var(--color-principal);
-    font-size: 2.5rem;
+    font-size: clamp(2.25rem, 5vw, 3.8rem);
     font-weight: 700;
+    line-height: 1;
+    margin: 0;
   }
-  .section-line-center {
-    width: 60px;
+
+  .section-line-center,
+  .section-line {
     height: 2px;
     background-color: var(--color-acento);
-    margin: 1rem auto 1.5rem auto;
-  }
-  .contacto-intro {
-    font-size: 1.15rem;
-    color: var(--color-texto);
-    opacity: 0.85;
-    line-height: 1.6;
   }
 
-  /* Distribución en dúas columnas */
-  .contacto-grid {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 4rem;
-    align-items: flex-start;
-  }
-
-  @media (max-width: 992px) {
-    .contacto-grid {
-      grid-template-columns: 1fr;
-      gap: 3rem;
-    }
-  }
-
-  .contacto-form-block h2, .contacto-info-block h2 {
-    color: var(--color-principal);
-    font-size: 1.6rem;
-    font-weight: 700;
+  .section-line-center {
+    width: 60px;
+    margin: 1rem auto 1.5rem;
   }
 
   .section-line {
     width: 35px;
-    height: 2px;
-    background-color: var(--color-acento);
-    margin: 0.6rem 0 2rem 0;
+    margin: .6rem 0 2rem;
   }
 
-  /* Estilos do Formulario */
+  .contacto-intro {
+    color: var(--color-texto);
+    font-size: clamp(1.02rem, 2vw, 1.15rem);
+    line-height: 1.65;
+    margin: 0;
+    opacity: .85;
+  }
+
+  .contacto-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 370px);
+    gap: clamp(2.5rem, 6vw, 4rem);
+    align-items: start;
+  }
+
+  .contacto-form-block h2,
+  .contacto-info-block h2 {
+    color: var(--color-principal);
+    font-size: clamp(1.35rem, 2.5vw, 1.6rem);
+    font-weight: 700;
+    margin: 0;
+  }
+
   .contacto-form {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.35rem;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: .5rem;
   }
 
-  .form-group label {
-    font-size: 0.9rem;
+  .form-group label,
+  .privacidade {
+    color: var(--color-texto);
+    font-size: .9rem;
     font-weight: 600;
-    color: var(--color-texto);
   }
 
-  .form-group input, .form-group select, .form-group textarea {
-    padding: 0.8rem 1rem;
-    border: 1px solid var(--color-gris);
-    border-radius: 4px;
-    font-size: 1rem;
-    font-family: inherit;
-    color: var(--color-texto);
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    border: 1px solid rgba(106, 27, 41, .22);
+    border-radius: 5px;
     background-color: var(--color-blanco);
-    transition: border-color 0.2s ease;
+    color: var(--color-texto);
+    font: inherit;
+    font-size: 1rem;
+    padding: .85rem 1rem;
+    transition: border-color .2s ease, box-shadow .2s ease;
   }
 
-  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  .form-group textarea {
+    min-height: 150px;
+    resize: vertical;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
     outline: none;
     border-color: var(--color-principal);
+    box-shadow: 0 0 0 3px rgba(106, 27, 41, .08);
+  }
+
+  .privacidade {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .75rem;
+    align-items: start;
+    line-height: 1.5;
+    font-weight: 400;
+  }
+
+  .privacidade input {
+    margin-top: .25rem;
+  }
+
+  .campo-trampa {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.25rem;
+    align-items: center;
   }
 
   .btn-enviar {
-    display: inline-block;
-    padding: 0.9rem 2rem;
+    border: 0;
+    border-radius: 4px;
     background-color: var(--color-principal);
     color: var(--color-blanco);
-    border: none;
-    border-radius: 4px;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    align-self: flex-start;
+    font: inherit;
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: .95rem 1.6rem;
+    text-transform: uppercase;
+    transition: background-color .2s ease, opacity .2s ease;
   }
 
   .btn-enviar:hover {
     background-color: var(--color-acento);
   }
 
-  /* Bloque de Información lateral */
+  .btn-enviar:disabled {
+    cursor: wait;
+    opacity: .65;
+  }
+
+  .form-status {
+    flex: 1 1 260px;
+    font-size: .9rem;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  .form-status[data-state="success"] { color: #23633b; }
+  .form-status[data-state="error"] { color: var(--color-principal); }
+  .form-status[data-state="loading"] { color: var(--color-texto); opacity: .75; }
+
   .contacto-info-block {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-  }
-
-  .info-card {
-    background: var(--color-gris);
-    padding: 2.5rem;
-    border-radius: 4px;
-    border: 1px solid rgba(0,0,0,0.02);
-  }
-
-  .info-list {
-    list-style: none;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
   }
 
+  .info-card {
+    border: 1px solid rgba(106, 27, 41, .08);
+    border-radius: 5px;
+    background: var(--color-gris);
+    padding: clamp(1.6rem, 4vw, 2.4rem);
+  }
+
+  .info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.35rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
   .info-list li {
-    font-size: 1rem;
-    line-height: 1.5;
     color: var(--color-texto);
+    font-size: .98rem;
+    line-height: 1.55;
   }
 
   .info-link {
     color: var(--color-principal);
-    text-decoration: none;
     font-weight: 600;
+    overflow-wrap: anywhere;
+    text-decoration: none;
   }
 
-  .info-link:hover {
-    color: var(--color-acento);
-  }
+  .info-link:hover { color: var(--color-acento); }
 
   .map-link {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1.1rem 1.25rem;
-    color: var(--color-principal);
-    background: var(--color-blanco);
     border: 1px solid rgba(106, 27, 41, .15);
-    border-radius: 6px;
+    border-radius: 5px;
+    background: var(--color-blanco);
+    color: var(--color-principal);
     font-size: .9rem;
     font-weight: 700;
+    padding: 1.1rem 1.25rem;
+    text-decoration: none;
     transition: border-color .2s ease, transform .2s ease;
   }
+
   .map-link:hover {
     border-color: var(--color-acento);
     transform: translateY(-2px);
+  }
+
+  @media (max-width: 900px) {
+    .contacto-grid { grid-template-columns: 1fr; }
+    .contacto-info-block { max-width: 600px; }
+  }
+
+  @media (max-width: 620px) {
+    .contacto-page-wrapper { padding-bottom: 4rem; }
+    .form-row { grid-template-columns: 1fr; }
+    .btn-enviar { width: 100%; }
   }
 </style>
