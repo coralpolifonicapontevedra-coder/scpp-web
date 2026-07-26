@@ -1,0 +1,634 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="O meu perfil" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="perfil" logoutId="profile-logout" />
+
+    <main class="profile-main">
+      <header class="private-page-header">
+        <div>
+          <span class="page-kicker">Portal do Coralista</span>
+          <h1>O meu perfil</h1>
+          <p>Consulta os datos que conserva a Coral e mantén actualizada a túa información de contacto e as túas preferencias.</p>
+        </div>
+
+        <div class="account-card" aria-label="Conta identificada">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 21c.6-4.5 2.7-6.5 6.5-6.5s5.9 2 6.5 6.5" /></svg>
+          <span>
+            <small>Conta identificada</small>
+            <strong id="user-email">—</strong>
+          </span>
+        </div>
+      </header>
+
+      <section id="loading" class="portal-state">Comprobando o teu acceso e cargando o perfil…</section>
+
+      <section id="profile-panel" class="profile-panel" hidden>
+        <aside class="profile-summary" aria-labelledby="profile-name">
+          <div class="profile-photo-wrap">
+            <div id="profile-photo-placeholder" class="profile-photo-placeholder" aria-hidden="true">—</div>
+            <img id="profile-photo" class="profile-photo" alt="Fotografía de perfil" hidden />
+          </div>
+
+          <div class="profile-heading">
+            <span class="page-kicker">Ficha persoal</span>
+            <h2 id="profile-name">—</h2>
+            <p id="profile-membership">Datos internos da Sociedade Coral Polifónica de Pontevedra.</p>
+          </div>
+
+          <dl class="profile-facts">
+            <div><dt>Voz</dt><dd id="summary-voice">—</dd></div>
+            <div><dt>Cargo</dt><dd id="summary-role">—</dd></div>
+            <div><dt>Tipo de socio</dt><dd id="summary-member-type">—</dd></div>
+          </dl>
+
+          <label class="photo-picker" for="profile-photo-input">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" /><circle cx="9" cy="9" r="1.5" /><path d="m5.5 17 4.5-4.5 3 3 2-2 3.5 3.5" /></svg>
+            <span>Cambiar fotografía</span>
+          </label>
+          <input id="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+          <small id="photo-help">JPG, PNG ou WebP. A imaxe reducirase antes de gardala.</small>
+
+          <div class="summary-update" id="summary-update" hidden>
+            <span>Última actualización</span>
+            <strong id="last-update">—</strong>
+          </div>
+        </aside>
+
+        <form id="profile-form" class="profile-form">
+          <section class="profile-card">
+            <header>
+              <span>01</span>
+              <div>
+                <h2>Datos identificativos</h2>
+                <p>Son datos administrativos de só lectura. Para corrixilos, solicita o cambio á Xunta Directiva.</p>
+              </div>
+            </header>
+
+            <div class="form-grid">
+              <label class="field field-wide">
+                <span>Nome e apelidos</span>
+                <input id="full-name" readonly />
+              </label>
+
+              <label class="field">
+                <span>NIF</span>
+                <input id="nif" readonly />
+              </label>
+
+              <label class="field">
+                <span>Voz</span>
+                <input id="voice" readonly />
+              </label>
+
+              <label class="field">
+                <span>Cargo</span>
+                <input id="role" readonly />
+              </label>
+
+              <label class="field">
+                <span>Tipo de socio</span>
+                <input id="member-type" readonly />
+              </label>
+            </div>
+
+            <a class="correction-link" href="/contacto/">Solicitar unha corrección dos datos identificativos</a>
+          </section>
+
+          <section class="profile-card">
+            <header>
+              <span>02</span>
+              <div>
+                <h2>Contacto e domicilio</h2>
+                <p>Estes datos poden ser modificados directamente desde o teu perfil.</p>
+              </div>
+            </header>
+
+            <div class="form-grid">
+              <label class="field">
+                <span>Teléfono</span>
+                <input name="telefono" type="tel" autocomplete="tel" maxlength="40" />
+              </label>
+
+              <label class="field">
+                <span>Correo electrónico de contacto</span>
+                <input name="correoElectronico" type="email" autocomplete="email" maxlength="160" />
+              </label>
+
+              <label class="field field-wide">
+                <span>Enderezo</span>
+                <input name="enderezo" autocomplete="street-address" maxlength="240" />
+              </label>
+
+              <label class="field">
+                <span>Cidade</span>
+                <input name="cidade" autocomplete="address-level2" maxlength="120" />
+              </label>
+
+              <label class="field">
+                <span>Código postal</span>
+                <input name="cp" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" />
+              </label>
+            </div>
+          </section>
+
+          <section class="profile-card">
+            <header>
+              <span>03</span>
+              <div>
+                <h2>Información persoal e emerxencias</h2>
+                <p>A data de nacemento e o contacto de emerxencia son opcionais e de uso interno.</p>
+              </div>
+            </header>
+
+            <div class="form-grid">
+              <label class="field">
+                <span>Data de nacemento</span>
+                <input name="dataNacemento" type="date" min="1900-01-01" />
+              </label>
+
+              <label class="field">
+                <span>Persoa de contacto en caso de emerxencia</span>
+                <input name="contactoEmerxencia" maxlength="180" />
+              </label>
+
+              <label class="field">
+                <span>Teléfono de emerxencia</span>
+                <input name="telefonoEmerxencia" type="tel" maxlength="40" />
+              </label>
+
+              <label class="field">
+                <span>Canle de comunicación preferida</span>
+                <select name="preferenciaComunicacion">
+                  <option value="">Sen indicar</option>
+                  <option value="Correo electrónico">Correo electrónico</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Teléfono">Teléfono</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="profile-card privacy-card">
+            <header>
+              <span>04</span>
+              <div>
+                <h2>Privacidade e uso da imaxe</h2>
+                <p>A falta de resposta nunca se interpretará como unha autorización.</p>
+              </div>
+            </header>
+
+            <div class="form-grid">
+              <label class="field field-wide">
+                <span>Autorización para o uso de fotografías</span>
+                <select name="consentimentoFoto">
+                  <option value="">Sen indicar</option>
+                  <option value="Non autorizo">Non autorizo</option>
+                  <option value="Só uso interno">Só uso interno</option>
+                  <option value="Uso interno e difusión pública">Uso interno e difusión pública</option>
+                </select>
+                <small>Inclúe web, redes sociais e publicacións institucionais cando se escolle a difusión pública.</small>
+              </label>
+
+              <label class="anniversary-check field-wide">
+                <input name="mostrarAniversario" type="checkbox" />
+                <span>
+                  <strong>Mostrar o meu aniversario no Portal</strong>
+                  <small>Só se poderá mostrar o día e o mes. Nunca se mostrará o ano de nacemento.</small>
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <p id="profile-message" class="portal-message" role="status" aria-live="polite" hidden></p>
+
+          <footer class="form-actions">
+            <p>Os cambios quedarán rexistrados coa data, hora e conta que realizou a actualización.</p>
+            <button id="save-profile" type="submit">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12l2 2v14H5zM8 4v6h8V4M8 20v-6h8v6" /></svg>
+              <span>Gardar os cambios</span>
+            </button>
+          </footer>
+        </form>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const loading = document.querySelector('#loading');
+  const panel = document.querySelector('#profile-panel');
+  const form = document.querySelector('#profile-form');
+  const userEmail = document.querySelector('#user-email');
+  const logout = document.querySelector('#profile-logout');
+  const message = document.querySelector('#profile-message');
+  const saveButton = document.querySelector('#save-profile');
+  const photoInput = document.querySelector('#profile-photo-input');
+  const photo = document.querySelector('#profile-photo');
+  const photoPlaceholder = document.querySelector('#profile-photo-placeholder');
+  const photoHelp = document.querySelector('#photo-help');
+  const lastUpdateWrap = document.querySelector('#summary-update');
+  const lastUpdate = document.querySelector('#last-update');
+  let preparedPhoto = null;
+  let previewUrl = '';
+
+  function control(name) {
+    return form instanceof HTMLFormElement ? form.elements.namedItem(name) : null;
+  }
+
+  function setValue(name, value) {
+    const element = control(name);
+    if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) {
+      element.value = value == null ? '' : String(value);
+    }
+  }
+
+  function setText(selector, value, fallback = '—') {
+    const element = document.querySelector(selector);
+    if (element instanceof HTMLElement) element.textContent = String(value || fallback);
+  }
+
+  function showMessage(text, ok = false) {
+    if (!(message instanceof HTMLElement)) return;
+    message.textContent = text;
+    message.dataset.ok = String(ok);
+    message.hidden = false;
+  }
+
+  function hideMessage() {
+    if (!(message instanceof HTMLElement)) return;
+    message.textContent = '';
+    message.hidden = true;
+    delete message.dataset.ok;
+  }
+
+  function initials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('') || 'SCPP';
+  }
+
+  function showPhoto(dataUrl, name) {
+    if (!(photo instanceof HTMLImageElement) || !(photoPlaceholder instanceof HTMLElement)) return;
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      previewUrl = '';
+    }
+    if (dataUrl) {
+      photo.src = dataUrl;
+      photo.hidden = false;
+      photoPlaceholder.hidden = true;
+    } else {
+      photo.removeAttribute('src');
+      photo.hidden = true;
+      photoPlaceholder.textContent = initials(name);
+      photoPlaceholder.hidden = false;
+    }
+  }
+
+  function fillProfile(profile) {
+    setText('#profile-name', profile.nomeCompleto);
+    setText('#summary-voice', profile.voz);
+    setText('#summary-role', profile.cargo || 'Sen cargo');
+    setText('#summary-member-type', profile.tipoSocio);
+    setText('#profile-membership', profile.tipoSocio
+      ? `${profile.tipoSocio}${profile.voz ? ` · ${profile.voz}` : ''}`
+      : 'Datos internos da Sociedade Coral Polifónica de Pontevedra.');
+
+    const fields = {
+      '#full-name': profile.nomeCompleto,
+      '#nif': profile.nif,
+      '#voice': profile.voz,
+      '#role': profile.cargo,
+      '#member-type': profile.tipoSocio
+    };
+    Object.entries(fields).forEach(([selector, value]) => {
+      const element = document.querySelector(selector);
+      if (element instanceof HTMLInputElement) element.value = String(value || '');
+    });
+
+    setValue('telefono', profile.telefono);
+    setValue('correoElectronico', profile.correoElectronico);
+    setValue('enderezo', profile.enderezo);
+    setValue('cidade', profile.cidade);
+    setValue('cp', profile.cp);
+    setValue('dataNacemento', profile.dataNacemento);
+    setValue('contactoEmerxencia', profile.contactoEmerxencia);
+    setValue('telefonoEmerxencia', profile.telefonoEmerxencia);
+    setValue('preferenciaComunicacion', profile.preferenciaComunicacion);
+    setValue('consentimentoFoto', profile.consentimentoFoto);
+
+    const birthday = control('mostrarAniversario');
+    if (birthday instanceof HTMLInputElement) birthday.checked = profile.mostrarAniversario === true;
+
+    showPhoto(profile.fotoDataUrl, profile.nomeCompleto);
+    preparedPhoto = null;
+    if (photoInput instanceof HTMLInputElement) photoInput.value = '';
+    if (photoHelp instanceof HTMLElement) {
+      photoHelp.textContent = profile.fotoAviso || 'JPG, PNG ou WebP. A imaxe reducirase antes de gardala.';
+    }
+
+    if (lastUpdate instanceof HTMLElement && lastUpdateWrap instanceof HTMLElement) {
+      lastUpdate.textContent = profile.dataActualizacionPerfil || 'Sen actualizacións rexistradas';
+      lastUpdateWrap.hidden = false;
+    }
+  }
+
+  async function requestProfile(action, extra = {}) {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('A sesión xa non está activa.');
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/perfil', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: action, ...extra })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      throw new Error(result?.erro || 'Non foi posible acceder ao perfil.');
+    }
+    return result;
+  }
+
+  async function hasValidAcceptance(user) {
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/aceptacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken,
+        accion: 'comprobarAceptacion',
+        version: 'PRIVACIDADE-WEB-1.0'
+      })
+    });
+    const result = await response.json().catch(() => null);
+    return response.ok && result?.ok && result.aceptacionVixente === true;
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+      reader.onerror = () => reject(new Error('Non foi posible ler a fotografía.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Non foi posible abrir a fotografía.'));
+      };
+      image.src = url;
+    });
+  }
+
+  async function reducePhoto(file) {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      throw new Error('Selecciona unha imaxe JPG, PNG ou WebP.');
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      throw new Error('A fotografía supera o máximo de 8 MB.');
+    }
+
+    const image = await loadImage(file);
+    const maximum = 900;
+    const scale = Math.min(1, maximum / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Non foi posible preparar a fotografía.');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.84));
+    if (!(blob instanceof Blob)) throw new Error('Non foi posible reducir a fotografía.');
+    return blob;
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) {
+      window.location.replace('/portal/');
+      return;
+    }
+
+    if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
+    const dateControl = control('dataNacemento');
+    if (dateControl instanceof HTMLInputElement) {
+      dateControl.max = new Date().toISOString().slice(0, 10);
+    }
+
+    try {
+      if (!(await hasValidAcceptance(user))) {
+        window.location.replace('/portal/');
+        return;
+      }
+      const result = await requestProfile('obterPerfil');
+      fillProfile(result.perfil || {});
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (panel instanceof HTMLElement) panel.hidden = false;
+    } catch (error) {
+      if (loading instanceof HTMLElement) {
+        loading.textContent = error instanceof Error
+          ? error.message
+          : 'Non foi posible cargar o perfil.';
+        loading.dataset.error = 'true';
+      }
+    }
+  });
+
+  photoInput?.addEventListener('change', async () => {
+    if (!(photoInput instanceof HTMLInputElement)) return;
+    const file = photoInput.files?.[0];
+    if (!file) return;
+    hideMessage();
+    try {
+      preparedPhoto = await reducePhoto(file);
+      previewUrl = URL.createObjectURL(preparedPhoto);
+      const name = document.querySelector('#profile-name')?.textContent || '';
+      showPhoto(previewUrl, name);
+      if (photoHelp instanceof HTMLElement) {
+        photoHelp.textContent = `Fotografía preparada · ${(preparedPhoto.size / 1024).toFixed(0)} KB`;
+      }
+    } catch (error) {
+      preparedPhoto = null;
+      photoInput.value = '';
+      showMessage(error instanceof Error ? error.message : 'Non foi posible preparar a fotografía.');
+    }
+  });
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!(form instanceof HTMLFormElement)) return;
+    hideMessage();
+
+    const cp = control('cp');
+    if (cp instanceof HTMLInputElement && cp.value && !/^\d{5}$/.test(cp.value)) {
+      showMessage('O código postal debe ter cinco cifras.');
+      cp.focus();
+      return;
+    }
+
+    if (saveButton instanceof HTMLButtonElement) {
+      saveButton.disabled = true;
+      saveButton.querySelector('span')?.replaceChildren('Gardando…');
+    }
+
+    try {
+      const payload = {
+        telefono: control('telefono')?.value || '',
+        correoElectronico: control('correoElectronico')?.value || '',
+        enderezo: control('enderezo')?.value || '',
+        cidade: control('cidade')?.value || '',
+        cp: control('cp')?.value || '',
+        dataNacemento: control('dataNacemento')?.value || '',
+        contactoEmerxencia: control('contactoEmerxencia')?.value || '',
+        telefonoEmerxencia: control('telefonoEmerxencia')?.value || '',
+        preferenciaComunicacion: control('preferenciaComunicacion')?.value || '',
+        consentimentoFoto: control('consentimentoFoto')?.value || '',
+        mostrarAniversario: control('mostrarAniversario') instanceof HTMLInputElement
+          ? control('mostrarAniversario').checked
+          : false
+      };
+
+      if (preparedPhoto instanceof Blob) {
+        payload.fotoBase64 = await fileToBase64(preparedPhoto);
+        payload.fotoTipo = preparedPhoto.type || 'image/jpeg';
+        payload.fotoNome = photoInput instanceof HTMLInputElement
+          ? photoInput.files?.[0]?.name || 'perfil.jpg'
+          : 'perfil.jpg';
+      }
+
+      const result = await requestProfile('actualizarPerfil', payload);
+      fillProfile(result.perfil || {});
+      showMessage(result.mensaxe || 'Os datos gardáronse correctamente.', true);
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Non foi posible gardar os cambios.');
+    } finally {
+      if (saveButton instanceof HTMLButtonElement) {
+        saveButton.disabled = false;
+        saveButton.querySelector('span')?.replaceChildren('Gardar os cambios');
+      }
+    }
+  });
+
+  logout?.addEventListener('click', async () => {
+    if (logout instanceof HTMLButtonElement) logout.disabled = true;
+    await signOut(auth);
+    window.location.href = '/portal/';
+  });
+</script>
+
+<style>
+  .private-layout { min-height: 100vh; display: grid; grid-template-columns: 282px minmax(0, 1fr); background: #f7f5f1; }
+  .profile-main { min-width: 0; padding: 2.4rem clamp(1rem, 3vw, 3.2rem) 4rem; }
+  .private-page-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; max-width: 1180px; margin: 0 auto 1.6rem; padding-bottom: 1.35rem; border-bottom: 1px solid #d8d1bc; }
+  .page-kicker { color: #7a263a; font-size: .74rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+  .private-page-header h1 { margin: .25rem 0 .35rem; color: #24362f; font-size: clamp(2.1rem, 4vw, 3.35rem); line-height: 1.05; }
+  .private-page-header p { max-width: 720px; margin: 0; color: #63706a; }
+  .account-card { display: grid; grid-template-columns: 2rem minmax(0, 1fr); align-items: center; gap: .75rem; min-width: 245px; padding: .85rem 1rem; border: 1px solid #ded7c5; background: #fff; }
+  .account-card svg { width: 23px; height: 23px; fill: none; stroke: #7a263a; stroke-width: 1.6; }
+  .account-card span { min-width: 0; display: grid; }
+  .account-card small { color: #7a263a; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .account-card strong { overflow: hidden; color: #24362f; font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
+  .portal-state { max-width: 1180px; margin: 1rem auto; padding: 1rem 1.2rem; border-left: 3px solid #a18331; background: #fff; color: #52605a; }
+  .portal-state[data-error=true] { border-color: #7a263a; color: #7a263a; background: #fff2ef; }
+  .profile-panel { display: grid; grid-template-columns: minmax(235px, 300px) minmax(0, 1fr); align-items: start; gap: 1.25rem; max-width: 1180px; margin: 0 auto; }
+  .profile-summary { position: sticky; top: 1.5rem; padding: 1.45rem; border: 1px solid #ddd5c0; background: #fff; }
+  .profile-photo-wrap { position: relative; width: 150px; height: 150px; margin: 0 auto 1.2rem; overflow: hidden; border-radius: 50%; background: #eee8df; box-shadow: inset 0 0 0 1px #d4c9b0; }
+  .profile-photo, .profile-photo-placeholder { width: 100%; height: 100%; }
+  .profile-photo { object-fit: cover; }
+  .profile-photo-placeholder { display: grid; place-items: center; color: #7a263a; font-family: Georgia, serif; font-size: 2.5rem; font-weight: 700; }
+  .profile-heading { text-align: center; }
+  .profile-heading h2 { margin: .28rem 0 .4rem; color: #24362f; font-size: 1.45rem; line-height: 1.2; }
+  .profile-heading p { margin: 0; color: #68736e; font-size: .88rem; line-height: 1.5; }
+  .profile-facts { display: grid; gap: .55rem; margin: 1.2rem 0; padding: 1rem 0; border-top: 1px solid #e7e0d0; border-bottom: 1px solid #e7e0d0; }
+  .profile-facts div { display: flex; justify-content: space-between; gap: 1rem; }
+  .profile-facts dt { color: #77716b; font-size: .8rem; }
+  .profile-facts dd { margin: 0; color: #24362f; font-size: .82rem; font-weight: 750; text-align: right; }
+  .photo-picker { display: flex; justify-content: center; align-items: center; gap: .55rem; width: 100%; padding: .75rem; background: #7a263a; color: #fff; font-size: .86rem; font-weight: 800; cursor: pointer; }
+  .photo-picker svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+  #photo-help { display: block; margin-top: .55rem; color: #77716b; font-size: .72rem; line-height: 1.45; text-align: center; }
+  .summary-update { margin-top: 1rem; padding-top: .9rem; border-top: 1px solid #e7e0d0; }
+  .summary-update span, .summary-update strong { display: block; }
+  .summary-update span { color: #7a263a; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .summary-update strong { margin-top: .2rem; color: #4c5752; font-size: .8rem; }
+  .profile-form { display: grid; gap: 1rem; min-width: 0; }
+  .profile-card { padding: 1.35rem; border: 1px solid #ddd5c0; background: #fff; }
+  .profile-card > header { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: .75rem; margin-bottom: 1.15rem; padding-bottom: .9rem; border-bottom: 1px solid #eee8db; }
+  .profile-card > header > span { color: #a18331; font-size: .75rem; font-weight: 900; }
+  .profile-card h2 { margin: 0; color: #24362f; font-size: 1.2rem; }
+  .profile-card header p { margin: .25rem 0 0; color: #6a756f; font-size: .83rem; line-height: 1.5; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+  .field { display: grid; align-content: start; gap: .38rem; min-width: 0; }
+  .field-wide { grid-column: 1 / -1; }
+  .field > span { color: #3d4742; font-size: .8rem; font-weight: 750; }
+  .field input, .field select { width: 100%; min-width: 0; padding: .78rem .82rem; border: 1px solid #cfc8b8; border-radius: 3px; background: #fff; color: #25332d; font: inherit; font-size: .9rem; }
+  .field input:focus, .field select:focus { outline: 2px solid rgba(122, 38, 58, .18); border-color: #7a263a; }
+  .field input[readonly] { background: #f4f2ed; color: #5f625f; cursor: default; }
+  .field small { color: #77716b; font-size: .74rem; line-height: 1.45; }
+  .correction-link { display: inline-block; margin-top: 1rem; color: #7a263a; font-size: .82rem; font-weight: 800; }
+  .privacy-card { border-top: 3px solid #a18331; }
+  .anniversary-check { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .75rem; align-items: start; padding: .9rem; border: 1px solid #dfd7c4; background: #faf8f2; cursor: pointer; }
+  .anniversary-check input { width: 1.05rem; height: 1.05rem; margin-top: .13rem; accent-color: #7a263a; }
+  .anniversary-check span { display: grid; gap: .2rem; }
+  .anniversary-check strong { color: #24362f; font-size: .86rem; }
+  .anniversary-check small { color: #6c756f; font-size: .75rem; line-height: 1.45; }
+  .portal-message { margin: 0; padding: .85rem 1rem; border-left: 3px solid #7a263a; background: #fff2ef; color: #7a263a; }
+  .portal-message[data-ok=true] { border-color: #356345; background: #eef6ef; color: #356345; }
+  .form-actions { display: flex; justify-content: space-between; align-items: center; gap: 1.2rem; padding: 1.1rem 1.2rem; border: 1px solid #ddd5c0; background: #f8f5ec; }
+  .form-actions p { max-width: 560px; margin: 0; color: #65706b; font-size: .78rem; }
+  .form-actions button { display: flex; align-items: center; justify-content: center; gap: .55rem; min-width: 190px; padding: .82rem 1rem; border: 0; background: #7a263a; color: #fff; font: inherit; font-size: .86rem; font-weight: 850; cursor: pointer; }
+  .form-actions button:disabled { opacity: .65; cursor: wait; }
+  .form-actions svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+
+  @media (max-width: 1180px) {
+    .private-layout { display: block; }
+    .profile-main { padding-top: 1.6rem; }
+    .profile-summary { position: static; }
+  }
+
+  @media (max-width: 900px) {
+    .profile-panel { grid-template-columns: 1fr; }
+    .profile-summary { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 1rem 1.25rem; align-items: center; }
+    .profile-photo-wrap { width: 125px; height: 125px; margin: 0; grid-row: span 2; }
+    .profile-heading { text-align: left; }
+    .profile-facts { grid-column: 1 / -1; }
+    .photo-picker, #photo-help, .summary-update { grid-column: 1 / -1; }
+  }
+
+  @media (max-width: 680px) {
+    .profile-main { padding: 1.2rem .85rem 3rem; }
+    .private-page-header { display: grid; align-items: start; gap: 1rem; }
+    .account-card { width: 100%; min-width: 0; }
+    .profile-summary { display: block; }
+    .profile-photo-wrap { margin: 0 auto 1rem; }
+    .profile-heading { text-align: center; }
+    .form-grid { grid-template-columns: 1fr; }
+    .field-wide { grid-column: auto; }
+    .form-actions { align-items: stretch; flex-direction: column; }
+    .form-actions button { width: 100%; }
+  }
+</style>
