@@ -51,6 +51,37 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
             link.innerHTML = '<span aria-hidden="true">◎</span><span>Ir á web pública</span>';
             footer.prepend(link);
           });
+
+          const profilePath = '/portal/perfil/';
+          document.querySelectorAll('.private-menu .is-disabled').forEach((item) => {
+            if (item.textContent?.trim() !== 'O meu perfil') return;
+            const link = document.createElement('a');
+            link.href = profilePath;
+            link.innerHTML = item.innerHTML;
+            if (window.location.pathname === profilePath || window.location.pathname === '/portal/perfil') {
+              link.classList.add('is-active');
+            }
+            item.replaceWith(link);
+          });
+
+          if (window.location.pathname === profilePath || window.location.pathname === '/portal/perfil') {
+            const activeLabel = document.querySelector('.private-mobile-toggle-copy strong');
+            if (activeLabel) activeLabel.textContent = 'O meu perfil';
+          }
+
+          const dashboardGrid = document.querySelector('#private-dashboard .dashboard-grid');
+          if (dashboardGrid && !dashboardGrid.querySelector('[data-profile-module]')) {
+            const profileCard = document.createElement('a');
+            profileCard.className = 'module-card module-active';
+            profileCard.href = profilePath;
+            profileCard.dataset.profileModule = 'true';
+            profileCard.innerHTML = '<span class="module-number">05</span><div><strong>O meu perfil</strong><p>Consulta e actualiza os teus datos persoais, contacto e preferencias.</p></div><span class="module-arrow" aria-hidden="true">→</span>';
+            const firstSoon = dashboardGrid.querySelector('.module-soon');
+            dashboardGrid.insertBefore(profileCard, firstSoon || null);
+            dashboardGrid.querySelectorAll('.module-soon .module-number').forEach((number, index) => {
+              number.textContent = String(index + 6).padStart(2, '0');
+            });
+          }
         });
       </script>
     )}
