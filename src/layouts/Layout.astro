@@ -99,6 +99,10 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
 
   * { box-sizing: border-box; }
 
+  [hidden] {
+    display: none !important;
+  }
+
   body {
     margin: 0;
     font-family: 'Aptos', 'Calibri', system-ui, sans-serif;
@@ -112,6 +116,91 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 2rem;
+  }
+
+  body.portal-private-body .private-menu a[href="/portal/perfil/"] {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    align-items: center;
+    gap: .72rem;
+    min-height: 2.72rem;
+    padding: .62rem .72rem;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #4e4a47;
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 500;
+    line-height: 1.6;
+    text-align: left;
+    text-decoration: none;
+  }
+
+  body.portal-private-body .private-menu a[href="/portal/perfil/"] svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.65;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  body.portal-private-body .private-menu a[href="/portal/perfil/"]:hover,
+  body.portal-private-body .private-menu a[href="/portal/perfil/"].is-active {
+    background: #f2ecec;
+    color: var(--color-principal);
+  }
+
+  body.portal-private-body .private-menu a[href="/portal/perfil/"].is-active {
+    font-weight: 700;
+  }
+
+  body.portal-private-body #private-dashboard .dashboard-grid a[data-profile-module] {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    min-height: 135px;
+    padding: 1.35rem;
+    border: 1px solid #d8d1bc;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+    transition: .2s ease;
+  }
+
+  body.portal-private-body #private-dashboard .dashboard-grid a[data-profile-module]:hover {
+    transform: translateY(-3px);
+    border-color: #a18331;
+    box-shadow: 0 12px 28px rgba(44, 55, 49, .08);
+  }
+
+  body.portal-private-body #private-dashboard a[data-profile-module] .module-number {
+    color: #a18331;
+    font-size: .75rem;
+    font-weight: 800;
+  }
+
+  body.portal-private-body #private-dashboard a[data-profile-module] strong {
+    display: block;
+    margin-bottom: .4rem;
+    color: #24362f;
+    font-size: 1.15rem;
+  }
+
+  body.portal-private-body #private-dashboard a[data-profile-module] p {
+    margin: 0;
+    color: #69746f;
+    line-height: 1.5;
+  }
+
+  body.portal-private-body #private-dashboard a[data-profile-module] .module-arrow {
+    align-self: center;
+    color: #7a263a;
+    font-size: 1.5rem;
   }
 
   @media (min-width: 1181px) {
@@ -175,6 +264,17 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     body.portal-private-body .portal-sidebar-container .private-sidebar-footer {
       grid-template-columns: 1fr 1fr;
       margin-top: .8rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    body.portal-private-body #private-dashboard .dashboard-grid a[data-profile-module] {
+      grid-template-columns: auto 1fr;
+    }
+
+    body.portal-private-body #private-dashboard a[data-profile-module] .module-arrow {
+      grid-column: 2;
+      justify-self: start;
     }
   }
 </style>
