@@ -36,6 +36,7 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
 
     {!eZonaPortal && <Footer lang={lang} />}
     {eInicioPortal && <PortalAcceptanceGate />}
+    {eInicioPortal && <script is:inline src="/js/portal-auth-diagnostics.js" defer></script>}
     {eZonaPortal && <PortalReviewStyles />}
     {eAxenda && <script is:inline src="/js/poster-thumbnails.js" defer></script>}
 
