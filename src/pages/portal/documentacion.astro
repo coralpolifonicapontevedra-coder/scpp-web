@@ -6,7 +6,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 <BaseLayout title="Documentación" lang="gl">
   <div class="private-layout">
     <PortalSidebar active="documentacion" logoutId="documentacion-logout" />
-
     <main class="documents-main">
       <header class="private-page-header">
         <div>
@@ -57,23 +56,24 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 <script>
   import { auth, closePortalSession, portalRequest, readPortalSession, savePortalSession, waitForPortalUser } from '../../lib/portal-session.js';
 
-  const loading = document.querySelector('#loading');
-  const app = document.querySelector('#documents-app');
-  const errorState = document.querySelector('#error-state');
-  const errorMessage = document.querySelector('#error-message');
-  const retryButton = document.querySelector('#retry-button');
-  const logout = document.querySelector('#documentacion-logout');
-  const emailNode = document.querySelector('#user-email');
-  const levelNode = document.querySelector('#user-level');
-  const adminTab = document.querySelector('#admin-tab');
-  const list = document.querySelector('#documents-list');
-  const empty = document.querySelector('#empty-state');
-  const count = document.querySelector('#result-count');
-  const search = document.querySelector('#document-search');
-  const yearFilter = document.querySelector('#year-filter');
-  const stateFilter = document.querySelector('#state-filter');
-  const typeFilter = document.querySelector('#type-filter');
-  const typeFilterLabel = document.querySelector('#type-filter-label');
+  const q = (selector) => document.querySelector(selector);
+  const loading = q('#loading');
+  const app = q('#documents-app');
+  const errorState = q('#error-state');
+  const errorMessage = q('#error-message');
+  const retryButton = q('#retry-button');
+  const logout = q('#documentacion-logout');
+  const emailNode = q('#user-email');
+  const levelNode = q('#user-level');
+  const adminTab = q('#admin-tab');
+  const list = q('#documents-list');
+  const empty = q('#empty-state');
+  const count = q('#result-count');
+  const search = q('#document-search');
+  const yearFilter = q('#year-filter');
+  const stateFilter = q('#state-filter');
+  const typeFilter = q('#type-filter');
+  const typeFilterLabel = q('#type-filter-label');
 
   let documents = [];
   let activeTab = 'xeral';
@@ -115,15 +115,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     select.value = [...select.options].some((option) => option.value === selected) ? selected : '';
   }
 
-  function sectionDocuments() {
-    return documents.filter((document) => document.seccion === activeTab);
-  }
+  const sectionDocuments = () => documents.filter((item) => item.seccion === activeTab);
 
   function drawFilters() {
     const current = sectionDocuments();
-    setOptions(yearFilter, current.map((document) => document.ano));
-    setOptions(stateFilter, current.map((document) => document.estado));
-    setOptions(typeFilter, current.map((document) => activeTab === 'actas' ? document.organo : document.tipo));
+    setOptions(yearFilter, current.map((item) => item.ano));
+    setOptions(stateFilter, current.map((item) => item.estado));
+    setOptions(typeFilter, current.map((item) => activeTab === 'actas' ? item.organo : item.tipo));
     if (typeFilterLabel instanceof HTMLElement) {
       const span = typeFilterLabel.querySelector('span');
       if (span) span.textContent = activeTab === 'actas' ? 'Órgano' : 'Tipo';
@@ -135,29 +133,22 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const year = yearFilter instanceof HTMLSelectElement ? yearFilter.value : '';
     const state = stateFilter instanceof HTMLSelectElement ? stateFilter.value : '';
     const type = typeFilter instanceof HTMLSelectElement ? typeFilter.value : '';
-    return sectionDocuments().filter((document) => {
-      const text = normalise([document.titulo, document.descricion, document.organismo, document.tipo, document.organo].join(' '));
+    return sectionDocuments().filter((item) => {
+      const text = normalise([item.titulo, item.descricion, item.organismo, item.tipo, item.organo].join(' '));
       return (!query || text.includes(query))
-        && (!year || String(document.ano) === year)
-        && (!state || document.estado === state)
-        && (!type || (activeTab === 'actas' ? document.organo : document.tipo) === type);
+        && (!year || String(item.ano) === year)
+        && (!state || item.estado === state)
+        && (!type || (activeTab === 'actas' ? item.organo : item.tipo) === type);
     });
   }
 
-  function badge(label, value, className = '') {
-    const item = create('span', `badge ${className}`.trim());
-    item.append(create('small', '', label));
-    item.append(create('strong', '', value));
-    return item;
-  }
-
-  async function openFile(document, button) {
-    if (!document.ruta || !(button instanceof HTMLButtonElement)) return;
+  async function openFile(item, button) {
+    if (!item.ruta || !(button instanceof HTMLButtonElement)) return;
     const previous = button.textContent;
     button.disabled = true;
     button.textContent = 'Abrindo…';
     try {
-      const blob = await portalRequest('/api/documentacion', 'obterFicheiroDocumentacion', { ruta: document.ruta, clase: document.clase }, { blob: true });
+      const blob = await portalRequest('/api/documentacion', 'obterFicheiroDocumentacion', { ruta: item.ruta, clase: item.clase }, { blob: true });
       if (fileUrl) URL.revokeObjectURL(fileUrl);
       fileUrl = URL.createObjectURL(blob);
       window.open(fileUrl, '_blank', 'noopener,noreferrer');
@@ -176,38 +167,38 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (count instanceof HTMLElement) count.textContent = String(filtered.length);
     if (empty instanceof HTMLElement) empty.hidden = filtered.length > 0;
 
-    filtered.forEach((document) => {
+    filtered.forEach((item) => {
       const card = create('article', 'document-card');
       const header = create('header', 'document-card-header');
       const copy = create('div', 'document-copy');
-      copy.append(create('span', 'document-kind', document.organo || document.tipo || 'Documento'));
-      copy.append(create('h3', '', document.titulo || 'Documento sen título'));
+      copy.append(create('span', 'document-kind', item.organo || item.tipo || 'Documento'));
+      copy.append(create('h3', '', item.titulo || 'Documento sen título'));
       const meta = create('p', 'document-meta');
-      [document.data, document.organismo].filter(Boolean).forEach((value, index) => {
+      [item.data, item.organismo].filter(Boolean).forEach((value, index) => {
         if (index) meta.append(' · ');
         meta.append(String(value));
       });
       copy.append(meta);
       header.append(copy);
-
-      const badges = create('div', 'document-badges');
-      badges.append(badge('Documento', document.estado || 'Sen estado', normalise(document.estado).includes('pendente') ? 'is-pending' : ''));
-      badges.append(badge('Nivel de acceso', document.nivel || 'Coralistas', 'is-access'));
-      header.append(badges);
       card.append(header);
 
-      if (document.descricion) card.append(create('p', 'document-description', document.descricion));
+      const accessInfo = create('div', 'document-access-info');
+      accessInfo.append(create('span', '', `Documento: ${item.estado || 'Sen estado'}`));
+      accessInfo.append(create('span', '', `Nivel de acceso: ${item.nivel || 'Coralistas'}`));
+      card.append(accessInfo);
+
+      if (item.descricion) card.append(create('p', 'document-description', item.descricion));
 
       const footer = create('footer', 'document-card-footer');
       const details = create('span', 'document-details');
       const parts = [];
-      if (document.numero) parts.push(`Acta nº ${document.numero}`);
-      if (document.tipoSesion) parts.push(`Sesión ${normalise(document.tipoSesion)}`);
-      if (document.dataAprobacion) parts.push(`Aprobada o ${document.dataAprobacion}`);
+      if (item.numero) parts.push(`Acta nº ${item.numero}`);
+      if (item.tipoSesion) parts.push(`Sesión ${normalise(item.tipoSesion)}`);
+      if (item.dataAprobacion) parts.push(`Aprobada o ${item.dataAprobacion}`);
       details.textContent = parts.join(' · ');
       const button = create('button', 'open-document', activeTab === 'actas' ? 'Ver acta' : 'Ver documento');
       button.type = 'button';
-      button.addEventListener('click', () => openFile(document, button));
+      button.addEventListener('click', () => openFile(item, button));
       footer.append(details, button);
       card.append(footer);
       list.append(card);
@@ -218,8 +209,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     activeTab = tab;
     document.querySelectorAll('.document-tabs button').forEach((button) => button.classList.toggle('is-active', button.getAttribute('data-tab') === tab));
     const section = sections[tab] || sections.xeral;
-    const eyebrow = document.querySelector('#section-eyebrow');
-    const title = document.querySelector('#section-title');
+    const eyebrow = q('#section-eyebrow');
+    const title = q('#section-title');
     if (eyebrow instanceof HTMLElement) eyebrow.textContent = section[0];
     if (title instanceof HTMLElement) title.textContent = section[1];
     if (search instanceof HTMLInputElement) search.value = '';
@@ -291,18 +282,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .section-heading p { margin: 0; color: #716a65; font-size: .82rem; }
   .documents-list { display: grid; gap: .8rem; }
   .document-card { padding: 1.2rem 1.25rem; border: 1px solid #ddd7d2; border-left: 4px solid var(--color-principal); background: #fff; box-shadow: 0 8px 22px rgba(50, 40, 35, .035); }
-  .document-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.2rem; }
+  .document-card-header { display: block; }
   .document-copy { min-width: 0; }
   .document-kind { color: var(--color-acento); font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
   .document-card h3 { margin: .22rem 0 .35rem; color: #302c29; font-size: 1.08rem; }
   .document-meta, .document-description { margin: 0; color: #6a635f; font-size: .84rem; line-height: 1.55; }
+  .document-access-info { display: flex; flex-wrap: wrap; gap: .45rem 1.4rem; margin-top: .72rem; color: #6a635f; font-size: .78rem; font-weight: 400; }
+  .document-access-info span { display: block; font-weight: 400; }
   .document-description { margin-top: .75rem; max-width: 900px; }
-  .document-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
-  .badge { display: grid; gap: .08rem; min-width: 118px; padding: .45rem .62rem; border-radius: 4px; background: #eee9e5; color: #554f4b; white-space: nowrap; }
-  .badge small { font-size: .58rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; opacity: .72; }
-  .badge strong { font-size: .72rem; font-weight: 800; }
-  .badge.is-pending { background: #f5e8cc; color: #765610; }
-  .badge.is-access { background: #efe6e8; color: var(--color-principal); }
   .document-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 1rem; padding-top: .85rem; border-top: 1px solid #eee9e5; }
   .document-details { color: #817974; font-size: .76rem; }
   .open-document { min-width: 116px; padding: .62rem .85rem; }
@@ -319,8 +306,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   @media (max-width: 620px) {
     .documents-main { padding: 1.1rem .9rem 3rem; }
     .account-card, .filters { grid-template-columns: 1fr; }
-    .document-card-header, .document-card-footer, .section-heading { align-items: stretch; flex-direction: column; }
-    .document-badges { justify-content: flex-start; }
+    .document-card-footer, .section-heading { align-items: stretch; flex-direction: column; }
+    .document-access-info { display: grid; gap: .2rem; }
     .open-document { width: 100%; }
   }
 </style>
