@@ -12,21 +12,45 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   <main id="portal-shell" class="portal-shell">
     <section class="portal-hero" aria-labelledby="portal-title">
       <div class="portal-intro">
-        <span class="portal-eyebrow">Espazo privado</span>
-        <h1 id="portal-title">Portal do Coralista</h1>
-        <p class="portal-lead">
-          Un punto de encontro para consultar a información interna da Coral,
-          acceder ao repertorio, coñecer os próximos concertos e colaborar no
-          arquivo fotográfico da Sociedade.
-        </p>
+        <header class="portal-heading">
+          <div>
+            <span class="portal-eyebrow">Espazo privado</span>
+            <h1 id="portal-title">Portal do Coralista</h1>
+            <p class="portal-lead">
+              Consulta a información interna da Coral, accede ao repertorio,
+              coñece os próximos concertos e colabora no arquivo da Sociedade.
+            </p>
+          </div>
 
-        <div class="portal-feature-grid" aria-label="Contidos do portal">
-          <article><span>01</span><strong>Concertos</strong><p>Convocatorias, horarios, programa e información práctica.</p></article>
-          <article><span>02</span><strong>Repertorio</strong><p>Partituras, audios por corda, vídeos e notas de traballo.</p></article>
-          <article><span>03</span><strong>Ensaios</strong><p>Calendario, avisos, asistencia e materiais de preparación.</p></article>
-          <article><span>04</span><strong>Galería</strong><p>Consulta, achega e revisión das fotografías da Coral.</p></article>
-          <article><span>05</span><strong>Documentación</strong><p>Actas, estatutos, normativa e información interna.</p></article>
-          <article><span>06</span><strong>Perfil</strong><p>Datos persoais, voz, contacto e preferencias do usuario.</p></article>
+          <div id="session-card" class="session-card" hidden>
+            <span>Conta identificada</span>
+            <strong id="dashboard-email"></strong>
+            <button type="button" id="logout-button">Pechar sesión</button>
+          </div>
+        </header>
+
+        <div id="portal-feature-grid" class="portal-feature-grid is-locked" aria-label="Contidos do portal">
+          <a class="portal-feature is-active" href="/portal/concertos/">
+            <span>01</span><strong>Concertos</strong><p>Convocatorias, horarios, programas e información práctica.</p><b aria-hidden="true">→</b>
+          </a>
+          <a class="portal-feature is-active" href="/portal/repertorio/">
+            <span>02</span><strong>Repertorio</strong><p>Partituras, audios por corda, vídeos e notas de traballo.</p><b aria-hidden="true">→</b>
+          </a>
+          <article class="portal-feature is-disabled">
+            <span>03</span><strong>Ensaios</strong><p>Calendario, avisos, asistencia e materiais de preparación.</p><em>Próximamente</em>
+          </article>
+          <a class="portal-feature is-active" href="/portal/fotos/">
+            <span>04</span><strong>Galería e fotografías</strong><p>Consulta e achega novas fotografías ao arquivo da Coral.</p><b aria-hidden="true">→</b>
+          </a>
+          <a class="portal-feature is-active" href="/portal/documentacion/">
+            <span>05</span><strong>Documentación</strong><p>Actas, estatutos, transparencia e documentación interna.</p><b aria-hidden="true">→</b>
+          </a>
+          <a class="portal-feature is-active" href="/portal/perfil/">
+            <span>06</span><strong>O meu perfil</strong><p>Datos persoais, contacto e preferencias da túa conta.</p><b aria-hidden="true">→</b>
+          </a>
+          <a id="photo-review-link" class="portal-feature is-active is-admin" href="/portal/revision-fotos/" hidden>
+            <span>07</span><strong>Revisión de fotografías</strong><p>Aproba, rexeita e completa a información das imaxes recibidas.</p><b aria-hidden="true">→</b>
+          </a>
         </div>
       </div>
 
@@ -34,10 +58,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
         <div id="auth-options">
           <span class="access-kicker">Acceso reservado</span>
           <h2 id="auth-title">Identifícate para continuar</h2>
-          <p>
-            Emprega a conta autorizada pola Sociedade Coral Polifónica de
-            Pontevedra.
-          </p>
+          <p>Emprega a conta autorizada pola Sociedade Coral Polifónica de Pontevedra.</p>
 
           <button type="button" class="btn-google" id="google-login">
             <span aria-hidden="true">G</span>
@@ -47,16 +68,9 @@ import PortalSidebar from '../components/PortalSidebar.astro';
           <div class="auth-separator" aria-hidden="true"><span>ou</span></div>
 
           <label for="email-socio">Correo electrónico</label>
-          <input
-            type="email"
-            id="email-socio"
-            autocomplete="email"
-            placeholder="nome@correo.gal"
-          />
+          <input type="email" id="email-socio" autocomplete="email" placeholder="nome@correo.gal" />
 
-          <button type="button" class="btn-email" id="email-link-login">
-            Recibir unha ligazón de acceso
-          </button>
+          <button type="button" class="btn-email" id="email-link-login">Recibir unha ligazón de acceso</button>
           <small>Non necesitas contrasinal. Enviarémosche unha ligazón ao correo.</small>
         </div>
 
@@ -70,71 +84,9 @@ import PortalSidebar from '../components/PortalSidebar.astro';
         <p id="portal-message" class="portal-message" role="status" aria-live="polite" hidden></p>
 
         <footer>
-          <p>
-            Es membro da agrupación pero aínda non tes acceso?
-            <a href="/contacto">Solicítao á Xunta Directiva</a>.
-          </p>
+          <p>Es membro da agrupación pero aínda non tes acceso? <a href="/contacto">Solicítao á Xunta Directiva</a>.</p>
         </footer>
       </aside>
-    </section>
-
-    <section id="private-dashboard" class="private-dashboard" hidden aria-labelledby="dashboard-title">
-      <div class="private-layout">
-        <div class="dashboard-main">
-          <header class="dashboard-header">
-        <div>
-          <span class="portal-eyebrow">Portal do Coralista</span>
-          <h2 id="dashboard-title">Benvido ao espazo privado</h2>
-          <p>
-            Desde aquí poderás acceder aos distintos servizos internos da Coral.
-          </p>
-        </div>
-        <div class="session-card">
-          <span>Conta identificada</span>
-          <strong id="dashboard-email"></strong>
-          <button type="button" id="logout-button">Pechar sesión</button>
-        </div>
-      </header>
-
-      <div class="dashboard-grid">
-        <a class="module-card module-active" href="/portal/fotos/">
-          <span class="module-number">01</span>
-          <div><strong>Achegar fotografías</strong><p>Envía novas imaxes ao arquivo da Coral para a súa revisión.</p></div>
-          <span class="module-arrow" aria-hidden="true">→</span>
-        </a>
-
-        <a id="photo-review-link" class="module-card module-admin" href="/portal/revision-fotos/" hidden>
-          <span class="module-number">02</span>
-          <div><strong>Revisión de fotografías</strong><p>Aproba, rexeita e completa a información das imaxes recibidas.</p></div>
-          <span class="module-arrow" aria-hidden="true">→</span>
-        </a>
-
-        <a class="module-card module-active" href="/portal/concertos/">
-          <span class="module-number">03</span>
-          <div><strong>Concertos</strong><p>Convocatorias, horarios, programas e arquivo de actuacións.</p></div>
-          <span class="module-arrow" aria-hidden="true">→</span>
-        </a>
-
-        <a class="module-card module-active" href="/portal/repertorio/">
-          <span class="module-number">04</span>
-          <div><strong>Repertorio</strong><p>Partituras, audios, concertos e información de cada obra.</p></div>
-          <span class="module-arrow" aria-hidden="true">→</span>
-        </a>
-
-        <article class="module-card module-soon">
-          <span class="module-number">05</span>
-          <div><strong>Ensaios</strong><p>Calendario, avisos, asistencia e materiais de traballo.</p></div>
-          <span class="module-state">Próximamente</span>
-        </article>
-
-        <a class="module-card module-active" href="/portal/documentacion/">
-          <span class="module-number">06</span>
-          <div><strong>Documentación</strong><p>Estatutos, actas, normativa e documentación interna.</p></div>
-          <span class="module-arrow" aria-hidden="true">→</span>
-        </a>
-          </div>
-        </div>
-      </div>
     </section>
   </main>
 
@@ -144,36 +96,17 @@ import PortalSidebar from '../components/PortalSidebar.astro';
       <span class="access-kicker">Primeiro acceso</span>
       <h2 id="privacy-title">Protección de datos e condicións de acceso</h2>
       <div class="privacy-text" id="privacy-text" tabindex="0">
-        <p>
-          Os datos facilitados serán tratados pola Sociedade Coral Polifónica de
-          Pontevedra coa finalidade de xestionar o acceso á zona privada da web e
-          á aplicación SCPP Xestión, así como as comunicacións e funcionalidades
-          internas vinculadas á entidade.
-        </p>
-        <p>
-          O acceso é persoal e non transferible. A persoa usuaria comprométese a
-          custodiar as súas credenciais e a empregar a información dispoñible
-          exclusivamente para os fins propios da Sociedade.
-        </p>
-        <p>
-          A aceptación quedará rexistrada coa data e hora, o correo electrónico,
-          a versión do texto legal e os identificadores internos da persoa
-          usuaria. Poderá solicitarse a retirada do consentimento ou o exercicio
-          dos dereitos correspondentes a través da páxina de contacto.
-        </p>
+        <p>Os datos facilitados serán tratados pola Sociedade Coral Polifónica de Pontevedra coa finalidade de xestionar o acceso á zona privada da web e á aplicación SCPP Xestión, así como as comunicacións e funcionalidades internas vinculadas á entidade.</p>
+        <p>O acceso é persoal e non transferible. A persoa usuaria comprométese a custodiar as súas credenciais e a empregar a información dispoñible exclusivamente para os fins propios da Sociedade.</p>
+        <p>A aceptación quedará rexistrada coa data e hora, o correo electrónico, a versión do texto legal e os identificadores internos da persoa usuaria. Poderá solicitarse a retirada do consentimento ou o exercicio dos dereitos correspondentes a través da páxina de contacto.</p>
       </div>
 
       <label class="privacy-consent" for="acepta-fines">
         <input id="acepta-fines" type="checkbox" />
-        <span>
-          Lin e acepto as condicións de acceso e o tratamento dos meus datos para
-          a xestión da zona privada da web e de SCPP Xestión.
-        </span>
+        <span>Lin e acepto as condicións de acceso e o tratamento dos meus datos para a xestión da zona privada da web e de SCPP Xestión.</span>
       </label>
 
-      <p id="privacy-message" class="privacy-message" role="status"
-        aria-live="polite" hidden></p>
-
+      <p id="privacy-message" class="privacy-message" role="status" aria-live="polite" hidden></p>
       <div class="privacy-actions">
         <button type="button" class="btn-secondary" id="privacy-logout">Cancelar e saír</button>
         <button type="button" class="btn-primary" id="portal-submit">Aceptar e continuar</button>
@@ -216,7 +149,8 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   const sessionStatus = document.querySelector('#session-status');
   const authenticatedEmail = document.querySelector('#authenticated-email');
   const dashboardEmail = document.querySelector('#dashboard-email');
-  const dashboard = document.querySelector('#private-dashboard');
+  const sessionCard = document.querySelector('#session-card');
+  const featureGrid = document.querySelector('#portal-feature-grid');
   const portalShell = document.querySelector('#portal-shell');
   const sidebarContainer = document.querySelector('#portal-sidebar-container');
   const privacyModal = document.querySelector('#privacy-modal');
@@ -232,6 +166,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   const sidebarLogout = document.querySelector('#portal-sidebar-logout');
   const privacyLogout = document.querySelector('#privacy-logout');
   const reviewLink = document.querySelector('#photo-review-link');
+  const accessCard = document.querySelector('.portal-access-card');
 
   let emailLinkPending = isSignInWithEmailLink(auth, window.location.href);
   let checkingUser = false;
@@ -272,24 +207,29 @@ import PortalSidebar from '../components/PortalSidebar.astro';
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
+  function setAuthenticatedLayout(active) {
+    if (portalShell instanceof HTMLElement) portalShell.classList.toggle('private-active', active);
+    if (sidebarContainer instanceof HTMLElement) sidebarContainer.hidden = !active;
+    if (sessionCard instanceof HTMLElement) sessionCard.hidden = !active;
+    if (featureGrid instanceof HTMLElement) featureGrid.classList.toggle('is-locked', !active);
+    if (accessCard instanceof HTMLElement) accessCard.hidden = active;
+  }
+
   function showSignedOut() {
+    setAuthenticatedLayout(false);
     if (authOptions instanceof HTMLElement) authOptions.hidden = false;
     if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = true;
-    if (dashboard instanceof HTMLElement) dashboard.hidden = true;
-    if (portalShell instanceof HTMLElement) portalShell.classList.remove('private-active');
-    if (sidebarContainer instanceof HTMLElement) sidebarContainer.hidden = true;
     if (privacyModal instanceof HTMLElement) privacyModal.hidden = true;
     document.body.classList.remove('modal-open');
     if (reviewLink instanceof HTMLElement) reviewLink.hidden = true;
   }
 
   function showChecking(email) {
+    setAuthenticatedLayout(true);
     if (authOptions instanceof HTMLElement) authOptions.hidden = true;
     if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = false;
     if (authenticatedEmail instanceof HTMLElement) authenticatedEmail.textContent = email;
-    if (dashboard instanceof HTMLElement) dashboard.hidden = true;
-    if (portalShell instanceof HTMLElement) portalShell.classList.remove('private-active');
-    if (sidebarContainer instanceof HTMLElement) sidebarContainer.hidden = true;
+    if (dashboardEmail instanceof HTMLElement) dashboardEmail.textContent = email;
   }
 
   function showPrivacyModal() {
@@ -314,9 +254,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
       body: JSON.stringify({ idToken, accion: action, version: VERSION_TEXTO_LEGAL, ...extra })
     });
     const result = await response.json().catch(() => null);
-    if (!response.ok || !result?.ok) {
-      throw new Error(result?.erro || result?.detalle || 'Non foi posible comprobar o acceso.');
-    }
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || result?.detalle || 'Non foi posible comprobar o acceso.');
     return result;
   }
 
@@ -335,15 +273,10 @@ import PortalSidebar from '../components/PortalSidebar.astro';
 
   async function showDashboard(user) {
     hidePrivacyModal();
-    if (authOptions instanceof HTMLElement) authOptions.hidden = true;
+    setAuthenticatedLayout(true);
     if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = true;
-    if (dashboard instanceof HTMLElement) dashboard.hidden = false;
-    if (portalShell instanceof HTMLElement) portalShell.classList.add('private-active');
-    if (sidebarContainer instanceof HTMLElement) sidebarContainer.hidden = false;
     if (dashboardEmail instanceof HTMLElement) dashboardEmail.textContent = user.email || '';
-    if (reviewLink instanceof HTMLElement) {
-      reviewLink.hidden = !(await requestPhotoAdmin().catch(() => false));
-    }
+    if (reviewLink instanceof HTMLElement) reviewLink.hidden = !(await requestPhotoAdmin().catch(() => false));
   }
 
   async function checkAccess(user) {
@@ -367,29 +300,19 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   googleButton?.addEventListener('click', async () => {
     hideMessage();
     setButton(googleButton, true, 'Conectando…');
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-    } catch (error) {
-      showMessage(error instanceof Error ? error.message : 'Non foi posible iniciar sesión con Google.');
-    } finally {
-      setButton(googleButton, false, 'Continuar con Google');
-    }
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+    catch (error) { showMessage(error instanceof Error ? error.message : 'Non foi posible iniciar sesión con Google.'); }
+    finally { setButton(googleButton, false, 'Continuar con Google'); }
   });
 
   emailButton?.addEventListener('click', async () => {
     const email = emailInput instanceof HTMLInputElement ? emailInput.value.trim().toLowerCase() : '';
-    if (!email) {
-      showMessage('Introduce o teu correo electrónico.');
-      return;
-    }
+    if (!email) { showMessage('Introduce o teu correo electrónico.'); return; }
     hideMessage();
     setButton(emailButton, true, 'Enviando…');
     try {
       localStorage.setItem(EMAIL_GARDADO, email);
-      await sendSignInLinkToEmail(auth, email, {
-        url: `${window.location.origin}/portal/`,
-        handleCodeInApp: true
-      });
+      await sendSignInLinkToEmail(auth, email, { url: `${window.location.origin}/portal/`, handleCodeInApp: true });
       showMessage('Enviámosche unha ligazón de acceso ao correo.', 'correcto');
     } catch (error) {
       showMessage(error instanceof Error ? error.message : 'Non foi posible enviar a ligazón.');
@@ -440,13 +363,8 @@ import PortalSidebar from '../components/PortalSidebar.astro';
     const email = storedEmail || window.prompt('Introduce o correo co que solicitaches a ligazón:') || '';
     if (email) {
       signInWithEmailLink(auth, email.trim().toLowerCase(), window.location.href)
-        .then(() => {
-          localStorage.removeItem(EMAIL_GARDADO);
-          cleanEmailLinkUrl();
-        })
-        .catch((error) => {
-          showMessage(error instanceof Error ? error.message : 'Non foi posible completar o acceso por correo.');
-        });
+        .then(() => { localStorage.removeItem(EMAIL_GARDADO); cleanEmailLinkUrl(); })
+        .catch((error) => showMessage(error instanceof Error ? error.message : 'Non foi posible completar o acceso por correo.'));
     }
   }
 </script>
@@ -454,17 +372,25 @@ import PortalSidebar from '../components/PortalSidebar.astro';
 <style>
   :global(body) { background: #f4f1ee; }
   .portal-shell { min-height: 100vh; }
-  .portal-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .75fr); gap: 4rem; align-items: center; min-height: 100vh; padding: 5rem clamp(1.5rem, 6vw, 7rem); }
-  .portal-intro { max-width: 860px; }
-  .portal-eyebrow, .access-kicker { display: inline-block; margin-bottom: 1rem; color: var(--color-principal); font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-  .portal-intro h1 { margin: 0; color: #24211f; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(3.2rem, 7vw, 6.7rem); font-weight: 400; line-height: .95; letter-spacing: -.045em; }
-  .portal-lead { max-width: 660px; margin: 2rem 0 2.7rem; color: #5c5652; font-size: 1.08rem; line-height: 1.8; }
-  .portal-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid #ddd7d1; background: #ddd7d1; }
-  .portal-feature-grid article { min-height: 138px; padding: 1.35rem; background: #f9f7f5; }
-  .portal-feature-grid span { display: block; margin-bottom: .8rem; color: var(--color-acento); font-size: .72rem; font-weight: 800; }
-  .portal-feature-grid strong { display: block; margin-bottom: .45rem; color: #2f2a27; font-size: 1rem; }
-  .portal-feature-grid p { margin: 0; color: #6a625d; font-size: .88rem; line-height: 1.55; }
-  .portal-access-card { padding: clamp(2rem, 4vw, 3rem); border: 1px solid #ded8d2; background: #fff; box-shadow: 0 24px 60px rgba(42, 32, 26, .08); }
+  .portal-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .75fr); gap: 3rem; align-items: start; min-height: 100vh; padding: 2.4rem clamp(1.5rem, 5vw, 5.5rem) 3rem; }
+  .portal-intro { max-width: 960px; }
+  .portal-heading { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; margin-bottom: 2rem; }
+  .portal-eyebrow, .access-kicker { display: inline-block; margin-bottom: .7rem; color: var(--color-principal); font-size: .76rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+  .portal-intro h1 { margin: 0; color: #24211f; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2.8rem, 5.5vw, 5.4rem); font-weight: 400; line-height: 1; letter-spacing: -.04em; }
+  .portal-lead { max-width: 690px; margin: 1.3rem 0 0; color: #5c5652; font-size: 1rem; line-height: 1.72; }
+  .portal-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .portal-feature { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: .3rem 1rem; min-height: 132px; padding: 1.25rem; border: 1px solid #ddd7d1; background: #fff; color: inherit; text-decoration: none; }
+  .portal-feature > span { grid-row: 1 / span 2; color: var(--color-acento); font-size: .72rem; font-weight: 800; }
+  .portal-feature strong { color: #2f2a27; font-size: 1rem; }
+  .portal-feature p { margin: 0; color: #6a625d; font-size: .86rem; line-height: 1.5; }
+  .portal-feature b { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--color-principal); font-size: 1.3rem; font-weight: 500; }
+  .portal-feature em { grid-column: 2; align-self: end; color: #8b837d; font-size: .68rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
+  .portal-feature.is-active { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+  .portal-feature.is-active:hover { transform: translateY(-2px); border-color: #bda9aa; box-shadow: 0 12px 30px rgba(68, 45, 45, .08); }
+  .portal-feature.is-disabled { background: #f2efec; }
+  .portal-feature-grid.is-locked .portal-feature { pointer-events: none; }
+  .portal-feature-grid.is-locked .portal-feature.is-active b { display: none; }
+  .portal-access-card { align-self: start; padding: clamp(2rem, 4vw, 3rem); border: 1px solid #ded8d2; background: #fff; box-shadow: 0 24px 60px rgba(42, 32, 26, .08); }
   .portal-access-card h2 { margin: 0 0 .9rem; color: #2d2825; font-family: Georgia, 'Times New Roman', serif; font-size: 2rem; font-weight: 400; }
   .portal-access-card p { color: #675f5a; line-height: 1.65; }
   .portal-access-card label { display: block; margin: 1.25rem 0 .45rem; color: #3c3632; font-size: .83rem; font-weight: 700; }
@@ -483,27 +409,13 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   .loading-line { height: 3px; margin-top: 1.5rem; overflow: hidden; background: #eee8e3; }
   .loading-line::after { content: ''; display: block; width: 45%; height: 100%; background: var(--color-principal); animation: portal-loading 1.2s ease-in-out infinite alternate; }
   @keyframes portal-loading { to { transform: translateX(120%); } }
-  .private-dashboard { min-height: 100vh; }
-  .private-layout { display: flex; min-height: 100vh; }
   .portal-sidebar-container { width: 282px; flex: 0 0 282px; }
-  .dashboard-main { flex: 1; min-width: 0; padding: 3rem clamp(1.5rem, 4vw, 4rem); }
-  .dashboard-header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; margin-bottom: 2.5rem; }
-  .dashboard-header h2 { margin: 0 0 .6rem; color: #24211f; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2.2rem, 4vw, 4rem); font-weight: 400; }
-  .dashboard-header p { margin: 0; color: #69615c; }
-  .session-card { min-width: 250px; padding: 1rem 1.1rem; border: 1px solid #ddd6d0; background: #fff; }
-  .session-card span { display: block; color: #7c746e; font-size: .72rem; text-transform: uppercase; }
-  .session-card strong { display: block; margin: .3rem 0 .8rem; color: #332e2b; font-size: .9rem; overflow-wrap: anywhere; }
-  .session-card button { border: 0; padding: 0; background: transparent; color: var(--color-principal); font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
-  .dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  .module-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; min-height: 142px; padding: 1.35rem; border: 1px solid #ddd6d0; background: #fff; color: inherit; text-decoration: none; }
-  .module-active { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-  .module-active:hover { transform: translateY(-2px); border-color: #bda9aa; box-shadow: 0 12px 30px rgba(68, 45, 45, .08); }
-  .module-number { align-self: start; color: var(--color-acento); font-size: .72rem; font-weight: 800; }
-  .module-card strong { display: block; margin-bottom: .45rem; color: #2d2926; font-size: 1rem; }
-  .module-card p { margin: 0; color: #6c645f; font-size: .87rem; line-height: 1.55; }
-  .module-arrow { color: var(--color-principal); font-size: 1.3rem; }
-  .module-state { align-self: start; padding: .3rem .45rem; border: 1px solid #ddd6d0; color: #8b837d; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
-  .module-soon { background: #f6f3f0; }
+  .session-card { min-width: 230px; padding: .9rem 1rem; border: 1px solid #ddd6d0; background: #fff; }
+  .session-card span { display: block; color: #7c746e; font-size: .7rem; text-transform: uppercase; }
+  .session-card strong { display: block; margin: .25rem 0 .65rem; color: #332e2b; font-size: .86rem; overflow-wrap: anywhere; }
+  .session-card button { border: 0; padding: 0; background: transparent; color: var(--color-principal); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+  .portal-shell.private-active .portal-hero { grid-template-columns: 1fr; }
+  .portal-shell.private-active .portal-intro { max-width: none; }
   .privacy-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1.2rem; }
   .privacy-modal[hidden] { display: none; }
   .privacy-backdrop { position: absolute; inset: 0; background: rgba(26, 21, 18, .68); backdrop-filter: blur(4px); }
@@ -523,18 +435,16 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   :global(body.modal-open) { overflow: hidden; }
 
   @media (max-width: 980px) {
-    .portal-hero { grid-template-columns: 1fr; gap: 2.5rem; padding-top: 3rem; padding-bottom: 3rem; }
-    .private-layout { flex-direction: column; }
-    .portal-sidebar-container { width: 100%; flex-basis: auto; }
+    .portal-hero { grid-template-columns: 1fr; gap: 2rem; padding-top: 1.5rem; }
+    .portal-heading { flex-direction: column; }
+    .session-card { width: 100%; }
   }
 
   @media (max-width: 700px) {
-    .portal-feature-grid, .dashboard-grid { grid-template-columns: 1fr; }
-    .portal-intro h1 { font-size: clamp(2.8rem, 17vw, 4.4rem); }
-    .dashboard-header { flex-direction: column; }
-    .session-card { width: 100%; }
-    .module-card { grid-template-columns: auto minmax(0, 1fr); }
-    .module-arrow, .module-state { grid-column: 2; justify-self: start; }
+    .portal-feature-grid { grid-template-columns: 1fr; }
+    .portal-intro h1 { font-size: clamp(2.6rem, 15vw, 4.2rem); }
+    .portal-feature { grid-template-columns: auto minmax(0, 1fr); }
+    .portal-feature b { grid-column: 2; grid-row: 3; justify-self: start; }
     .privacy-actions { flex-direction: column-reverse; }
     .privacy-actions button { width: 100%; }
   }
