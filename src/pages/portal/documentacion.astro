@@ -254,8 +254,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   window.addEventListener('beforeunload', () => { if (fileUrl) URL.revokeObjectURL(fileUrl); });
 </script>
 
-<style>
-  :global(body) { background: #f5f3f1; }
+<style is:global>
+  body { background: #f5f3f1; }
   .private-layout { display: flex; min-height: 100vh; }
   .documents-main { flex: 1; min-width: 0; padding: 2.1rem clamp(1.25rem, 3vw, 3.5rem) 4rem; }
   .private-page-header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; margin-bottom: 1.8rem; }
