@@ -9,18 +9,18 @@ export async function onRequestGet({ request, env }) {
   let html = await resposta.text();
   const melloras = [
     '<style>#concert-document-name{display:none!important}</style>',
-    '<script type="module" src="/js/concertos-media.js"></script>'
-  ].join('');
+    '<script type="module" src="/js/concertos-media.js"></script>',
+    '<script type="module" src="/js/concertos-cards.js"></script>'
+  ];
 
-  if (!html.includes('/js/concertos-media.js')) {
+  melloras.forEach((mellora) => {
+    const src = mellora.match(/src="([^"]+)"/)?.[1] || '';
+    const identificador = src || '#concert-document-name{display:none!important}';
+    if (html.includes(identificador)) return;
     html = html.includes('</body>')
-      ? html.replace('</body>', `${melloras}</body>`)
-      : `${html}${melloras}`;
-  } else if (!html.includes('#concert-document-name{display:none!important}')) {
-    html = html.includes('</head>')
-      ? html.replace('</head>', '<style>#concert-document-name{display:none!important}</style></head>')
-      : `<style>#concert-document-name{display:none!important}</style>${html}`;
-  }
+      ? html.replace('</body>', `${mellora}</body>`)
+      : `${html}${mellora}`;
+  });
 
   const cabeceiras = new Headers(resposta.headers);
   cabeceiras.delete('Content-Length');
