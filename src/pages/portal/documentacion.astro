@@ -36,22 +36,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         </nav>
 
         <section class="filters" aria-label="Filtros de documentación">
-          <label>
-            <span>Buscar</span>
-            <input id="document-search" type="search" placeholder="Título, descrición ou organismo" autocomplete="off" />
-          </label>
-          <label>
-            <span>Ano</span>
-            <select id="year-filter"><option value="">Todos</option></select>
-          </label>
-          <label>
-            <span>Estado</span>
-            <select id="state-filter"><option value="">Todos</option></select>
-          </label>
-          <label id="type-filter-label">
-            <span>Tipo</span>
-            <select id="type-filter"><option value="">Todos</option></select>
-          </label>
+          <label><span>Buscar</span><input id="document-search" type="search" placeholder="Título, descrición ou organismo" autocomplete="off" /></label>
+          <label><span>Ano</span><select id="year-filter"><option value="">Todos</option></select></label>
+          <label><span>Estado</span><select id="state-filter"><option value="">Todos</option></select></label>
+          <label id="type-filter-label"><span>Tipo</span><select id="type-filter"><option value="">Todos</option></select></label>
         </section>
 
         <header class="section-heading">
@@ -98,9 +86,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     administracion: ['Acceso restrinxido', 'Administración']
   };
 
-  const normalise = (value) => String(value || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
+  const normalise = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const create = (tag, className, content) => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -158,8 +144,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     });
   }
 
-  function badge(text, className = '') {
-    return create('span', `badge ${className}`.trim(), text);
+  function badge(label, value, className = '') {
+    const item = create('span', `badge ${className}`.trim());
+    item.append(create('small', '', label));
+    item.append(create('strong', '', value));
+    return item;
   }
 
   async function openFile(document, button) {
@@ -168,10 +157,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     button.disabled = true;
     button.textContent = 'Abrindo…';
     try {
-      const blob = await portalRequest('/api/documentacion', 'obterFicheiroDocumentacion', {
-        ruta: document.ruta,
-        clase: document.clase
-      }, { blob: true });
+      const blob = await portalRequest('/api/documentacion', 'obterFicheiroDocumentacion', { ruta: document.ruta, clase: document.clase }, { blob: true });
       if (fileUrl) URL.revokeObjectURL(fileUrl);
       fileUrl = URL.createObjectURL(blob);
       window.open(fileUrl, '_blank', 'noopener,noreferrer');
@@ -193,7 +179,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     filtered.forEach((document) => {
       const card = create('article', 'document-card');
       const header = create('header', 'document-card-header');
-      const copy = create('div', '');
+      const copy = create('div', 'document-copy');
       copy.append(create('span', 'document-kind', document.organo || document.tipo || 'Documento'));
       copy.append(create('h3', '', document.titulo || 'Documento sen título'));
       const meta = create('p', 'document-meta');
@@ -205,8 +191,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       header.append(copy);
 
       const badges = create('div', 'document-badges');
-      badges.append(badge(document.estado || 'Sen estado', normalise(document.estado).includes('pendente') ? 'is-pending' : ''));
-      badges.append(badge(document.nivel || 'Coralistas', 'is-access'));
+      badges.append(badge('Documento', document.estado || 'Sen estado', normalise(document.estado).includes('pendente') ? 'is-pending' : ''));
+      badges.append(badge('Nivel de acceso', document.nivel || 'Coralistas', 'is-access'));
       header.append(badges);
       card.append(header);
 
@@ -230,18 +216,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   function selectTab(tab) {
     activeTab = tab;
-    document.querySelectorAll('.document-tabs button').forEach((button) => {
-      button.classList.toggle('is-active', button.getAttribute('data-tab') === tab);
-    });
+    document.querySelectorAll('.document-tabs button').forEach((button) => button.classList.toggle('is-active', button.getAttribute('data-tab') === tab));
     const section = sections[tab] || sections.xeral;
     const eyebrow = document.querySelector('#section-eyebrow');
     const title = document.querySelector('#section-title');
     if (eyebrow instanceof HTMLElement) eyebrow.textContent = section[0];
     if (title instanceof HTMLElement) title.textContent = section[1];
     if (search instanceof HTMLInputElement) search.value = '';
-    [yearFilter, stateFilter, typeFilter].forEach((select) => {
-      if (select instanceof HTMLSelectElement) select.value = '';
-    });
+    [yearFilter, stateFilter, typeFilter].forEach((select) => { if (select instanceof HTMLSelectElement) select.value = ''; });
     drawFilters();
     drawDocuments();
   }
@@ -256,7 +238,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       const profile = savePortalSession(result.perfil || result.usuario || { email: auth.currentUser?.email, nivel: result.nivel });
       showProfile(profile);
       if (activeTab === 'administracion' && profile.nivel !== 'Administración') activeTab = 'xeral';
-      drawFilters();
       selectTab(activeTab);
       if (loading instanceof HTMLElement) loading.hidden = true;
       if (app instanceof HTMLElement) app.hidden = false;
@@ -269,19 +250,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   const cached = readPortalSession();
   if (cached) showProfile(cached);
-
   waitForPortalUser().then((user) => {
-    if (!user?.email) {
-      window.location.href = '/portal/';
-      return;
-    }
+    if (!user?.email) { window.location.href = '/portal/'; return; }
     showProfile(cached || { email: user.email, nivel: 'Comprobando…' });
     loadDocuments();
   });
 
-  document.querySelectorAll('.document-tabs button').forEach((button) => {
-    button.addEventListener('click', () => selectTab(button.getAttribute('data-tab') || 'xeral'));
-  });
+  document.querySelectorAll('.document-tabs button').forEach((button) => button.addEventListener('click', () => selectTab(button.getAttribute('data-tab') || 'xeral')));
   [search, yearFilter, stateFilter, typeFilter].forEach((control) => control?.addEventListener('input', drawDocuments));
   retryButton?.addEventListener('click', loadDocuments);
   logout?.addEventListener('click', () => closePortalSession());
@@ -317,12 +292,15 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .documents-list { display: grid; gap: .8rem; }
   .document-card { padding: 1.2rem 1.25rem; border: 1px solid #ddd7d2; border-left: 4px solid var(--color-principal); background: #fff; box-shadow: 0 8px 22px rgba(50, 40, 35, .035); }
   .document-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.2rem; }
+  .document-copy { min-width: 0; }
   .document-kind { color: var(--color-acento); font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
   .document-card h3 { margin: .22rem 0 .35rem; color: #302c29; font-size: 1.08rem; }
   .document-meta, .document-description { margin: 0; color: #6a635f; font-size: .84rem; line-height: 1.55; }
   .document-description { margin-top: .75rem; max-width: 900px; }
-  .document-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; }
-  .badge { padding: .28rem .5rem; border-radius: 999px; background: #eee9e5; color: #554f4b; font-size: .68rem; font-weight: 800; white-space: nowrap; }
+  .document-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
+  .badge { display: grid; gap: .08rem; min-width: 118px; padding: .45rem .62rem; border-radius: 4px; background: #eee9e5; color: #554f4b; white-space: nowrap; }
+  .badge small { font-size: .58rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; opacity: .72; }
+  .badge strong { font-size: .72rem; font-weight: 800; }
   .badge.is-pending { background: #f5e8cc; color: #765610; }
   .badge.is-access { background: #efe6e8; color: var(--color-principal); }
   .document-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 1rem; padding-top: .85rem; border-top: 1px solid #eee9e5; }
