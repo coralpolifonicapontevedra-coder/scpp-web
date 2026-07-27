@@ -1,0 +1,348 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Documentación" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="documentacion" logoutId="documentacion-logout" />
+
+    <main class="documents-main">
+      <header class="private-page-header">
+        <div>
+          <span class="section-kicker">Portal do Coralista</span>
+          <h1>Documentación</h1>
+          <p>Consulta actas, documentos institucionais, información de transparencia e documentación interna da Sociedade.</p>
+        </div>
+        <div class="account-card" aria-label="Conta e nivel de acceso">
+          <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
+          <span><small>Nivel de acceso</small><strong id="user-level">Comprobando…</strong></span>
+        </div>
+      </header>
+
+      <section id="loading" class="portal-state">Cargando a documentación…</section>
+      <section id="error-state" class="portal-state error-state" hidden>
+        <strong>Non foi posible cargar a documentación</strong>
+        <p id="error-message"></p>
+        <button id="retry-button" type="button">Tentar de novo</button>
+      </section>
+
+      <section id="documents-app" class="documents-app" hidden>
+        <nav class="document-tabs" aria-label="Seccións da documentación">
+          <button type="button" class="is-active" data-tab="xeral">Documentación xeral</button>
+          <button type="button" data-tab="actas">Actas</button>
+          <button type="button" data-tab="transparencia">Transparencia</button>
+          <button type="button" data-tab="administracion" id="admin-tab" hidden>Administración</button>
+        </nav>
+
+        <section class="filters" aria-label="Filtros de documentación">
+          <label>
+            <span>Buscar</span>
+            <input id="document-search" type="search" placeholder="Título, descrición ou organismo" autocomplete="off" />
+          </label>
+          <label>
+            <span>Ano</span>
+            <select id="year-filter"><option value="">Todos</option></select>
+          </label>
+          <label>
+            <span>Estado</span>
+            <select id="state-filter"><option value="">Todos</option></select>
+          </label>
+          <label id="type-filter-label">
+            <span>Tipo</span>
+            <select id="type-filter"><option value="">Todos</option></select>
+          </label>
+        </section>
+
+        <header class="section-heading">
+          <div><span id="section-eyebrow">Arquivo institucional</span><h2 id="section-title">Documentación xeral</h2></div>
+          <p><strong id="result-count">0</strong> documentos</p>
+        </header>
+
+        <div id="documents-list" class="documents-list"></div>
+        <p id="empty-state" class="empty-state" hidden>Non hai documentos que coincidan cos filtros seleccionados.</p>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { auth, closePortalSession, portalRequest, readPortalSession, savePortalSession, waitForPortalUser } from '../../lib/portal-session.js';
+
+  const loading = document.querySelector('#loading');
+  const app = document.querySelector('#documents-app');
+  const errorState = document.querySelector('#error-state');
+  const errorMessage = document.querySelector('#error-message');
+  const retryButton = document.querySelector('#retry-button');
+  const logout = document.querySelector('#documentacion-logout');
+  const emailNode = document.querySelector('#user-email');
+  const levelNode = document.querySelector('#user-level');
+  const adminTab = document.querySelector('#admin-tab');
+  const list = document.querySelector('#documents-list');
+  const empty = document.querySelector('#empty-state');
+  const count = document.querySelector('#result-count');
+  const search = document.querySelector('#document-search');
+  const yearFilter = document.querySelector('#year-filter');
+  const stateFilter = document.querySelector('#state-filter');
+  const typeFilter = document.querySelector('#type-filter');
+  const typeFilterLabel = document.querySelector('#type-filter-label');
+
+  let documents = [];
+  let activeTab = 'xeral';
+  let fileUrl = '';
+
+  const sections = {
+    xeral: ['Arquivo institucional', 'Documentación xeral'],
+    actas: ['Órganos de goberno', 'Actas'],
+    transparencia: ['Información económica', 'Transparencia'],
+    administracion: ['Acceso restrinxido', 'Administración']
+  };
+
+  const normalise = (value) => String(value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  const create = (tag, className, content) => {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (content !== undefined) element.textContent = String(content);
+    return element;
+  };
+
+  function showProfile(profile) {
+    if (emailNode instanceof HTMLElement) emailNode.textContent = profile?.email || auth.currentUser?.email || '—';
+    if (levelNode instanceof HTMLElement) levelNode.textContent = profile?.nivel || 'Coralistas';
+    if (adminTab instanceof HTMLElement) adminTab.hidden = profile?.nivel !== 'Administración';
+  }
+
+  function setOptions(select, values) {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const selected = select.value;
+    const first = select.firstElementChild?.cloneNode(true);
+    select.replaceChildren();
+    if (first) select.append(first);
+    [...new Set(values.filter(Boolean))].sort((a, b) => String(b).localeCompare(String(a), 'gl')).forEach((value) => {
+      const option = document.createElement('option');
+      option.value = String(value);
+      option.textContent = String(value);
+      select.append(option);
+    });
+    select.value = [...select.options].some((option) => option.value === selected) ? selected : '';
+  }
+
+  function sectionDocuments() {
+    return documents.filter((document) => document.seccion === activeTab);
+  }
+
+  function drawFilters() {
+    const current = sectionDocuments();
+    setOptions(yearFilter, current.map((document) => document.ano));
+    setOptions(stateFilter, current.map((document) => document.estado));
+    setOptions(typeFilter, current.map((document) => activeTab === 'actas' ? document.organo : document.tipo));
+    if (typeFilterLabel instanceof HTMLElement) {
+      const span = typeFilterLabel.querySelector('span');
+      if (span) span.textContent = activeTab === 'actas' ? 'Órgano' : 'Tipo';
+    }
+  }
+
+  function filteredDocuments() {
+    const query = normalise(search instanceof HTMLInputElement ? search.value : '');
+    const year = yearFilter instanceof HTMLSelectElement ? yearFilter.value : '';
+    const state = stateFilter instanceof HTMLSelectElement ? stateFilter.value : '';
+    const type = typeFilter instanceof HTMLSelectElement ? typeFilter.value : '';
+    return sectionDocuments().filter((document) => {
+      const text = normalise([document.titulo, document.descricion, document.organismo, document.tipo, document.organo].join(' '));
+      return (!query || text.includes(query))
+        && (!year || String(document.ano) === year)
+        && (!state || document.estado === state)
+        && (!type || (activeTab === 'actas' ? document.organo : document.tipo) === type);
+    });
+  }
+
+  function badge(text, className = '') {
+    return create('span', `badge ${className}`.trim(), text);
+  }
+
+  async function openFile(document, button) {
+    if (!document.ruta || !(button instanceof HTMLButtonElement)) return;
+    const previous = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Abrindo…';
+    try {
+      const blob = await portalRequest('/api/documentacion', 'obterFicheiroDocumentacion', {
+        ruta: document.ruta,
+        clase: document.clase
+      }, { blob: true });
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
+      fileUrl = URL.createObjectURL(blob);
+      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Non foi posible abrir o documento.');
+    } finally {
+      button.disabled = false;
+      button.textContent = previous || 'Ver documento';
+    }
+  }
+
+  function drawDocuments() {
+    if (!(list instanceof HTMLElement)) return;
+    const filtered = filteredDocuments();
+    list.replaceChildren();
+    if (count instanceof HTMLElement) count.textContent = String(filtered.length);
+    if (empty instanceof HTMLElement) empty.hidden = filtered.length > 0;
+
+    filtered.forEach((document) => {
+      const card = create('article', 'document-card');
+      const header = create('header', 'document-card-header');
+      const copy = create('div', '');
+      copy.append(create('span', 'document-kind', document.organo || document.tipo || 'Documento'));
+      copy.append(create('h3', '', document.titulo || 'Documento sen título'));
+      const meta = create('p', 'document-meta');
+      [document.data, document.organismo].filter(Boolean).forEach((value, index) => {
+        if (index) meta.append(' · ');
+        meta.append(String(value));
+      });
+      copy.append(meta);
+      header.append(copy);
+
+      const badges = create('div', 'document-badges');
+      badges.append(badge(document.estado || 'Sen estado', normalise(document.estado).includes('pendente') ? 'is-pending' : ''));
+      badges.append(badge(document.nivel || 'Coralistas', 'is-access'));
+      header.append(badges);
+      card.append(header);
+
+      if (document.descricion) card.append(create('p', 'document-description', document.descricion));
+
+      const footer = create('footer', 'document-card-footer');
+      const details = create('span', 'document-details');
+      const parts = [];
+      if (document.numero) parts.push(`Acta nº ${document.numero}`);
+      if (document.tipoSesion) parts.push(`Sesión ${normalise(document.tipoSesion)}`);
+      if (document.dataAprobacion) parts.push(`Aprobada o ${document.dataAprobacion}`);
+      details.textContent = parts.join(' · ');
+      const button = create('button', 'open-document', activeTab === 'actas' ? 'Ver acta' : 'Ver documento');
+      button.type = 'button';
+      button.addEventListener('click', () => openFile(document, button));
+      footer.append(details, button);
+      card.append(footer);
+      list.append(card);
+    });
+  }
+
+  function selectTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.document-tabs button').forEach((button) => {
+      button.classList.toggle('is-active', button.getAttribute('data-tab') === tab);
+    });
+    const section = sections[tab] || sections.xeral;
+    const eyebrow = document.querySelector('#section-eyebrow');
+    const title = document.querySelector('#section-title');
+    if (eyebrow instanceof HTMLElement) eyebrow.textContent = section[0];
+    if (title instanceof HTMLElement) title.textContent = section[1];
+    if (search instanceof HTMLInputElement) search.value = '';
+    [yearFilter, stateFilter, typeFilter].forEach((select) => {
+      if (select instanceof HTMLSelectElement) select.value = '';
+    });
+    drawFilters();
+    drawDocuments();
+  }
+
+  async function loadDocuments() {
+    if (loading instanceof HTMLElement) loading.hidden = false;
+    if (errorState instanceof HTMLElement) errorState.hidden = true;
+    if (app instanceof HTMLElement) app.hidden = true;
+    try {
+      const result = await portalRequest('/api/documentacion', 'listarDocumentacionPortal');
+      documents = Array.isArray(result.documentos) ? result.documentos : [];
+      const profile = savePortalSession(result.perfil || result.usuario || { email: auth.currentUser?.email, nivel: result.nivel });
+      showProfile(profile);
+      if (activeTab === 'administracion' && profile.nivel !== 'Administración') activeTab = 'xeral';
+      drawFilters();
+      selectTab(activeTab);
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (app instanceof HTMLElement) app.hidden = false;
+    } catch (error) {
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (errorState instanceof HTMLElement) errorState.hidden = false;
+      if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Produciuse un erro inesperado.';
+    }
+  }
+
+  const cached = readPortalSession();
+  if (cached) showProfile(cached);
+
+  waitForPortalUser().then((user) => {
+    if (!user?.email) {
+      window.location.href = '/portal/';
+      return;
+    }
+    showProfile(cached || { email: user.email, nivel: 'Comprobando…' });
+    loadDocuments();
+  });
+
+  document.querySelectorAll('.document-tabs button').forEach((button) => {
+    button.addEventListener('click', () => selectTab(button.getAttribute('data-tab') || 'xeral'));
+  });
+  [search, yearFilter, stateFilter, typeFilter].forEach((control) => control?.addEventListener('input', drawDocuments));
+  retryButton?.addEventListener('click', loadDocuments);
+  logout?.addEventListener('click', () => closePortalSession());
+  window.addEventListener('beforeunload', () => { if (fileUrl) URL.revokeObjectURL(fileUrl); });
+</script>
+
+<style>
+  :global(body) { background: #f5f3f1; }
+  .private-layout { display: flex; min-height: 100vh; }
+  .documents-main { flex: 1; min-width: 0; padding: 2.1rem clamp(1.25rem, 3vw, 3.5rem) 4rem; }
+  .private-page-header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; margin-bottom: 1.8rem; }
+  .section-kicker, .section-heading span { color: var(--color-acento); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  h1 { margin: .2rem 0 .55rem; color: var(--color-principal); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2rem, 4vw, 3.5rem); }
+  .private-page-header p { max-width: 760px; margin: 0; color: #625c58; line-height: 1.65; }
+  .account-card { display: grid; gap: .7rem; min-width: 250px; padding: 1rem 1.15rem; border: 1px solid #ded8d3; background: #fff; }
+  .account-card span { display: grid; gap: .12rem; }
+  .account-card small { color: #77706b; font-size: .67rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .account-card strong { color: #302c29; font-size: .86rem; overflow-wrap: anywhere; }
+  .portal-state { padding: 2rem; border: 1px solid #ddd6d1; background: #fff; color: #554f4b; }
+  .error-state { color: #6f2634; }
+  .error-state button, .open-document { border: 0; border-radius: 4px; background: var(--color-principal); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  .error-state button { margin-top: .7rem; padding: .65rem 1rem; }
+  .document-tabs { display: flex; gap: .35rem; overflow-x: auto; padding: .35rem; border: 1px solid #ded8d3; background: #fff; }
+  .document-tabs button { flex: 0 0 auto; padding: .72rem 1rem; border: 0; border-radius: 3px; background: transparent; color: #57514d; font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; }
+  .document-tabs button:hover, .document-tabs button.is-active { background: var(--color-principal); color: #fff; }
+  .filters { display: grid; grid-template-columns: minmax(230px, 2fr) repeat(3, minmax(130px, 1fr)); gap: .8rem; margin: 1rem 0 1.5rem; padding: 1rem; border: 1px solid #e1dcd7; background: #fff; }
+  .filters label { display: grid; gap: .35rem; }
+  .filters span { color: #5f5955; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+  .filters input, .filters select { width: 100%; min-height: 2.7rem; padding: .55rem .7rem; border: 1px solid #d7d0cb; border-radius: 3px; background: #fff; color: #302c29; font: inherit; }
+  .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 1.2rem 0 .85rem; }
+  .section-heading h2 { margin: .15rem 0 0; color: #312d2a; font-family: Georgia, 'Times New Roman', serif; font-size: 1.65rem; }
+  .section-heading p { margin: 0; color: #716a65; font-size: .82rem; }
+  .documents-list { display: grid; gap: .8rem; }
+  .document-card { padding: 1.2rem 1.25rem; border: 1px solid #ddd7d2; border-left: 4px solid var(--color-principal); background: #fff; box-shadow: 0 8px 22px rgba(50, 40, 35, .035); }
+  .document-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.2rem; }
+  .document-kind { color: var(--color-acento); font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .document-card h3 { margin: .22rem 0 .35rem; color: #302c29; font-size: 1.08rem; }
+  .document-meta, .document-description { margin: 0; color: #6a635f; font-size: .84rem; line-height: 1.55; }
+  .document-description { margin-top: .75rem; max-width: 900px; }
+  .document-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; }
+  .badge { padding: .28rem .5rem; border-radius: 999px; background: #eee9e5; color: #554f4b; font-size: .68rem; font-weight: 800; white-space: nowrap; }
+  .badge.is-pending { background: #f5e8cc; color: #765610; }
+  .badge.is-access { background: #efe6e8; color: var(--color-principal); }
+  .document-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 1rem; padding-top: .85rem; border-top: 1px solid #eee9e5; }
+  .document-details { color: #817974; font-size: .76rem; }
+  .open-document { min-width: 116px; padding: .62rem .85rem; }
+  .open-document:hover { filter: brightness(.92); }
+  .open-document:disabled { opacity: .65; cursor: wait; }
+  .empty-state { padding: 2rem; border: 1px dashed #cfc7c1; background: #faf8f6; color: #68615d; text-align: center; }
+  @media (max-width: 900px) {
+    .private-layout { display: block; }
+    .documents-main { padding-top: 1.4rem; }
+    .private-page-header { display: grid; }
+    .account-card { min-width: 0; grid-template-columns: 1fr 1fr; }
+    .filters { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 620px) {
+    .documents-main { padding: 1.1rem .9rem 3rem; }
+    .account-card, .filters { grid-template-columns: 1fr; }
+    .document-card-header, .document-card-footer, .section-heading { align-items: stretch; flex-direction: column; }
+    .document-badges { justify-content: flex-start; }
+    .open-document { width: 100%; }
+  }
+</style>
