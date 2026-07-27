@@ -7,12 +7,19 @@ export async function onRequestGet({ request, env }) {
   }
 
   let html = await resposta.text();
-  const script = '<script type="module" src="/js/concertos-media.js"></script>';
+  const melloras = [
+    '<style>#concert-document-name{display:none!important}</style>',
+    '<script type="module" src="/js/concertos-media.js"></script>'
+  ].join('');
 
   if (!html.includes('/js/concertos-media.js')) {
     html = html.includes('</body>')
-      ? html.replace('</body>', `${script}</body>`)
-      : `${html}${script}`;
+      ? html.replace('</body>', `${melloras}</body>`)
+      : `${html}${melloras}`;
+  } else if (!html.includes('#concert-document-name{display:none!important}')) {
+    html = html.includes('</head>')
+      ? html.replace('</head>', '<style>#concert-document-name{display:none!important}</style></head>')
+      : `<style>#concert-document-name{display:none!important}</style>${html}`;
   }
 
   const cabeceiras = new Headers(resposta.headers);
