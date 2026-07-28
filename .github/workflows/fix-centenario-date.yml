@@ -1,0 +1,40 @@
+name: Corrixir data do centenario
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-centenario-date.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix-date:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Actualizar data e retirar workflow temporal
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/centenario.astro')
+          text = path.read_text(encoding='utf-8')
+          old = '''  {
+            data: "2025",
+            titulo: "Xornada de conferencias",'''
+          new = '''  {
+            data: "22 de maio de 2025",
+            titulo: "Xornada de conferencias",'''
+          if old not in text:
+              raise SystemExit('Non se atopou o bloque esperado')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          rm .github/workflows/fix-centenario-date.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/centenario.astro .github/workflows/fix-centenario-date.yml
+          git commit -m "Engadir data á xornada de conferencias do centenario"
+          git push
