@@ -261,6 +261,7 @@ function construírRespostaPerfil_(contexto, persoa) {
     voz: texto('Voz'),
     cargo: texto('Cargo'),
     tipoSocio: texto('Tipo de socio'),
+    dataIncorporacionSCPP: formatarDataInputPerfil_(valor('DataIncorporacionSCPP')),
     telefono: texto('Teléfono'),
     correoElectronico: texto('Correo electrónico'),
     enderezo: texto('Enderezo'),
