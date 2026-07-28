@@ -1,10 +1,12 @@
+import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
+
 const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
 const TIMEOUT_REPERTORIO_MS = 55 * 1000;
-const TIMEOUT_ASISTENCIAS_MS = 25 * 1000;
-const TIMEOUT_FICHEIRO_MS = 30 * 1000;
+const TIMEOUT_ASISTENCIAS_MS = 30 * 1000;
+const TIMEOUT_FICHEIRO_MS = 40 * 1000;
 
 const cacheRespostas = new Map();
 const cacheTokens = new Map();
@@ -149,8 +151,8 @@ export async function onRequest({ request, env }) {
   if (request.method !== 'POST') {
     return json(405, { ok: false, erro: 'Método non permitido' });
   }
-  if (!env.APPS_SCRIPT_WEBAPP_URL || !env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
-    return json(500, { ok: false, erro: 'Falta a configuración segura do servizo' });
+  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
+    return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
   }
 
   let datos;
@@ -206,37 +208,32 @@ export async function onRequest({ request, env }) {
 
   const inicio = Date.now();
   try {
-    const resposta = await fetchConTempoLimite(
-      env.APPS_SCRIPT_WEBAPP_URL,
+    const { resultado, usouRespaldo, intento } = await obterJsonAppsScript(
+      env,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          token: env.WEB_WRITE_TOKEN,
-          accion,
-          email: usuario.email,
-          uidFirebase: usuario.uid,
-          ruta: String(datos.ruta || '').trim()
-        })
+        token: env.WEB_WRITE_TOKEN,
+        accion,
+        email: usuario.email,
+        uidFirebase: usuario.uid,
+        ruta: String(datos.ruta || '').trim()
       },
-      timeoutMs
+      {
+        timeoutMs,
+        attemptTimeoutMs: accion === 'listarRepertorioPortal' ? 18_000 : 12_000
+      }
     );
 
-    if (!resposta.ok) {
-      return json(502, { ok: false, erro: 'O servizo de repertorio respondeu cun erro' });
+    if (!resultado?.ok) {
+      return json(resultado?.erro === 'Usuario non autorizado' ? 403 : 400, {
+        ok: false,
+        erro: resultado?.erro || 'Non foi posible consultar o repertorio.'
+      });
     }
-
-    const texto = await resposta.text();
-    let resultado;
-    try {
-      resultado = JSON.parse(texto);
-    } catch {
-      return json(502, { ok: false, erro: 'O servizo devolveu unha resposta non válida' });
+    if (accion === 'obterFicheiroRepertorio') {
+      const resposta = respostaFicheiro(resultado);
+      if (usouRespaldo) resposta.headers.set('X-SCPP-AppScript', 'FALLBACK');
+      return resposta;
     }
-    if (!resultado.ok) {
-      return json(resultado.erro === 'Usuario non autorizado' ? 403 : 400, resultado);
-    }
-    if (accion === 'obterFicheiroRepertorio') return respostaFicheiro(resultado);
 
     if (duracionCache) {
       await gardarCachePersistente(request, accion, resultado, duracionCache);
@@ -244,16 +241,18 @@ export async function onRequest({ request, env }) {
 
     return json(200, resultado, {
       'X-SCPP-Cache': 'MISS',
+      'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
+      'X-SCPP-AppScript-Attempt': String(intento),
       'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
     });
   } catch (erro) {
-    console.error(erro);
-    if (erro instanceof Error && erro.name === 'AbortError') {
-      return json(504, {
-        ok: false,
-        erro: 'O servizo de repertorio tardou demasiado en responder. A páxina seguirá mostrando os datos básicos.'
-      });
-    }
-    return json(502, { ok: false, erro: 'Non foi posible contactar co servizo de repertorio' });
+    console.error('Erro no servizo de repertorio:', erro);
+    const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
+    return json(status, {
+      ok: false,
+      erro: accion === 'listarRepertorioPortal'
+        ? 'Os audios e ficheiros do repertorio non están dispoñibles neste momento. Os datos básicos poden seguir cargándose.'
+        : 'O servizo de repertorio non está dispoñible neste momento. Tenta de novo nuns segundos.'
+    });
   }
 }
