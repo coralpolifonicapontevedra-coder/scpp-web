@@ -183,7 +183,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       button.dataset.id = obra.id;
       button.classList.toggle('is-active', obra.id === obraActiva);
       const autoria = obra.compositor || obra.autorLetra || 'Autoría non indicada';
-      button.append(crear('span', 'work-label', `${obra.id} — ${obra.nomeObra} — ${autoria}`));
+      button.append(crear('span', 'work-label', `${obra.nomeObra} — ${autoria}`));
       worksList.append(button);
     });
   }
@@ -405,14 +405,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .resource-card div,.audio-heading,.concert-card div { display:grid; gap:.18rem; min-width:0; }
   .resource-card strong,.audio-heading strong,.concert-card strong { color:#393532; font-size:.8rem; }
   .resource-card small,.audio-heading small,.concert-card span,.concert-card small { color:#77716c; font-size:.68rem; }
-  .resource-button,.audio-play { min-height:2.25rem; padding:.48rem .75rem; border:1px solid var(--color-principal); border-radius:3px; background:#fff; color:var(--color-principal); font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.72rem; font-weight:700; cursor:pointer; }
-  .resource-button:hover,.audio-play:hover { background:#f7eff1; }
+  .resource-button,.audio-play { min-height:2.25rem; padding:.48rem .75rem; border:1px solid var(--color-principal); border-radius:3px; background:var(--color-principal); color:#fff; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.72rem; font-weight:700; cursor:pointer; }
+  .resource-button:hover,.audio-play:hover { background:#4f0c1a; }
   .resource-button:disabled,.audio-play:disabled { opacity:.55; cursor:wait; }
-  .audios-list :global(.audio-card) { display:grid; grid-template-columns:1fr; align-content:space-between; gap:.75rem; min-height:145px; padding:1rem; border:1px solid #d8d2cc; background:#fff; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; }
+  .audios-list :global(.audio-card) { display:grid; grid-template-columns:1fr; align-content:space-between; gap:.75rem; min-height:145px; padding:1rem; border:1px solid color-mix(in srgb,var(--color-principal) 55%,#fff); background:#fff; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; }
   .audios-list :global(.audio-heading) { display:block; text-align:left; }
-  .audios-list :global(.audio-heading strong) { color:#393532; font-size:.9rem; }
-  .audios-list :global(.audio-play) { width:100%; min-height:2.4rem; padding:.5rem .7rem; border:1px solid var(--color-principal); border-radius:3px; background:#fff; color:var(--color-principal); font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.75rem; font-weight:700; cursor:pointer; }
-  .audios-list :global(.audio-play:hover) { background:#f7eff1; }
+  .audios-list :global(.audio-heading strong) { color:var(--color-principal); font-size:.9rem; }
+  .audios-list :global(.audio-play) { width:100%; min-height:2.4rem; padding:.5rem .7rem; border:1px solid var(--color-principal); border-radius:3px; background:var(--color-principal); color:#fff; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.75rem; font-weight:700; cursor:pointer; }
+  .audios-list :global(.audio-play:hover) { background:#4f0c1a; }
   .audios-list :global(.audio-card audio) { width:100%; height:34px; }
   .concerts-list { grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; border-top:1px solid #d8d2cc; border-left:1px solid #d8d2cc; }
   .concert-card { display:grid; grid-template-columns:1fr; align-content:start; gap:.55rem; min-height:145px; padding:1rem; border:0; border-right:1px solid #d8d2cc; border-bottom:1px solid #d8d2cc; background:#fff; color:#393532!important; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; text-align:left; }
