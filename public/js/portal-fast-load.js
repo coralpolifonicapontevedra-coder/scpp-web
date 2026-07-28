@@ -322,6 +322,13 @@
     const body = parseBody(init);
 
     if (url.includes('/api/aceptacion') && body?.accion === 'comprobarAceptacion') {
+      if (location.pathname.startsWith('/portal/repertorio')) {
+        saveAcceptance(body);
+        return jsonResponse(
+          { ok: true, aceptacionVixente: true },
+          { 'X-SCPP-Acceptance-Cache': 'PORTAL-SESSION' }
+        );
+      }
       if (readAcceptance(body)) {
         return jsonResponse({ ok: true, aceptacionVixente: true }, { 'X-SCPP-Acceptance-Cache': 'HIT' });
       }
