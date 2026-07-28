@@ -1,0 +1,311 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+
+const albums = [
+  { title: 'Concerto do centenario', description: 'Concerto de 09-04-2025 de celebración do centenario da SCPP na igrexa conventual de San Francisco', date: '09/04/2025', year: '2025', place: 'Igrexa conventual de San Francisco', prefix: 'centenario', photos: [
+    '1v7KhxHmQpjz7YeVSsd6tfmL5puPKTt8J','10nA7cp6Dj6KzCYXDicVWExMdkX7z6ktf','1mEC032Rj3xjpsL_2epKKI7F72KeRgnO1','1Yw6418K295B_Dj-Y7xdV6nSYSZA6PjlB','1a0YMWfLOeGbI03Sj9ChYhK6fhUz7uSQ-','13c9yUt6JdFABw-AYC4oyXzNxVCdj6VPJ','12xa0r-L28zftcGkqUdd6uO4newe5PPM1','1id5fXTE91AMv2CUHG_V31FI_HzPw3dOG'
+  ]},
+  { title: '20/12/25 con BMP', description: '20/12/25 con BMP', date: '20/12/2025', year: '2025', place: 'Igrexa conventual de San Francisco', prefix: 'banda', photos: [
+    '1JJmMXkJa73ZDgK8OLsXvkITys-4rdvWK','1TRvWmCg-ixv1nfwAbtPLoPTskjnJxTJq','1_4M5lDW6d8lKw9_z_IYiNYtyh0vwsqDN'
+  ]},
+  { title: 'Medalla Marcial del Adalid', description: 'Medalla Marcial del Adalid', date: '13/12/2025', year: '2025', place: 'Museo de Pontevedra', prefix: 'medalla', photos: [
+    '18WI_oQ5KvpoJSUq3R1AWT1npCYbiZXXu','1Cn-ebNP1q55kX15FWpsdgvdAtS0h9vNb','1_aMhEJGC990-kk9OHoF8Sy4PVlHgZyJf'
+  ]},
+  { title: 'Premio Otero Pedrayo', description: 'Premio Otero Pedrayo', date: '11/12/2025', year: '2025', place: '', prefix: 'otero', photos: [
+    '1D7sjPTDVo3_exlc-m7xmDeIWhpqqyfGe','1gONSaGmWo-0M9yTXeCk2zkr05bKF_tXE','14DQjoEgd2UTTzSwuHu6BXqkmn0GnPyrX'
+  ]},
+  { title: 'Concerto para o Banco de Alimentos', description: 'Concierto 12/11/25 con ENM para Banco de alimentos', date: '12/11/2025', year: '2025', place: 'Afundación Pontevedra', prefix: 'alimentos', photos: [
+    '1hhPiQao1PuOHbTMTtRdUR2VFsECaMSsh','1AfsfZCPdS7ovPPYyzYl2ZEDVhF_uMHuz','1AMGMjenf4tB6BJUt7R5uphmmInqhtSkv'
+  ]},
+  { title: 'Jornada de conferencias', description: 'Jornada Conferencias 22/11/25', date: '22/11/2025', year: '2025', place: 'Pontevedra', prefix: 'xornada', photos: [
+    '1mSNZYp0l3xNbzNlTcEcjVmIdZEan0EJt','1XWzzWWggYFH2EFzvesh6UnqcB5-0JIpR','1bdRxmJbD3XHPHcqELtY6tBrOaRNESJGk'
+  ]},
+  { title: 'Cantigas de Martín Códax en Santiago', description: 'Fotos Concerto 11 nov2023 Santiago. Cantigas Martín Códax', date: '11/11/2023', year: '2023', place: 'Santiago de Compostela', prefix: 'codax', photos: [
+    '1k5o49yxkt7mT47rHzdQmnjdVtDpEkpVK','1ryQ_YAcJ9c7xfuCoRme0tGruQ0kc1EQI','1qRBWVxxcgS972FqZC41tKEspmJ3CfjEI'
+  ]}
+];
+const total = albums.reduce((sum, album) => sum + album.photos.length, 0);
+const imageUrl = (id, size = 'w1200') => `https://drive.google.com/thumbnail?id=${id}&sz=${size}`;
+---
+
+<BaseLayout title="Galería privada" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="galeria" logoutId="gallery-logout" />
+    <main class="gallery-main">
+      <header class="gallery-header">
+        <div>
+          <span>Arquivo fotográfico</span>
+          <h1>Galería privada</h1>
+          <p>Unha selección de fotografías da vida da Coral, organizada por concertos e acontecementos.</p>
+        </div>
+        <a href="/portal/fotos/" class="upload-link">＋ Subir fotografías</a>
+      </header>
+
+      <section id="gallery-state" class="gallery-state">Comprobando o teu acceso…</section>
+
+      <section id="gallery-shell" hidden>
+        <div class="gallery-controls">
+          <label>
+            <span>Buscar</span>
+            <input id="gallery-search" type="search" placeholder="Concerto, lugar ou ano…" />
+          </label>
+          <label>
+            <span>Ano</span>
+            <select id="gallery-year">
+              <option value="">Todos os anos</option>
+              <option value="2025">2025</option>
+              <option value="2023">2023</option>
+            </select>
+          </label>
+          <strong id="gallery-count">{total} fotografías</strong>
+        </div>
+
+        <div id="gallery-content" class="gallery-content">
+          {albums.map((album) => (
+            <article class="album" data-year={album.year} data-search={`${album.title} ${album.description} ${album.place} ${album.date}`.toLowerCase()}>
+              <header>
+                <div>
+                  <small>{album.date}{album.place ? ` · ${album.place}` : ''}</small>
+                  <h2>{album.title}</h2>
+                  <p>{album.description}</p>
+                </div>
+                <strong>{album.photos.length}</strong>
+              </header>
+              <div class="photo-grid">
+                {album.photos.map((id, index) => (
+                  <button
+                    class:list={['photo-card', index === 0 && 'cover']}
+                    type="button"
+                    data-photo
+                    data-url={imageUrl(id, 'w1800')}
+                    data-title={`${album.prefix}${index + 1}`}
+                    data-description={album.description}
+                    data-date={album.date}
+                    data-place={album.place}
+                  >
+                    <span class="photo-frame">
+                      <img src={imageUrl(id)} loading="lazy" decoding="async" alt={`${album.title}, fotografía ${index + 1}`} />
+                    </span>
+                    <span class="photo-label">
+                      <b>{album.prefix}{index + 1}</b>
+                      <small>{album.date}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+        <p id="gallery-empty" class="gallery-empty" hidden>Non hai fotografías que coincidan coa busca.</p>
+      </section>
+    </main>
+  </div>
+
+  <div id="gallery-viewer" class="viewer" hidden>
+    <button class="viewer-backdrop" data-close aria-label="Pechar o visor"></button>
+    <section class="viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="viewer-title">
+      <div class="viewer-photo">
+        <button id="viewer-prev" class="viewer-nav prev" type="button" aria-label="Fotografía anterior">‹</button>
+        <img id="viewer-image" alt="" />
+        <button id="viewer-next" class="viewer-nav next" type="button" aria-label="Fotografía seguinte">›</button>
+      </div>
+      <div class="viewer-copy">
+        <button class="viewer-close" type="button" data-close aria-label="Pechar">×</button>
+        <small id="viewer-position"></small>
+        <h2 id="viewer-title"></h2>
+        <p id="viewer-description"></p>
+        <dl>
+          <div><dt>Data</dt><dd id="viewer-date"></dd></div>
+          <div id="viewer-place-row"><dt>Lugar</dt><dd id="viewer-place"></dd></div>
+        </dl>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  auth.useDeviceLanguage();
+
+  const state = document.querySelector('#gallery-state');
+  const shell = document.querySelector('#gallery-shell');
+  const search = document.querySelector('#gallery-search');
+  const year = document.querySelector('#gallery-year');
+  const count = document.querySelector('#gallery-count');
+  const empty = document.querySelector('#gallery-empty');
+  const logout = document.querySelector('#gallery-logout');
+  const albums = [...document.querySelectorAll('.album')];
+  const photoButtons = [...document.querySelectorAll('[data-photo]')];
+  const viewer = document.querySelector('#gallery-viewer');
+  const viewerImage = document.querySelector('#viewer-image');
+  const viewerTitle = document.querySelector('#viewer-title');
+  const viewerDescription = document.querySelector('#viewer-description');
+  const viewerDate = document.querySelector('#viewer-date');
+  const viewerPlace = document.querySelector('#viewer-place');
+  const viewerPlaceRow = document.querySelector('#viewer-place-row');
+  const viewerPosition = document.querySelector('#viewer-position');
+  let current = -1;
+  let visiblePhotos = photoButtons;
+
+  async function hasAccess(user) {
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/aceptacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: 'comprobarAceptacion', version: 'PRIVACIDADE-WEB-1.0' })
+    });
+    const result = await response.json().catch(() => null);
+    return response.ok && result?.ok && result.aceptacionVixente === true;
+  }
+
+  function filterGallery() {
+    const query = search instanceof HTMLInputElement ? search.value.trim().toLowerCase() : '';
+    const selectedYear = year instanceof HTMLSelectElement ? year.value : '';
+    let total = 0;
+
+    albums.forEach((album) => {
+      if (!(album instanceof HTMLElement)) return;
+      const matches = (!query || String(album.dataset.search || '').includes(query)) &&
+        (!selectedYear || album.dataset.year === selectedYear);
+      album.hidden = !matches;
+      if (matches) total += album.querySelectorAll('[data-photo]').length;
+    });
+
+    visiblePhotos = photoButtons.filter((button) => !button.closest('.album')?.hidden);
+    if (count instanceof HTMLElement) count.textContent = `${total} ${total === 1 ? 'fotografía' : 'fotografías'}`;
+    if (empty instanceof HTMLElement) empty.hidden = total !== 0;
+  }
+
+  function updateViewer() {
+    const button = visiblePhotos[current];
+    if (!(button instanceof HTMLElement)) return;
+    const title = button.dataset.title || 'Fotografía';
+    if (viewerImage instanceof HTMLImageElement) {
+      viewerImage.src = button.dataset.url || '';
+      viewerImage.alt = title;
+    }
+    if (viewerTitle instanceof HTMLElement) viewerTitle.textContent = title;
+    if (viewerDescription instanceof HTMLElement) viewerDescription.textContent = button.dataset.description || '';
+    if (viewerDate instanceof HTMLElement) viewerDate.textContent = button.dataset.date || '';
+    if (viewerPlace instanceof HTMLElement) viewerPlace.textContent = button.dataset.place || '';
+    if (viewerPlaceRow instanceof HTMLElement) viewerPlaceRow.hidden = !button.dataset.place;
+    if (viewerPosition instanceof HTMLElement) viewerPosition.textContent = `${current + 1} de ${visiblePhotos.length}`;
+  }
+
+  function openViewer(button) {
+    current = visiblePhotos.indexOf(button);
+    if (current < 0 || !(viewer instanceof HTMLElement)) return;
+    updateViewer();
+    viewer.hidden = false;
+    document.body.classList.add('viewer-open');
+  }
+
+  function closeViewer() {
+    if (viewer instanceof HTMLElement) viewer.hidden = true;
+    document.body.classList.remove('viewer-open');
+    current = -1;
+  }
+
+  function move(offset) {
+    if (!visiblePhotos.length) return;
+    current = (current + offset + visiblePhotos.length) % visiblePhotos.length;
+    updateViewer();
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) return window.location.replace('/portal/');
+    try {
+      if (!(await hasAccess(user))) return window.location.replace('/portal/');
+      if (state instanceof HTMLElement) state.hidden = true;
+      if (shell instanceof HTMLElement) shell.hidden = false;
+    } catch {
+      window.location.replace('/portal/');
+    }
+  });
+
+  search?.addEventListener('input', filterGallery);
+  year?.addEventListener('change', filterGallery);
+  photoButtons.forEach((button) => button.addEventListener('click', () => openViewer(button)));
+  document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', closeViewer));
+  document.querySelector('#viewer-prev')?.addEventListener('click', () => move(-1));
+  document.querySelector('#viewer-next')?.addEventListener('click', () => move(1));
+  document.addEventListener('keydown', (event) => {
+    if (!(viewer instanceof HTMLElement) || viewer.hidden) return;
+    if (event.key === 'Escape') closeViewer();
+    if (event.key === 'ArrowLeft') move(-1);
+    if (event.key === 'ArrowRight') move(1);
+  });
+  logout?.addEventListener('click', async () => {
+    await signOut(auth);
+    window.location.href = '/portal/';
+  });
+</script>
+
+<style>
+  :global(body) { background:#f5f3f0; }
+  .private-layout { display:grid; grid-template-columns:282px minmax(0,1fr); min-height:100vh; }
+  .gallery-main { width:100%; max-width:1500px; margin:0 auto; padding:2.7rem clamp(1.3rem,4vw,4.2rem) 5rem; }
+  .gallery-header { display:flex; justify-content:space-between; gap:2rem; margin-bottom:2rem; }
+  .gallery-header > div > span { color:var(--color-acento); font-size:.72rem; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+  .gallery-header h1 { margin:.3rem 0 .5rem; color:var(--color-principal); font:400 clamp(2.4rem,4.5vw,4.1rem)/1 Georgia,serif; }
+  .gallery-header p { max-width:680px; margin:0; color:#665f5a; line-height:1.65; }
+  .upload-link { align-self:start; padding:.8rem 1rem; border:1px solid #cabdc0; background:#fff; color:var(--color-principal); font-size:.84rem; font-weight:800; text-decoration:none; white-space:nowrap; }
+  .gallery-state,.gallery-empty { padding:5rem 1rem; color:#746c67; text-align:center; }
+  .gallery-controls { display:grid; grid-template-columns:1fr 210px auto; gap:1rem; align-items:end; margin-bottom:1.4rem; padding:1rem; border:1px solid #ded8d2; background:#fff; }
+  .gallery-controls label { display:grid; gap:.35rem; color:#655e59; font-size:.7rem; font-weight:800; text-transform:uppercase; }
+  .gallery-controls input,.gallery-controls select { min-height:44px; padding:.7rem .8rem; border:1px solid #d4ccc6; background:#fff; font:inherit; }
+  .gallery-controls > strong { min-width:130px; padding:.8rem; border-left:1px solid #e1dad5; color:var(--color-principal); text-align:center; }
+  .gallery-content { display:grid; gap:2.4rem; }
+  .album { padding:1.2rem; border:1px solid #ded8d2; background:#fff; box-shadow:0 14px 32px rgba(55,42,35,.04); }
+  .album[hidden],#gallery-shell[hidden],.gallery-empty[hidden],.viewer[hidden] { display:none; }
+  .album > header { display:flex; justify-content:space-between; gap:1rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid #ece7e2; }
+  .album header small { color:var(--color-acento); font-size:.69rem; font-weight:800; }
+  .album h2 { margin:.22rem 0 0; color:#342e2b; font:400 clamp(1.35rem,2.4vw,2rem)/1.25 Georgia,serif; }
+  .album header p { max-width:850px; margin:.4rem 0 0; color:#6d6560; font-size:.83rem; }
+  .album header > strong { width:34px; height:34px; display:grid; place-items:center; border:1px solid #ddd5cf; border-radius:50%; color:#7b716b; }
+  .photo-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-auto-flow:dense; gap:.8rem; }
+  .photo-card { overflow:hidden; padding:0; border:1px solid #e3ddd8; background:#f2efec; font:inherit; text-align:left; cursor:zoom-in; }
+  .photo-card.cover { grid-column:span 2; grid-row:span 2; }
+  .photo-frame { display:block; min-height:170px; aspect-ratio:4/3; overflow:hidden; background:#ece8e4; }
+  .cover .photo-frame { min-height:355px; height:100%; aspect-ratio:auto; }
+  .photo-frame img { width:100%; height:100%; object-fit:cover; transition:transform .3s ease; }
+  .photo-label { display:flex; justify-content:space-between; gap:.6rem; padding:.7rem; }
+  .photo-label b { overflow:hidden; color:#3c3632; font-size:.8rem; text-overflow:ellipsis; white-space:nowrap; }
+  .photo-label small { color:#8b817b; font-size:.66rem; white-space:nowrap; }
+  .photo-card:hover { border-color:#baa7aa; box-shadow:0 10px 24px rgba(64,42,43,.09); }
+  .photo-card:hover img { transform:scale(1.035); }
+  .viewer { position:fixed; inset:0; z-index:1200; display:grid; place-items:center; padding:1.2rem; }
+  .viewer-backdrop { position:absolute; inset:0; border:0; background:rgba(24,19,17,.84); backdrop-filter:blur(5px); }
+  .viewer-dialog { position:relative; display:grid; grid-template-columns:minmax(0,1.5fr) minmax(280px,.55fr); width:min(1360px,100%); max-height:calc(100vh - 2.4rem); overflow:hidden; background:#151210; }
+  .viewer-photo { position:relative; display:grid; min-height:72vh; place-items:center; background:#090807; }
+  .viewer-photo img { max-width:100%; max-height:calc(100vh - 2.4rem); object-fit:contain; }
+  .viewer-nav { position:absolute; z-index:2; top:50%; width:44px; height:54px; transform:translateY(-50%); border:1px solid #ffffff44; background:#171210aa; color:#fff; font-size:2rem; cursor:pointer; }
+  .viewer-nav.prev { left:1rem; } .viewer-nav.next { right:1rem; }
+  .viewer-copy { position:relative; overflow:auto; padding:2rem; background:#fff; }
+  .viewer-close { position:absolute; top:.8rem; right:.8rem; width:38px; height:38px; border:0; background:#f0ebe8; font-size:1.6rem; cursor:pointer; }
+  .viewer-copy > small { color:var(--color-acento); font-size:.7rem; font-weight:800; }
+  .viewer-copy h2 { margin:1.2rem 2.5rem .8rem 0; color:#342e2b; font:400 clamp(1.8rem,3vw,2.8rem)/1.1 Georgia,serif; }
+  .viewer-copy p { color:#685f5a; font-size:.9rem; line-height:1.65; }
+  .viewer-copy dl { display:grid; gap:.7rem; margin-top:1.4rem; padding-top:1.2rem; border-top:1px solid #e5dfda; }
+  .viewer-copy dl div { display:grid; grid-template-columns:65px 1fr; gap:.7rem; }
+  .viewer-copy dl div[hidden] { display:none; }
+  .viewer-copy dt { color:#887e78; font-size:.68rem; font-weight:800; text-transform:uppercase; }
+  .viewer-copy dd { margin:0; color:#403936; font-size:.82rem; }
+  :global(body.viewer-open) { overflow:hidden; }
+  @media(max-width:1150px) { .photo-grid { grid-template-columns:repeat(3,1fr); } }
+  @media(max-width:900px) { .private-layout { grid-template-columns:1fr; } .photo-grid { grid-template-columns:repeat(2,1fr); } .viewer-dialog { grid-template-columns:1fr; overflow:auto; } .viewer-photo { min-height:55vh; } }
+  @media(max-width:650px) { .gallery-header { flex-direction:column; } .upload-link { width:100%; text-align:center; } .gallery-controls { grid-template-columns:1fr; } .gallery-controls > strong { border-left:0; border-top:1px solid #e1dad5; } .album > header { flex-direction:column; } .photo-grid { grid-template-columns:1fr; } .photo-card.cover { grid-column:auto; grid-row:auto; } .cover .photo-frame { min-height:220px; aspect-ratio:4/3; } .viewer { padding:.5rem; } .viewer-copy { padding:1.3rem; } }
+</style>
