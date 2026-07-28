@@ -17,7 +17,6 @@ const ruta = Astro.url.pathname;
 const eZonaPortal = ruta === '/portal' || ruta.startsWith('/portal/');
 const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
 const eRepertorio = ruta === '/portal/repertorio' || ruta === '/portal/repertorio/';
-const ePerfil = ruta === '/portal/perfil' || ruta === '/portal/perfil/';
 const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
 ---
 
@@ -86,67 +85,6 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
             });
           }
         });
-      </script>
-    )}
-
-    {ePerfil && (
-      <script is:inline>
-        (() => {
-          const ensureIncorporationFields = () => {
-            const summary = document.querySelector('.profile-facts');
-            if (summary && !summary.querySelector('#summary-incorporation-date')) {
-              const row = document.createElement('div');
-              row.innerHTML = '<dt>Incorporación</dt><dd id="summary-incorporation-date">—</dd>';
-              summary.append(row);
-            }
-
-            const memberType = document.querySelector('#member-type');
-            const memberField = memberType?.closest('label.field');
-            if (memberField && !document.querySelector('#incorporation-date')) {
-              const field = document.createElement('label');
-              field.className = 'field';
-              field.innerHTML = '<span>Data de incorporación á SCPP</span><input id="incorporation-date" type="date" readonly />';
-              memberField.insertAdjacentElement('afterend', field);
-            }
-          };
-
-          const formatDate = (value) => {
-            const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-            return match ? `${match[3]}/${match[2]}/${match[1]}` : '';
-          };
-
-          const applyProfile = (profile) => {
-            ensureIncorporationFields();
-            const value = String(profile?.dataIncorporacionSCPP || '');
-            const input = document.querySelector('#incorporation-date');
-            const summary = document.querySelector('#summary-incorporation-date');
-            if (input instanceof HTMLInputElement) input.value = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
-            if (summary) summary.textContent = formatDate(value) || 'Sen indicar';
-          };
-
-          ensureIncorporationFields();
-          const originalFetch = window.fetch.bind(window);
-          window.fetch = (...args) => {
-            const request = originalFetch(...args);
-            request.then((response) => {
-              const source = args[0];
-              const target = source instanceof Request ? source.url : String(source || '');
-              let pathname = '';
-              try {
-                pathname = new URL(target, window.location.origin).pathname;
-              } catch {
-                return;
-              }
-              if (pathname !== '/api/perfil') return;
-              response.clone().json()
-                .then((result) => {
-                  if (result?.ok && result?.perfil) applyProfile(result.perfil);
-                })
-                .catch(() => {});
-            }).catch(() => {});
-            return request;
-          };
-        })();
       </script>
     )}
   </body>
