@@ -1,0 +1,127 @@
+const URL_RESPALDO_SCPP = 'https://script.google.com/macros/s/AKfycbwKBDO5bvPxlXhsJTDvQHtx313rfN_BQIb3JX69X_qg6nZUOHDu183AGLh7JTIoN1a9/exec';
+
+const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
+
+export class AppsScriptError extends Error {
+  constructor(message, code = 'APPS_SCRIPT_UNAVAILABLE', status = 0) {
+    super(message);
+    this.name = 'AppsScriptError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+function urlsAppsScript(env = {}) {
+  return [
+    env.APPS_SCRIPT_WEBAPP_URL,
+    env.APPS_SCRIPT_FALLBACK_URL,
+    URL_RESPALDO_SCPP
+  ]
+    .map((url) => String(url || '').trim())
+    .filter((url, index, all) => /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) && all.indexOf(url) === index);
+}
+
+async function fetchConLimite(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
+  try {
+    return await fetch(url, { ...options, redirect: 'follow', signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
+  const timeoutTotalMs = Math.max(4000, Number(options.timeoutMs) || 20000);
+  const urls = urlsAppsScript(env);
+  if (!urls.length) {
+    throw new AppsScriptError('Non hai ningunha implementación de Apps Script configurada.', 'APPS_SCRIPT_NOT_CONFIGURED');
+  }
+
+  const inicio = Date.now();
+  let ultimoEstado = 0;
+  let ultimoErro = null;
+
+  for (let index = 0; index < urls.length; index += 1) {
+    const restante = timeoutTotalMs - (Date.now() - inicio);
+    if (restante <= 1000) break;
+
+    const intentosRestantes = urls.length - index;
+    const tempoIntento = index === urls.length - 1
+      ? restante
+      : Math.max(2500, Math.min(6500, Math.floor(restante / intentosRestantes)));
+
+    try {
+      const resposta = await fetchConLimite(
+        urls[index],
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(corpo)
+        },
+        tempoIntento
+      );
+
+      ultimoEstado = resposta.status;
+      if (resposta.ok) {
+        return {
+          resposta,
+          urlUsada: urls[index],
+          usouRespaldo: index > 0,
+          intento: index + 1
+        };
+      }
+
+      if (!ESTADOS_RECUPERABLES.has(resposta.status)) {
+        return {
+          resposta,
+          urlUsada: urls[index],
+          usouRespaldo: index > 0,
+          intento: index + 1
+        };
+      }
+
+      console.warn(`Apps Script respondeu ${resposta.status}; probando a seguinte implementación.`);
+    } catch (erro) {
+      ultimoErro = erro;
+      console.warn('Fallou unha implementación de Apps Script; probando a seguinte.', erro);
+    }
+  }
+
+  if (ultimoErro instanceof Error && ultimoErro.name === 'AbortError') {
+    throw new AppsScriptError('O servizo externo tardou demasiado en responder.', 'APPS_SCRIPT_TIMEOUT', ultimoEstado);
+  }
+
+  throw new AppsScriptError(
+    'Non se puido contactar con ningunha implementación dispoñible de Apps Script.',
+    'APPS_SCRIPT_UNAVAILABLE',
+    ultimoEstado
+  );
+}
+
+export async function obterJsonAppsScript(env, corpo, options = {}) {
+  const resultadoFetch = await chamarAppsScriptRobusto(env, corpo, options);
+  const { resposta } = resultadoFetch;
+
+  if (!resposta.ok) {
+    throw new AppsScriptError(
+      'O servizo de datos non está dispoñible neste momento.',
+      'APPS_SCRIPT_HTTP_ERROR',
+      resposta.status
+    );
+  }
+
+  const texto = await resposta.text();
+  let resultado;
+  try {
+    resultado = JSON.parse(texto);
+  } catch {
+    throw new AppsScriptError(
+      'O servizo de datos devolveu unha resposta non válida.',
+      'APPS_SCRIPT_INVALID_RESPONSE',
+      resposta.status
+    );
+  }
+
+  return { ...resultadoFetch, resultado };
+}
