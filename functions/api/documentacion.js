@@ -5,7 +5,8 @@ const CACHE_RESPALDO_MS = 24 * 60 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
 const TIMEOUT_LISTADO_MS = 22 * 1000;
-const TIMEOUT_FICHEIRO_MS = 35 * 1000;
+const TIMEOUT_FICHEIRO_MS = 60 * 1000;
+const TIMEOUT_INTENTO_FICHEIRO_MS = 40 * 1000;
 
 const cacheTokens = new Map();
 const cacheDocumentacion = new Map();
@@ -174,7 +175,10 @@ async function gardarCachePersistente(request, email, payload) {
 }
 
 function respostaFicheiro(resultado) {
-  const binario = atob(String(resultado.base64 || ''));
+  const base64 = String(resultado.base64 || '');
+  if (!base64) return json(502, { ok: false, erro: 'O documento chegou baleiro.' });
+
+  const binario = atob(base64);
   const bytes = new Uint8Array(binario.length);
   for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
   const nome = String(resultado.nomeFicheiro || 'documento.pdf').replace(/[\r\n"]/g, '');
@@ -278,7 +282,10 @@ export async function onRequest(context) {
       const { resultado, usouRespaldo } = await obterJsonAppsScript(
         env,
         corpoAppsScript(env, usuario, accion, datos),
-        { timeoutMs: TIMEOUT_FICHEIRO_MS }
+        {
+          timeoutMs: TIMEOUT_FICHEIRO_MS,
+          attemptTimeoutMs: TIMEOUT_INTENTO_FICHEIRO_MS
+        }
       );
       if (!resultado?.ok) {
         return json(resultado?.erro === 'Usuario non autorizado' ? 403 : 400, {
