@@ -1,3 +1,5 @@
+import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
+
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -53,8 +55,8 @@ export async function onRequest({ request, env }) {
     return json(405, { ok: false, erro: 'Método non permitido' });
   }
 
-  if (!env.APPS_SCRIPT_WEBAPP_URL || !env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
-    return json(500, { ok: false, erro: 'Falta a configuración segura do servizo' });
+  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
+    return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
   }
 
   let datos;
@@ -89,34 +91,35 @@ export async function onRequest({ request, env }) {
   }
 
   try {
-    const resposta = await fetch(env.APPS_SCRIPT_WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
+    const { resultado, usouRespaldo } = await obterJsonAppsScript(
+      env,
+      {
         token: env.WEB_WRITE_TOKEN,
         accion,
         email: usuario.email,
         uidFirebase: usuario.uid,
         concertoId
-      })
-    });
+      },
+      { timeoutMs: 45_000, attemptTimeoutMs: 15_000 }
+    );
 
-    const texto = await resposta.text();
-    let resultado;
-    try {
-      resultado = JSON.parse(texto);
-    } catch {
-      return json(502, { ok: false, erro: 'O servizo devolveu unha resposta non válida' });
+    if (!resultado?.ok) {
+      const estado = resultado?.erro === 'Usuario non autorizado' ? 403 : 400;
+      return json(estado, {
+        ok: false,
+        erro: resultado?.erro || 'Non foi posible abrir o documento do concerto.'
+      });
     }
 
-    if (!resultado.ok) {
-      const estado = resultado.erro === 'Usuario non autorizado' ? 403 : 400;
-      return json(estado, resultado);
-    }
-
-    return respostaFicheiro(resultado);
+    const resposta = respostaFicheiro(resultado);
+    if (usouRespaldo) resposta.headers.set('X-SCPP-AppScript', 'FALLBACK');
+    return resposta;
   } catch (erro) {
-    console.error(erro);
-    return json(502, { ok: false, erro: 'Non foi posible contactar co servizo de concertos' });
+    console.error('Erro no servizo de concertos:', erro);
+    const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
+    return json(status, {
+      ok: false,
+      erro: 'O documento do concerto non está dispoñible neste momento. Tenta de novo nuns segundos.'
+    });
   }
 }
