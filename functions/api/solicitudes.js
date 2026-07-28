@@ -1,3 +1,5 @@
+import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
+
 const MAX_BODY_BYTES = 24 * 1024;
 const MAX_FORM_AGE_MS = 2 * 60 * 60 * 1000;
 const MIN_FORM_TIME_MS = 1500;
@@ -44,8 +46,8 @@ export async function onRequest({ request, env }) {
   if (request.method !== 'POST') {
     return json(405, { ok: false, erro: 'Método non permitido' });
   }
-  if (!env.APPS_SCRIPT_WEBAPP_URL || !env.WEB_WRITE_TOKEN) {
-    return json(500, { ok: false, erro: 'Falta a configuración segura do servizo' });
+  if (!env.WEB_WRITE_TOKEN) {
+    return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
   }
   if (!solicitudeMesmoSitio(request)) {
     return json(403, { ok: false, erro: 'Orixe da solicitude non permitida' });
@@ -63,7 +65,6 @@ export async function onRequest({ request, env }) {
     return json(400, { ok: false, erro: 'Solicitude non válida' });
   }
 
-  // Campo trampa: debe permanecer baleiro para usuarios reais.
   if (texto(datos.website, 200)) {
     return json(200, { ok: true, mensaxe: 'Solicitude recibida' });
   }
@@ -106,10 +107,9 @@ export async function onRequest({ request, env }) {
   ].filter(Boolean).join(' | ');
 
   try {
-    const resposta = await fetch(env.APPS_SCRIPT_WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
+    const { resultado, usouRespaldo } = await obterJsonAppsScript(
+      env,
+      {
         token: env.WEB_WRITE_TOKEN,
         accion: 'rexistrarSolicitudeWeb',
         orixe,
@@ -125,23 +125,31 @@ export async function onRequest({ request, env }) {
         versionTextoLegal: texto(datos.versionTextoLegal, 80),
         fonteEntrada: 'Web pública',
         referenciaTecnica
-      })
+      },
+      { timeoutMs: 35_000, attemptTimeoutMs: 12_000 }
+    );
+
+    if (!resultado?.ok) {
+      return json(400, {
+        ok: false,
+        erro: resultado?.erro || 'Non foi posible gardar a solicitude'
+      });
+    }
+
+    return new Response(JSON.stringify(resultado), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY'
+      }
     });
-
-    const respostaTexto = await resposta.text();
-    let resultado;
-    try {
-      resultado = JSON.parse(respostaTexto);
-    } catch {
-      return json(502, { ok: false, erro: 'O servizo devolveu unha resposta non válida' });
-    }
-
-    if (!resultado.ok) {
-      return json(400, { ok: false, erro: resultado.erro || 'Non foi posible gardar a solicitude' });
-    }
-    return json(200, resultado);
   } catch (erro) {
     console.error('Erro ao rexistrar a solicitude:', erro);
-    return json(502, { ok: false, erro: 'Non foi posible contactar co servizo de solicitudes' });
+    const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
+    return json(status, {
+      ok: false,
+      erro: 'O formulario non se puido enviar neste momento. Conserva os datos e téntao de novo nuns segundos.'
+    });
   }
 }
