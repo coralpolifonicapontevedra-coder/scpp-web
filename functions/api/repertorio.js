@@ -1,8 +1,10 @@
-const CACHE_REPERTORIO_MS = 5 * 60 * 1000;
-const CACHE_ASISTENCIAS_MS = 2 * 60 * 1000;
+const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
+const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
-const TIMEOUT_APPS_SCRIPT_MS = 18 * 1000;
+const TIMEOUT_REPERTORIO_MS = 55 * 1000;
+const TIMEOUT_ASISTENCIAS_MS = 25 * 1000;
+const TIMEOUT_FICHEIRO_MS = 30 * 1000;
 
 const cacheRespostas = new Map();
 const cacheTokens = new Map();
@@ -46,6 +48,55 @@ async function fetchConTempoLimite(url, options, timeoutMs) {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+  }
+}
+
+function cacheRequest(request, accion) {
+  const url = new URL(request.url);
+  url.pathname = '/api/_cache/repertorio';
+  url.search = `accion=${encodeURIComponent(accion)}`;
+  return new Request(url.toString(), { method: 'GET' });
+}
+
+async function lerCachePersistente(request, accion, duracionMs) {
+  const memoria = lerCache(cacheRespostas, accion);
+  if (memoria) return memoria;
+
+  const cacheApi = globalThis.caches?.default;
+  if (!cacheApi) return null;
+
+  try {
+    const response = await cacheApi.match(cacheRequest(request, accion));
+    if (!response) return null;
+    const resultado = await response.json();
+    if (!resultado?.ok) return null;
+    gardarCache(cacheRespostas, accion, resultado, duracionMs);
+    return resultado;
+  } catch (erro) {
+    console.warn('Non se puido ler a caché persistente:', erro);
+    return null;
+  }
+}
+
+async function gardarCachePersistente(request, accion, resultado, duracionMs) {
+  gardarCache(cacheRespostas, accion, resultado, duracionMs);
+
+  const cacheApi = globalThis.caches?.default;
+  if (!cacheApi) return;
+
+  try {
+    const segundos = Math.max(60, Math.floor(duracionMs / 1000));
+    const response = new Response(JSON.stringify(resultado), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': `public, max-age=${segundos}`,
+        'X-SCPP-Cached-At': new Date().toISOString()
+      }
+    });
+    await cacheApi.put(cacheRequest(request, accion), response);
+  } catch (erro) {
+    console.warn('Non se puido gardar a caché persistente:', erro);
   }
 }
 
@@ -138,7 +189,7 @@ export async function onRequest({ request, env }) {
       : 0;
 
   if (duracionCache) {
-    const resultadoCacheado = lerCache(cacheRespostas, accion);
+    const resultadoCacheado = await lerCachePersistente(request, accion, duracionCache);
     if (resultadoCacheado) {
       return json(200, resultadoCacheado, {
         'X-SCPP-Cache': 'HIT',
@@ -146,6 +197,12 @@ export async function onRequest({ request, env }) {
       });
     }
   }
+
+  const timeoutMs = accion === 'listarRepertorioPortal'
+    ? TIMEOUT_REPERTORIO_MS
+    : accion === 'listarAsistenciasConcertosPortal'
+      ? TIMEOUT_ASISTENCIAS_MS
+      : TIMEOUT_FICHEIRO_MS;
 
   const inicio = Date.now();
   try {
@@ -162,7 +219,7 @@ export async function onRequest({ request, env }) {
           ruta: String(datos.ruta || '').trim()
         })
       },
-      TIMEOUT_APPS_SCRIPT_MS
+      timeoutMs
     );
 
     if (!resposta.ok) {
@@ -181,7 +238,9 @@ export async function onRequest({ request, env }) {
     }
     if (accion === 'obterFicheiroRepertorio') return respostaFicheiro(resultado);
 
-    if (duracionCache) gardarCache(cacheRespostas, accion, resultado, duracionCache);
+    if (duracionCache) {
+      await gardarCachePersistente(request, accion, resultado, duracionCache);
+    }
 
     return json(200, resultado, {
       'X-SCPP-Cache': 'MISS',
@@ -192,7 +251,7 @@ export async function onRequest({ request, env }) {
     if (erro instanceof Error && erro.name === 'AbortError') {
       return json(504, {
         ok: false,
-        erro: 'O servizo de repertorio tardou demasiado en responder. Tenta de novo nuns segundos.'
+        erro: 'O servizo de repertorio tardou demasiado en responder. A páxina seguirá mostrando os datos básicos.'
       });
     }
     return json(502, { ok: false, erro: 'Non foi posible contactar co servizo de repertorio' });
