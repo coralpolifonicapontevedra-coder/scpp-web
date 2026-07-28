@@ -59,7 +59,9 @@ export async function onRequest({ request, env }) {
   const accionsPermitidas = new Set([
     'subirFoto',
     'listarFotosRevision',
-    'actualizarRevisionFoto'
+    'actualizarRevisionFoto',
+    'listarFotosGaleria',
+    'obterFotoGaleria'
   ]);
   if (!accionsPermitidas.has(accion)) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
@@ -105,7 +107,7 @@ export async function onRequest({ request, env }) {
   };
 
   try {
-    const pesada = accion === 'subirFoto';
+    const pesada = accion === 'subirFoto' || accion === 'obterFotoGaleria';
     const { resultado, usouRespaldo } = await obterJsonAppsScript(
       env,
       corpo,
@@ -126,7 +128,9 @@ export async function onRequest({ request, env }) {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'no-store',
+        'Cache-Control': accion === 'listarFotosGaleria'
+          ? 'private, max-age=120'
+          : 'no-store',
         'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY'
       }
     });
