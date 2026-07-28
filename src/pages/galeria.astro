@@ -1,250 +1,227 @@
 ---
-/* src/pages/galeria.astro */
 import BaseLayout from '../layouts/Layout.astro';
 
-// Datos de mostra simulados para a galería de imaxes
-const albumesGaleria = [
+const fotos = [
   {
-    titulo: "Concerto de San Xoán 2026",
-    descripcion: "Instantáneas da nosa actuación na Igrexa de San Francisco.",
-    categoria: "Concertos",
-    miniatura: "📸",
-    cantidade: "12 imaxes"
+    id: '1aTwGKb3r0LevhWywI_A1xE9cGnZs1SYV',
+    titulo: 'Concerto en Madeira decembro de 2019',
+    categoria: 'Viaxes',
+    ano: '2019'
   },
   {
-    titulo: "Ensaios Xerais no Pazo da Cultura",
-    descripcion: "Preparación do repertorio polifónico do centenario.",
-    categoria: "Ensaios",
-    miniatura: "🎼",
-    cantidade: "8 imaxes"
+    id: '11p3-YTNdNfFsKZYhHdgOMGQioLnaihIq',
+    titulo: 'Dirección da SCPP por Iglesias Vilarelle',
+    categoria: 'Histórico',
+    ano: ''
   },
   {
-    titulo: "Xira Histórica por Europa",
-    descripcion: "Recordo fotográfico das viaxes institucionais da Coral.",
-    categoria: "Viaxes",
-    miniatura: "✈️",
-    cantidade: "24 imaxes"
+    id: '1TEaAJ2e6jFmWvse0rIC3dOFzb5c78V6w',
+    titulo: 'Concerto Lugo 2024',
+    categoria: 'Concertos',
+    ano: '2024'
   },
   {
-    titulo: "Arquivo Documental (1925 - 1950)",
-    descripcion: "Partituras históricas, recortes de prensa antigos e fotos fundacionais.",
-    categoria: "Histórico",
-    miniatura: "📜",
-    cantidade: "16 imaxes"
+    id: '1mSNZYp0l3xNbzNlTcEcjVmIdZEan0EJt',
+    titulo: 'Concerto no Teatro Principal con motivo das conferencias do centenario da SCPP',
+    categoria: 'Eventos',
+    ano: '2025'
   },
   {
-    titulo: "Homenaxe a Antonio Blanco",
-    descripcion: "Acto solemne e concerto conmemorativo na Basílica de Santa María.",
-    categoria: "Concertos",
-    miniatura: "🏛️",
-    cantidade: "10 imaxes"
+    id: '1hhPiQao1PuOHbTMTtRdUR2VFsECaMSsh',
+    titulo: 'Concerto en Afundación en beneficio do Banco de Alimentos',
+    categoria: 'Concertos',
+    ano: '2025'
   },
   {
-    titulo: "Encontro Coral de Outono",
-    descripcion: "Compartindo escenario con outras agrupacións convidadas.",
-    categoria: "Eventos",
-    miniatura: "🤝",
-    cantidade: "15 imaxes"
+    id: '1k5o49yxkt7mT47rHzdQmnjdVtDpEkpVK',
+    titulo: 'Concerto Martín Códax 11-11-2023',
+    categoria: 'Concertos',
+    ano: '2023'
+  },
+  {
+    id: '1JJmMXkJa73ZDgK8OLsXvkITys-4rdvWK',
+    titulo: 'Concerto na Igrexa de San Francisco coa Banda de Música de Pontevedra',
+    categoria: 'Concertos',
+    ano: '2025'
+  },
+  {
+    id: '18WI_oQ5KvpoJSUq3R1AWT1npCYbiZXXu',
+    titulo: 'Concerto no Museo de Pontevedra. Medalla Marcial del Adalid',
+    categoria: 'Eventos',
+    ano: '2025'
+  },
+  {
+    id: '1D7sjPTDVo3_exlc-m7xmDeIWhpqqyfGe',
+    titulo: 'Entrega do Premio Otero Pedrayo',
+    categoria: 'Eventos',
+    ano: '2025'
+  },
+  {
+    id: '10nA7cp6Dj6KzCYXDicVWExMdkX7z6ktf',
+    titulo: 'Concerto do centenario na Igrexa de San Francisco II',
+    categoria: 'Concertos',
+    ano: '2025'
+  },
+  {
+    id: '1v7KhxHmQpjz7YeVSsd6tfmL5puPKTt8J',
+    titulo: 'Concerto do centenario na Igrexa de San Francisco',
+    categoria: 'Concertos',
+    ano: '2025'
   }
-];
+].map((foto) => ({
+  ...foto,
+  miniatura: `https://drive.google.com/thumbnail?id=${foto.id}&sz=w1200`,
+  orixinal: `https://drive.google.com/thumbnail?id=${foto.id}&sz=w2000`
+}));
+
+const categorias = ['Todos', 'Concertos', 'Eventos', 'Histórico', 'Viaxes'];
 ---
 
 <BaseLayout title="Galería" lang="gl">
-  <div class="container gallery-page-wrapper">
-    
+  <main class="container gallery-page-wrapper">
     <header class="gallery-header">
-      <h1>Galería Fotográfica</h1>
+      <span class="gallery-kicker">Arquivo visual da SCPP</span>
+      <h1>Galería fotográfica</h1>
       <div class="section-line-center"></div>
-      <p class="gallery-intro">Un percorrido visual pola historia recente e o arquivo documental da Sociedade Coral Polifónica de Pontevedra.</p>
+      <p class="gallery-intro">Un percorrido pola actividade artística, institucional e histórica da Sociedade Coral Polifónica de Pontevedra.</p>
     </header>
 
-    <div class="gallery-filters">
-      <span class="filter-tag active">Todos</span>
-      <span class="filter-tag">Concertos</span>
-      <span class="filter-tag">Ensaios</span>
-      <span class="filter-tag">Histórico</span>
-      <span class="filter-tag">Viaxes</span>
-    </div>
-
-    <div class="gallery-grid">
-      {albumesGaleria.map((album) => (
-        <div class="gallery-card">
-          <div class="gallery-visual-box">
-            <span class="gallery-icon">{album.miniatura}</span>
-            <span class="gallery-count-tag">{album.cantidade}</span>
-          </div>
-          
-          <div class="gallery-content-box">
-            <span class="gallery-category">{album.categoria}</span>
-            <h2>{album.titulo}</h2>
-            <p>{album.descripcion}</p>
-            
-            <a href="#" class="view-album-link">
-              Abrir álbum →
-            </a>
-          </div>
-        </div>
+    <nav class="gallery-filters" aria-label="Filtrar fotografías">
+      {categorias.map((categoria, index) => (
+        <button class:list={['filter-tag', { active: index === 0 }]} type="button" data-filter={categoria}>
+          {categoria}
+        </button>
       ))}
-    </div>
+    </nav>
 
-  </div>
+    <p id="gallery-count" class="gallery-count">{fotos.length} fotografías</p>
+
+    <section class="gallery-grid" aria-live="polite">
+      {fotos.map((foto) => (
+        <article class="gallery-card" data-category={foto.categoria}>
+          <button
+            class="gallery-image-button"
+            type="button"
+            data-image={foto.orixinal}
+            data-title={foto.titulo}
+            aria-label={`Ampliar ${foto.titulo}`}
+          >
+            <img src={foto.miniatura} alt={foto.titulo} loading="lazy" decoding="async" />
+            <span class="zoom-hint" aria-hidden="true">Ampliar</span>
+          </button>
+          <div class="gallery-content-box">
+            <div class="gallery-meta">
+              <span class="gallery-category">{foto.categoria}</span>
+              {foto.ano && <time>{foto.ano}</time>}
+            </div>
+            <h2>{foto.titulo}</h2>
+          </div>
+        </article>
+      ))}
+    </section>
+
+    <p id="gallery-empty" class="gallery-empty" hidden>Non hai fotografías nesta categoría.</p>
+  </main>
+
+  <dialog id="gallery-dialog" class="gallery-dialog">
+    <button id="dialog-close" class="dialog-close" type="button" aria-label="Pechar imaxe">×</button>
+    <figure>
+      <img id="dialog-image" src="" alt="" />
+      <figcaption id="dialog-title"></figcaption>
+    </figure>
+  </dialog>
 </BaseLayout>
 
+<script>
+  const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
+  const cards = Array.from(document.querySelectorAll('.gallery-card'));
+  const count = document.querySelector('#gallery-count');
+  const empty = document.querySelector('#gallery-empty');
+  const dialog = document.querySelector('#gallery-dialog');
+  const dialogImage = document.querySelector('#dialog-image');
+  const dialogTitle = document.querySelector('#dialog-title');
+  const dialogClose = document.querySelector('#dialog-close');
+
+  filterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const filter = button.getAttribute('data-filter') || 'Todos';
+      filterButtons.forEach((item) => item.classList.toggle('active', item === button));
+
+      let visible = 0;
+      cards.forEach((card) => {
+        const show = filter === 'Todos' || card.getAttribute('data-category') === filter;
+        card.toggleAttribute('hidden', !show);
+        if (show) visible += 1;
+      });
+
+      if (count) count.textContent = `${visible} fotografía${visible === 1 ? '' : 's'}`;
+      if (empty instanceof HTMLElement) empty.hidden = visible > 0;
+    });
+  });
+
+  document.querySelectorAll('[data-image]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!(dialog instanceof HTMLDialogElement) || !(dialogImage instanceof HTMLImageElement)) return;
+      const image = button.getAttribute('data-image') || '';
+      const title = button.getAttribute('data-title') || '';
+      dialogImage.src = image;
+      dialogImage.alt = title;
+      if (dialogTitle) dialogTitle.textContent = title;
+      dialog.showModal();
+    });
+  });
+
+  dialogClose?.addEventListener('click', () => {
+    if (dialog instanceof HTMLDialogElement) dialog.close();
+  });
+
+  dialog?.addEventListener('click', (event) => {
+    if (event.target === dialog && dialog instanceof HTMLDialogElement) dialog.close();
+  });
+</script>
+
 <style>
-  .gallery-page-wrapper {
-    padding-top: 4rem;
-    padding-bottom: 6rem;
-  }
+  .gallery-page-wrapper { padding-top:4rem; padding-bottom:6rem; }
+  .gallery-header { max-width:820px; margin:0 auto 2.4rem; text-align:center; }
+  .gallery-kicker { color:var(--color-principal); font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+  .gallery-header h1 { margin:.5rem 0 0; color:var(--color-principal); font-size:clamp(2.15rem,5vw,3rem); }
+  .section-line-center { width:58px; height:2px; margin:1rem auto 1.4rem; background:var(--color-acento); }
+  .gallery-intro { margin:0; color:#625e5a; font-size:1.02rem; line-height:1.65; }
 
-  /* Cabeceira */
-  .gallery-header {
-    text-align: center;
-    max-width: 800px;
-    margin: 0 auto 3rem auto;
-  }
-  .gallery-header h1 {
-    color: var(--color-principal);
-    font-size: 2.5rem;
-    font-weight: 700;
-  }
-  .section-line-center {
-    width: 60px;
-    height: 2px;
-    background-color: var(--color-acento);
-    margin: 1rem auto 1.5rem auto;
-  }
-  .gallery-intro {
-    font-size: 1.15rem;
-    color: var(--color-texto);
-    opacity: 0.85;
-    line-height: 1.6;
-  }
+  .gallery-filters { display:flex; justify-content:center; flex-wrap:wrap; gap:.65rem; margin-bottom:1.3rem; }
+  .filter-tag { padding:.48rem 1rem; border:1px solid #d7d1cd; border-radius:999px; background:#fff; color:#544f4b; font:inherit; font-size:.76rem; font-weight:700; letter-spacing:.045em; text-transform:uppercase; cursor:pointer; transition:background .2s ease,color .2s ease,border-color .2s ease; }
+  .filter-tag:hover,.filter-tag.active { border-color:var(--color-principal); background:var(--color-principal); color:#fff; }
+  .gallery-count { margin:0 0 1.3rem; color:#766f69; font-size:.78rem; text-align:right; }
 
-  /* Filtros de categorías */
-  .gallery-filters {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-bottom: 4rem;
-    flex-wrap: wrap;
-  }
-  .filter-tag {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    padding: 0.5rem 1.2rem;
-    border: 1px solid var(--color-gris);
-    border-radius: 20px;
-    color: var(--color-texto);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .filter-tag:hover, .filter-tag.active {
-    background: var(--color-principal);
-    border-color: var(--color-principal);
-    color: var(--color-blanco);
-  }
+  .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1.4rem; }
+  .gallery-card { overflow:hidden; border:1px solid #ded9d5; border-radius:4px; background:#fff; transition:transform .2s ease,box-shadow .2s ease; }
+  .gallery-card:hover { transform:translateY(-3px); box-shadow:0 10px 26px rgba(38,28,24,.08); }
+  .gallery-card[hidden] { display:none; }
 
-  /* Grella de tarxetas */
-  .gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 3rem;
-  }
+  .gallery-image-button { position:relative; display:block; width:100%; height:245px; padding:0; overflow:hidden; border:0; background:#eeeae7; cursor:zoom-in; }
+  .gallery-image-button img { width:100%; height:100%; object-fit:cover; transition:transform .35s ease; }
+  .gallery-card:hover img { transform:scale(1.025); }
+  .zoom-hint { position:absolute; right:.8rem; bottom:.8rem; padding:.3rem .55rem; border-radius:2px; background:rgba(50,31,34,.78); color:#fff; font-size:.68rem; font-weight:700; opacity:0; transform:translateY(4px); transition:opacity .2s ease,transform .2s ease; }
+  .gallery-image-button:hover .zoom-hint,.gallery-image-button:focus-visible .zoom-hint { opacity:1; transform:translateY(0); }
 
-  .gallery-card {
-    background: var(--color-blanco);
-    border: 1px solid var(--color-gris);
-    border-radius: 4px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
+  .gallery-content-box { padding:1rem 1.1rem 1.15rem; }
+  .gallery-meta { display:flex; justify-content:space-between; gap:1rem; align-items:center; margin-bottom:.45rem; }
+  .gallery-category { color:var(--color-principal); font-size:.65rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .gallery-meta time { color:#8b837d; font-size:.7rem; }
+  .gallery-content-box h2 { margin:0; color:#3b3734; font-size:.98rem; font-weight:650; line-height:1.45; }
+  .gallery-empty { padding:2rem; border:1px solid #ded9d5; color:#716a65; text-align:center; }
 
-  .gallery-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-  }
+  .gallery-dialog { width:min(94vw,1180px); max-height:92vh; padding:0; overflow:visible; border:0; background:transparent; }
+  .gallery-dialog::backdrop { background:rgba(18,14,13,.88); }
+  .gallery-dialog figure { margin:0; }
+  .gallery-dialog img { display:block; width:100%; max-height:82vh; object-fit:contain; background:#171313; }
+  .gallery-dialog figcaption { padding:.85rem 1rem; background:#fff; color:#3c3734; font-size:.88rem; text-align:center; }
+  .dialog-close { position:absolute; z-index:2; top:-2.6rem; right:0; width:2.2rem; height:2.2rem; border:1px solid rgba(255,255,255,.65); border-radius:50%; background:rgba(0,0,0,.28); color:#fff; font-size:1.5rem; line-height:1; cursor:pointer; }
 
-  /* Contedor visual superior (Imaxe de mostra) */
-  .gallery-visual-box {
-    background: var(--color-gris);
-    height: 220px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    border-bottom: 1px solid rgba(0,0,0,0.02);
-  }
-
-  .gallery-icon {
-    font-size: 4rem;
-  }
-
-  .gallery-count-tag {
-    position: absolute;
-    bottom: 1rem;
-    right: 1.5rem;
-    background: rgba(0, 0, 0, 0.6);
-    color: var(--color-blanco);
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: .25rem .7rem;
-    border-radius: 2px;
-  }
-
-  /* Contedor inferior de texto */
-  .gallery-content-box {
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-  }
-
-  .gallery-category {
-    font-size: 0.75rem;
-    color: var(--color-acento);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: .4rem;
-    display: block;
-  }
-
-  .gallery-content-box h2 {
-    font-size: 1.3rem;
-    color: var(--color-texto);
-    line-height: 1.4;
-    margin-bottom: .6rem;
-    font-weight: 700;
-  }
-
-  .gallery-content-box p {
-    font-size: .95rem;
-    color: #666;
-    line-height: 1.5;
-    margin-bottom: 1.8rem;
-    flex-grow: 1;
-  }
-
-  .view-album-link {
-    font-size: 0.9rem;
-    color: var(--color-principal);
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.2s ease;
-  }
-
-  .view-album-link:hover {
-    color: var(--color-acento);
-  }
-
-  /* Responsivo */
-  @media (max-width: 400px) {
-    .gallery-grid {
-      grid-template-columns: 1fr;
-    }
+  @media(max-width:680px) {
+    .gallery-page-wrapper { padding-top:2.5rem; padding-bottom:4rem; }
+    .gallery-grid { grid-template-columns:1fr; gap:1rem; }
+    .gallery-image-button { height:260px; }
+    .gallery-count { text-align:center; }
   }
 </style>
