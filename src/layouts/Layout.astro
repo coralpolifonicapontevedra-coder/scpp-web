@@ -4,6 +4,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PortalAcceptanceGate from '../components/PortalAcceptanceGate.astro';
 import PortalReviewStyles from '../components/PortalReviewStyles.astro';
+import PublicCoralSidebar from '../components/PublicCoralSidebar.astro';
 import '../styles/global.css';
 
 const {
@@ -14,10 +15,19 @@ const {
 } = Astro.props;
 
 const ruta = Astro.url.pathname;
+const rutaNormalizada = ruta.replace(/\/$/, '') || '/';
 const eZonaPortal = ruta === '/portal' || ruta.startsWith('/portal/');
 const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
 const eRepertorio = ruta === '/portal/repertorio' || ruta === '/portal/repertorio/';
 const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
+const eSubpaxinaCoral = [
+  '/historia',
+  '/centenario',
+  '/directora',
+  '/xunta-directiva',
+  '/coralistas',
+  '/distincions'
+].includes(rutaNormalizada);
 ---
 
 <!DOCTYPE html>
@@ -31,9 +41,18 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
   <body class:list={[eZonaPortal && 'portal-private-body']}>
     {!eZonaPortal && <Header lang={lang} />}
 
-    <main>
-      <slot />
-    </main>
+    {eSubpaxinaCoral ? (
+      <div class="public-coral-shell">
+        <PublicCoralSidebar />
+        <div class="public-coral-page">
+          <slot />
+        </div>
+      </div>
+    ) : (
+      <main>
+        <slot />
+      </main>
+    )}
 
     {!eZonaPortal && <Footer lang={lang} />}
     {eInicioPortal && <PortalAcceptanceGate />}
@@ -118,6 +137,24 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 2rem;
+  }
+
+  .public-coral-shell {
+    display: grid;
+    grid-template-columns: 245px minmax(0, 1fr);
+    gap: clamp(1.5rem, 3vw, 3.5rem);
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 3vw, 3rem);
+  }
+
+  .public-coral-page {
+    min-width: 0;
+  }
+
+  .public-coral-page > main {
+    min-width: 0;
   }
 
   body.portal-private-body .private-menu a[href="/portal/perfil/"] {
@@ -286,6 +323,14 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     body.portal-private-body .portal-sidebar-container .private-sidebar-footer {
       grid-template-columns: 1fr 1fr;
       margin-top: .8rem;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .public-coral-shell {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem 1rem 0;
     }
   }
 
