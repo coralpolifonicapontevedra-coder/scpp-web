@@ -10,7 +10,6 @@ const activeLabel =
   active === 'revisar' ? 'Revisar fotografías' :
   active === 'repertorio' ? 'Repertorio' :
   active === 'concertos' ? 'Concertos' :
-  active === 'galeria' ? 'Galería' :
   active === 'documentacion' ? 'Documentación' :
   'Menú do portal';
 ---
@@ -51,9 +50,9 @@ const activeLabel =
       <span class="is-disabled">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3" /><circle cx="16.5" cy="9" r="2.5" /><path d="M2.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6m0-5c3.3-.8 6.2 1 7 5" /></svg><span>Ensaios</span>
       </span>
-      <a class:list={[active === 'galeria' && 'is-active']} href="/portal/galeria/">
+      <span class="is-disabled">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5" /><circle cx="9" cy="9" r="1.5" /><path d="m5.5 17 4.5-4.5 3 3 2-2 3.5 3.5" /></svg><span>Galería</span>
-      </a>
+      </span>
       <a class:list={[active === 'documentacion' && 'is-active']} href="/portal/documentacion/">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6m-6 4h6" /></svg><span>Documentación</span>
       </a>
