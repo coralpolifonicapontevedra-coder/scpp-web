@@ -33,6 +33,7 @@ async function fetchConLimite(url, options, timeoutMs) {
 
 export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const timeoutTotalMs = Math.max(4000, Number(options.timeoutMs) || 20000);
+  const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
   const urls = urlsAppsScript(env);
   if (!urls.length) {
     throw new AppsScriptError('Non hai ningunha implementación de Apps Script configurada.', 'APPS_SCRIPT_NOT_CONFIGURED');
@@ -47,9 +48,10 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
     if (restante <= 1000) break;
 
     const intentosRestantes = urls.length - index;
+    const repartoAutomatico = Math.max(2500, Math.min(12000, Math.floor(restante / intentosRestantes)));
     const tempoIntento = index === urls.length - 1
       ? restante
-      : Math.max(2500, Math.min(6500, Math.floor(restante / intentosRestantes)));
+      : Math.min(restante, timeoutIntentoPreferido > 0 ? timeoutIntentoPreferido : repartoAutomatico);
 
     try {
       const resposta = await fetchConLimite(
