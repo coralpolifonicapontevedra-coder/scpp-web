@@ -1,4 +1,7 @@
-const CACHE_DOCUMENTACION_MS = 30 * 60 * 1000;
+import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
+
+const CACHE_FRESCA_MS = 5 * 60 * 1000;
+const CACHE_RESPALDO_MS = 24 * 60 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
 const TIMEOUT_LISTADO_MS = 22 * 1000;
@@ -19,21 +22,9 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
 function limparCache(cache, maximo = 100) {
   const agora = Date.now();
   for (const [clave, entrada] of cache.entries()) {
-    if (!entrada || entrada.expira <= agora) cache.delete(clave);
+    if (!entrada || agora - entrada.savedAt > CACHE_RESPALDO_MS) cache.delete(clave);
   }
   while (cache.size > maximo) cache.delete(cache.keys().next().value);
-}
-
-function lerCache(cache, clave, permitirCaducada = false) {
-  const entrada = cache.get(clave);
-  if (!entrada) return null;
-  if (entrada.expira <= Date.now() && !permitirCaducada) return null;
-  return entrada.valor;
-}
-
-function gardarCache(cache, clave, valor, duracionMs) {
-  cache.set(clave, { valor, expira: Date.now() + duracionMs });
-  limparCache(cache);
 }
 
 async function fetchConTempoLimite(url, options, timeoutMs) {
@@ -50,8 +41,8 @@ async function verificarTokenFirebase(idToken, apiKey) {
   const token = String(idToken || '').trim();
   if (!token) return null;
 
-  const cacheado = lerCache(cacheTokens, token);
-  if (cacheado) return cacheado;
+  const cacheado = cacheTokens.get(token);
+  if (cacheado && cacheado.expira > Date.now()) return cacheado.usuario;
 
   const resposta = await fetchConTempoLimite(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
@@ -71,7 +62,7 @@ async function verificarTokenFirebase(idToken, apiKey) {
     uid: String(usuario.localId || ''),
     email: String(usuario.email).trim().toLowerCase()
   };
-  gardarCache(cacheTokens, token, resultado, CACHE_TOKEN_MS);
+  cacheTokens.set(token, { usuario: resultado, expira: Date.now() + CACHE_TOKEN_MS });
   return resultado;
 }
 
@@ -130,12 +121,7 @@ function normalizarResultado(resultado, usuario) {
     nivel: String(perfilOrixinal.nivel || resultado?.nivel || 'Coralistas').trim()
   };
 
-  return {
-    ok: true,
-    perfil,
-    nivel: perfil.nivel,
-    documentos
-  };
+  return { ok: true, perfil, nivel: perfil.nivel, documentos };
 }
 
 function cacheRequest(request, email) {
@@ -146,40 +132,42 @@ function cacheRequest(request, email) {
 }
 
 async function lerCachePersistente(request, email) {
-  const memoria = lerCache(cacheDocumentacion, email);
-  if (memoria) return memoria;
+  const memoria = cacheDocumentacion.get(email);
+  if (memoria && Date.now() - memoria.savedAt <= CACHE_RESPALDO_MS) return memoria;
 
   const cacheApi = globalThis.caches?.default;
   if (!cacheApi) return null;
   try {
     const resposta = await cacheApi.match(cacheRequest(request, email));
     if (!resposta) return null;
-    const resultado = await resposta.json();
-    if (!resultado?.ok || !Array.isArray(resultado.documentos) || !resultado.documentos.length) return null;
-    gardarCache(cacheDocumentacion, email, resultado, CACHE_DOCUMENTACION_MS);
-    return resultado;
+    const entrada = await resposta.json();
+    if (!entrada?.payload?.ok || !entrada.payload.documentos?.length) return null;
+    if (Date.now() - Number(entrada.savedAt || 0) > CACHE_RESPALDO_MS) return null;
+    cacheDocumentacion.set(email, entrada);
+    limparCache(cacheDocumentacion);
+    return entrada;
   } catch (erro) {
     console.warn('Non se puido ler a caché de documentación:', erro);
     return null;
   }
 }
 
-async function gardarCachePersistente(request, email, resultado) {
-  if (!resultado?.ok || !Array.isArray(resultado.documentos) || !resultado.documentos.length) return;
-  gardarCache(cacheDocumentacion, email, resultado, CACHE_DOCUMENTACION_MS);
+async function gardarCachePersistente(request, email, payload) {
+  if (!payload?.ok || !payload.documentos?.length) return;
+  const entrada = { savedAt: Date.now(), payload };
+  cacheDocumentacion.set(email, entrada);
+  limparCache(cacheDocumentacion);
 
   const cacheApi = globalThis.caches?.default;
   if (!cacheApi) return;
   try {
-    const resposta = new Response(JSON.stringify(resultado), {
+    await cacheApi.put(cacheRequest(request, email), new Response(JSON.stringify(entrada), {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': `public, max-age=${Math.floor(CACHE_DOCUMENTACION_MS / 1000)}`,
-        'X-SCPP-Cached-At': new Date().toISOString()
+        'Cache-Control': `public, max-age=${Math.floor(CACHE_RESPALDO_MS / 1000)}`
       }
-    });
-    await cacheApi.put(cacheRequest(request, email), resposta);
+    }));
   } catch (erro) {
     console.warn('Non se puido gardar a caché de documentación:', erro);
   }
@@ -201,40 +189,52 @@ function respostaFicheiro(resultado) {
   });
 }
 
-async function chamarAppsScript(env, usuario, accion, datos, timeoutMs) {
-  const resposta = await fetchConTempoLimite(
-    env.APPS_SCRIPT_WEBAPP_URL,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        token: env.WEB_WRITE_TOKEN,
-        accion,
-        email: usuario.email,
-        uidFirebase: usuario.uid,
-        ruta: String(datos.ruta || '').trim(),
-        clase: String(datos.clase || '').trim()
-      })
-    },
-    timeoutMs
+function corpoAppsScript(env, usuario, accion, datos) {
+  return {
+    token: env.WEB_WRITE_TOKEN,
+    accion,
+    email: usuario.email,
+    uidFirebase: usuario.uid,
+    ruta: String(datos.ruta || '').trim(),
+    clase: String(datos.clase || '').trim()
+  };
+}
+
+async function consultarListado(env, usuario, datos) {
+  const { resultado, usouRespaldo, intento } = await obterJsonAppsScript(
+    env,
+    corpoAppsScript(env, usuario, 'listarDocumentacionPortal', datos),
+    { timeoutMs: TIMEOUT_LISTADO_MS }
   );
 
-  if (!resposta.ok) throw new Error(`Apps Script respondeu con HTTP ${resposta.status}`);
-  const texto = await resposta.text();
+  if (!resultado?.ok) {
+    const erro = new Error(resultado?.erro || 'Non foi posible consultar a documentación.');
+    erro.status = resultado?.erro === 'Usuario non autorizado' ? 403 : 400;
+    throw erro;
+  }
+
+  const normalizado = normalizarResultado(resultado, usuario);
+  if (!normalizado.documentos.length) {
+    throw new Error('A fonte de datos respondeu sen documentos.');
+  }
+
+  return { normalizado, usouRespaldo, intento };
+}
+
+async function actualizarCache(context, usuario, datos) {
   try {
-    return JSON.parse(texto);
-  } catch {
-    throw new Error('O servizo devolveu unha resposta non válida');
+    const { normalizado } = await consultarListado(context.env, usuario, datos);
+    await gardarCachePersistente(context.request, usuario.email, normalizado);
+  } catch (erro) {
+    console.warn('Non se puido actualizar a documentación en segundo plano:', erro);
   }
 }
 
 export async function onRequest(context) {
   const { request, env } = context;
-  if (request.method !== 'POST') {
-    return json(405, { ok: false, erro: 'Método non permitido' });
-  }
-  if (!env.APPS_SCRIPT_WEBAPP_URL || !env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
-    return json(500, { ok: false, erro: 'Falta a configuración segura do servizo' });
+  if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
+  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
+    return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
   }
 
   let datos;
@@ -250,9 +250,7 @@ export async function onRequest(context) {
   } catch (erro) {
     console.error('Erro ao validar Firebase:', erro);
   }
-  if (!usuario) {
-    return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
-  }
+  if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
   const accion = String(datos.accion || 'listarDocumentacionPortal').trim();
   if (!['listarDocumentacionPortal', 'obterFicheiroDocumentacion'].includes(accion)) {
@@ -260,72 +258,63 @@ export async function onRequest(context) {
   }
 
   if (accion === 'listarDocumentacionPortal') {
-    const cacheado = await lerCachePersistente(request, usuario.email);
-    if (cacheado) {
-      return json(200, cacheado, {
-        'X-SCPP-Cache': 'HIT',
-        'Server-Timing': 'apps-script;dur=0'
+    const cacheada = await lerCachePersistente(request, usuario.email);
+    if (cacheada) {
+      const idade = Date.now() - cacheada.savedAt;
+      if (idade >= CACHE_FRESCA_MS) {
+        const tarefa = actualizarCache(context, usuario, datos);
+        if (typeof context.waitUntil === 'function') context.waitUntil(tarefa);
+      }
+      return json(200, cacheada.payload, {
+        'X-SCPP-Cache': idade < CACHE_FRESCA_MS ? 'HIT' : 'STALE-WHILE-REVALIDATE',
+        'X-SCPP-Data-Age': String(Math.max(0, Math.floor(idade / 1000)))
       });
     }
   }
 
   const inicio = Date.now();
   try {
-    const resultadoAppsScript = await chamarAppsScript(
-      env,
-      usuario,
-      accion,
-      datos,
-      accion === 'listarDocumentacionPortal' ? TIMEOUT_LISTADO_MS : TIMEOUT_FICHEIRO_MS
-    );
-
-    if (!resultadoAppsScript?.ok) {
-      const status = resultadoAppsScript?.erro === 'Usuario non autorizado' ? 403 : 400;
-      return json(status, resultadoAppsScript || { ok: false, erro: 'Resposta baleira do servizo' });
-    }
-
-    if (accion === 'obterFicheiroDocumentacion') return respostaFicheiro(resultadoAppsScript);
-
-    const resultado = normalizarResultado(resultadoAppsScript, usuario);
-    if (!resultado.documentos.length) {
-      const anterior = lerCache(cacheDocumentacion, usuario.email, true);
-      if (anterior?.documentos?.length) {
-        return json(200, anterior, {
-          'X-SCPP-Cache': 'STALE',
-          'X-SCPP-Warning': 'empty-upstream-response'
+    if (accion === 'obterFicheiroDocumentacion') {
+      const { resultado, usouRespaldo } = await obterJsonAppsScript(
+        env,
+        corpoAppsScript(env, usuario, accion, datos),
+        { timeoutMs: TIMEOUT_FICHEIRO_MS }
+      );
+      if (!resultado?.ok) {
+        return json(resultado?.erro === 'Usuario non autorizado' ? 403 : 400, {
+          ok: false,
+          erro: resultado?.erro || 'Non foi posible abrir o documento.'
         });
       }
-      return json(502, {
-        ok: false,
-        erro: 'O servizo respondeu sen documentos, aínda que a folla contén rexistros. Tenta de novo nuns segundos.'
-      });
+      const resposta = respostaFicheiro(resultado);
+      if (usouRespaldo) resposta.headers.set('X-SCPP-AppScript', 'FALLBACK');
+      return resposta;
     }
 
-    await gardarCachePersistente(request, usuario.email, resultado);
-    return json(200, resultado, {
+    const { normalizado, usouRespaldo, intento } = await consultarListado(env, usuario, datos);
+    await gardarCachePersistente(request, usuario.email, normalizado);
+    return json(200, normalizado, {
       'X-SCPP-Cache': 'MISS',
+      'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
+      'X-SCPP-AppScript-Attempt': String(intento),
       'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
     });
   } catch (erro) {
-    console.error(erro);
-    const anterior = accion === 'listarDocumentacionPortal'
-      ? lerCache(cacheDocumentacion, usuario.email, true)
-      : null;
-    if (anterior?.documentos?.length) {
-      return json(200, anterior, {
-        'X-SCPP-Cache': 'STALE',
-        'X-SCPP-Warning': 'upstream-error'
+    console.error('Erro de documentación:', erro);
+    const cacheada = await lerCachePersistente(request, usuario.email);
+    if (accion === 'listarDocumentacionPortal' && cacheada?.payload?.documentos?.length) {
+      return json(200, cacheada.payload, {
+        'X-SCPP-Cache': 'EMERGENCY',
+        'X-SCPP-Warning': 'upstream-unavailable'
       });
     }
-    if (erro instanceof Error && erro.name === 'AbortError') {
-      return json(504, {
-        ok: false,
-        erro: 'O servizo de documentación tardou demasiado en responder. Tenta de novo nuns segundos.'
-      });
-    }
-    return json(502, {
+
+    const status = Number(erro?.status) || (erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503);
+    return json(status, {
       ok: false,
-      erro: erro instanceof Error ? erro.message : 'Non foi posible contactar co servizo de documentación'
+      erro: status === 403
+        ? 'Non tes permiso para acceder a esta documentación.'
+        : 'O servizo de documentación non está dispoñible neste momento. Tenta de novo nuns segundos.'
     });
   }
 }
