@@ -3,6 +3,7 @@
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PublicCoralMenu from '../components/PublicCoralMenu.astro';
+import PublicPageHero from '../components/PublicPageHero.astro';
 import PortalAcceptanceGate from '../components/PortalAcceptanceGate.astro';
 import PortalReviewStyles from '../components/PortalReviewStyles.astro';
 import '../styles/global.css';
@@ -19,6 +20,7 @@ const eZonaPortal = ruta === '/portal' || ruta.startsWith('/portal/');
 const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
 const eRepertorio = ruta === '/portal/repertorio' || ruta === '/portal/repertorio/';
 const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
+const ePortada = ruta === '/';
 ---
 
 <!DOCTYPE html>
@@ -37,9 +39,14 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
         <slot />
       </main>
     ) : (
-      <div class="public-site-shell">
+      <div class:list={['public-site-shell', ePortada && 'is-home']}>
         <PublicCoralMenu currentPath={ruta} />
         <main class="public-site-main">
+          <PublicPageHero
+            currentPath={ruta}
+            pageTitle={title}
+            description={description}
+          />
           <slot />
         </main>
       </div>
@@ -130,20 +137,71 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     padding: 0 2rem;
   }
 
+  /*
+   * Estrutura pública estable.
+   * Ver docs/GUIA-DESEÑO-WEB-PUBLICA.md antes de modificar estas medidas.
+   */
   .public-site-shell {
     display: grid;
-    grid-template-columns: minmax(220px, 252px) minmax(0, 1fr);
+    grid-template-columns: minmax(205px, 225px) minmax(0, 1fr);
     align-items: start;
-    gap: clamp(1.5rem, 3vw, 3.5rem);
-    width: min(100%, 1680px);
+    gap: clamp(1.2rem, 2vw, 1.8rem);
+    width: min(100%, 1400px);
     margin: 0 auto;
-    padding: 0 clamp(1rem, 2.2vw, 2.25rem);
+    padding: 0 clamp(1rem, 1.8vw, 1.75rem);
   }
 
   .public-site-main {
     min-width: 0;
   }
 
+  .public-site-shell.is-home {
+    display: block;
+    width: min(100%, 1240px);
+    padding: 0 1.5rem;
+  }
+
+  .public-site-shell.is-home .public-site-main {
+    width: 100%;
+  }
+
+  /* Portada: composición propia, deliberadamente máis estreita ca cabeceira. */
+  .public-site-shell.is-home .hero-section {
+    padding: 1.35rem 0 0 !important;
+  }
+
+  .public-site-shell.is-home .hero-box {
+    width: 100% !important;
+    max-width: 1120px !important;
+    min-height: 325px !important;
+    margin: 0 auto !important;
+  }
+
+  .public-site-shell.is-home .hero-content {
+    padding: 1.7rem 1.4rem !important;
+  }
+
+  .public-site-shell.is-home .hero-logo-wrapper {
+    width: 116px !important;
+    height: 116px !important;
+    margin-bottom: 1.15rem !important;
+  }
+
+  .public-site-shell.is-home .hero-content h1 {
+    max-width: 650px;
+    font-size: clamp(1.85rem, 3.2vw, 2.35rem) !important;
+    line-height: 1.12 !important;
+  }
+
+  .public-site-shell.is-home .minimal-line {
+    margin: .85rem 0 !important;
+  }
+
+  .public-site-shell.is-home .hero-subtitle {
+    font-size: .95rem !important;
+  }
+
+  /* A Coral xa usa o menú común do layout; suprímese o antigo menú interno. */
   .public-site-main .coral-page-wrapper {
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 0 !important;
@@ -158,6 +216,22 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
       grid-template-columns: minmax(0, 1fr);
       gap: 0;
       padding: 0;
+    }
+
+    .public-site-shell.is-home {
+      width: 100%;
+      padding: 0 1rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .public-site-shell.is-home .hero-box {
+      min-height: 290px !important;
+    }
+
+    .public-site-shell.is-home .hero-logo-wrapper {
+      width: 96px !important;
+      height: 96px !important;
     }
   }
 
