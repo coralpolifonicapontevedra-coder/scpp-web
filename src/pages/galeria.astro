@@ -1,80 +1,21 @@
 ---
 import BaseLayout from '../layouts/Layout.astro';
+import { fotosGaleria } from '../data/galeria-fotos.js';
 
-const fotos = [
-  {
-    id: '1aTwGKb3r0LevhWywI_A1xE9cGnZs1SYV',
-    titulo: 'Concerto en Madeira decembro de 2019',
-    categoria: 'Viaxes',
-    ano: '2019'
-  },
-  {
-    id: '11p3-YTNdNfFsKZYhHdgOMGQioLnaihIq',
-    titulo: 'Dirección da SCPP por Iglesias Vilarelle',
-    categoria: 'Histórico',
-    ano: ''
-  },
-  {
-    id: '1TEaAJ2e6jFmWvse0rIC3dOFzb5c78V6w',
-    titulo: 'Concerto Lugo 2024',
-    categoria: 'Concertos',
-    ano: '2024'
-  },
-  {
-    id: '1mSNZYp0l3xNbzNlTcEcjVmIdZEan0EJt',
-    titulo: 'Concerto no Teatro Principal con motivo das conferencias do centenario da SCPP',
-    categoria: 'Eventos',
-    ano: '2025'
-  },
-  {
-    id: '1hhPiQao1PuOHbTMTtRdUR2VFsECaMSsh',
-    titulo: 'Concerto en Afundación en beneficio do Banco de Alimentos',
-    categoria: 'Concertos',
-    ano: '2025'
-  },
-  {
-    id: '1k5o49yxkt7mT47rHzdQmnjdVtDpEkpVK',
-    titulo: 'Concerto Martín Códax 11-11-2023',
-    categoria: 'Concertos',
-    ano: '2023'
-  },
-  {
-    id: '1JJmMXkJa73ZDgK8OLsXvkITys-4rdvWK',
-    titulo: 'Concerto na Igrexa de San Francisco coa Banda de Música de Pontevedra',
-    categoria: 'Concertos',
-    ano: '2025'
-  },
-  {
-    id: '18WI_oQ5KvpoJSUq3R1AWT1npCYbiZXXu',
-    titulo: 'Concerto no Museo de Pontevedra. Medalla Marcial del Adalid',
-    categoria: 'Eventos',
-    ano: '2025'
-  },
-  {
-    id: '1D7sjPTDVo3_exlc-m7xmDeIWhpqqyfGe',
-    titulo: 'Entrega do Premio Otero Pedrayo',
-    categoria: 'Eventos',
-    ano: '2025'
-  },
-  {
-    id: '10nA7cp6Dj6KzCYXDicVWExMdkX7z6ktf',
-    titulo: 'Concerto do centenario na Igrexa de San Francisco II',
-    categoria: 'Concertos',
-    ano: '2025'
-  },
-  {
-    id: '1v7KhxHmQpjz7YeVSsd6tfmL5puPKTt8J',
-    titulo: 'Concerto do centenario na Igrexa de San Francisco',
-    categoria: 'Concertos',
-    ano: '2025'
-  }
-].map((foto) => ({
-  ...foto,
-  miniatura: `https://drive.google.com/thumbnail?id=${foto.id}&sz=w1200`,
-  orixinal: `https://drive.google.com/thumbnail?id=${foto.id}&sz=w2000`
-}));
+const fotos = fotosGaleria
+  .map((foto) => ({
+    ...foto,
+    miniatura: `https://drive.google.com/thumbnail?id=${foto.id}&sz=w900`,
+    orixinal: `https://drive.google.com/thumbnail?id=${foto.id}&sz=w1800`
+  }))
+  .sort((a, b) => {
+    const anoA = Number.parseInt(a.ano || '0', 10);
+    const anoB = Number.parseInt(b.ano || '0', 10);
+    if (anoA !== anoB) return anoB - anoA;
+    return a.titulo.localeCompare(b.titulo, 'gl');
+  });
 
-const categorias = ['Todos', 'Concertos', 'Eventos', 'Histórico', 'Viaxes'];
+const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa', 'Histórico', 'Viaxes'];
 ---
 
 <BaseLayout title="Galería" lang="gl">
@@ -98,7 +39,7 @@ const categorias = ['Todos', 'Concertos', 'Eventos', 'Histórico', 'Viaxes'];
 
     <section class="gallery-grid" aria-live="polite">
       {fotos.map((foto) => (
-        <article class="gallery-card" data-category={foto.categoria}>
+        <article class:list={['gallery-card', { 'is-document': foto.documento }]} data-category={foto.categoria}>
           <button
             class="gallery-image-button"
             type="button"
@@ -193,25 +134,28 @@ const categorias = ['Todos', 'Concertos', 'Eventos', 'Histórico', 'Viaxes'];
   .filter-tag:hover,.filter-tag.active { border-color:var(--color-principal); background:var(--color-principal); color:#fff; }
   .gallery-count { margin:0 0 1.3rem; color:#766f69; font-size:.78rem; text-align:right; }
 
-  .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1.4rem; }
+  .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(245px,1fr)); gap:1.25rem; }
   .gallery-card { overflow:hidden; border:1px solid #ded9d5; border-radius:4px; background:#fff; transition:transform .2s ease,box-shadow .2s ease; }
   .gallery-card:hover { transform:translateY(-3px); box-shadow:0 10px 26px rgba(38,28,24,.08); }
   .gallery-card[hidden] { display:none; }
 
-  .gallery-image-button { position:relative; display:block; width:100%; height:245px; padding:0; overflow:hidden; border:0; background:#eeeae7; cursor:zoom-in; }
+  .gallery-image-button { position:relative; display:block; width:100%; height:220px; padding:0; overflow:hidden; border:0; background:#eeeae7; cursor:zoom-in; }
   .gallery-image-button img { width:100%; height:100%; object-fit:cover; transition:transform .35s ease; }
   .gallery-card:hover img { transform:scale(1.025); }
+  .gallery-card.is-document .gallery-image-button { background:#f5f2ed; }
+  .gallery-card.is-document .gallery-image-button img { padding:.65rem; object-fit:contain; }
+  .gallery-card.is-document:hover img { transform:none; }
   .zoom-hint { position:absolute; right:.8rem; bottom:.8rem; padding:.3rem .55rem; border-radius:2px; background:rgba(50,31,34,.78); color:#fff; font-size:.68rem; font-weight:700; opacity:0; transform:translateY(4px); transition:opacity .2s ease,transform .2s ease; }
   .gallery-image-button:hover .zoom-hint,.gallery-image-button:focus-visible .zoom-hint { opacity:1; transform:translateY(0); }
 
-  .gallery-content-box { padding:1rem 1.1rem 1.15rem; }
+  .gallery-content-box { padding:.9rem 1rem 1.05rem; }
   .gallery-meta { display:flex; justify-content:space-between; gap:1rem; align-items:center; margin-bottom:.45rem; }
   .gallery-category { color:var(--color-principal); font-size:.65rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
   .gallery-meta time { color:#8b837d; font-size:.7rem; }
-  .gallery-content-box h2 { margin:0; color:#3b3734; font-size:.98rem; font-weight:650; line-height:1.45; }
+  .gallery-content-box h2 { margin:0; color:#3b3734; font-size:.94rem; font-weight:650; line-height:1.42; }
   .gallery-empty { padding:2rem; border:1px solid #ded9d5; color:#716a65; text-align:center; }
 
-  .gallery-dialog { width:min(94vw,1180px); max-height:92vh; padding:0; overflow:visible; border:0; background:transparent; }
+  .gallery-dialog { width:min(94vw,1100px); max-height:92vh; padding:0; overflow:visible; border:0; background:transparent; }
   .gallery-dialog::backdrop { background:rgba(18,14,13,.88); }
   .gallery-dialog figure { margin:0; }
   .gallery-dialog img { display:block; width:100%; max-height:82vh; object-fit:contain; background:#171313; }
@@ -221,7 +165,7 @@ const categorias = ['Todos', 'Concertos', 'Eventos', 'Histórico', 'Viaxes'];
   @media(max-width:680px) {
     .gallery-page-wrapper { padding-top:2.5rem; padding-bottom:4rem; }
     .gallery-grid { grid-template-columns:1fr; gap:1rem; }
-    .gallery-image-button { height:260px; }
+    .gallery-image-button { height:235px; }
     .gallery-count { text-align:center; }
   }
 </style>
