@@ -1,0 +1,272 @@
+---
+const { currentPath = '/' } = Astro.props;
+
+const rutaActual = String(currentPath || '/').replace(/\/$/, '') || '/';
+const seccions = [
+  { nome: 'A Coral', url: '/acoral', rutas: ['/acoral'] },
+  { nome: 'Historia', url: '/historia', rutas: ['/historia'] },
+  { nome: 'Centenario', url: '/centenario', rutas: ['/centenario'] },
+  { nome: 'Directora', url: '/directora', rutas: ['/directora'] },
+  { nome: 'Xunta Directiva', url: '/xunta-directiva', rutas: ['/xunta-directiva'] },
+  { nome: 'Coralistas', url: '/coralistas', rutas: ['/coralistas'] },
+  { nome: 'Distincións', url: '/distincions', rutas: ['/distincions'] },
+  { nome: 'Colaboracións', url: '/acoral#colaboracions', rutas: [] },
+  { nome: 'Solicitar un concerto', url: '/acoral#contratacion', rutas: ['/contacto'] }
+];
+
+const eActiva = (rutas = []) => rutas.some((ruta) =>
+  rutaActual === ruta || rutaActual.startsWith(`${ruta}/`)
+);
+---
+
+<aside class="public-coral-menu" aria-label="Menú de A Coral">
+  <button
+    id="publicCoralMenuToggle"
+    class="public-coral-toggle"
+    type="button"
+    aria-expanded="false"
+    aria-controls="publicCoralMenuNav"
+    aria-label="Abrir o menú de A Coral"
+  >
+    <span>
+      <small>Coñece a institución</small>
+      <strong>A Coral</strong>
+    </span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+  </button>
+
+  <nav id="publicCoralMenuNav" class="public-coral-nav" aria-label="Seccións de A Coral">
+    <header>
+      <span>Sociedade Coral</span>
+      <h2>A Coral</h2>
+      <p>Historia, persoas e patrimonio dunha institución centenaria.</p>
+    </header>
+
+    <ul>
+      {seccions.map((seccion) => (
+        <li>
+          <a
+            href={seccion.url}
+            class:list={[eActiva(seccion.rutas) && 'is-active']}
+            aria-current={eActiva(seccion.rutas) ? 'page' : undefined}
+          >
+            <span>{seccion.nome}</span>
+            <span class="menu-arrow" aria-hidden="true">→</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</aside>
+
+<script>
+  const menu = document.querySelector<HTMLElement>('.public-coral-menu');
+  const toggle = document.querySelector<HTMLButtonElement>('#publicCoralMenuToggle');
+  const nav = document.querySelector<HTMLElement>('#publicCoralMenuNav');
+  const mobileQuery = window.matchMedia('(max-width: 1180px)');
+
+  if (menu && toggle && nav) {
+    menu.classList.add('is-enhanced');
+
+    const setOpen = (open: boolean) => {
+      toggle.classList.toggle('is-open', open);
+      nav.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? 'Pechar o menú de A Coral' : 'Abrir o menú de A Coral');
+    };
+
+    toggle.addEventListener('click', () => {
+      setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+    });
+
+    nav.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => setOpen(false));
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+
+    mobileQuery.addEventListener('change', (event) => {
+      if (!event.matches) setOpen(false);
+    });
+  }
+</script>
+
+<style>
+  .public-coral-menu {
+    min-width: 0;
+    padding-top: 2rem;
+  }
+
+  .public-coral-toggle {
+    display: none;
+  }
+
+  .public-coral-nav {
+    position: sticky;
+    top: 185px;
+    overflow: hidden;
+    border: 1px solid rgba(106, 27, 41, .12);
+    border-radius: 6px;
+    background: #f4f0e6;
+    box-shadow: 0 12px 30px rgba(53, 35, 37, .05);
+  }
+
+  .public-coral-nav header {
+    padding: 1.6rem 1.35rem 1.25rem;
+    border-bottom: 1px solid rgba(106, 27, 41, .12);
+    background: rgba(255, 255, 255, .5);
+  }
+
+  .public-coral-nav header span {
+    display: block;
+    margin-bottom: .25rem;
+    color: #9a7431;
+    font-size: .67rem;
+    font-weight: 800;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+
+  .public-coral-nav h2 {
+    margin: 0;
+    color: var(--color-principal);
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+
+  .public-coral-nav p {
+    margin: .65rem 0 0;
+    color: #625b56;
+    font-size: .8rem;
+    line-height: 1.55;
+  }
+
+  .public-coral-nav ul {
+    display: grid;
+    gap: .12rem;
+    margin: 0;
+    padding: .7rem;
+    list-style: none;
+  }
+
+  .public-coral-nav a {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .75rem;
+    min-height: 2.72rem;
+    padding: .58rem .68rem;
+    border-radius: 4px;
+    color: #48413d;
+    font-size: .86rem;
+    font-weight: 600;
+    line-height: 1.3;
+    text-decoration: none;
+    transition: background .18s ease, color .18s ease, transform .18s ease;
+  }
+
+  .public-coral-nav a:hover,
+  .public-coral-nav a.is-active {
+    background: #fff;
+    color: var(--color-principal);
+  }
+
+  .public-coral-nav a:hover {
+    transform: translateX(2px);
+  }
+
+  .public-coral-nav a.is-active {
+    font-weight: 800;
+    box-shadow: inset 3px 0 0 var(--color-acento);
+  }
+
+  .menu-arrow {
+    color: var(--color-acento);
+    font-size: 1rem;
+  }
+
+  @media (max-width: 1180px) {
+    .public-coral-menu {
+      width: 100%;
+      padding: 1rem clamp(1rem, 3vw, 2rem) 0;
+    }
+
+    .public-coral-toggle {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 1.25rem;
+      align-items: center;
+      gap: .75rem;
+      width: 100%;
+      min-height: 3.35rem;
+      padding: .62rem .82rem;
+      border: 1px solid rgba(106, 27, 41, .2);
+      border-radius: 6px;
+      background: #f4f0e6;
+      color: var(--color-principal);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .public-coral-toggle span,
+    .public-coral-toggle small,
+    .public-coral-toggle strong {
+      display: block;
+    }
+
+    .public-coral-toggle small {
+      margin-bottom: .08rem;
+      color: #8a6a32;
+      font-size: .64rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .public-coral-toggle strong {
+      font-size: .95rem;
+    }
+
+    .public-coral-toggle svg {
+      width: 19px;
+      height: 19px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      transition: transform .2s ease;
+    }
+
+    .public-coral-toggle.is-open svg {
+      transform: rotate(180deg);
+    }
+
+    .public-coral-nav {
+      position: static;
+      margin-top: .5rem;
+      box-shadow: none;
+    }
+
+    .public-coral-menu.is-enhanced .public-coral-nav:not(.is-open) {
+      display: none;
+    }
+
+    .public-coral-nav header {
+      display: none;
+    }
+
+    .public-coral-nav ul {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    .public-coral-nav ul {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
