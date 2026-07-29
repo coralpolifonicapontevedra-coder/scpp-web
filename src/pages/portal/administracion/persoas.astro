@@ -214,10 +214,10 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 <style is:global>
   body { background: #f5f3f1; }
   .private-layout { display: flex; min-height: 100vh; }
-  .people-main { flex: 1; min-width: 0; padding: 2.1rem clamp(1.25rem, 3vw, 3.5rem) 4rem; }
+  .people-main { flex: 1; min-width: 0; padding: 2.1rem clamp(1.25rem, 3vw, 3.5rem) 4rem; font-family: var(--fuente-minimalista); }
   .private-page-header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; margin-bottom: 1.8rem; }
   .section-kicker { color: var(--color-acento); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-  h1 { margin: .2rem 0 .55rem; color: var(--color-principal); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2rem, 4vw, 3.5rem); }
+  h1 { margin: .2rem 0 .55rem; color: var(--color-principal); font-family: var(--fuente-minimalista); font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 700; letter-spacing: -.025em; }
   .private-page-header p { max-width: 760px; margin: 0; color: #625c58; line-height: 1.65; }
   .account-card { display: grid; gap: .7rem; min-width: 250px; padding: 1rem 1.15rem; border: 1px solid #ded8d3; background: #fff; }
   .account-card span { display: grid; gap: .18rem; }
@@ -232,7 +232,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   .person-selector select { width: 100%; min-height: 3rem; padding: .65rem .8rem; border: 1px solid #d6cfca; border-radius: 4px; background: #fff; color: #302b28; font: inherit; }
   .person-card { border: 1px solid #ded8d3; background: #fff; }
   .person-card-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; padding: 1.35rem 1.5rem; border-bottom: 1px solid #e5dfda; }
-  .person-card-header h2 { margin: .35rem 0 .3rem; color: var(--color-principal); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.5rem, 3vw, 2.25rem); }
+  .person-card-header h2 { margin: .35rem 0 .3rem; color: var(--color-principal); font-family: var(--fuente-minimalista); font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -.02em; }
   .person-card-header p { margin: 0; color: #6a625d; }
   .status-badge { display: inline-flex; padding: .25rem .55rem; border-radius: 999px; background: #e7efe6; color: #35513a; font-size: .72rem; font-weight: 800; }
   .status-badge.is-inactive { background: #eee8e5; color: #775f55; }
