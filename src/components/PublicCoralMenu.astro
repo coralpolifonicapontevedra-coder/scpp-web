@@ -1,4 +1,5 @@
 ---
+/* Menú institucional común da parte pública. */
 const { currentPath = '/' } = Astro.props;
 
 const rutaActual = String(currentPath || '/').replace(/\/$/, '') || '/';
@@ -101,6 +102,7 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
       if (!event.matches) setOpen(false);
     });
 
+    /* Mantense a ligazón ao centenario ao final de Distincións. */
     if (menu.dataset.currentPath === '/distincions') {
       const moveCentenaryButton = () => {
         const button = document.querySelector<HTMLElement>('.distincions-page .btn-centenario');
@@ -117,63 +119,10 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
   }
 </script>
 
-<style is:global>
-  /* Estrutura pública: o contido non supera de maneira desproporcionada o encabezado. */
-  .public-site-shell {
-    width: min(100%, 1480px) !important;
-    margin: 0 auto !important;
-    padding: 0 clamp(1rem, 1.8vw, 1.75rem) !important;
-    grid-template-columns: minmax(210px, 230px) minmax(0, 1fr) !important;
-    gap: clamp(1.25rem, 2.2vw, 2rem) !important;
-  }
-
-  .public-site-shell:not(:has(.public-coral-menu)) {
-    display: block !important;
-    width: min(100%, 1480px) !important;
-    max-width: 1480px !important;
-    padding: 0 clamp(1rem, 1.8vw, 1.75rem) !important;
-  }
-
-  .public-site-main {
-    min-width: 0;
-  }
-
-  /* Portada: conserva a composición pero cunha escala máis contida. */
-  .public-site-shell:not(:has(.public-coral-menu)) .hero-section {
-    padding: 1.5rem 0 0 !important;
-  }
-
-  .public-site-shell:not(:has(.public-coral-menu)) .hero-box {
-    width: 100% !important;
-    max-width: 1420px !important;
-    min-height: 360px !important;
-    margin: 0 auto !important;
-  }
-
-  .public-site-shell:not(:has(.public-coral-menu)) .hero-content {
-    padding: 2rem 1.5rem !important;
-  }
-
-  .public-site-shell:not(:has(.public-coral-menu)) .hero-logo-wrapper {
-    width: 132px !important;
-    height: 132px !important;
-    margin-bottom: 1.35rem !important;
-  }
-
-  .public-site-shell:not(:has(.public-coral-menu)) .hero-content h1 {
-    max-width: 700px;
-    font-size: clamp(2rem, 3.6vw, 2.65rem) !important;
-    line-height: 1.12 !important;
-  }
-
-  .public-site-shell:not(:has(.public-coral-menu)) .minimal-line {
-    margin: 1rem 0 !important;
-  }
-
-  /* Menú institucional da esquerda. */
+<style>
   .public-coral-menu {
     min-width: 0;
-    padding-top: 1.5rem;
+    padding-top: 1.25rem;
   }
 
   .public-coral-toggle {
@@ -187,22 +136,22 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
     border: 1px solid rgba(106, 27, 41, .12);
     border-radius: 5px;
     background: #f4f0e6;
-    box-shadow: 0 8px 24px rgba(53, 35, 37, .045);
+    box-shadow: 0 9px 24px rgba(53, 35, 37, .045);
   }
 
   .public-coral-nav header {
     padding: 1.25rem 1.1rem 1rem;
-    border-bottom: 1px solid rgba(106, 27, 41, .12);
-    background: rgba(255, 255, 255, .52);
+    border-bottom: 1px solid rgba(106, 27, 41, .1);
+    background: rgba(255, 255, 255, .5);
   }
 
   .public-coral-nav header span {
     display: block;
-    margin-bottom: .18rem;
-    color: #9a7431;
-    font-size: .63rem;
+    margin-bottom: .2rem;
+    color: #98722f;
+    font-size: .62rem;
     font-weight: 800;
-    letter-spacing: .12em;
+    letter-spacing: .13em;
     text-transform: uppercase;
   }
 
@@ -214,9 +163,9 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
   }
 
   .public-coral-nav p {
-    margin: .55rem 0 0;
+    margin: .52rem 0 0;
     color: #625b56;
-    font-size: .74rem;
+    font-size: .75rem;
     line-height: 1.5;
   }
 
@@ -233,25 +182,21 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: .65rem;
-    min-height: 2.42rem;
-    padding: .48rem .58rem;
+    min-height: 2.45rem;
+    padding: .5rem .58rem;
     border-radius: 3px;
     color: #48413d;
     font-size: .8rem;
     font-weight: 600;
     line-height: 1.25;
     text-decoration: none;
-    transition: background .18s ease, color .18s ease, transform .18s ease;
+    transition: background .18s ease, color .18s ease;
   }
 
   .public-coral-nav a:hover,
   .public-coral-nav a.is-active {
     background: #fff;
     color: var(--color-principal);
-  }
-
-  .public-coral-nav a:hover {
-    transform: translateX(2px);
   }
 
   .public-coral-nav a.is-active {
@@ -261,158 +206,10 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
 
   .menu-arrow {
     color: var(--color-acento);
-    font-size: .95rem;
-  }
-
-  /* Cabeceras institucionais: menos altura, menos texto e máis aire lateral. */
-  .public-site-main :is(.historia-hero, .centenario-hero, .distincions-hero) {
-    width: min(100%, 1080px) !important;
-    min-height: 250px !important;
-    margin: 1.5rem auto 0 !important;
-    padding: 2.35rem 2rem 2.7rem !important;
-    overflow: hidden;
-    border-radius: 4px;
-  }
-
-  .public-site-main :is(.historia-hero, .centenario-hero, .distincions-hero) .hero-content {
-    width: min(720px, 100%) !important;
-  }
-
-  .public-site-main :is(.historia-hero, .centenario-hero, .distincions-hero) h1 {
-    font-size: clamp(2.15rem, 4vw, 3.1rem) !important;
-    line-height: 1.05 !important;
-    letter-spacing: -.03em !important;
-  }
-
-  .public-site-main :is(.historia-hero, .centenario-hero, .distincions-hero) .eyebrow {
-    margin-bottom: .65rem !important;
-    font-size: .66rem !important;
-    letter-spacing: .16em !important;
-  }
-
-  .public-site-main :is(.historia-hero, .centenario-hero, .distincions-hero) .hero-lead {
-    max-width: 620px !important;
-    margin-top: .95rem !important;
-    font-size: .94rem !important;
-    line-height: 1.6 !important;
-  }
-
-  .public-site-main :is(.historia-hero, .centenario-hero, .distincions-hero) .hero-link {
-    margin-top: 1.15rem !important;
-    font-size: .68rem !important;
-  }
-
-  /* Historia: os seis accesos pasan de cadrados grandes a rectángulos compactos. */
-  .historia-page .archive-nav {
-    width: min(100%, 1040px) !important;
-    margin: -1.35rem auto 3rem !important;
-  }
-
-  .historia-page .archive-nav-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    box-shadow: 0 10px 28px rgba(44, 26, 30, .09) !important;
-  }
-
-  .historia-page .archive-tab {
-    min-height: 108px !important;
-    padding: .9rem 1.05rem !important;
-  }
-
-  .historia-page .tab-number {
-    margin-bottom: .38rem !important;
-    font-size: .66rem !important;
-  }
-
-  .historia-page .tab-meta {
-    margin-bottom: .18rem !important;
-    font-size: .61rem !important;
-  }
-
-  .historia-page .archive-tab strong {
-    font-size: .98rem !important;
-    line-height: 1.2 !important;
-  }
-
-  .historia-page .archive-tab small {
-    display: none !important;
-  }
-
-  .historia-page .archive-content {
-    width: min(100% - 1rem, 980px) !important;
-  }
-
-  .historia-page .section-heading {
-    margin-bottom: 2.5rem !important;
-  }
-
-  .historia-page :is(.section-heading h2, .closing-statement h2) {
-    font-size: clamp(1.8rem, 3.5vw, 2.55rem) !important;
-  }
-
-  .historia-page :is(.section-heading > p:last-child, .closing-statement > p:last-child) {
-    margin-top: 1rem !important;
-    font-size: .95rem !important;
-    line-height: 1.7 !important;
-  }
-
-  .historia-page .story-card,
-  .historia-page .person-card,
-  .historia-page .chronology-card,
-  .historia-page .presidency-card,
-  .historia-page .scenography-card,
-  .historia-page .legacy-card {
-    padding: 1.45rem !important;
-  }
-
-  .historia-page :is(.chronology-grid, .presidency-grid, .scenography-grid, .legacy-grid) {
-    gap: .9rem !important;
-  }
-
-  .historia-page .story-item {
-    gap: 1.15rem !important;
-    margin-bottom: 1.35rem !important;
-  }
-
-  .historia-page .story-card:hover {
-    transform: none !important;
-  }
-
-  /* Centenario e Distincións: introducións máis próximas á cabeceira. */
-  .centenario-page .centenario-intro,
-  .distincions-page .intro-section {
-    padding-top: 3.25rem !important;
-    padding-bottom: 2.7rem !important;
-  }
-
-  .centenario-page :is(.centenario-intro h2, .closing-section h2),
-  .distincions-page :is(.intro-section h2, .section-heading h2, .documentation-note h2) {
-    font-size: clamp(1.9rem, 3.6vw, 2.65rem) !important;
-  }
-
-  /* Cabeceiras simples do resto das páxinas institucionais. */
-  .public-site-main :is(.xunta-page, .coralistas-page) {
-    padding-top: 2.5rem !important;
-  }
-
-  .public-site-main :is(.xunta-page, .coralistas-page) .page-header {
-    margin-bottom: 1.8rem !important;
-  }
-
-  .public-site-main :is(.xunta-page, .coralistas-page) .page-header h1 {
-    font-size: clamp(2rem, 3.4vw, 2.7rem) !important;
+    font-size: .92rem;
   }
 
   @media (max-width: 1180px) {
-    .public-site-shell {
-      grid-template-columns: minmax(0, 1fr) !important;
-      gap: 0 !important;
-      padding: 0 !important;
-    }
-
-    .public-site-shell:not(:has(.public-coral-menu)) {
-      padding: 0 1rem !important;
-    }
-
     .public-coral-menu {
       width: 100%;
       padding: 1rem clamp(1rem, 3vw, 2rem) 0;
@@ -420,13 +217,13 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
 
     .public-coral-toggle {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 1.25rem;
+      grid-template-columns: minmax(0, 1fr) 1.15rem;
       align-items: center;
-      gap: .75rem;
+      gap: .7rem;
       width: 100%;
-      min-height: 3.15rem;
-      padding: .55rem .75rem;
-      border: 1px solid rgba(106, 27, 41, .2);
+      min-height: 3rem;
+      padding: .5rem .7rem;
+      border: 1px solid rgba(106, 27, 41, .18);
       border-radius: 5px;
       background: #f4f0e6;
       color: var(--color-principal);
@@ -442,21 +239,21 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
     }
 
     .public-coral-toggle small {
-      margin-bottom: .05rem;
+      margin-bottom: .03rem;
       color: #8a6a32;
-      font-size: .61rem;
+      font-size: .59rem;
       font-weight: 800;
       letter-spacing: .1em;
       text-transform: uppercase;
     }
 
     .public-coral-toggle strong {
-      font-size: .9rem;
+      font-size: .87rem;
     }
 
     .public-coral-toggle svg {
-      width: 18px;
-      height: 18px;
+      width: 17px;
+      height: 17px;
       fill: none;
       stroke: currentColor;
       stroke-width: 1.8;
@@ -469,7 +266,7 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
 
     .public-coral-nav {
       position: static;
-      margin-top: .45rem;
+      margin-top: .42rem;
       box-shadow: none;
     }
 
@@ -484,75 +281,11 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
     .public-coral-nav ul {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-
-    .public-site-main :is(.historia-hero, .centenario-hero, .distincions-hero) {
-      width: calc(100% - 2rem) !important;
-      margin-top: 1rem !important;
-    }
   }
 
   @media (max-width: 720px) {
     .public-coral-nav ul {
       grid-template-columns: 1fr;
-    }
-
-    .public-site-shell:not(:has(.public-coral-menu)) .hero-box {
-      min-height: 330px !important;
-    }
-
-    .public-site-main :is(.historia-hero, .centenario-hero, .distincions-hero) {
-      min-height: 225px !important;
-      padding: 2rem 1.2rem 2.25rem !important;
-    }
-
-    .historia-page .archive-nav {
-      width: calc(100% - 2rem) !important;
-      margin-top: -1rem !important;
-    }
-
-    .historia-page .archive-nav-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    }
-
-    .historia-page .archive-tab,
-    .historia-page .archive-tab:nth-child(n) {
-      min-height: 92px !important;
-      border-right: 1px solid var(--line) !important;
-      border-bottom: 1px solid var(--line) !important;
-    }
-
-    .historia-page .archive-tab:nth-child(2n) {
-      border-right: 0 !important;
-    }
-
-    .historia-page .archive-tab:nth-last-child(-n + 2) {
-      border-bottom: 0 !important;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .public-site-shell:not(:has(.public-coral-menu)) .hero-box {
-      min-height: 305px !important;
-    }
-
-    .public-site-shell:not(:has(.public-coral-menu)) .hero-logo-wrapper {
-      width: 108px !important;
-      height: 108px !important;
-    }
-
-    .historia-page .archive-nav-grid {
-      grid-template-columns: 1fr !important;
-    }
-
-    .historia-page .archive-tab,
-    .historia-page .archive-tab:nth-child(n) {
-      min-height: 78px !important;
-      border-right: 0 !important;
-      border-bottom: 1px solid var(--line) !important;
-    }
-
-    .historia-page .archive-tab:last-child {
-      border-bottom: 0 !important;
     }
   }
 </style>
