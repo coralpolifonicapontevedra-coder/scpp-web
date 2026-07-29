@@ -129,4 +129,4 @@ Comprobar especialmente:
 
 ## Decisión de arquitectura
 
-A escala visual pública queda controlada polos compoñentes compartidos. Los estilos individuales de cada página deben limitarse ao seu contenido específico y no redefinir la estructura general, el menú lateral o la cabecera institucional.
+A escala visual pública queda controlada polos compoñentes compartidos. Os estilos individuais de cada páxina deben limitarse ao seu contido específico e non redefinir a estrutura xeral, o menú lateral nin a cabeceira institucional.
