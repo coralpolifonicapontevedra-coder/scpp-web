@@ -80,6 +80,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
               </label>
 
               <label class="field">
+                <span>Data de ingreso na SCPP</span>
+                <input id="incorporation-date" type="date" readonly />
+              </label>
+
+              <label class="field">
                 <span>Voz</span>
                 <input id="voice" readonly />
               </label>
@@ -89,7 +94,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
                 <input id="role" readonly />
               </label>
 
-              <label class="field">
+              <label class="field field-wide">
                 <span>Tipo de socio</span>
                 <input id="member-type" readonly />
               </label>
@@ -313,6 +318,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const fields = {
       '#full-name': profile.nomeCompleto,
       '#nif': profile.nif,
+      '#incorporation-date': profile.dataIncorporacionSCPP,
       '#voice': profile.voz,
       '#role': profile.cargo,
       '#member-type': profile.tipoSocio
