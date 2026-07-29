@@ -12,8 +12,7 @@ const seccions = [
   { nome: 'Xunta Directiva', url: '/xunta-directiva', rutas: ['/xunta-directiva'] },
   { nome: 'Coralistas', url: '/coralistas', rutas: ['/coralistas'] },
   { nome: 'Distincións', url: '/distincions', rutas: ['/distincions'] },
-  { nome: 'Colaboracións', url: '/acoral#colaboracions', rutas: [] },
-  { nome: 'Solicitar un concerto', url: '/acoral#contratacion', rutas: ['/contacto'] }
+  { nome: 'Solicitar un concerto', url: '/contacto', rutas: ['/contacto'] }
 ];
 
 const eActiva = (rutas = []) => rutas.some((ruta) =>
@@ -207,6 +206,21 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
   .menu-arrow {
     color: var(--color-acento);
     font-size: .92rem;
+  }
+
+  :global(.public-site-main .centenario-page .centenario-intro h2),
+  :global(.public-site-main .centenario-page .closing-section h2),
+  :global(.public-site-main .coralistas-page .directory-heading h2),
+  :global(.public-site-main .distincions-page .intro-section h2),
+  :global(.public-site-main .distincions-page .section-heading h2),
+  :global(.public-site-main .distincions-page .documentation-note h2) {
+    font-size: clamp(1.55rem, 2.6vw, 2.2rem) !important;
+    line-height: 1.15 !important;
+    letter-spacing: -.02em !important;
+  }
+
+  :global(.public-site-main .coral-page-wrapper #colaboracions) {
+    display: none !important;
   }
 
   @media (max-width: 1180px) {
