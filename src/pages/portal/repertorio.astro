@@ -30,17 +30,43 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       </section>
 
       <section id="repertorio-app" class="repertorio-app" hidden>
-        <aside class="works-panel" aria-label="Lista de obras">
-          <label class="search-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
-            <input id="work-search" type="search" placeholder="Buscar obra, autor ou compositor" autocomplete="off" />
-          </label>
-          <div class="works-summary"><strong id="work-count">0</strong><span>obras</span></div>
-          <div id="works-list" class="works-list"></div>
-          <p id="no-results" class="no-results" hidden>Non hai obras que coincidan coa busca.</p>
-        </aside>
+        <section class="works-tools" aria-label="Consulta de obras">
+          <div class="works-tools-heading">
+            <div>
+              <span>Consulta de repertorio</span>
+              <strong>Busca ou selecciona unha obra</strong>
+            </div>
+            <div class="works-summary">
+              <strong id="work-count">0</strong>
+              <span>obras dispoñibles</span>
+            </div>
+          </div>
 
-        <article id="work-detail" class="work-detail" aria-live="polite">
+          <div class="works-controls">
+            <label class="search-field">
+              <span>Buscar</span>
+              <span class="search-box">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
+                <input id="work-search" type="search" placeholder="Título, autor ou compositor" autocomplete="off" />
+              </span>
+            </label>
+
+            <label class="select-field">
+              <span>Seleccionar obra</span>
+              <select id="work-select">
+                <option value="">Escolle unha obra…</option>
+              </select>
+            </label>
+          </div>
+
+          <p id="no-results" class="no-results" hidden>Non hai obras que coincidan coa busca.</p>
+        </section>
+
+        <section id="empty-selection" class="empty-selection">
+          Selecciona unha obra para consultar a súa ficha, partituras, audios e interpretacións.
+        </section>
+
+        <article id="work-detail" class="work-detail" aria-live="polite" hidden>
           <header class="work-heading">
             <span id="work-id" class="work-id"></span>
             <h2 id="work-title"></h2>
@@ -118,9 +144,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const userEmail = document.querySelector('#user-email');
   const logout = document.querySelector('#repertorio-logout');
   const search = document.querySelector('#work-search');
-  const worksList = document.querySelector('#works-list');
+  const select = document.querySelector('#work-select');
   const workCount = document.querySelector('#work-count');
   const noResults = document.querySelector('#no-results');
+  const emptySelection = document.querySelector('#empty-selection');
+  const workDetail = document.querySelector('#work-detail');
 
   let obras = [];
   let obraActiva = '';
@@ -167,25 +195,41 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     return element;
   }
 
-  function debuxarLista(filtro = '') {
-    if (!(worksList instanceof HTMLElement)) return;
+  function etiquetaObra(obra) {
+    const autoria = obra.compositor || obra.autorLetra || 'Autoría non indicada';
+    return `${obra.nomeObra || 'Obra sen título'} — ${autoria}`;
+  }
+
+  function limparSeleccion() {
+    obraActiva = '';
+    if (select instanceof HTMLSelectElement) select.value = '';
+    if (emptySelection instanceof HTMLElement) emptySelection.hidden = false;
+    if (workDetail instanceof HTMLElement) workDetail.hidden = true;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('id');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function actualizarSelector(filtro = '') {
+    if (!(select instanceof HTMLSelectElement)) return;
     const query = normalizar(filtro);
     const filtradas = obras.filter((obra) =>
       normalizar([obra.nomeObra, obra.autorLetra, obra.compositor].join(' ')).includes(query)
     );
-    worksList.replaceChildren();
+
+    const valorAnterior = obraActiva;
+    select.replaceChildren(new Option('Escolle unha obra…', ''));
+    filtradas.forEach((obra) => select.add(new Option(etiquetaObra(obra), obra.id)));
+
     if (workCount instanceof HTMLElement) workCount.textContent = String(filtradas.length);
     if (noResults instanceof HTMLElement) noResults.hidden = filtradas.length > 0;
 
-    filtradas.forEach((obra) => {
-      const button = crear('button', 'work-item');
-      button.type = 'button';
-      button.dataset.id = obra.id;
-      button.classList.toggle('is-active', obra.id === obraActiva);
-      const autoria = obra.compositor || obra.autorLetra || 'Autoría non indicada';
-      button.append(crear('span', 'work-label', `${obra.nomeObra} — ${autoria}`));
-      worksList.append(button);
-    });
+    const seleccionVisible = filtradas.some((obra) => obra.id === valorAnterior);
+    if (seleccionVisible) {
+      select.value = valorAnterior;
+    } else if (valorAnterior) {
+      limparSeleccion();
+    }
   }
 
   async function abrirFicheiro(ruta, button, tipo) {
@@ -218,7 +262,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   function debuxarObra(obra) {
     obraActiva = obra.id;
-    debuxarLista(search instanceof HTMLInputElement ? search.value : '');
+    if (select instanceof HTMLSelectElement) select.value = obra.id;
+    if (emptySelection instanceof HTMLElement) emptySelection.hidden = true;
+    if (workDetail instanceof HTMLElement) workDetail.hidden = false;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('id', obra.id);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+
     text('#work-id', `Obra ${obra.id}`);
     text('#work-title', obra.nomeObra);
     text('#work-authorship', [obra.autorLetra, obra.compositor].filter(Boolean).join(' · '));
@@ -311,11 +362,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       obras = Array.isArray(result.obras) ? result.obras : [];
       obras.sort((a, b) => String(a.nomeObra || '').localeCompare(String(b.nomeObra || ''), 'gl'));
       if (!obras.length) throw new Error('O repertorio non contén obras dispoñibles.');
+
+      actualizarSelector();
       const requested = new URLSearchParams(window.location.search).get('id');
-      const seleccionada = obras.find((obra) => obra.id === requested) || obras[0];
-      obraActiva = seleccionada.id;
-      debuxarLista();
-      debuxarObra(seleccionada);
+      const seleccionada = requested ? obras.find((obra) => obra.id === requested) : null;
+      if (seleccionada) debuxarObra(seleccionada);
+      else limparSeleccion();
+
       if (app instanceof HTMLElement) app.hidden = false;
     } catch (error) {
       if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Erro descoñecido.';
@@ -336,25 +389,30 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     }
   });
 
-  worksList?.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest('button[data-id]');
-    if (!(button instanceof HTMLButtonElement)) return;
-    const obra = obras.find((item) => item.id === button.dataset.id);
+  select?.addEventListener('change', () => {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const obra = obras.find((item) => item.id === select.value);
     if (obra) debuxarObra(obra);
+    else limparSeleccion();
   });
-  search?.addEventListener('input', () => debuxarLista(search instanceof HTMLInputElement ? search.value : ''));
+
+  search?.addEventListener('input', () => {
+    actualizarSelector(search instanceof HTMLInputElement ? search.value : '');
+  });
+
   retryButton?.addEventListener('click', cargar);
   logout?.addEventListener('click', async () => {
     await signOut(auth);
     window.location.href = '/portal/';
   });
+  window.addEventListener('beforeunload', () => {
+    if (ficheiroUrl) URL.revokeObjectURL(ficheiroUrl);
+  });
 </script>
 
 <style>
   .private-layout { display:grid; grid-template-columns:282px minmax(0,1fr); min-height:100vh; background:#fff; }
-  .repertorio-main { box-sizing:border-box; width:100%; max-width:1500px; margin:0 auto; padding:2.7rem clamp(1.5rem,4vw,4.2rem) 4rem clamp(.85rem,1.4vw,1.5rem); font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; }
+  .repertorio-main { box-sizing:border-box; width:100%; max-width:1500px; margin:0 auto; padding:2.7rem clamp(1.5rem,4vw,4.2rem) 4rem clamp(.85rem,1.4vw,1.5rem); font-family:var(--fuente-minimalista); }
   .private-page-header { display:flex; justify-content:space-between; gap:2rem; align-items:flex-start; margin-bottom:2rem; }
   .section-kicker { color:var(--color-principal); font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
   .private-page-header h1 { margin:.35rem 0 .45rem; color:var(--color-principal); font-size:clamp(2rem,3.4vw,2.75rem); }
@@ -363,24 +421,31 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .account-card span { display:grid; gap:.18rem; }
   .account-card small { color:#6f6965; font-size:.7rem; }
   .account-card strong { max-width:210px; overflow:hidden; color:var(--color-principal); font-size:.78rem; text-overflow:ellipsis; white-space:nowrap; }
-  .portal-state { padding:1rem 1.1rem; border:1px solid #ddd9d5; border-radius:4px; background:#faf9f7; color:#5d5956; }
-  .portal-state[hidden],.repertorio-app[hidden],.no-results[hidden],.empty-resource[hidden],.work-comments[hidden],audio[hidden] { display:none; }
+  .portal-state,.empty-selection { padding:1rem 1.1rem; border:1px solid #ddd9d5; border-radius:4px; background:#faf9f7; color:#5d5956; }
+  .portal-state[hidden],.repertorio-app[hidden],.no-results[hidden],.empty-selection[hidden],.work-detail[hidden],.empty-resource[hidden],.work-comments[hidden],audio[hidden] { display:none; }
   .error-state strong { color:var(--color-principal); }
   .error-state p { margin:.4rem 0 .8rem; }
   .error-state button { border:1px solid var(--color-principal); padding:.55rem .8rem; background:#fff; color:var(--color-principal); font:inherit; font-weight:700; cursor:pointer; }
-  .repertorio-app { display:grid; grid-template-columns:minmax(360px,430px) minmax(0,1fr); gap:1.5rem; align-items:start; }
-  .works-panel { position:sticky; top:1rem; max-height:calc(100vh - 2rem); overflow:auto; border:1px solid #ddd9d5; border-radius:4px; background:#fafafa; }
-  .search-box { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:.55rem; margin:1rem; padding:.65rem .75rem; border:1px solid #d5d0cb; background:#fff; }
+
+  .repertorio-app { display:grid; gap:1.25rem; }
+  .works-tools { padding:1.15rem 1.25rem 1.25rem; border:1px solid #ddd9d5; border-radius:4px; background:#fafafa; }
+  .works-tools-heading { display:flex; justify-content:space-between; gap:1.5rem; align-items:end; margin-bottom:1rem; }
+  .works-tools-heading>div:first-child { display:grid; gap:.15rem; }
+  .works-tools-heading>div:first-child span { color:var(--color-principal); font-size:.68rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+  .works-tools-heading>div:first-child strong { color:#393532; font-size:1rem; }
+  .works-summary { display:flex; gap:.35rem; align-items:baseline; color:#6b6561; font-size:.72rem; white-space:nowrap; }
+  .works-summary strong { color:var(--color-principal); font-size:1.05rem; }
+  .works-controls { display:grid; grid-template-columns:minmax(240px,.8fr) minmax(320px,1.2fr); gap:1rem; align-items:end; }
+  .search-field,.select-field { display:grid; gap:.4rem; }
+  .search-field>span:first-child,.select-field>span { color:#4f4945; font-size:.7rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; }
+  .search-box { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:.55rem; min-height:3rem; padding:.65rem .75rem; border:1px solid #d5d0cb; border-radius:4px; background:#fff; }
   .search-box svg { width:18px; height:18px; fill:none; stroke:#766f6a; stroke-width:1.7; }
-  .search-box input { min-width:0; border:0; outline:0; background:transparent; font:inherit; font-size:.8rem; }
-  .works-summary { display:flex; gap:.35rem; align-items:baseline; padding:0 1rem .75rem; color:#6b6561; font-size:.72rem; }
-  .works-summary strong { color:var(--color-principal); font-size:1rem; }
-  .works-list { display:grid; width:100%; justify-items:stretch; }
-  .works-list :global(.work-item) { display:block!important; box-sizing:border-box; width:100%!important; margin:0; padding:.4rem 1.1rem; border:0; border-top:1px solid #e5e1dd; background:transparent; color:#3f3b38; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:inherit; text-align:left!important; cursor:pointer; }
-  .works-list :global(.work-item:hover),.works-list :global(.work-item.is-active) { background:#f2ecec; }
-  .works-list :global(.work-item.is-active) { box-shadow:inset 3px 0 var(--color-principal); }
-  .works-list :global(.work-label) { display:block!important; width:100%!important; margin:0; color:#312e2c; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.88rem; font-weight:400; line-height:1.45; text-align:left!important; }
-  .no-results { padding:1rem; color:#77716c; font-size:.78rem; }
+  .search-box input { min-width:0; border:0; outline:0; background:transparent; font:inherit; font-size:.86rem; }
+  .select-field select { width:100%; min-height:3rem; padding:.65rem .8rem; border:1px solid #d5d0cb; border-radius:4px; background:#fff; color:#302b28; font:inherit; font-size:.86rem; }
+  .search-box:focus-within,.select-field select:focus { border-color:var(--color-principal); outline:2px solid rgba(106,27,41,.08); outline-offset:1px; }
+  .no-results { margin:.85rem 0 0; color:#77716c; font-size:.78rem; }
+  .empty-selection { background:#fff; }
+
   .work-detail { min-width:0; border:1px solid #ddd9d5; border-radius:4px; background:#fff; }
   .work-heading { padding:1.7rem 1.8rem 1.4rem; border-bottom:1px solid #e5e1dd; }
   .work-id { color:#a18331; font-size:.7rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
@@ -405,32 +470,46 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .resource-card div,.audio-heading,.concert-card div { display:grid; gap:.18rem; min-width:0; }
   .resource-card strong,.audio-heading strong,.concert-card strong { color:#393532; font-size:.8rem; }
   .resource-card small,.audio-heading small,.concert-card span,.concert-card small { color:#77716c; font-size:.68rem; }
-  .resource-button,.audio-play { min-height:2.25rem; padding:.48rem .75rem; border:1px solid var(--color-principal); border-radius:3px; background:var(--color-principal); color:#fff; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.72rem; font-weight:700; cursor:pointer; }
+  .resource-button,.audio-play { min-height:2.25rem; padding:.48rem .75rem; border:1px solid var(--color-principal); border-radius:3px; background:var(--color-principal); color:#fff; font-family:var(--fuente-minimalista); font-size:.72rem; font-weight:700; cursor:pointer; }
   .resource-button:hover,.audio-play:hover { background:#4f0c1a; }
   .resource-button:disabled,.audio-play:disabled { opacity:.55; cursor:wait; }
-  .audios-list :global(.audio-card) { display:grid; grid-template-columns:1fr; align-content:space-between; gap:.75rem; min-height:145px; padding:1rem; border:1px solid color-mix(in srgb,var(--color-principal) 55%,#fff); background:#fff; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; }
+  .audios-list :global(.audio-card) { display:grid; grid-template-columns:1fr; align-content:space-between; gap:.75rem; min-height:145px; padding:1rem; border:1px solid color-mix(in srgb,var(--color-principal) 55%,#fff); background:#fff; font-family:var(--fuente-minimalista); }
   .audios-list :global(.audio-heading) { display:block; text-align:left; }
   .audios-list :global(.audio-heading strong) { color:var(--color-principal); font-size:.9rem; }
-  .audios-list :global(.audio-play) { width:100%; min-height:2.4rem; padding:.5rem .7rem; border:1px solid var(--color-principal); border-radius:3px; background:var(--color-principal); color:#fff; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; font-size:.75rem; font-weight:700; cursor:pointer; }
+  .audios-list :global(.audio-play) { width:100%; min-height:2.4rem; padding:.5rem .7rem; border:1px solid var(--color-principal); border-radius:3px; background:var(--color-principal); color:#fff; font-family:var(--fuente-minimalista); font-size:.75rem; font-weight:700; cursor:pointer; }
   .audios-list :global(.audio-play:hover) { background:#4f0c1a; }
   .audios-list :global(.audio-card audio) { width:100%; height:34px; }
   .concerts-list { grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; border-top:1px solid #d8d2cc; border-left:1px solid #d8d2cc; }
-  .concert-card { display:grid; grid-template-columns:1fr; align-content:start; gap:.55rem; min-height:145px; padding:1rem; border:0; border-right:1px solid #d8d2cc; border-bottom:1px solid #d8d2cc; background:#fff; color:#393532!important; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; text-align:left; }
-  .concert-card div { display:grid; gap:.38rem; }
-  .concert-card strong { color:#393532!important; font-size:.84rem; line-height:1.4; }
-  .concert-card span,.concert-card small { color:#6d6762!important; line-height:1.45; }
-  .concert-card time { color:var(--color-principal)!important; font-size:.72rem; font-weight:800; }
-  .concert-meta { display:flex; align-items:center; gap:.7rem; margin-top:auto; }
-  .concert-card time { color:var(--color-principal); font-size:.72rem; font-weight:800; }
-  .concert-order { color:#a18331!important; font-weight:800; white-space:nowrap; }
-  .concerts-list :global(.concert-card) { display:grid; grid-template-columns:1fr; align-content:start; gap:.55rem; min-height:145px; padding:1rem; border:0; border-right:1px solid #d8d2cc; border-bottom:1px solid #d8d2cc; background:#fff; color:#393532!important; font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif; text-align:left; text-decoration:none; cursor:pointer; }
+  .concerts-list :global(.concert-card) { display:grid; grid-template-columns:1fr; align-content:start; gap:.55rem; min-height:145px; padding:1rem; border:0; border-right:1px solid #d8d2cc; border-bottom:1px solid #d8d2cc; background:#fff; color:#393532!important; font-family:var(--fuente-minimalista); text-align:left; text-decoration:none; cursor:pointer; }
   .concerts-list :global(a.concert-card:hover) { background:#f7eff1; box-shadow:inset 0 0 0 1px var(--color-principal); }
   .concerts-list :global(.concert-card div) { display:grid; gap:.38rem; }
   .concerts-list :global(.concert-card strong) { color:#393532!important; font-size:.84rem; line-height:1.4; }
   .concerts-list :global(.concert-card span),.concerts-list :global(.concert-card small) { color:#6d6762!important; line-height:1.45; }
   .concerts-list :global(.concert-card time) { color:var(--color-principal)!important; font-size:.72rem; font-weight:800; }
+  .concert-meta { display:flex; align-items:center; gap:.7rem; margin-top:auto; }
+  .concert-order { color:#a18331!important; font-weight:800; white-space:nowrap; }
   .empty-resource { margin:0; color:#7b746f; font-size:.78rem; }
-  @media(max-width:1050px){ .repertorio-app{grid-template-columns:1fr}.works-panel{position:static;max-height:420px}.work-metadata{grid-template-columns:1fr}.work-metadata div{padding:.6rem 0}.work-metadata div+div{padding-left:0;border-left:0;border-top:1px solid #e5e1dd}.audio-card{grid-template-columns:1fr auto}.audio-card audio{grid-column:1/-1}.concerts-list{grid-template-columns:repeat(2,minmax(0,1fr))}.concert-order{grid-column:auto} }
+
+  @media(max-width:1050px){
+    .works-controls{grid-template-columns:1fr}
+    .work-metadata{grid-template-columns:1fr}
+    .work-metadata div{padding:.6rem 0}
+    .work-metadata div+div{padding-left:0;border-left:0;border-top:1px solid #e5e1dd}
+    .audio-card{grid-template-columns:1fr auto}
+    .audio-card audio{grid-column:1/-1}
+    .concerts-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .concert-order{grid-column:auto}
+  }
   @media(max-width:900px){ .private-layout{grid-template-columns:1fr} }
-  @media(max-width:680px){ .repertorio-main{padding:1.7rem 1rem 3rem}.private-page-header{flex-direction:column}.account-card{width:100%}.resource-card,.audio-card,.concert-card{grid-template-columns:1fr}.concerts-list{grid-template-columns:1fr}.concert-order,.audio-card audio{grid-column:auto}.work-heading,.resource-section{padding-left:1.15rem;padding-right:1.15rem}.work-metadata{padding-left:1.15rem;padding-right:1.15rem} }
+  @media(max-width:680px){
+    .repertorio-main{padding:1.7rem 1rem 3rem}
+    .private-page-header,.works-tools-heading{flex-direction:column;align-items:flex-start}
+    .account-card{width:100%}
+    .works-summary{white-space:normal}
+    .resource-card,.audio-card,.concert-card{grid-template-columns:1fr}
+    .concerts-list{grid-template-columns:1fr}
+    .concert-order,.audio-card audio{grid-column:auto}
+    .work-heading,.resource-section{padding-left:1.15rem;padding-right:1.15rem}
+    .work-metadata{padding-left:1.15rem;padding-right:1.15rem}
+  }
 </style>
