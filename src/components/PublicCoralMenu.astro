@@ -2,6 +2,7 @@
 const { currentPath = '/' } = Astro.props;
 
 const rutaActual = String(currentPath || '/').replace(/\/$/, '') || '/';
+const ePortada = rutaActual === '/';
 const seccions = [
   { nome: 'A Coral', url: '/acoral', rutas: ['/acoral'] },
   { nome: 'Historia', url: '/historia', rutas: ['/historia'] },
@@ -19,7 +20,11 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
 );
 ---
 
-<aside class="public-coral-menu" aria-label="Menú de A Coral">
+<aside
+  class:list={['public-coral-menu', ePortada && 'is-home-hidden']}
+  aria-label="Menú de A Coral"
+  data-current-path={rutaActual}
+>
   <button
     id="publicCoralMenuToggle"
     class="public-coral-toggle"
@@ -93,6 +98,20 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
     mobileQuery.addEventListener('change', (event) => {
       if (!event.matches) setOpen(false);
     });
+
+    if (menu.dataset.currentPath === '/distincions') {
+      const moveCentenaryButton = () => {
+        const button = document.querySelector<HTMLElement>('.distincions-page .btn-centenario');
+        const destination = document.querySelector<HTMLElement>('.distincions-page .documentation-note');
+        if (button && destination) destination.append(button);
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', moveCentenaryButton, { once: true });
+      } else {
+        moveCentenaryButton();
+      }
+    }
   }
 </script>
 
@@ -100,6 +119,21 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
   .public-coral-menu {
     min-width: 0;
     padding-top: 2rem;
+  }
+
+  .public-coral-menu.is-home-hidden {
+    display: none;
+  }
+
+  :global(.public-site-shell:has(.public-coral-menu.is-home-hidden)) {
+    display: block;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  :global(.public-site-shell:has(.public-coral-menu.is-home-hidden) .public-site-main) {
+    width: 100%;
   }
 
   .public-coral-toggle {
@@ -194,6 +228,10 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
     .public-coral-menu {
       width: 100%;
       padding: 1rem clamp(1rem, 3vw, 2rem) 0;
+    }
+
+    .public-coral-menu.is-home-hidden {
+      display: none;
     }
 
     .public-coral-toggle {
