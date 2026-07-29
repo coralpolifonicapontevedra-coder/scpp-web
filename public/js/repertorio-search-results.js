@@ -89,8 +89,11 @@
         return;
       }
 
+      // O selector xa foi filtrado pola lóxica principal usando título,
+      // autor da letra e compositor. Reutilizamos esas opcións para non
+      // perder coincidencias que non aparecen completas na etiqueta visible.
       const matches = Array.from(select.options)
-        .filter((option) => option.value && normalize(option.textContent).includes(query))
+        .filter((option) => option.value)
         .slice(0, 10);
 
       results.hidden = matches.length === 0;
