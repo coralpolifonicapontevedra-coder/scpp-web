@@ -88,21 +88,22 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     if (levelNode instanceof HTMLElement) levelNode.textContent = profile?.nivel || '—';
   }
 
-  function section(title, fields) {
-    const valid = fields.filter((item) => clean(item.value));
-    if (!valid.length) return null;
+  function section(title, fields, options = {}) {
+    const visibleFields = options.showEmpty ? fields : fields.filter((item) => clean(item.value));
+    if (!visibleFields.length) return null;
     const box = document.createElement('section');
     box.className = 'data-section';
+    if (options.className) box.classList.add(options.className);
     const heading = document.createElement('h3');
     heading.textContent = title;
     const grid = document.createElement('dl');
-    valid.forEach((item) => {
+    visibleFields.forEach((item) => {
       const wrapper = document.createElement('div');
       if (item.wide) wrapper.className = 'is-wide';
       const dt = document.createElement('dt');
       const dd = document.createElement('dd');
       dt.textContent = item.label;
-      dd.textContent = clean(item.value);
+      dd.textContent = clean(item.value) || 'Sen indicar';
       wrapper.append(dt, dd);
       grid.append(wrapper);
     });
@@ -136,9 +137,12 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       ]),
       section('Contacto e domicilio', [
         field('Teléfono', selected.telefono), field('Correo electrónico', selected.correo),
-        field('Enderezo', selected.enderezo, { wide: true }), field('Cidade', selected.cidade), field('Código postal', selected.cp),
-        field('Contacto de emerxencia', selected.contactoEmerxencia), field('Teléfono de emerxencia', selected.telefonoEmerxencia)
+        field('Enderezo', selected.enderezo, { wide: true }), field('Cidade', selected.cidade), field('Código postal', selected.cp)
       ]),
+      section('Datos de emerxencia', [
+        field('Persoa de contacto en caso de emerxencia', selected.contactoEmerxencia, { wide: true }),
+        field('Teléfono de emerxencia', selected.telefonoEmerxencia)
+      ], { showEmpty: true, className: 'emergency-section' }),
       section('Relación coa Coral', [
         field('Voz', selected.voz), field('Tipo de socio', selected.tipoSocio), field('Cargo', selected.cargo),
         field('Data de incorporación', selected.dataIncorporacion), field('Activo', selected.activo), field('Mostrar na web', selected.mostrarWeb)
@@ -245,6 +249,8 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   .data-section dl .is-wide { grid-column: 1 / -1; }
   .data-section dt { margin-bottom: .18rem; color: #817873; font-size: .68rem; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; }
   .data-section dd { margin: 0; overflow-wrap: anywhere; color: #302c29; line-height: 1.45; white-space: pre-wrap; }
+  .emergency-section { box-shadow: inset 3px 0 0 var(--color-principal); background: #fffaf8; }
+  .emergency-section h3 { color: var(--color-principal); }
   @media (max-width: 900px) {
     .private-layout { display: block; }
     .private-page-header { display: grid; }
