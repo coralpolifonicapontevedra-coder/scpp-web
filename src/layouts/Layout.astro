@@ -2,6 +2,7 @@
 /* src/layouts/Layout.astro */
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import PublicCoralMenu from '../components/PublicCoralMenu.astro';
 import PortalAcceptanceGate from '../components/PortalAcceptanceGate.astro';
 import PortalReviewStyles from '../components/PortalReviewStyles.astro';
 import '../styles/global.css';
@@ -31,9 +32,18 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
   <body class:list={[eZonaPortal && 'portal-private-body']}>
     {!eZonaPortal && <Header lang={lang} />}
 
-    <main>
-      <slot />
-    </main>
+    {eZonaPortal ? (
+      <main>
+        <slot />
+      </main>
+    ) : (
+      <div class="public-site-shell">
+        <PublicCoralMenu currentPath={ruta} />
+        <main class="public-site-main">
+          <slot />
+        </main>
+      </div>
+    )}
 
     {!eZonaPortal && <Footer lang={lang} />}
     {eInicioPortal && <PortalAcceptanceGate />}
@@ -118,6 +128,37 @@ const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 2rem;
+  }
+
+  .public-site-shell {
+    display: grid;
+    grid-template-columns: minmax(220px, 252px) minmax(0, 1fr);
+    align-items: start;
+    gap: clamp(1.5rem, 3vw, 3.5rem);
+    width: min(100%, 1680px);
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 2.2vw, 2.25rem);
+  }
+
+  .public-site-main {
+    min-width: 0;
+  }
+
+  .public-site-main .coral-page-wrapper {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0 !important;
+  }
+
+  .public-site-main .coral-page-wrapper > .coral-sidebar {
+    display: none !important;
+  }
+
+  @media (max-width: 1180px) {
+    .public-site-shell {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      padding: 0;
+    }
   }
 
   body.portal-private-body .private-menu a[href="/portal/perfil/"] {
