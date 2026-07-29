@@ -34,17 +34,39 @@
       .work-search-results[hidden] { display: none !important; }
       .work-search-results {
         display: grid;
-        margin-top: .65rem;
+        margin-top: .7rem;
         overflow: hidden;
-        border: 1px solid #d5d0cb;
+        border: 1px solid #cfc6c1;
         border-radius: 4px;
         background: #fff;
+        box-shadow: 0 8px 22px rgba(46, 34, 29, .06);
+      }
+      .work-search-feedback {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        padding: .62rem .82rem;
+        border-bottom: 1px solid #e7e2de;
+        background: #faf8f6;
+        color: #5f5853;
+        font-family: var(--fuente-minimalista, Aptos, Calibri, system-ui, sans-serif);
+        font-size: .74rem;
+      }
+      .work-search-feedback strong {
+        color: var(--color-principal, #6a1b29);
+        font-size: .79rem;
+      }
+      .work-search-feedback span {
+        color: #7a726d;
       }
       .work-search-result {
         display: grid;
-        gap: .12rem;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .25rem 1rem;
+        align-items: center;
         width: 100%;
-        padding: .7rem .85rem;
+        padding: .72rem .85rem;
         border: 0;
         border-bottom: 1px solid #e7e2de;
         background: #fff;
@@ -59,14 +81,36 @@
         background: #f7eff1;
         outline: none;
       }
+      .work-search-result.is-single {
+        background: #fbf6f7;
+        box-shadow: inset 3px 0 var(--color-principal, #6a1b29);
+      }
       .work-search-result strong {
+        min-width: 0;
         color: var(--color-principal, #6a1b29);
         font-size: .88rem;
         font-weight: 700;
       }
       .work-search-result small {
+        grid-column: 1;
         color: #6d6762;
         font-size: .72rem;
+      }
+      .work-search-open {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: center;
+        color: var(--color-principal, #6a1b29);
+        font-size: .7rem;
+        font-weight: 800;
+        letter-spacing: .035em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      @media (max-width: 680px) {
+        .work-search-feedback { align-items: flex-start; flex-direction: column; gap: .15rem; }
+        .work-search-result { grid-template-columns: minmax(0, 1fr); }
+        .work-search-open { grid-column: 1; grid-row: auto; margin-top: .18rem; }
       }
     `;
     document.head.append(style);
@@ -89,19 +133,32 @@
         return;
       }
 
-      // O selector xa foi filtrado pola lóxica principal usando título,
-      // autor da letra e compositor. Reutilizamos esas opcións para non
-      // perder coincidencias que non aparecen completas na etiqueta visible.
-      const matches = Array.from(select.options)
-        .filter((option) => option.value)
-        .slice(0, 10);
+      const allMatches = Array.from(select.options)
+        .filter((option) => option.value);
+      const matches = allMatches.slice(0, 10);
 
       results.hidden = matches.length === 0;
+      if (!matches.length) return;
+
+      const feedback = document.createElement('div');
+      feedback.className = 'work-search-feedback';
+      feedback.setAttribute('role', 'status');
+      feedback.setAttribute('aria-live', 'polite');
+
+      const feedbackStrong = document.createElement('strong');
+      feedbackStrong.textContent = `${allMatches.length} obra${allMatches.length === 1 ? '' : 's'} atopada${allMatches.length === 1 ? '' : 's'}`;
+      const feedbackHint = document.createElement('span');
+      feedbackHint.textContent = allMatches.length === 1
+        ? 'Preme na obra para abrir a súa ficha.'
+        : 'Escolle unha das coincidencias.';
+      feedback.append(feedbackStrong, feedbackHint);
+      results.append(feedback);
 
       matches.forEach((option) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'work-search-result';
+        button.classList.toggle('is-single', allMatches.length === 1);
         button.dataset.workId = option.value;
         button.setAttribute('role', 'option');
 
@@ -115,6 +172,11 @@
           author.textContent = label.author;
           button.append(author);
         }
+
+        const open = document.createElement('span');
+        open.className = 'work-search-open';
+        open.textContent = 'Abrir ficha';
+        button.append(open);
 
         results.append(button);
       });
