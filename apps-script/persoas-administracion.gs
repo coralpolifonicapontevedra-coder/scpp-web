@@ -104,8 +104,20 @@ function obterAdministradorPersoasAdmin_(contexto, email) {
   if (!persoa) return null;
 
   const cargo = normalizarTextoPersoasAdmin_(persoa[ip.Cargo]);
-  const eAdmin = ['presidente', 'presidenta', 'secretario', 'secretaria', 'tesoureiro', 'tesoureira', 'contador', 'contadora']
-    .some(function(valor) { return cargo.indexOf(valor) >= 0; });
+  const eAdmin = [
+    'presidente',
+    'presidenta',
+    'vicepresidente',
+    'vicepresidenta',
+    'secretario',
+    'secretaria',
+    'vicesecretario',
+    'vicesecretaria',
+    'tesoureiro',
+    'tesoureira',
+    'contador',
+    'contadora'
+  ].some(function(valor) { return cargo.indexOf(valor) >= 0; });
   if (!eAdmin) return null;
 
   return {
