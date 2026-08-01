@@ -165,7 +165,6 @@ const ePortada = ruta === '/';
     width: 100%;
   }
 
-  /* Portada: composición propia, deliberadamente máis estreita ca cabeceira. */
   .public-site-shell.is-home .hero-section {
     padding: 1.35rem 0 0 !important;
   }
@@ -201,7 +200,6 @@ const ePortada = ruta === '/';
     font-size: .95rem !important;
   }
 
-  /* A Coral xa usa o menú común do layout; suprímese o antigo menú interno. */
   .public-site-main .coral-page-wrapper {
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 0 !important;
@@ -318,6 +316,24 @@ const ePortada = ruta === '/';
     align-self: center;
     color: #7a263a;
     font-size: 1.5rem;
+  }
+
+  /* Inicio de sesión: evita que as tarxetas se esmaguen ao usar media pantalla. */
+  @media (min-width: 981px) and (max-width: 1320px) {
+    body.portal-private-body #portal-shell:not(.private-active) .portal-hero {
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap: 2rem !important;
+    }
+
+    body.portal-private-body #portal-shell:not(.private-active) .portal-intro {
+      width: 100% !important;
+      max-width: none !important;
+    }
+
+    body.portal-private-body #portal-shell:not(.private-active) .portal-access-card {
+      width: min(100%, 620px) !important;
+      justify-self: start !important;
+    }
   }
 
   @media (min-width: 1181px) {
