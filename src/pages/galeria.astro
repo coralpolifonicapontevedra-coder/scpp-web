@@ -103,20 +103,50 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
     dialog.showModal();
   }
 
+  function urlDrive(idDrive, tamano) {
+    const id = String(idDrive || '').trim();
+    return id
+      ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${tamano}`
+      : '';
+  }
+
+  function urlR2(foto) {
+    const directa = String(foto?.urlPublica || '').trim();
+    if (directa) return directa;
+
+    const ruta = String(
+      foto?.rutaR2Publica ||
+      foto?.rutaR2_Publica ||
+      foto?.RutaR2_Publica ||
+      ''
+    ).trim();
+
+    return ruta
+      ? `/arquivos/publico/${ruta.split('/').map(encodeURIComponent).join('/')}`
+      : '';
+  }
+
+  function urlsFoto(foto) {
+    const r2 = urlR2(foto);
+    return {
+      miniatura: r2 || urlDrive(foto?.idDrive, 900),
+      orixinal: r2 || urlDrive(foto?.idDrive, 1800)
+    };
+  }
+
   function crearTarxeta(foto) {
     const article = document.createElement('article');
     article.className = 'gallery-card';
     article.dataset.category = foto.categoria || 'Outros';
     article.dataset.driveId = foto.idDrive || '';
 
-    const miniatura = `https://drive.google.com/thumbnail?id=${encodeURIComponent(foto.idDrive)}&sz=w900`;
-    const orixinal = `https://drive.google.com/thumbnail?id=${encodeURIComponent(foto.idDrive)}&sz=w1800`;
+    const urls = urlsFoto(foto);
     const titulo = foto.titulo || 'Fotografía da SCPP';
     const tituloSeguro = titulo.replaceAll('"', '&quot;');
 
     article.innerHTML = `
-      <button class="gallery-image-button" type="button" data-image="${orixinal}" data-title="${tituloSeguro}" aria-label="Ampliar ${tituloSeguro}">
-        <img src="${miniatura}" alt="${tituloSeguro}" loading="lazy" decoding="async" />
+      <button class="gallery-image-button" type="button" data-image="${urls.orixinal}" data-title="${tituloSeguro}" aria-label="Ampliar ${tituloSeguro}">
+        <img src="${urls.miniatura}" alt="${tituloSeguro}" loading="lazy" decoding="async" />
         <span class="zoom-hint" aria-hidden="true">Ampliar</span>
       </button>
       <div class="gallery-content-box">
@@ -130,6 +160,19 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
     const button = article.querySelector('[data-image]');
     button?.addEventListener('click', () => abrirDialogo(button));
     return article;
+  }
+
+  function actualizarTarxetaExistente(tarxeta, foto) {
+    if (!(tarxeta instanceof HTMLElement)) return false;
+    const r2 = urlR2(foto);
+    if (!r2) return false;
+
+    const imaxe = tarxeta.querySelector('img');
+    const boton = tarxeta.querySelector('[data-image]');
+    if (imaxe instanceof HTMLImageElement) imaxe.src = r2;
+    if (boton instanceof HTMLElement) boton.setAttribute('data-image', r2);
+    tarxeta.dataset.storage = 'r2';
+    return true;
   }
 
   filterButtons.forEach((button) => {
@@ -159,18 +202,37 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
       const datos = await resposta.json();
       if (!resposta.ok || !datos?.ok || !Array.isArray(datos.fotos)) throw new Error(datos?.erro || 'Erro ao cargar');
 
-      const existentes = new Set(cards().map((card) => card.getAttribute('data-drive-id')).filter(Boolean));
+      const existentes = new Map(
+        cards()
+          .map((card) => [card.getAttribute('data-drive-id'), card])
+          .filter(([id]) => Boolean(id))
+      );
       let engadidas = 0;
+      let servidasDesdeR2 = 0;
 
       datos.fotos.forEach((foto) => {
-        if (!foto?.idDrive || existentes.has(foto.idDrive)) return;
+        const idDrive = String(foto?.idDrive || '').trim();
+        const existente = idDrive ? existentes.get(idDrive) : null;
+
+        if (existente) {
+          if (actualizarTarxetaExistente(existente, foto)) servidasDesdeR2 += 1;
+          return;
+        }
+
         grid?.appendChild(crearTarxeta(foto));
-        existentes.add(foto.idDrive);
+        if (idDrive) existentes.set(idDrive, cards().at(-1));
+        if (urlR2(foto)) servidasDesdeR2 += 1;
         engadidas += 1;
       });
 
       actualizarFiltro();
-      if (status) status.textContent = engadidas > 0 ? `Galería actualizada: ${engadidas} fotografía${engadidas === 1 ? '' : 's'} nova${engadidas === 1 ? '' : 's'}.` : '';
+      if (status) {
+        status.textContent = engadidas > 0
+          ? `Galería actualizada: ${engadidas} fotografía${engadidas === 1 ? '' : 's'} nova${engadidas === 1 ? '' : 's'}.`
+          : servidasDesdeR2 > 0
+            ? ''
+            : '';
+      }
     } catch (erro) {
       console.error('Non foi posible actualizar a galería:', erro);
       if (status) status.textContent = '';
