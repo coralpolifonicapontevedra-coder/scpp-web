@@ -129,6 +129,7 @@ export async function onRequest({ request, env }) {
     'obterFotoGaleria',
     'listarFotosPublicadas',
     'actualizarPublicacionFoto',
+    'listarFotosPendentesR2',
     'migrarFotoR2'
   ]);
   if (!accionsPermitidas.has(accion)) {
@@ -195,11 +196,31 @@ export async function onRequest({ request, env }) {
 
     if (accion === 'migrarFotoR2') {
       const rutas = await gardarFotoEnR2(env, resultado);
+      const idFoto = String(resultado.idFoto || resultado.rowId || '').trim();
+
+      const { resultado: gardado } = await obterJsonAppsScript(
+        env,
+        {
+          token: env.WEB_WRITE_TOKEN,
+          accion: 'gardarRutasFotoR2',
+          email: usuario.email,
+          uidFirebase: usuario.uid,
+          idFoto,
+          rutaPublica: String(rutas.publica || ''),
+          rutaPrivada: String(rutas.privada || '')
+        },
+        { timeoutMs: 35_000, attemptTimeoutMs: 12_000 }
+      );
+
+      if (!gardado?.ok) {
+        throw new Error(gardado?.erro || 'A foto copiose a R2, pero non se puideron gardar as rutas na folla Fotos.');
+      }
+
       return json(200, {
         ok: true,
-        idFoto: String(resultado.idFoto || resultado.rowId || '').trim(),
+        idFoto,
         rutas,
-        mensaxe: 'Fotografía copiada de Drive a R2 correctamente'
+        mensaxe: 'Fotografía copiada a R2 e rutas gardadas correctamente'
       });
     }
 
