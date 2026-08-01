@@ -61,7 +61,9 @@ export async function onRequest({ request, env }) {
     'listarFotosRevision',
     'actualizarRevisionFoto',
     'listarFotosGaleria',
-    'obterFotoGaleria'
+    'obterFotoGaleria',
+    'listarFotosPublicadas',
+    'actualizarPublicacionFoto'
   ]);
   if (!accionsPermitidas.has(accion)) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
@@ -98,6 +100,7 @@ export async function onRequest({ request, env }) {
     evento: String(datos.evento || '').trim(),
     confirmaDereitos: datos.confirmaDereitos === true,
     rowId: String(datos.rowId || '').trim(),
+    idFoto: String(datos.idFoto || '').trim(),
     estado: String(datos.estado || '').trim(),
     publicarPublica: datos.publicarPublica === true,
     publicarPrivada: datos.publicarPrivada === true,
