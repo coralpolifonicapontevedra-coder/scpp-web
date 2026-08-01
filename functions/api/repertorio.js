@@ -1,6 +1,7 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
+const CACHE_REPERTORIO_VERSION = '2026-08-01-audios-2';
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
@@ -56,7 +57,7 @@ async function fetchConTempoLimite(url, options, timeoutMs) {
 function cacheRequest(request, accion) {
   const url = new URL(request.url);
   url.pathname = '/api/_cache/repertorio';
-  url.search = `accion=${encodeURIComponent(accion)}`;
+  url.search = `accion=${encodeURIComponent(accion)}&version=${encodeURIComponent(CACHE_REPERTORIO_VERSION)}`;
   return new Request(url.toString(), { method: 'GET' });
 }
 
