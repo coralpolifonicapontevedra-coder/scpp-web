@@ -80,7 +80,6 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
   const dialogClose = document.querySelector('#dialog-close');
 
   let activeFilter = 'Todos';
-
   const cards = () => Array.from(document.querySelectorAll('.gallery-card'));
 
   function actualizarFiltro() {
@@ -106,17 +105,18 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
 
   function crearTarxeta(foto) {
     const article = document.createElement('article');
-    article.className = 'gallery-card';
+    article.className = 'gallery-card is-dynamic';
     article.dataset.category = foto.categoria || 'Outros';
     article.dataset.driveId = foto.idDrive || '';
 
     const miniatura = `https://drive.google.com/thumbnail?id=${encodeURIComponent(foto.idDrive)}&sz=w900`;
     const orixinal = `https://drive.google.com/thumbnail?id=${encodeURIComponent(foto.idDrive)}&sz=w1800`;
     const titulo = foto.titulo || 'Fotografía da SCPP';
+    const tituloSeguro = titulo.replaceAll('"', '&quot;');
 
     article.innerHTML = `
-      <button class="gallery-image-button" type="button" data-image="${orixinal}" data-title="${titulo.replaceAll('"', '&quot;')}" aria-label="Ampliar ${titulo.replaceAll('"', '&quot;')}">
-        <img src="${miniatura}" alt="${titulo.replaceAll('"', '&quot;')}" loading="lazy" decoding="async" />
+      <button class="gallery-image-button" type="button" data-image="${orixinal}" data-title="${tituloSeguro}" aria-label="Ampliar ${tituloSeguro}">
+        <img src="${miniatura}" alt="${tituloSeguro}" loading="lazy" decoding="async" />
         <span class="zoom-hint" aria-hidden="true">Ampliar</span>
       </button>
       <div class="gallery-content-box">
@@ -192,16 +192,19 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
   .filter-tag:hover,.filter-tag.active { border-color:var(--color-principal); background:var(--color-principal); color:#fff; }
   .gallery-count { margin:0 0 .35rem; color:#766f69; font-size:.78rem; text-align:right; }
   .gallery-status { min-height:1.2rem; margin:0 0 1rem; color:#766f69; font-size:.75rem; text-align:right; }
-  .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(245px,1fr)); gap:1.25rem; }
+  .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(245px,1fr)); gap:1.25rem; align-items:start; }
   .gallery-card { overflow:hidden; border:1px solid #ded9d5; border-radius:4px; background:#fff; transition:transform .2s ease,box-shadow .2s ease; }
   .gallery-card:hover { transform:translateY(-3px); box-shadow:0 10px 26px rgba(38,28,24,.08); }
   .gallery-card[hidden] { display:none; }
   .gallery-image-button { position:relative; display:block; width:100%; height:220px; padding:0; overflow:hidden; border:0; background:#eeeae7; cursor:zoom-in; }
-  .gallery-image-button img { width:100%; height:100%; object-fit:cover; transition:transform .35s ease; }
+  .gallery-image-button img { display:block; width:100%; height:100%; object-fit:cover; transition:transform .35s ease; }
   .gallery-card:hover img { transform:scale(1.025); }
-  .gallery-card.is-document .gallery-image-button { background:#f5f2ed; }
-  .gallery-card.is-document .gallery-image-button img { padding:.65rem; object-fit:contain; }
-  .gallery-card.is-document:hover img { transform:none; }
+  .gallery-card.is-document .gallery-image-button,
+  .gallery-card.is-dynamic .gallery-image-button { background:#f5f2ed; }
+  .gallery-card.is-document .gallery-image-button img,
+  .gallery-card.is-dynamic .gallery-image-button img { box-sizing:border-box; padding:.65rem; object-fit:contain; }
+  .gallery-card.is-document:hover img,
+  .gallery-card.is-dynamic:hover img { transform:none; }
   .zoom-hint { position:absolute; right:.8rem; bottom:.8rem; padding:.3rem .55rem; border-radius:2px; background:rgba(50,31,34,.78); color:#fff; font-size:.68rem; font-weight:700; opacity:0; transform:translateY(4px); transition:opacity .2s ease,transform .2s ease; }
   .gallery-image-button:hover .zoom-hint,.gallery-image-button:focus-visible .zoom-hint { opacity:1; transform:translateY(0); }
   .gallery-content-box { padding:.9rem 1rem 1.05rem; }
