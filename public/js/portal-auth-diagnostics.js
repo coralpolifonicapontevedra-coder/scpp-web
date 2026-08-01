@@ -67,9 +67,81 @@
     });
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', completarMensaxe, { once: true });
-  } else {
+  const adaptarOrdeAcceso = () => {
+    const portalHero = document.querySelector('.portal-hero');
+    const portalIntro = document.querySelector('.portal-intro');
+    const accessCard = document.querySelector('.portal-access-card');
+    const featureGrid = document.querySelector('#portal-feature-grid');
+
+    if (
+      !(portalHero instanceof HTMLElement) ||
+      !(portalIntro instanceof HTMLElement) ||
+      !(accessCard instanceof HTMLElement) ||
+      !(featureGrid instanceof HTMLElement)
+    ) return;
+
+    const media = window.matchMedia('(max-width: 1320px)');
+
+    const aplicar = () => {
+      if (media.matches) {
+        if (accessCard.parentElement !== portalIntro) {
+          portalIntro.insertBefore(accessCard, featureGrid);
+        }
+      } else if (accessCard.parentElement !== portalHero) {
+        portalHero.append(accessCard);
+      }
+    };
+
+    if (!document.querySelector('#portal-access-responsive-styles')) {
+      const style = document.createElement('style');
+      style.id = 'portal-access-responsive-styles';
+      style.textContent = `
+        @media (max-width: 1320px) {
+          body.portal-private-body #portal-shell:not(.private-active) .portal-access-card {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 0 1.25rem !important;
+            padding: 1.25rem 1.4rem !important;
+            justify-self: stretch !important;
+            box-shadow: 0 12px 32px rgba(42, 32, 26, .07) !important;
+          }
+
+          body.portal-private-body #portal-shell:not(.private-active) .portal-access-card h2 {
+            margin-bottom: .55rem !important;
+            font-size: clamp(1.45rem, 3vw, 1.8rem) !important;
+          }
+
+          body.portal-private-body #portal-shell:not(.private-active) .portal-access-card p {
+            margin-top: .35rem !important;
+            margin-bottom: .8rem !important;
+          }
+
+          body.portal-private-body #portal-shell:not(.private-active) .portal-access-card button,
+          body.portal-private-body #portal-shell:not(.private-active) .portal-access-card input[type='email'] {
+            min-height: 44px !important;
+          }
+
+          body.portal-private-body #portal-shell:not(.private-active) .portal-access-card footer {
+            margin-top: 1.1rem !important;
+            padding-top: .85rem !important;
+          }
+        }
+      `;
+      document.head.append(style);
+    }
+
+    aplicar();
+    media.addEventListener?.('change', aplicar);
+  };
+
+  const iniciar = () => {
     completarMensaxe();
+    adaptarOrdeAcceso();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar, { once: true });
+  } else {
+    iniciar();
   }
 })();
