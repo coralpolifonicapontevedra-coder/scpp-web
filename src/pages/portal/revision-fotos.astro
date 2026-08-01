@@ -3,35 +3,60 @@ import BaseLayout from '../../layouts/Layout.astro';
 import PortalSidebar from '../../components/PortalSidebar.astro';
 ---
 
-<BaseLayout title="Revisión de fotografías" lang="gl">
+<BaseLayout title="Xestión de fotografías" lang="gl">
   <div class="private-layout">
     <PortalSidebar active="revisar" logoutId="review-logout" />
 
     <main class="review-main">
-      <header class="private-page-header">
+      <header class="page-header">
         <div>
-          <h1>Revisar fotografías</h1>
-          <p>Revisa, completa os datos e decide se a fotografía queda no arquivo ou se se publica na galería pública, na privada do Portal ou en ambas.</p>
+          <p class="page-kicker">Administración do arquivo visual</p>
+          <h1>Xestión de fotografías</h1>
+          <p class="page-description">Revisa as novas fotografías e administra as que xa están publicadas sen borrar o ficheiro nin o rexistro da folla Fotos.</p>
         </div>
-
-        <div class="pending-card" aria-label="Fotografías pendentes de revisión">
-          <span>
-            <small>Pendentes de revisar</small>
-            <strong id="review-count">0</strong>
-          </span>
-          <button id="review-refresh" type="button" title="Actualizar fotografías" aria-label="Actualizar fotografías">↻</button>
-        </div>
+        <button id="review-refresh" class="outline-button" type="button">Actualizar</button>
       </header>
 
-      <section id="review-shell" class="review-shell" hidden>
-        <div class="review-navigation">
-          <button id="review-previous" type="button">← Anterior</button>
-          <strong id="review-position">0 de 0</strong>
-          <button id="review-next" type="button">Seguinte →</button>
+      <nav class="module-tabs" aria-label="Apartados da xestión de fotografías">
+        <button class="module-tab active" type="button" data-tab="pendentes">
+          Pendentes <span id="review-count">0</span>
+        </button>
+        <button class="module-tab" type="button" data-tab="publicadas">
+          Publicadas <span id="published-count">—</span>
+        </button>
+      </nav>
+
+      <p id="review-message" class="portal-message" role="status" aria-live="polite" hidden></p>
+
+      <section id="pending-panel" class="module-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Revisión</p>
+            <h2>Fotografías pendentes</h2>
+          </div>
+          <div class="review-navigation">
+            <button id="review-previous" class="square-button" type="button">←</button>
+            <strong id="review-position">0 de 0</strong>
+            <button id="review-next" class="square-button" type="button">→</button>
+          </div>
         </div>
-        <p id="review-message" class="portal-message" role="status" aria-live="polite" hidden></p>
+
         <div id="review-list"></div>
-        <p id="review-empty" class="review-empty" hidden>Non hai fotografías pendentes de revisión.</p>
+        <p id="review-empty" class="empty-state" hidden>Non hai fotografías pendentes de revisión.</p>
+      </section>
+
+      <section id="published-panel" class="module-panel" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Publicación</p>
+            <h2>Fotografías publicadas</h2>
+          </div>
+          <button id="load-published" class="outline-button" type="button">Cargar publicadas</button>
+        </div>
+
+        <p class="panel-note">Este apartado só se carga cando o abres, para non ralentizar a revisión das fotografías novas.</p>
+        <div id="published-list" class="published-grid"></div>
+        <p id="published-empty" class="empty-state" hidden>Non hai fotografías publicadas.</p>
       </section>
 
       <section id="access-state" class="access-state" aria-live="polite">
@@ -58,20 +83,28 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const auth = getAuth(app);
   auth.useDeviceLanguage();
 
-  const shell = document.querySelector('#review-shell');
   const estadoAcceso = document.querySelector('#access-state');
-  const lista = document.querySelector('#review-list');
-  const contador = document.querySelector('#review-count');
-  const posicion = document.querySelector('#review-position');
-  const baleiro = document.querySelector('#review-empty');
   const mensaxe = document.querySelector('#review-message');
   const actualizar = document.querySelector('#review-refresh');
+  const lista = document.querySelector('#review-list');
+  const listaPublicadas = document.querySelector('#published-list');
+  const contador = document.querySelector('#review-count');
+  const contadorPublicadas = document.querySelector('#published-count');
+  const posicion = document.querySelector('#review-position');
+  const baleiro = document.querySelector('#review-empty');
+  const baleiroPublicadas = document.querySelector('#published-empty');
   const anterior = document.querySelector('#review-previous');
   const seguinte = document.querySelector('#review-next');
   const pecharSesion = document.querySelector('#review-logout');
+  const pendingPanel = document.querySelector('#pending-panel');
+  const publishedPanel = document.querySelector('#published-panel');
+  const cargarPublicadasButton = document.querySelector('#load-published');
+  const tabs = Array.from(document.querySelectorAll('.module-tab'));
 
   let fotosRevision = [];
+  let fotosPublicadas = [];
   let indiceActual = 0;
+  let publicadasCargadas = false;
 
   function escaparHtml(texto) {
     return String(texto ?? '')
@@ -80,6 +113,15 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function urlSegura(valor) {
+    const url = String(valor ?? '').trim();
+    return /^https:\/\//i.test(url) ? url : '';
+  }
+
+  function primeiroValor(...valores) {
+    return valores.find((valor) => String(valor ?? '').trim()) ?? '';
   }
 
   function mostrarMensaxe(texto = '', tipo = '') {
@@ -99,7 +141,9 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       body: JSON.stringify({ idToken, accion, ...datos })
     });
     const resultado = await resposta.json().catch(() => null);
-    if (!resposta.ok || !resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible completar a revisión.');
+    if (!resposta.ok || !resultado?.ok) {
+      throw new Error(resultado?.erro || 'Non foi posible completar a operación.');
+    }
     return resultado;
   }
 
@@ -116,77 +160,187 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (!(lista instanceof HTMLElement)) return;
     actualizarNavegacion();
     const foto = fotosRevision[indiceActual];
-    if (!foto) { lista.innerHTML = ''; return; }
+    if (!foto) {
+      lista.innerHTML = '';
+      return;
+    }
+
+    const miniaturaUrl = urlSegura(foto.miniaturaUrl);
+    const ficheiroUrl = urlSegura(foto.ficheiroUrl);
+    const evento = primeiroValor(foto.evento, foto.concerto, 'Sen indicar');
+    const data = primeiroValor(foto.data, foto.anoAproximado, 'Sen indicar');
+    const lugar = primeiroValor(foto.lugar, 'Sen indicar');
+    const autor = primeiroValor(foto.autor, foto.procedencia, 'Sen indicar');
+    const persoa = primeiroValor(foto.subidaPor, 'Sen indicar');
 
     lista.innerHTML = `
-      <article class="review-card-v2" data-row-id="${escaparHtml(foto.rowId)}">
+      <article class="review-card" data-row-id="${escaparHtml(foto.rowId || foto.idFoto)}">
         <div class="review-photo-column">
-          <div class="review-photo-frame">
-            ${foto.miniaturaUrl ? `<img src="${escaparHtml(foto.miniaturaUrl)}" alt="${escaparHtml(foto.titulo || 'Fotografía')}" />` : '<div>Sen miniatura dispoñible</div>'}
+          <div class="photo-frame">
+            ${miniaturaUrl
+              ? `<a href="${escaparHtml(ficheiroUrl || miniaturaUrl)}" target="_blank" rel="noopener noreferrer"><img src="${escaparHtml(miniaturaUrl)}" alt="${escaparHtml(foto.titulo || 'Fotografía')}" /></a>`
+              : '<div class="photo-placeholder">Sen miniatura dispoñible</div>'}
           </div>
+          ${ficheiroUrl ? `<a class="drive-link" href="${escaparHtml(ficheiroUrl)}" target="_blank" rel="noopener noreferrer">Ver orixinal en Drive</a>` : ''}
         </div>
-        <div class="review-form-column">
-          <label><span>Título ou descrición</span><input name="titulo" value="${escaparHtml(foto.titulo)}" /></label>
-          <label><span>Pé de foto</span><textarea name="peFoto" rows="3">${escaparHtml(foto.peFoto)}</textarea></label>
-          <label><span>Notas privadas</span><textarea name="observacions" rows="3">${escaparHtml(foto.observacions)}</textarea></label>
-          <fieldset>
+
+        <div class="review-form">
+          <div class="data-grid">
+            <label class="field"><span>Evento / Concerto</span><input readonly value="${escaparHtml(evento)}" /></label>
+            <label class="field"><span>Data</span><input readonly value="${escaparHtml(data)}" /></label>
+            <label class="field"><span>Lugar</span><input readonly value="${escaparHtml(lugar)}" /></label>
+            <label class="field"><span>Autor / Procedencia</span><input readonly value="${escaparHtml(autor)}" /></label>
+            <label class="field field-wide"><span>Persoa que subiu a foto</span><input readonly value="${escaparHtml(persoa)}" /></label>
+          </div>
+
+          <label class="field"><span>Título ou descrición</span><input name="titulo" maxlength="120" value="${escaparHtml(foto.titulo)}" /></label>
+          <label class="field"><span>Pé de foto</span><textarea name="peFoto" rows="3" maxlength="600">${escaparHtml(foto.peFoto)}</textarea></label>
+          <label class="field"><span>Notas privadas</span><textarea name="observacions" rows="3" maxlength="500">${escaparHtml(foto.observacions)}</textarea></label>
+
+          <fieldset class="destination-box">
             <legend>Destino da publicación</legend>
-            <label><input type="checkbox" name="publicarPublica" /> Galería pública</label>
-            <label><input type="checkbox" name="publicarPrivada" /> Galería privada</label>
+            <label class="destination-option"><input type="checkbox" name="publicarPublica" /><span><strong>Galería pública</strong><small>Visible para calquera visitante</small></span></label>
+            <label class="destination-option"><input type="checkbox" name="publicarPrivada" /><span><strong>Galería privada</strong><small>Visible só no Portal</small></span></label>
           </fieldset>
-          <div class="review-actions-v2">
-            <button type="button" data-review-action="rexeitar">Rexeitar</button>
-            <button type="button" data-review-action="aceptar">Aceptar</button>
-            <button type="button" data-review-action="publicar">Publicar</button>
+
+          <div class="review-actions">
+            <button class="secondary-action" type="button" data-review-action="rexeitar">Rexeitar</button>
+            <button class="secondary-action" type="button" data-review-action="aceptar">Aceptar e arquivar</button>
+            <button class="primary-action" type="button" data-review-action="publicar">Publicar</button>
           </div>
         </div>
       </article>`;
   }
 
-  async function cargarFotos() {
+  function debuxarPublicadas() {
+    if (!(listaPublicadas instanceof HTMLElement)) return;
+    if (contadorPublicadas instanceof HTMLElement) contadorPublicadas.textContent = String(fotosPublicadas.length);
+    if (baleiroPublicadas instanceof HTMLElement) baleiroPublicadas.hidden = fotosPublicadas.length !== 0;
+
+    listaPublicadas.innerHTML = fotosPublicadas.map((foto) => {
+      const miniaturaUrl = urlSegura(foto.miniaturaUrl);
+      const ficheiroUrl = urlSegura(foto.ficheiroUrl);
+      const publica = foto.publicarPublica === true;
+      const privada = foto.publicarPrivada === true;
+
+      return `
+        <article class="published-card" data-row-id="${escaparHtml(foto.rowId || foto.idFoto)}">
+          <div class="published-photo">
+            ${miniaturaUrl
+              ? `<a href="${escaparHtml(ficheiroUrl || miniaturaUrl)}" target="_blank" rel="noopener noreferrer"><img src="${escaparHtml(miniaturaUrl)}" alt="${escaparHtml(foto.titulo || 'Fotografía')}" /></a>`
+              : '<div class="photo-placeholder">Sen miniatura</div>'}
+          </div>
+          <div class="published-content">
+            <p class="card-kicker">Fotografía aprobada</p>
+            <h3>${escaparHtml(foto.titulo || 'Fotografía sen título')}</h3>
+            <p class="card-description">${escaparHtml(primeiroValor(foto.evento, foto.concerto, foto.lugar, foto.data, 'Sen datos adicionais'))}</p>
+            <div class="publication-status">
+              <span class="status-box ${publica ? 'active' : ''}">Pública: ${publica ? 'Si' : 'Non'}</span>
+              <span class="status-box ${privada ? 'active' : ''}">Privada: ${privada ? 'Si' : 'Non'}</span>
+            </div>
+            <div class="published-actions">
+              ${publica ? '<button type="button" data-published-action="retirar-publica">Retirar da pública</button>' : '<button type="button" data-published-action="publicar-publica">Publicar na pública</button>'}
+              ${privada ? '<button type="button" data-published-action="retirar-privada">Retirar da privada</button>' : '<button type="button" data-published-action="publicar-privada">Publicar na privada</button>'}
+            </div>
+          </div>
+        </article>`;
+    }).join('');
+  }
+
+  async function cargarPendentes() {
+    if (actualizar instanceof HTMLButtonElement) actualizar.disabled = true;
     mostrarMensaxe('Cargando fotografías pendentes…', 'cargando');
     try {
       const resultado = await solicitar('listarFotosRevision');
       fotosRevision = Array.isArray(resultado.fotos) ? resultado.fotos : [];
       indiceActual = Math.min(indiceActual, Math.max(0, fotosRevision.length - 1));
       if (estadoAcceso instanceof HTMLElement) estadoAcceso.hidden = true;
-      if (shell instanceof HTMLElement) shell.hidden = false;
       debuxarFotoActual();
       mostrarMensaxe();
     } catch (erro) {
-      if (shell instanceof HTMLElement) shell.hidden = true;
-      if (estadoAcceso instanceof HTMLElement) {
-        estadoAcceso.hidden = false;
-        estadoAcceso.textContent = erro instanceof Error ? erro.message : 'Non foi posible cargar as fotografías.';
+      mostrarMensaxe(erro instanceof Error ? erro.message : 'Non foi posible cargar as fotografías.', 'erro');
+    } finally {
+      if (actualizar instanceof HTMLButtonElement) actualizar.disabled = false;
+    }
+  }
+
+  async function cargarPublicadas(forzar = false) {
+    if (publicadasCargadas && !forzar) return;
+    if (cargarPublicadasButton instanceof HTMLButtonElement) {
+      cargarPublicadasButton.disabled = true;
+      cargarPublicadasButton.textContent = 'Cargando…';
+    }
+    mostrarMensaxe('Cargando fotografías publicadas…', 'cargando');
+    try {
+      const resultado = await solicitar('listarFotosPublicadas');
+      fotosPublicadas = Array.isArray(resultado.fotos) ? resultado.fotos : [];
+      publicadasCargadas = true;
+      debuxarPublicadas();
+      mostrarMensaxe();
+    } catch (erro) {
+      mostrarMensaxe(erro instanceof Error ? erro.message : 'Non foi posible cargar as fotografías publicadas.', 'erro');
+    } finally {
+      if (cargarPublicadasButton instanceof HTMLButtonElement) {
+        cargarPublicadasButton.disabled = false;
+        cargarPublicadasButton.textContent = publicadasCargadas ? 'Actualizar publicadas' : 'Cargar publicadas';
       }
     }
   }
 
-  onAuthStateChanged(auth, (usuario) => {
-    if (!usuario?.email) return;
-    cargarFotos();
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const destino = tab.getAttribute('data-tab');
+      tabs.forEach((item) => item.classList.toggle('active', item === tab));
+      if (pendingPanel instanceof HTMLElement) pendingPanel.hidden = destino !== 'pendentes';
+      if (publishedPanel instanceof HTMLElement) publishedPanel.hidden = destino !== 'publicadas';
+      if (destino === 'publicadas') cargarPublicadas();
+    });
   });
 
-  actualizar?.addEventListener('click', cargarFotos);
-  anterior?.addEventListener('click', () => { if (indiceActual > 0) { indiceActual -= 1; debuxarFotoActual(); } });
-  seguinte?.addEventListener('click', () => { if (indiceActual < fotosRevision.length - 1) { indiceActual += 1; debuxarFotoActual(); } });
+  anterior?.addEventListener('click', () => {
+    if (indiceActual <= 0) return;
+    indiceActual -= 1;
+    debuxarFotoActual();
+  });
 
-  lista?.addEventListener('click', async (eventoClick) => {
-    const boton = eventoClick.target instanceof Element ? eventoClick.target.closest('button[data-review-action]') : null;
+  seguinte?.addEventListener('click', () => {
+    if (indiceActual >= fotosRevision.length - 1) return;
+    indiceActual += 1;
+    debuxarFotoActual();
+  });
+
+  actualizar?.addEventListener('click', cargarPendentes);
+  cargarPublicadasButton?.addEventListener('click', () => cargarPublicadas(true));
+
+  lista?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const boton = target.closest('button[data-review-action]');
     if (!(boton instanceof HTMLButtonElement)) return;
-    const tarxeta = boton.closest('.review-card-v2');
+    const tarxeta = boton.closest('.review-card');
     if (!(tarxeta instanceof HTMLElement)) return;
     const accion = boton.dataset.reviewAction;
+
+    if (accion === 'rexeitar' && !window.confirm('Queres marcar esta fotografía como rexeitada?')) return;
+
     const publicarPublica = tarxeta.querySelector('[name="publicarPublica"]');
     const publicarPrivada = tarxeta.querySelector('[name="publicarPrivada"]');
     const publica = publicarPublica instanceof HTMLInputElement && publicarPublica.checked;
     const privada = publicarPrivada instanceof HTMLInputElement && publicarPrivada.checked;
-    if (accion === 'publicar' && !publica && !privada) { mostrarMensaxe('Selecciona polo menos unha galería.', 'erro'); return; }
+
+    if (accion === 'publicar' && !publica && !privada) {
+      mostrarMensaxe('Selecciona polo menos unha galería antes de publicar.', 'erro');
+      return;
+    }
+
+    const botons = tarxeta.querySelectorAll('button[data-review-action]');
+    botons.forEach((elemento) => { if (elemento instanceof HTMLButtonElement) elemento.disabled = true; });
+
     try {
       const titulo = tarxeta.querySelector('[name="titulo"]');
       const peFoto = tarxeta.querySelector('[name="peFoto"]');
       const observacions = tarxeta.querySelector('[name="observacions"]');
-      await solicitar('actualizarRevisionFoto', {
+      const resultado = await solicitar('actualizarRevisionFoto', {
         rowId: tarxeta.dataset.rowId,
         estado: accion === 'rexeitar' ? 'Rexeitada' : 'Aprobada',
         publicarPublica: accion === 'publicar' && publica,
@@ -195,10 +349,59 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         peFoto: peFoto instanceof HTMLTextAreaElement ? peFoto.value : '',
         observacions: observacions instanceof HTMLTextAreaElement ? observacions.value : ''
       });
-      await cargarFotos();
+      publicadasCargadas = false;
+      if (contadorPublicadas instanceof HTMLElement) contadorPublicadas.textContent = '—';
+      await cargarPendentes();
+      mostrarMensaxe(resultado.mensaxe || 'Fotografía actualizada correctamente.', 'ok');
     } catch (erro) {
-      mostrarMensaxe(erro instanceof Error ? erro.message : 'Non foi posible actualizar.', 'erro');
+      mostrarMensaxe(erro instanceof Error ? erro.message : 'Non foi posible actualizar a fotografía.', 'erro');
+      botons.forEach((elemento) => { if (elemento instanceof HTMLButtonElement) elemento.disabled = false; });
     }
+  });
+
+  listaPublicadas?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const boton = target.closest('button[data-published-action]');
+    if (!(boton instanceof HTMLButtonElement)) return;
+    const tarxeta = boton.closest('.published-card');
+    if (!(tarxeta instanceof HTMLElement)) return;
+
+    const foto = fotosPublicadas.find((item) => String(item.rowId || item.idFoto) === String(tarxeta.dataset.rowId));
+    if (!foto) return;
+
+    let publicarPublica = foto.publicarPublica === true;
+    let publicarPrivada = foto.publicarPrivada === true;
+    const accion = boton.dataset.publishedAction;
+
+    if (accion === 'retirar-publica') publicarPublica = false;
+    if (accion === 'retirar-privada') publicarPrivada = false;
+    if (accion === 'publicar-publica') publicarPublica = true;
+    if (accion === 'publicar-privada') publicarPrivada = true;
+
+    if (accion?.startsWith('retirar') && !window.confirm('A fotografía seguirá na folla Fotos e no Drive. Confirmas a retirada?')) return;
+
+    try {
+      boton.disabled = true;
+      await solicitar('actualizarPublicacionFoto', {
+        rowId: tarxeta.dataset.rowId,
+        publicarPublica,
+        publicarPrivada
+      });
+      await cargarPublicadas(true);
+      mostrarMensaxe('Destinos da fotografía actualizados.', 'ok');
+    } catch (erro) {
+      boton.disabled = false;
+      mostrarMensaxe(erro instanceof Error ? erro.message : 'Non foi posible actualizar os destinos.', 'erro');
+    }
+  });
+
+  onAuthStateChanged(auth, (usuario) => {
+    if (!usuario?.email) {
+      if (estadoAcceso instanceof HTMLElement) estadoAcceso.innerHTML = '<p>Identifícate primeiro no portal privado.</p><a href="/portal/">Ir ao portal</a>';
+      return;
+    }
+    cargarPendentes();
   });
 
   pecharSesion?.addEventListener('click', async () => {
@@ -208,5 +411,5 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 </script>
 
 <style>
-  .private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh}.review-main{padding:2rem}.private-page-header{display:flex;justify-content:space-between;gap:1rem}.pending-card{display:flex;gap:.7rem;align-items:center}.review-navigation{display:flex;justify-content:space-between;margin:1rem 0}.review-card-v2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;border:1px solid #ddd;padding:1rem}.review-photo-frame{min-height:420px;background:#f4f2ef;display:grid;place-items:center}.review-photo-frame img{max-width:100%;max-height:620px;object-fit:contain}.review-form-column{display:grid;gap:.8rem}.review-form-column label{display:grid;gap:.35rem}.review-form-column input,.review-form-column textarea{width:100%;box-sizing:border-box;padding:.65rem}.review-actions-v2{display:flex;gap:.6rem}.portal-message,.access-state,.review-empty{padding:1rem;border:1px solid #ddd}.review-shell[hidden],.access-state[hidden],.portal-message[hidden],.review-empty[hidden]{display:none}@media(max-width:900px){.private-layout{grid-template-columns:1fr}.review-card-v2{grid-template-columns:1fr}}
+  .private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh;background:#fff}.review-main{width:100%;max-width:1420px;margin:0 auto;padding:2.7rem clamp(1.5rem,4vw,4rem) 4rem;font-family:inherit;color:#373230}.page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:2rem;padding-bottom:1.35rem;border-bottom:1px solid #ded8d4}.page-kicker,.panel-kicker,.card-kicker{margin:0 0 .35rem;color:var(--color-principal);font-size:.68rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.page-header h1{margin:0 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,3.2vw,2.65rem);font-weight:700;letter-spacing:-.02em}.page-description{max-width:790px;margin:0;color:#625c58;font-size:.92rem;line-height:1.55}.outline-button,.square-button,.primary-action,.secondary-action,.published-actions button{border-radius:0;font:inherit;font-weight:700;cursor:pointer}.outline-button{min-height:2.65rem;padding:.55rem .9rem;border:1px solid var(--color-principal);background:#fff;color:var(--color-principal)}.outline-button:disabled{opacity:.55;cursor:wait}.module-tabs{display:flex;gap:0;margin:1.5rem 0 1.2rem;border-bottom:1px solid #ded8d4}.module-tab{min-width:150px;padding:.72rem 1rem;border:0;border-right:1px solid #ded8d4;border-bottom:3px solid transparent;background:#fff;color:#625c58;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer}.module-tab:first-child{border-left:1px solid #ded8d4}.module-tab.active{border-bottom-color:var(--color-principal);color:var(--color-principal);background:#fbf8f7}.module-tab span{display:inline-grid;min-width:1.55rem;height:1.55rem;place-items:center;margin-left:.35rem;border:1px solid #d8cfcb;background:#fff;font-size:.72rem}.module-panel[hidden],.portal-message[hidden],.empty-state[hidden],.access-state[hidden]{display:none}.panel-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;margin-bottom:1rem}.panel-heading h2{margin:0;color:#3c3734;font-size:1.15rem;font-weight:700}.panel-note{margin:-.25rem 0 1rem;padding:.7rem .8rem;border-left:3px solid var(--color-principal);background:#faf7f5;color:#68615d;font-size:.79rem}.review-navigation{display:flex;align-items:center;gap:.65rem}.square-button{width:2.55rem;height:2.55rem;border:1px solid var(--color-principal);background:#fff;color:var(--color-principal);font-size:1rem}.square-button:disabled{border-color:#d6cfcb;color:#aaa3a0;cursor:default}.review-navigation strong{min-width:78px;color:#5f5854;font-size:.8rem;text-align:center}.portal-message,.empty-state,.access-state{margin:0 0 1rem;padding:.9rem 1rem;border:1px solid #ddd6d2;background:#faf8f6;color:#615a56;font-size:.84rem}.portal-message[data-tipo='erro']{border-left:3px solid var(--color-principal);background:#fff5f5}.portal-message[data-tipo='ok']{border-left:3px solid #3f7049;background:#f3f8f4}.empty-state,.access-state{text-align:center}.access-state{max-width:620px;margin:4rem auto}.access-state a{display:inline-block;margin-top:.7rem;color:var(--color-principal);font-weight:700}.review-card{display:grid;grid-template-columns:minmax(330px,1.02fr) minmax(380px,.98fr);gap:1.3rem;padding:1.2rem;border:1px solid #dcd5d1;background:#fff}.review-photo-column{display:grid;align-content:start;gap:.7rem}.photo-frame{display:grid;min-height:430px;place-items:center;overflow:hidden;border:1px solid #e2dcda;background:#f5f2f0}.photo-frame a{display:grid;width:100%;height:100%;place-items:center}.photo-frame img{display:block;width:100%;height:100%;max-height:620px;object-fit:contain}.photo-placeholder{color:#7a726d;font-size:.8rem}.drive-link{display:inline-flex;justify-self:start;padding:.5rem .7rem;border:1px solid var(--color-principal);color:var(--color-principal);font-size:.76rem;font-weight:700}.review-form{display:grid;align-content:start;gap:.75rem}.data-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.field{display:grid;gap:.32rem}.field-wide{grid-column:1/-1}.field span{color:#47413d;font-size:.72rem;font-weight:700}.field input,.field textarea{width:100%;box-sizing:border-box;padding:.62rem .68rem;border:1px solid #d7d0cc;border-radius:0;background:#fff;color:#3d3835;font:inherit;font-size:.82rem}.field input[readonly]{background:#faf8f6;color:#665f5b}.field textarea{resize:vertical;min-height:4.3rem}.field input:focus,.field textarea:focus{border-color:var(--color-principal);outline:1px solid var(--color-principal)}.destination-box{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;padding:.85rem;border:1px solid #d9d2ce}.destination-box legend{padding:0 .35rem;color:var(--color-principal);font-size:.76rem;font-weight:800}.destination-option{display:flex;align-items:flex-start;gap:.55rem;padding:.7rem;border:1px solid #e0d9d5;background:#fff}.destination-option input{margin-top:.15rem;accent-color:var(--color-principal)}.destination-option span{display:grid;gap:.12rem}.destination-option strong{color:#4a4440;font-size:.78rem}.destination-option small{color:#77706b;font-size:.69rem}.review-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:.15rem}.review-actions button{min-height:2.7rem;padding:.55rem .65rem}.secondary-action{border:1px solid var(--color-principal);background:#fff;color:var(--color-principal)}.primary-action{border:1px solid var(--color-principal);background:var(--color-principal);color:#fff}.review-actions button:disabled,.published-actions button:disabled{opacity:.55;cursor:wait}.published-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:.9rem}.published-card{display:grid;grid-template-rows:210px 1fr;border:1px solid #dcd5d1;background:#fff}.published-photo{display:grid;place-items:center;overflow:hidden;border-bottom:1px solid #dcd5d1;background:#f5f2f0}.published-photo a{display:grid;width:100%;height:100%;place-items:center}.published-photo img{display:block;width:100%;height:100%;object-fit:contain}.published-content{display:grid;align-content:start;padding:.9rem}.published-content h3{margin:0 0 .4rem;color:#3d3835;font-size:.96rem;font-weight:700;line-height:1.35}.card-description{min-height:2.4em;margin:0 0 .7rem;color:#716965;font-size:.76rem;line-height:1.45}.publication-status{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.7rem}.status-box{padding:.42rem .5rem;border:1px solid #ddd5d1;background:#faf8f6;color:#766e69;font-size:.69rem;font-weight:700;text-align:center}.status-box.active{border-color:var(--color-principal);background:#fbf5f6;color:var(--color-principal)}.published-actions{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}.published-actions button{min-height:2.45rem;padding:.45rem .5rem;border:1px solid var(--color-principal);background:#fff;color:var(--color-principal);font-size:.72rem}@media(max-width:1080px){.review-card{grid-template-columns:1fr}.photo-frame{min-height:340px}}@media(max-width:900px){.private-layout{grid-template-columns:1fr}.review-main{padding:1.7rem 1rem 3rem}}@media(max-width:680px){.page-header,.panel-heading{display:block}.outline-button{margin-top:.8rem}.module-tab{min-width:0;flex:1}.data-grid,.destination-box,.review-actions,.published-actions{grid-template-columns:1fr}.review-navigation{margin-top:.8rem}.published-grid{grid-template-columns:1fr}}
 </style>
