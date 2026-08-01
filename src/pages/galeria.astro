@@ -15,7 +15,7 @@ const fotos = fotosGaleria
     return a.titulo.localeCompare(b.titulo, 'gl');
   });
 
-const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa', 'Histórico', 'Viaxes'];
+const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa', 'Histórico', 'Viaxes', 'Outros'];
 ---
 
 <BaseLayout title="Galería" lang="gl">
@@ -36,17 +36,12 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
     </nav>
 
     <p id="gallery-count" class="gallery-count">{fotos.length} fotografías</p>
+    <p id="gallery-status" class="gallery-status" aria-live="polite"></p>
 
-    <section class="gallery-grid" aria-live="polite">
+    <section id="gallery-grid" class="gallery-grid" aria-live="polite">
       {fotos.map((foto) => (
-        <article class:list={['gallery-card', { 'is-document': foto.documento }]} data-category={foto.categoria}>
-          <button
-            class="gallery-image-button"
-            type="button"
-            data-image={foto.orixinal}
-            data-title={foto.titulo}
-            aria-label={`Ampliar ${foto.titulo}`}
-          >
+        <article class:list={['gallery-card', { 'is-document': foto.documento }]} data-category={foto.categoria} data-drive-id={foto.id}>
+          <button class="gallery-image-button" type="button" data-image={foto.orixinal} data-title={foto.titulo} aria-label={`Ampliar ${foto.titulo}`}>
             <img src={foto.miniatura} alt={foto.titulo} loading="lazy" decoding="async" />
             <span class="zoom-hint" aria-hidden="true">Ampliar</span>
           </button>
@@ -74,42 +69,79 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
 </BaseLayout>
 
 <script>
+  const grid = document.querySelector('#gallery-grid');
   const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
-  const cards = Array.from(document.querySelectorAll('.gallery-card'));
   const count = document.querySelector('#gallery-count');
   const empty = document.querySelector('#gallery-empty');
+  const status = document.querySelector('#gallery-status');
   const dialog = document.querySelector('#gallery-dialog');
   const dialogImage = document.querySelector('#dialog-image');
   const dialogTitle = document.querySelector('#dialog-title');
   const dialogClose = document.querySelector('#dialog-close');
 
+  let activeFilter = 'Todos';
+
+  const cards = () => Array.from(document.querySelectorAll('.gallery-card'));
+
+  function actualizarFiltro() {
+    let visible = 0;
+    cards().forEach((card) => {
+      const show = activeFilter === 'Todos' || card.getAttribute('data-category') === activeFilter;
+      card.toggleAttribute('hidden', !show);
+      if (show) visible += 1;
+    });
+    if (count) count.textContent = `${visible} fotografía${visible === 1 ? '' : 's'}`;
+    if (empty instanceof HTMLElement) empty.hidden = visible > 0;
+  }
+
+  function abrirDialogo(button) {
+    if (!(dialog instanceof HTMLDialogElement) || !(dialogImage instanceof HTMLImageElement)) return;
+    const image = button.getAttribute('data-image') || '';
+    const title = button.getAttribute('data-title') || '';
+    dialogImage.src = image;
+    dialogImage.alt = title;
+    if (dialogTitle) dialogTitle.textContent = title;
+    dialog.showModal();
+  }
+
+  function crearTarxeta(foto) {
+    const article = document.createElement('article');
+    article.className = 'gallery-card';
+    article.dataset.category = foto.categoria || 'Outros';
+    article.dataset.driveId = foto.idDrive || '';
+
+    const miniatura = `https://drive.google.com/thumbnail?id=${encodeURIComponent(foto.idDrive)}&sz=w900`;
+    const orixinal = `https://drive.google.com/thumbnail?id=${encodeURIComponent(foto.idDrive)}&sz=w1800`;
+    const titulo = foto.titulo || 'Fotografía da SCPP';
+
+    article.innerHTML = `
+      <button class="gallery-image-button" type="button" data-image="${orixinal}" data-title="${titulo.replaceAll('"', '&quot;')}" aria-label="Ampliar ${titulo.replaceAll('"', '&quot;')}">
+        <img src="${miniatura}" alt="${titulo.replaceAll('"', '&quot;')}" loading="lazy" decoding="async" />
+        <span class="zoom-hint" aria-hidden="true">Ampliar</span>
+      </button>
+      <div class="gallery-content-box">
+        <div class="gallery-meta">
+          <span class="gallery-category">${foto.categoria || 'Outros'}</span>
+          ${foto.ano ? `<time>${foto.ano}</time>` : ''}
+        </div>
+        <h2>${titulo}</h2>
+      </div>`;
+
+    const button = article.querySelector('[data-image]');
+    button?.addEventListener('click', () => abrirDialogo(button));
+    return article;
+  }
+
   filterButtons.forEach((button) => {
     button.addEventListener('click', () => {
-      const filter = button.getAttribute('data-filter') || 'Todos';
+      activeFilter = button.getAttribute('data-filter') || 'Todos';
       filterButtons.forEach((item) => item.classList.toggle('active', item === button));
-
-      let visible = 0;
-      cards.forEach((card) => {
-        const show = filter === 'Todos' || card.getAttribute('data-category') === filter;
-        card.toggleAttribute('hidden', !show);
-        if (show) visible += 1;
-      });
-
-      if (count) count.textContent = `${visible} fotografía${visible === 1 ? '' : 's'}`;
-      if (empty instanceof HTMLElement) empty.hidden = visible > 0;
+      actualizarFiltro();
     });
   });
 
   document.querySelectorAll('[data-image]').forEach((button) => {
-    button.addEventListener('click', () => {
-      if (!(dialog instanceof HTMLDialogElement) || !(dialogImage instanceof HTMLImageElement)) return;
-      const image = button.getAttribute('data-image') || '';
-      const title = button.getAttribute('data-title') || '';
-      dialogImage.src = image;
-      dialogImage.alt = title;
-      if (dialogTitle) dialogTitle.textContent = title;
-      dialog.showModal();
-    });
+    button.addEventListener('click', () => abrirDialogo(button));
   });
 
   dialogClose?.addEventListener('click', () => {
@@ -119,6 +151,33 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
   dialog?.addEventListener('click', (event) => {
     if (event.target === dialog && dialog instanceof HTMLDialogElement) dialog.close();
   });
+
+  async function cargarFotosDinamicas() {
+    try {
+      if (status) status.textContent = 'Actualizando a galería…';
+      const resposta = await fetch('/api/galeria', { cache: 'no-store' });
+      const datos = await resposta.json();
+      if (!resposta.ok || !datos?.ok || !Array.isArray(datos.fotos)) throw new Error(datos?.erro || 'Erro ao cargar');
+
+      const existentes = new Set(cards().map((card) => card.getAttribute('data-drive-id')).filter(Boolean));
+      let engadidas = 0;
+
+      datos.fotos.forEach((foto) => {
+        if (!foto?.idDrive || existentes.has(foto.idDrive)) return;
+        grid?.appendChild(crearTarxeta(foto));
+        existentes.add(foto.idDrive);
+        engadidas += 1;
+      });
+
+      actualizarFiltro();
+      if (status) status.textContent = engadidas > 0 ? `Galería actualizada: ${engadidas} fotografía${engadidas === 1 ? '' : 's'} nova${engadidas === 1 ? '' : 's'}.` : '';
+    } catch (erro) {
+      console.error('Non foi posible actualizar a galería:', erro);
+      if (status) status.textContent = '';
+    }
+  }
+
+  cargarFotosDinamicas();
 </script>
 
 <style>
@@ -128,17 +187,15 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
   .gallery-header h1 { margin:.5rem 0 0; color:var(--color-principal); font-size:clamp(2.15rem,5vw,3rem); }
   .section-line-center { width:58px; height:2px; margin:1rem auto 1.4rem; background:var(--color-acento); }
   .gallery-intro { margin:0; color:#625e5a; font-size:1.02rem; line-height:1.65; }
-
   .gallery-filters { display:flex; justify-content:center; flex-wrap:wrap; gap:.65rem; margin-bottom:1.3rem; }
   .filter-tag { padding:.48rem 1rem; border:1px solid #d7d1cd; border-radius:999px; background:#fff; color:#544f4b; font:inherit; font-size:.76rem; font-weight:700; letter-spacing:.045em; text-transform:uppercase; cursor:pointer; transition:background .2s ease,color .2s ease,border-color .2s ease; }
   .filter-tag:hover,.filter-tag.active { border-color:var(--color-principal); background:var(--color-principal); color:#fff; }
-  .gallery-count { margin:0 0 1.3rem; color:#766f69; font-size:.78rem; text-align:right; }
-
+  .gallery-count { margin:0 0 .35rem; color:#766f69; font-size:.78rem; text-align:right; }
+  .gallery-status { min-height:1.2rem; margin:0 0 1rem; color:#766f69; font-size:.75rem; text-align:right; }
   .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(245px,1fr)); gap:1.25rem; }
   .gallery-card { overflow:hidden; border:1px solid #ded9d5; border-radius:4px; background:#fff; transition:transform .2s ease,box-shadow .2s ease; }
   .gallery-card:hover { transform:translateY(-3px); box-shadow:0 10px 26px rgba(38,28,24,.08); }
   .gallery-card[hidden] { display:none; }
-
   .gallery-image-button { position:relative; display:block; width:100%; height:220px; padding:0; overflow:hidden; border:0; background:#eeeae7; cursor:zoom-in; }
   .gallery-image-button img { width:100%; height:100%; object-fit:cover; transition:transform .35s ease; }
   .gallery-card:hover img { transform:scale(1.025); }
@@ -147,25 +204,22 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
   .gallery-card.is-document:hover img { transform:none; }
   .zoom-hint { position:absolute; right:.8rem; bottom:.8rem; padding:.3rem .55rem; border-radius:2px; background:rgba(50,31,34,.78); color:#fff; font-size:.68rem; font-weight:700; opacity:0; transform:translateY(4px); transition:opacity .2s ease,transform .2s ease; }
   .gallery-image-button:hover .zoom-hint,.gallery-image-button:focus-visible .zoom-hint { opacity:1; transform:translateY(0); }
-
   .gallery-content-box { padding:.9rem 1rem 1.05rem; }
   .gallery-meta { display:flex; justify-content:space-between; gap:1rem; align-items:center; margin-bottom:.45rem; }
   .gallery-category { color:var(--color-principal); font-size:.65rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
   .gallery-meta time { color:#8b837d; font-size:.7rem; }
   .gallery-content-box h2 { margin:0; color:#3b3734; font-size:.94rem; font-weight:650; line-height:1.42; }
   .gallery-empty { padding:2rem; border:1px solid #ded9d5; color:#716a65; text-align:center; }
-
   .gallery-dialog { width:min(94vw,1100px); max-height:92vh; padding:0; overflow:visible; border:0; background:transparent; }
   .gallery-dialog::backdrop { background:rgba(18,14,13,.88); }
   .gallery-dialog figure { margin:0; }
   .gallery-dialog img { display:block; width:100%; max-height:82vh; object-fit:contain; background:#171313; }
   .gallery-dialog figcaption { padding:.85rem 1rem; background:#fff; color:#3c3734; font-size:.88rem; text-align:center; }
   .dialog-close { position:absolute; z-index:2; top:-2.6rem; right:0; width:2.2rem; height:2.2rem; border:1px solid rgba(255,255,255,.65); border-radius:50%; background:rgba(0,0,0,.28); color:#fff; font-size:1.5rem; line-height:1; cursor:pointer; }
-
   @media(max-width:680px) {
     .gallery-page-wrapper { padding-top:2.5rem; padding-bottom:4rem; }
     .gallery-grid { grid-template-columns:1fr; gap:1rem; }
     .gallery-image-button { height:235px; }
-    .gallery-count { text-align:center; }
+    .gallery-count,.gallery-status { text-align:center; }
   }
 </style>
