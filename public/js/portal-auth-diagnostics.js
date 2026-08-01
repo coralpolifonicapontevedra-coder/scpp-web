@@ -96,6 +96,39 @@
       const style = document.createElement('style');
       style.id = 'portal-access-responsive-styles';
       style.textContent = `
+        body.portal-private-body .portal-feature {
+          grid-template-rows: auto minmax(0, 1fr) auto !important;
+        }
+
+        body.portal-private-body .portal-feature > span {
+          grid-column: 1 !important;
+          grid-row: 1 / span 3 !important;
+        }
+
+        body.portal-private-body .portal-feature > strong {
+          grid-column: 2 !important;
+          grid-row: 1 !important;
+          min-width: 0 !important;
+          overflow-wrap: anywhere !important;
+        }
+
+        body.portal-private-body .portal-feature > p {
+          grid-column: 2 !important;
+          grid-row: 2 !important;
+          min-width: 0 !important;
+          overflow-wrap: anywhere !important;
+        }
+
+        body.portal-private-body .portal-feature > em {
+          grid-column: 2 !important;
+          grid-row: 3 !important;
+        }
+
+        body.portal-private-body .portal-feature > b {
+          grid-column: 3 !important;
+          grid-row: 1 / span 3 !important;
+        }
+
         @media (max-width: 1320px) {
           body.portal-private-body #portal-shell:not(.private-active) .portal-access-card {
             width: 100% !important;
