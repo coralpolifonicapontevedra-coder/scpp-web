@@ -1,0 +1,118 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Proba R2" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="revisar" logoutId="r2-logout" />
+
+    <main class="r2-main">
+      <header class="private-page-header">
+        <div>
+          <h1>Proba de migración a R2</h1>
+          <p>Copia unha única fotografía aprobada desde Drive a Cloudflare R2 sen eliminar nin modificar o orixinal.</p>
+        </div>
+      </header>
+
+      <section class="r2-card">
+        <p><strong>Fotografía de proba:</strong> Id_Foto 1</p>
+        <p>Recepción á directiva na Deputación</p>
+        <button id="r2-migrate" type="button" disabled>Migrar fotografía de proba</button>
+        <p id="r2-message" role="status" aria-live="polite">Comprobando a sesión…</p>
+        <a id="r2-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Abrir a fotografía servida desde R2</a>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  auth.useDeviceLanguage();
+
+  const boton = document.querySelector('#r2-migrate');
+  const mensaxe = document.querySelector('#r2-message');
+  const ligazon = document.querySelector('#r2-link');
+  const pecharSesion = document.querySelector('#r2-logout');
+
+  function mostrar(texto) {
+    if (mensaxe instanceof HTMLElement) mensaxe.textContent = texto;
+  }
+
+  onAuthStateChanged(auth, (usuario) => {
+    if (!usuario?.email) {
+      mostrar('Identifícate primeiro no portal privado.');
+      if (boton instanceof HTMLButtonElement) boton.disabled = true;
+      return;
+    }
+    mostrar('Sesión correcta. A proba está preparada.');
+    if (boton instanceof HTMLButtonElement) boton.disabled = false;
+  });
+
+  boton?.addEventListener('click', async () => {
+    const usuario = auth.currentUser;
+    if (!usuario?.email || !(boton instanceof HTMLButtonElement)) return;
+
+    boton.disabled = true;
+    mostrar('Copiando a fotografía desde Drive a R2…');
+    if (ligazon instanceof HTMLAnchorElement) ligazon.hidden = true;
+
+    try {
+      const idToken = await usuario.getIdToken(true);
+      const resposta = await fetch('/api/fotos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idToken,
+          accion: 'migrarFotoR2',
+          idFoto: '1'
+        })
+      });
+      const resultado = await resposta.json().catch(() => null);
+      if (!resposta.ok || !resultado?.ok) {
+        throw new Error(resultado?.erro || 'Non foi posible completar a migración.');
+      }
+
+      mostrar(resultado.mensaxe || 'Fotografía copiada correctamente.');
+      const ruta = String(resultado?.rutas?.publica || '').trim();
+      if (ruta && ligazon instanceof HTMLAnchorElement) {
+        ligazon.href = `/arquivos/publico/${ruta}`;
+        ligazon.hidden = false;
+      }
+    } catch (erro) {
+      mostrar(erro instanceof Error ? erro.message : 'Produciuse un erro durante a proba.');
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  pecharSesion?.addEventListener('click', async () => {
+    if (pecharSesion instanceof HTMLButtonElement) pecharSesion.disabled = true;
+    await signOut(auth);
+    window.location.href = '/portal/';
+  });
+</script>
+
+<style>
+  .r2-main { min-width: 0; padding: 1.4rem 1.6rem 3rem; }
+  .r2-card { max-width: 720px; padding: 1.4rem; border: 1px solid rgba(108, 31, 52, .22); border-radius: 14px; background: #fff; box-shadow: 0 10px 30px rgba(50, 30, 35, .06); }
+  .r2-card p { margin: 0 0 .8rem; }
+  .r2-card button { margin-top: .4rem; padding: .7rem 1rem; border: 0; border-radius: 8px; background: #6c1f34; color: #fff; font: inherit; cursor: pointer; }
+  .r2-card button:disabled { opacity: .55; cursor: wait; }
+  #r2-message { margin-top: 1rem; }
+  #r2-link { display: inline-block; margin-top: .5rem; font-weight: 700; color: #6c1f34; }
+  @media (max-width: 720px) { .r2-main { padding: 1rem; } }
+</style>
