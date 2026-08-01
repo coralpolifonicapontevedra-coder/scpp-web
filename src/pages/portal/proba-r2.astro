@@ -3,24 +3,31 @@ import BaseLayout from '../../layouts/Layout.astro';
 import PortalSidebar from '../../components/PortalSidebar.astro';
 ---
 
-<BaseLayout title="Proba R2" lang="gl">
+<BaseLayout title="Migración R2" lang="gl">
   <div class="private-layout">
     <PortalSidebar active="revisar" logoutId="r2-logout" />
 
     <main class="r2-main">
       <header class="private-page-header">
         <div>
-          <h1>Proba de migración a R2</h1>
-          <p>Copia unha única fotografía aprobada desde Drive a Cloudflare R2 sen eliminar nin modificar o orixinal.</p>
+          <h1>Migración de fotografías a R2</h1>
+          <p>Copia de forma controlada as fotografías aprobadas desde Drive a Cloudflare R2 e garda automaticamente as rutas na folla Fotos.</p>
         </div>
       </header>
 
       <section class="r2-card">
-        <p><strong>Fotografía de proba:</strong> Id_Foto 1</p>
-        <p>Recepción á directiva na Deputación</p>
-        <button id="r2-migrate" type="button" disabled>Migrar fotografía de proba</button>
+        <div class="r2-summary">
+          <div><small>Pendentes</small><strong id="r2-pending">—</strong></div>
+          <div><small>Completadas nesta sesión</small><strong id="r2-completed">0</strong></div>
+          <div><small>Erros</small><strong id="r2-errors">0</strong></div>
+        </div>
+
+        <button id="r2-load" type="button" disabled>Comprobar fotografías pendentes</button>
+        <button id="r2-migrate" type="button" disabled>Migrar todas as pendentes</button>
+
         <p id="r2-message" role="status" aria-live="polite">Comprobando a sesión…</p>
-        <a id="r2-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Abrir a fotografía servida desde R2</a>
+        <div class="r2-progress" aria-hidden="true"><span id="r2-progress-bar"></span></div>
+        <ul id="r2-results"></ul>
       </section>
     </main>
   </div>
@@ -43,61 +50,129 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const auth = getAuth(app);
   auth.useDeviceLanguage();
 
-  const boton = document.querySelector('#r2-migrate');
+  const cargar = document.querySelector('#r2-load');
+  const migrar = document.querySelector('#r2-migrate');
   const mensaxe = document.querySelector('#r2-message');
-  const ligazon = document.querySelector('#r2-link');
+  const pendentes = document.querySelector('#r2-pending');
+  const completadas = document.querySelector('#r2-completed');
+  const erros = document.querySelector('#r2-errors');
+  const barra = document.querySelector('#r2-progress-bar');
+  const resultados = document.querySelector('#r2-results');
   const pecharSesion = document.querySelector('#r2-logout');
+
+  let fotosPendentes = [];
+  let enProceso = false;
 
   function mostrar(texto) {
     if (mensaxe instanceof HTMLElement) mensaxe.textContent = texto;
   }
 
+  function actualizarContadores(completadasValor = 0, errosValor = 0) {
+    if (pendentes instanceof HTMLElement) pendentes.textContent = String(fotosPendentes.length);
+    if (completadas instanceof HTMLElement) completadas.textContent = String(completadasValor);
+    if (erros instanceof HTMLElement) erros.textContent = String(errosValor);
+  }
+
+  function actualizarBarra(actual, total) {
+    const porcentaxe = total ? Math.round((actual / total) * 100) : 0;
+    if (barra instanceof HTMLElement) barra.style.width = `${porcentaxe}%`;
+  }
+
+  async function solicitar(accion, datos = {}) {
+    const usuario = auth.currentUser;
+    if (!usuario?.email) throw new Error('A sesión non está activa.');
+    const idToken = await usuario.getIdToken(true);
+    const resposta = await fetch('/api/fotos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion, ...datos })
+    });
+    const resultado = await resposta.json().catch(() => null);
+    if (!resposta.ok || !resultado?.ok) {
+      throw new Error(resultado?.erro || 'Non foi posible completar a operación.');
+    }
+    return resultado;
+  }
+
+  async function cargarPendentes() {
+    if (enProceso) return;
+    if (cargar instanceof HTMLButtonElement) cargar.disabled = true;
+    if (migrar instanceof HTMLButtonElement) migrar.disabled = true;
+    mostrar('Consultando fotografías aprobadas pendentes de migración…');
+
+    try {
+      const resultado = await solicitar('listarFotosPendentesR2');
+      fotosPendentes = Array.isArray(resultado.fotos) ? resultado.fotos : [];
+      actualizarContadores(0, 0);
+      actualizarBarra(0, fotosPendentes.length);
+      if (resultados instanceof HTMLElement) resultados.innerHTML = '';
+      mostrar(fotosPendentes.length
+        ? `Hai ${fotosPendentes.length} fotografías pendentes de migración.`
+        : 'Non quedan fotografías aprobadas pendentes de migración.');
+      if (migrar instanceof HTMLButtonElement) migrar.disabled = fotosPendentes.length === 0;
+    } catch (erro) {
+      mostrar(erro instanceof Error ? erro.message : 'Non foi posible obter as fotografías pendentes.');
+    } finally {
+      if (cargar instanceof HTMLButtonElement) cargar.disabled = false;
+    }
+  }
+
+  async function migrarTodas() {
+    if (enProceso || fotosPendentes.length === 0) return;
+    if (!window.confirm(`Van migrarse ${fotosPendentes.length} fotografías. Os orixinais de Drive non se modificarán. Continuar?`)) return;
+
+    enProceso = true;
+    if (cargar instanceof HTMLButtonElement) cargar.disabled = true;
+    if (migrar instanceof HTMLButtonElement) migrar.disabled = true;
+    if (resultados instanceof HTMLElement) resultados.innerHTML = '';
+
+    let correctas = 0;
+    let fallidas = 0;
+    const total = fotosPendentes.length;
+
+    for (let indice = 0; indice < total; indice += 1) {
+      const foto = fotosPendentes[indice];
+      mostrar(`Migrando ${indice + 1} de ${total}: ${foto.titulo || foto.idFoto}`);
+
+      try {
+        await solicitar('migrarFotoR2', { idFoto: foto.idFoto });
+        correctas += 1;
+        if (resultados instanceof HTMLElement) {
+          const elemento = document.createElement('li');
+          elemento.textContent = `✓ ${foto.titulo || foto.idFoto}`;
+          elemento.dataset.estado = 'correcto';
+          resultados.appendChild(elemento);
+        }
+      } catch (erro) {
+        fallidas += 1;
+        if (resultados instanceof HTMLElement) {
+          const elemento = document.createElement('li');
+          elemento.textContent = `✕ ${foto.titulo || foto.idFoto}: ${erro instanceof Error ? erro.message : 'Erro descoñecido'}`;
+          elemento.dataset.estado = 'erro';
+          resultados.appendChild(elemento);
+        }
+      }
+
+      actualizarContadores(correctas, fallidas);
+      actualizarBarra(indice + 1, total);
+    }
+
+    mostrar(`Proceso rematado: ${correctas} migradas correctamente e ${fallidas} con erro.`);
+    enProceso = false;
+    await cargarPendentes();
+  }
+
   onAuthStateChanged(auth, (usuario) => {
     if (!usuario?.email) {
       mostrar('Identifícate primeiro no portal privado.');
-      if (boton instanceof HTMLButtonElement) boton.disabled = true;
       return;
     }
-    mostrar('Sesión correcta. A proba está preparada.');
-    if (boton instanceof HTMLButtonElement) boton.disabled = false;
+    mostrar('Sesión correcta. Xa podes comprobar as fotografías pendentes.');
+    if (cargar instanceof HTMLButtonElement) cargar.disabled = false;
   });
 
-  boton?.addEventListener('click', async () => {
-    const usuario = auth.currentUser;
-    if (!usuario?.email || !(boton instanceof HTMLButtonElement)) return;
-
-    boton.disabled = true;
-    mostrar('Copiando a fotografía desde Drive a R2…');
-    if (ligazon instanceof HTMLAnchorElement) ligazon.hidden = true;
-
-    try {
-      const idToken = await usuario.getIdToken(true);
-      const resposta = await fetch('/api/fotos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idToken,
-          accion: 'migrarFotoR2',
-          idFoto: '1'
-        })
-      });
-      const resultado = await resposta.json().catch(() => null);
-      if (!resposta.ok || !resultado?.ok) {
-        throw new Error(resultado?.erro || 'Non foi posible completar a migración.');
-      }
-
-      mostrar(resultado.mensaxe || 'Fotografía copiada correctamente.');
-      const ruta = String(resultado?.rutas?.publica || '').trim();
-      if (ruta && ligazon instanceof HTMLAnchorElement) {
-        ligazon.href = `/arquivos/publico/${ruta}`;
-        ligazon.hidden = false;
-      }
-    } catch (erro) {
-      mostrar(erro instanceof Error ? erro.message : 'Produciuse un erro durante a proba.');
-    } finally {
-      boton.disabled = false;
-    }
-  });
+  cargar?.addEventListener('click', cargarPendentes);
+  migrar?.addEventListener('click', migrarTodas);
 
   pecharSesion?.addEventListener('click', async () => {
     if (pecharSesion instanceof HTMLButtonElement) pecharSesion.disabled = true;
@@ -108,16 +183,25 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
 <style>
   .private-layout { display:grid; grid-template-columns:282px minmax(0,1fr); min-height:100vh; background:#fff; }
-  .r2-main { width:100%; max-width:1400px; margin:0 auto; min-width:0; padding:2.7rem clamp(1.5rem,4vw,4.2rem) 4rem; }
+  .r2-main { min-width:0; padding:2.7rem clamp(1.5rem,4vw,4.2rem) 4rem; }
   .private-page-header { margin-bottom:2rem; }
-  .private-page-header h1 { margin:0 0 .45rem; color:var(--color-principal); font-size:clamp(2rem,3.4vw,2.75rem); letter-spacing:-.025em; }
-  .private-page-header p { max-width:760px; margin:0; color:#5f5b58; font-size:.94rem; }
-  .r2-card { max-width:720px; padding:1.4rem; border:1px solid rgba(108,31,52,.22); border-radius:4px; background:#fff; box-shadow:0 10px 30px rgba(50,30,35,.06); }
-  .r2-card p { margin:0 0 .8rem; }
-  .r2-card button { margin-top:.4rem; padding:.7rem 1rem; border:0; border-radius:3px; background:#6c1f34; color:#fff; font:inherit; cursor:pointer; }
-  .r2-card button:disabled { opacity:.55; cursor:wait; }
-  #r2-message { margin-top:1rem; }
-  #r2-link { display:inline-block; margin-top:.5rem; font-weight:700; color:#6c1f34; }
+  .private-page-header h1 { margin:0 0 .45rem; color:var(--color-principal); font-size:clamp(2rem,3.4vw,2.75rem); }
+  .private-page-header p { max-width:800px; margin:0; color:#5f5b58; }
+  .r2-card { max-width:850px; padding:1.5rem; border:1px solid rgba(108,31,52,.22); border-radius:6px; background:#fff; box-shadow:0 10px 30px rgba(50,30,35,.06); }
+  .r2-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.8rem; margin-bottom:1.25rem; }
+  .r2-summary div { padding:1rem; border:1px solid #e2ddd9; border-radius:4px; background:#faf9f7; }
+  .r2-summary small { display:block; margin-bottom:.35rem; color:#6b6561; }
+  .r2-summary strong { color:var(--color-principal); font-size:1.55rem; }
+  .r2-card button { margin-right:.55rem; margin-bottom:.75rem; padding:.72rem 1rem; border:1px solid var(--color-principal); border-radius:4px; background:#fff; color:var(--color-principal); font:inherit; font-weight:700; cursor:pointer; }
+  #r2-migrate { background:var(--color-principal); color:#fff; }
+  .r2-card button:disabled { opacity:.5; cursor:not-allowed; }
+  #r2-message { margin:1rem 0; }
+  .r2-progress { width:100%; height:10px; overflow:hidden; border-radius:999px; background:#eee9e6; }
+  .r2-progress span { display:block; width:0; height:100%; background:var(--color-principal); transition:width .2s ease; }
+  #r2-results { display:grid; gap:.45rem; margin:1rem 0 0; padding:0; list-style:none; }
+  #r2-results li { padding:.55rem .7rem; border-radius:3px; background:#f7f5f3; font-size:.88rem; }
+  #r2-results li[data-estado='correcto'] { color:#356345; }
+  #r2-results li[data-estado='erro'] { color:#8b2635; }
   @media(max-width:900px){ .private-layout{grid-template-columns:1fr} }
-  @media(max-width:720px){ .r2-main{padding:1.7rem 1rem 3rem} }
+  @media(max-width:680px){ .r2-main{padding:1.7rem 1rem 3rem}.r2-summary{grid-template-columns:1fr}.r2-card button{width:100%;margin-right:0} }
 </style>
