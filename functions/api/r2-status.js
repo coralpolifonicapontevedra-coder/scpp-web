@@ -20,7 +20,14 @@ async function comprobarBucket(bucket) {
   }
 }
 
-export async function onRequestGet({ env }) {
+export async function onRequest({ request, env }) {
+  if (request.method !== 'GET') {
+    return json(405, {
+      ok: false,
+      erro: 'Método non permitido'
+    });
+  }
+
   const [publico, privado] = await Promise.all([
     comprobarBucket(env.R2_PUBLICO),
     comprobarBucket(env.R2_PRIVADO)
@@ -34,12 +41,5 @@ export async function onRequestGet({ env }) {
       publico,
       privado
     }
-  });
-}
-
-export function onRequest() {
-  return json(405, {
-    ok: false,
-    erro: 'Método non permitido'
   });
 }
