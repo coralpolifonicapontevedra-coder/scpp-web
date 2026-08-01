@@ -11,6 +11,30 @@ const json = (status, body, cacheControl = 'no-store') => new Response(
   }
 );
 
+function primeiraRuta(...valores) {
+  return valores
+    .map((valor) => String(valor || '').trim())
+    .find(Boolean) || '';
+}
+
+function normalizarFoto(foto = {}) {
+  const rutaR2 = primeiraRuta(
+    foto.rutaR2Publica,
+    foto.rutaR2_Publica,
+    foto.RutaR2_Publica,
+    foto.rutaR2,
+    foto.RutaR2
+  );
+
+  return {
+    ...foto,
+    rutaR2Publica: rutaR2,
+    urlPublica: rutaR2
+      ? `/arquivos/publico/${rutaR2.split('/').map(encodeURIComponent).join('/')}`
+      : ''
+  };
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') {
     return json(405, { ok: false, erro: 'Método non permitido' });
@@ -43,7 +67,11 @@ export async function onRequest({ request, env }) {
       });
     }
 
-    return new Response(JSON.stringify(resultado), {
+    const fotos = Array.isArray(resultado.fotos)
+      ? resultado.fotos.map(normalizarFoto)
+      : [];
+
+    return new Response(JSON.stringify({ ...resultado, fotos }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
