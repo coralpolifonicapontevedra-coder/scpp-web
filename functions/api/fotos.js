@@ -29,6 +29,71 @@ async function verificarTokenFirebase(idToken, apiKey) {
   };
 }
 
+function decodificarBase64(base64) {
+  const binario = atob(String(base64 || ''));
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i += 1) {
+    bytes[i] = binario.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function extensionPorMime(mimeType) {
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/webp') return 'webp';
+  return 'jpg';
+}
+
+async function gardarFotoEnR2(env, resultado) {
+  if (!env.R2_PUBLICO || !env.R2_PRIVADO) {
+    throw new Error('Os buckets R2 non están configurados.');
+  }
+
+  const idFoto = String(resultado.idFoto || resultado.rowId || '').trim();
+  const mimeType = String(resultado.mimeType || '').trim().toLowerCase();
+  const base64 = String(resultado.base64 || '').trim();
+
+  if (!idFoto || !TIPOS.has(mimeType) || !base64) {
+    throw new Error('Apps Script non devolveu unha fotografía válida para R2.');
+  }
+
+  const bytes = decodificarBase64(base64);
+  if (bytes.byteLength > MAX_BYTES) {
+    throw new Error('A fotografía supera o máximo de 8 MB.');
+  }
+
+  const extension = extensionPorMime(mimeType);
+  const rutas = {};
+  const metadata = {
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: 'public, max-age=31536000, immutable'
+    },
+    customMetadata: {
+      idFoto,
+      orixe: 'google-drive'
+    }
+  };
+
+  if (resultado.publicarPublica === true) {
+    const rutaPublica = `fotos/orixinais/${idFoto}.${extension}`;
+    await env.R2_PUBLICO.put(rutaPublica, bytes, metadata);
+    rutas.publica = rutaPublica;
+  }
+
+  if (resultado.publicarPrivada === true) {
+    const rutaPrivada = `fotos/orixinais/${idFoto}.${extension}`;
+    await env.R2_PRIVADO.put(rutaPrivada, bytes, metadata);
+    rutas.privada = rutaPrivada;
+  }
+
+  if (!rutas.publica && !rutas.privada) {
+    throw new Error('A fotografía non está publicada en ningunha galería.');
+  }
+
+  return rutas;
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') {
     return json(405, { ok: false, erro: 'Método non permitido' });
@@ -63,7 +128,8 @@ export async function onRequest({ request, env }) {
     'listarFotosGaleria',
     'obterFotoGaleria',
     'listarFotosPublicadas',
-    'actualizarPublicacionFoto'
+    'actualizarPublicacionFoto',
+    'migrarFotoR2'
   ]);
   if (!accionsPermitidas.has(accion)) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
@@ -83,7 +149,7 @@ export async function onRequest({ request, env }) {
 
   const corpo = {
     token: env.WEB_WRITE_TOKEN,
-    accion,
+    accion: accion === 'migrarFotoR2' ? 'obterFotoParaR2' : accion,
     email: usuario.email,
     uidFirebase: usuario.uid,
     nomeFicheiro: String(datos.nomeFicheiro || '').trim(),
@@ -110,7 +176,7 @@ export async function onRequest({ request, env }) {
   };
 
   try {
-    const pesada = accion === 'subirFoto' || accion === 'obterFotoGaleria';
+    const pesada = accion === 'subirFoto' || accion === 'obterFotoGaleria' || accion === 'migrarFotoR2';
     const { resultado, usouRespaldo } = await obterJsonAppsScript(
       env,
       corpo,
@@ -124,6 +190,16 @@ export async function onRequest({ request, env }) {
       return json(resultado?.erro === 'Usuario non autorizado' ? 403 : 400, {
         ok: false,
         erro: resultado?.erro || 'Non foi posible completar a operación de fotografías.'
+      });
+    }
+
+    if (accion === 'migrarFotoR2') {
+      const rutas = await gardarFotoEnR2(env, resultado);
+      return json(200, {
+        ok: true,
+        idFoto: String(resultado.idFoto || resultado.rowId || '').trim(),
+        rutas,
+        mensaxe: 'Fotografía copiada de Drive a R2 correctamente'
       });
     }
 
@@ -142,7 +218,9 @@ export async function onRequest({ request, env }) {
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
     return json(status, {
       ok: false,
-      erro: 'O servizo de fotografías non está dispoñible neste momento. Tenta de novo nuns segundos.'
+      erro: erro instanceof Error && erro.message
+        ? erro.message
+        : 'O servizo de fotografías non está dispoñible neste momento. Tenta de novo nuns segundos.'
     });
   }
 }
