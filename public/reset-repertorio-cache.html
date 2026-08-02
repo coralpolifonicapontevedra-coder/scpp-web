@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="gl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Actualizando repertorio | SCPP</title>
+  <style>
+    :root { font-family: Aptos, Calibri, system-ui, sans-serif; color: #2d2d2d; background: #f7f7f7; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 1.5rem; }
+    main { width: min(100%, 540px); padding: 2rem; border: 1px solid #ddd6d1; background: #fff; text-align: center; box-shadow: 0 12px 32px rgba(0,0,0,.08); }
+    h1 { margin: 0 0 .75rem; color: #6b1d2f; font-size: 1.45rem; }
+    p { margin: 0; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Actualizando o repertorio</h1>
+    <p>Eliminando o listado anterior e cargando o índice verificado de R2…</p>
+  </main>
+  <script>
+    try {
+      const keys = [
+        'scpp:repertorio:completo:v2',
+        'scpp:repertorio:refresco:v2',
+        'scpp:repertorio:completo:v1',
+        'scpp:repertorio:refresco:v1'
+      ];
+      for (const key of keys) localStorage.removeItem(key);
+      sessionStorage.removeItem('scpp:repertorio:completo:v2');
+      sessionStorage.removeItem('scpp:repertorio:refresco:v2');
+    } catch {
+      // O almacenamento local é opcional; a redirección debe continuar.
+    }
+    window.setTimeout(() => window.location.replace('/portal/repertorio/?r2=2026-08-02-1'), 250);
+  </script>
+</body>
+</html>
