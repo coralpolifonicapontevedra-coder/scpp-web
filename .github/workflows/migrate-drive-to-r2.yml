@@ -87,9 +87,15 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           REPORT_PATH: r2-migration-report.csv
         run: |
+          set +e
           set -o pipefail
           printf 'category,record_id,source_name,r2_key,status,size,sha256,detail\n' > r2-migration-report.csv
           python scripts/migrate-drive-to-r2.py 2>&1 | tee r2-migration.log
+          status=${PIPESTATUS[0]}
+          echo
+          echo "===== ERRORES DETECTADOS ====="
+          grep ',ERROR_' r2-migration-report.csv || echo "Sin errores en el informe."
+          exit "$status"
 
       - name: Construir índice completo del repertorio
         shell: bash
