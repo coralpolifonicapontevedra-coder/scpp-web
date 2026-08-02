@@ -34,6 +34,7 @@ async function fetchConLimite(url, options, timeoutMs) {
 export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const timeoutTotalMs = Math.max(4000, Number(options.timeoutMs) || 20000);
   const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
+  const expectJson = options.expectJson === true;
   const urls = urlsAppsScript(env);
   if (!urls.length) {
     throw new AppsScriptError('Non hai ningunha implementación de Apps Script configurada.', 'APPS_SCRIPT_NOT_CONFIGURED');
@@ -42,6 +43,7 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const inicio = Date.now();
   let ultimoEstado = 0;
   let ultimoErro = null;
+  let houboRespostaNonValida = false;
 
   for (let index = 0; index < urls.length; index += 1) {
     const restante = timeoutTotalMs - (Date.now() - inicio);
@@ -66,6 +68,23 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
 
       ultimoEstado = resposta.status;
       if (resposta.ok) {
+        if (expectJson) {
+          const texto = await resposta.text();
+          try {
+            return {
+              resposta,
+              resultado: JSON.parse(texto),
+              urlUsada: urls[index],
+              usouRespaldo: index > 0,
+              intento: index + 1
+            };
+          } catch {
+            houboRespostaNonValida = true;
+            console.warn('Apps Script devolveu HTTP 200 cun corpo non JSON; probando a seguinte implementación.');
+            continue;
+          }
+        }
+
         return {
           resposta,
           urlUsada: urls[index],
@@ -94,6 +113,14 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
     throw new AppsScriptError('O servizo externo tardou demasiado en responder.', 'APPS_SCRIPT_TIMEOUT', ultimoEstado);
   }
 
+  if (houboRespostaNonValida) {
+    throw new AppsScriptError(
+      'O servizo de datos devolveu unha resposta non válida.',
+      'APPS_SCRIPT_INVALID_RESPONSE',
+      ultimoEstado
+    );
+  }
+
   throw new AppsScriptError(
     'Non se puido contactar con ningunha implementación dispoñible de Apps Script.',
     'APPS_SCRIPT_UNAVAILABLE',
@@ -102,25 +129,16 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
 }
 
 export async function obterJsonAppsScript(env, corpo, options = {}) {
-  const resultadoFetch = await chamarAppsScriptRobusto(env, corpo, options);
-  const { resposta } = resultadoFetch;
+  const resultadoFetch = await chamarAppsScriptRobusto(env, corpo, {
+    ...options,
+    expectJson: true
+  });
+  const { resposta, resultado } = resultadoFetch;
 
   if (!resposta.ok) {
     throw new AppsScriptError(
       'O servizo de datos non está dispoñible neste momento.',
       'APPS_SCRIPT_HTTP_ERROR',
-      resposta.status
-    );
-  }
-
-  const texto = await resposta.text();
-  let resultado;
-  try {
-    resultado = JSON.parse(texto);
-  } catch {
-    throw new AppsScriptError(
-      'O servizo de datos devolveu unha resposta non válida.',
-      'APPS_SCRIPT_INVALID_RESPONSE',
       resposta.status
     );
   }
