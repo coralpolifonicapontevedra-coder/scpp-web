@@ -94,6 +94,53 @@ async function gardarFotoEnR2(env, resultado) {
   return rutas;
 }
 
+async function migrarFotoPublicada(env, usuario, idFoto) {
+  const identificador = String(idFoto || '').trim();
+  if (!identificador) {
+    throw new Error('Non se puido determinar o identificador da fotografía publicada.');
+  }
+
+  const { resultado } = await obterJsonAppsScript(
+    env,
+    {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'obterFotoParaR2',
+      email: usuario.email,
+      uidFirebase: usuario.uid,
+      idFoto: identificador,
+      rowId: identificador
+    },
+    { timeoutMs: 75_000, attemptTimeoutMs: 25_000 }
+  );
+
+  if (!resultado?.ok) {
+    throw new Error(resultado?.erro || 'Non se puido obter a fotografía para copiala a R2.');
+  }
+
+  const rutas = await gardarFotoEnR2(env, resultado);
+  const idGardado = String(resultado.idFoto || resultado.rowId || identificador).trim();
+
+  const { resultado: gardado } = await obterJsonAppsScript(
+    env,
+    {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'gardarRutasFotoR2',
+      email: usuario.email,
+      uidFirebase: usuario.uid,
+      idFoto: idGardado,
+      rutaPublica: String(rutas.publica || ''),
+      rutaPrivada: String(rutas.privada || '')
+    },
+    { timeoutMs: 35_000, attemptTimeoutMs: 12_000 }
+  );
+
+  if (!gardado?.ok) {
+    throw new Error(gardado?.erro || 'A foto copiose a R2, pero non se puideron gardar as rutas na folla Fotos.');
+  }
+
+  return { idFoto: idGardado, rutas };
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') {
     return json(405, { ok: false, erro: 'Método non permitido' });
@@ -195,32 +242,33 @@ export async function onRequest({ request, env }) {
     }
 
     if (accion === 'migrarFotoR2') {
-      const rutas = await gardarFotoEnR2(env, resultado);
-      const idFoto = String(resultado.idFoto || resultado.rowId || '').trim();
-
-      const { resultado: gardado } = await obterJsonAppsScript(
+      const migrada = await migrarFotoPublicada(
         env,
-        {
-          token: env.WEB_WRITE_TOKEN,
-          accion: 'gardarRutasFotoR2',
-          email: usuario.email,
-          uidFirebase: usuario.uid,
-          idFoto,
-          rutaPublica: String(rutas.publica || ''),
-          rutaPrivada: String(rutas.privada || '')
-        },
-        { timeoutMs: 35_000, attemptTimeoutMs: 12_000 }
+        usuario,
+        String(resultado.idFoto || resultado.rowId || corpo.idFoto || corpo.rowId).trim()
       );
-
-      if (!gardado?.ok) {
-        throw new Error(gardado?.erro || 'A foto copiose a R2, pero non se puideron gardar as rutas na folla Fotos.');
-      }
-
       return json(200, {
         ok: true,
-        idFoto,
-        rutas,
+        ...migrada,
         mensaxe: 'Fotografía copiada a R2 e rutas gardadas correctamente'
+      });
+    }
+
+    const debeMigrarTrasPublicar = accion === 'actualizarRevisionFoto' &&
+      corpo.estado.toLowerCase() === 'aprobada' &&
+      (corpo.publicarPublica || corpo.publicarPrivada);
+
+    if (debeMigrarTrasPublicar) {
+      const identificador = String(
+        resultado.idFoto || resultado.rowId || corpo.idFoto || corpo.rowId
+      ).trim();
+      const migrada = await migrarFotoPublicada(env, usuario, identificador);
+      return json(200, {
+        ...resultado,
+        ok: true,
+        idFoto: migrada.idFoto,
+        rutasR2: migrada.rutas,
+        mensaxe: 'Fotografía aprobada, copiada a R2 e publicada correctamente'
       });
     }
 
