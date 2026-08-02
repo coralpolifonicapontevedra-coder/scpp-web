@@ -35,6 +35,18 @@ jobs:
             google-api-python-client==2.177.0 \
             google-auth==2.40.3
 
+      - name: Mostrar conta técnica de Google
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python - <<'PY'
+          import json, os
+          data = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT_JSON'])
+          email = data.get('client_email', '')
+          print('Conta técnica que precisa acceso de lectura á Sheet Repertorio:')
+          print(email or 'Non se puido obter client_email do segredo.')
+          PY
+
       - name: Ejecutar auditoría
         id: audit
         continue-on-error: true
