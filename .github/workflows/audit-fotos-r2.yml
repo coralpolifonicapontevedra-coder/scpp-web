@@ -1,0 +1,117 @@
+name: Auditar fotografías R2
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan comprueba; upload recupera solo las fotos ausentes"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - upload
+      confirmation:
+        description: "Para upload escribe exactamente RECUPERAR; en plan déjalo vacío"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-fotos-r2-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: r2-migration
+
+    steps:
+      - name: Validar confirmación
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.mode }}" == "upload" && "${{ inputs.confirmation }}" != "RECUPERAR" ]]; then
+            echo "Para recuperar fotografías debes escribir RECUPERAR exactamente."
+            exit 1
+          fi
+
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            boto3==1.40.1 \
+            google-api-python-client==2.177.0 \
+            google-auth==2.40.3
+
+      - name: Comprobar secretos
+        shell: bash
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          for name in GOOGLE_SERVICE_ACCOUNT_JSON R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Falta el secreto $name"
+              exit 1
+            fi
+          done
+          echo "Secretos configurados."
+
+      - name: Auditar fotografías públicas
+        shell: bash
+        env:
+          FOTOS_R2_MODE: ${{ inputs.mode }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          REPORT_PATH: fotos-r2-audit.csv
+        run: |
+          set +e
+          set -o pipefail
+          python scripts/audit-fotos-r2.py 2>&1 | tee fotos-r2-audit.log
+          status=${PIPESTATUS[0]}
+          echo
+          echo "===== FOTOS AUSENTES OU CON ERRO ====="
+          grep -E ',(MISSING_PLANNED|ERROR_)' fotos-r2-audit.csv || echo "Todas las rutas públicas existen en R2."
+          exit "$status"
+
+      - name: Resumen
+        if: always()
+        shell: bash
+        run: |
+          echo "## Auditoría de fotografías R2" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f fotos-r2-audit.log ]]; then
+            tail -n 3 fotos-r2-audit.log >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No se generó el registro." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Guardar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fotos-r2-audit-${{ inputs.mode }}-${{ github.run_number }}
+          path: |
+            fotos-r2-audit.csv
+            fotos-r2-audit.log
+          if-no-files-found: warn
+          retention-days: 30
