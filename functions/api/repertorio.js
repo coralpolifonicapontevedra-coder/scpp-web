@@ -1,13 +1,13 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
-const CACHE_REPERTORIO_VERSION = '2026-08-02-drive-restore-1';
+const CACHE_REPERTORIO_VERSION = '2026-08-02-r2-2';
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
-const TIMEOUT_FIREBASE_MS = 8 * 1000;
-const TIMEOUT_REPERTORIO_MS = 55 * 1000;
-const TIMEOUT_ASISTENCIAS_MS = 30 * 1000;
-const TIMEOUT_FICHEIRO_MS = 40 * 1000;
+const TIMEOUT_FIREBASE_MS = 8_000;
+const TIMEOUT_REPERTORIO_MS = 55_000;
+const TIMEOUT_ASISTENCIAS_MS = 30_000;
+const TIMEOUT_FICHEIRO_MS = 40_000;
 
 const cacheRespostas = new Map();
 const cacheTokens = new Map();
@@ -64,10 +64,8 @@ function cacheRequest(request, accion) {
 async function lerCachePersistente(request, accion, duracionMs) {
   const memoria = lerCache(cacheRespostas, accion);
   if (memoria) return memoria;
-
   const cacheApi = globalThis.caches?.default;
   if (!cacheApi) return null;
-
   try {
     const response = await cacheApi.match(cacheRequest(request, accion));
     if (!response) return null;
@@ -83,21 +81,18 @@ async function lerCachePersistente(request, accion, duracionMs) {
 
 async function gardarCachePersistente(request, accion, resultado, duracionMs) {
   gardarCache(cacheRespostas, accion, resultado, duracionMs);
-
   const cacheApi = globalThis.caches?.default;
   if (!cacheApi) return;
-
   try {
     const segundos = Math.max(60, Math.floor(duracionMs / 1000));
-    const response = new Response(JSON.stringify(resultado), {
+    await cacheApi.put(cacheRequest(request, accion), new Response(JSON.stringify(resultado), {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'Cache-Control': `public, max-age=${segundos}`,
         'X-SCPP-Cached-At': new Date().toISOString()
       }
-    });
-    await cacheApi.put(cacheRequest(request, accion), response);
+    }));
   } catch (erro) {
     console.warn('Non se puido gardar a caché persistente:', erro);
   }
@@ -106,7 +101,6 @@ async function gardarCachePersistente(request, accion, resultado, duracionMs) {
 async function verificarTokenFirebase(idToken, apiKey) {
   const token = String(idToken || '').trim();
   if (!token) return null;
-
   const usuarioCacheado = lerCache(cacheTokens, token);
   if (usuarioCacheado) return usuarioCacheado;
 
@@ -120,7 +114,6 @@ async function verificarTokenFirebase(idToken, apiKey) {
     TIMEOUT_FIREBASE_MS
   );
   if (!resposta.ok) return null;
-
   const usuario = (await resposta.json())?.users?.[0];
   if (!usuario?.email || usuario.emailVerified !== true) return null;
 
@@ -132,7 +125,7 @@ async function verificarTokenFirebase(idToken, apiKey) {
   return resultado;
 }
 
-function respostaFicheiro(resultado) {
+function respostaFicheiroDrive(resultado) {
   const binario = atob(String(resultado.base64 || ''));
   const bytes = new Uint8Array(binario.length);
   for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
@@ -143,15 +136,112 @@ function respostaFicheiro(resultado) {
       'Content-Type': String(resultado.mimeType || 'application/octet-stream'),
       'Content-Disposition': `inline; filename="${nome}"`,
       'Cache-Control': 'private, max-age=300',
-      'X-Content-Type-Options': 'nosniff'
+      'X-Content-Type-Options': 'nosniff',
+      'X-SCPP-Storage': 'DRIVE-FALLBACK'
     }
   });
 }
 
-export async function onRequest({ request, env }) {
-  if (request.method !== 'POST') {
-    return json(405, { ok: false, erro: 'Método non permitido' });
+function basename(valor) {
+  return String(valor || '').trim().replace(/\\/g, '/').split('/').pop() || '';
+}
+
+function slugAudio(nome) {
+  const punto = nome.lastIndexOf('.');
+  const base = punto > 0 ? nome.slice(0, punto) : nome;
+  const extension = punto > 0 ? nome.slice(punto).toLowerCase() : '';
+  const slug = base
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug ? `${slug}${extension}` : '';
+}
+
+function claveR2Valida(valor) {
+  const clave = String(valor || '').trim().replace(/^\/+/, '');
+  if (!clave || clave.includes('..') || clave.includes('\\')) return '';
+  if (!clave.startsWith('repertorio/audios/') && !clave.startsWith('partituras/')) return '';
+  return clave;
+}
+
+function claveR2Recurso(recurso, tipo, idObra) {
+  if (!recurso || typeof recurso !== 'object') return '';
+
+  const explicita = claveR2Valida(
+    recurso.r2Key || recurso.R2Key || recurso.r2key || recurso.rutaR2 || recurso.RutaR2
+  );
+  if (explicita) return explicita;
+
+  const rutaDrive = recurso.ruta || recurso.PDF || recurso.AudioFile || recurso.pdf || recurso.audioFile || '';
+  const nome = basename(rutaDrive);
+  if (!nome) return '';
+
+  if (tipo === 'partitura') return claveR2Valida(`partituras/${nome}`);
+
+  const obra = String(idObra || recurso.idRepertorio || recurso.Id_Repertorio || recurso.NomeObra || '').trim();
+  const nomeR2 = slugAudio(nome);
+  return obra && nomeR2 ? claveR2Valida(`repertorio/audios/${obra}/${nomeR2}`) : '';
+}
+
+function adaptarRecursosR2(resultado) {
+  if (!resultado || typeof resultado !== 'object') return resultado;
+  const obras = Array.isArray(resultado.obras)
+    ? resultado.obras
+    : Array.isArray(resultado.repertorio)
+      ? resultado.repertorio
+      : [];
+
+  for (const obra of obras) {
+    const idObra = String(obra?.id || obra?.Id_Repertorio || obra?.idRepertorio || '').trim();
+
+    const partituras = Array.isArray(obra?.partituras) ? obra.partituras : [];
+    for (const recurso of partituras) {
+      const clave = claveR2Recurso(recurso, 'partitura', idObra);
+      if (clave) {
+        recurso.rutaDrive = recurso.ruta || recurso.PDF || recurso.pdf || '';
+        recurso.ruta = clave;
+        recurso.r2Key = clave;
+        recurso.orixe = 'r2';
+      }
+    }
+
+    const audios = Array.isArray(obra?.audios) ? obra.audios : [];
+    for (const recurso of audios) {
+      const clave = claveR2Recurso(recurso, 'audio', idObra);
+      if (clave) {
+        recurso.rutaDrive = recurso.ruta || recurso.AudioFile || recurso.audioFile || '';
+        recurso.ruta = clave;
+        recurso.r2Key = clave;
+        recurso.orixe = 'r2';
+      }
+    }
   }
+  return resultado;
+}
+
+async function respostaR2(env, clave) {
+  if (!env.R2_PRIVADO) {
+    return json(503, { ok: false, erro: 'O almacén privado R2 non está configurado.' });
+  }
+  const obxecto = await env.R2_PRIVADO.get(clave);
+  if (!obxecto) return json(404, { ok: false, erro: 'O ficheiro non aparece no almacén privado.' });
+
+  const nome = (clave.split('/').pop() || 'ficheiro').replace(/[\r\n"]/g, '');
+  const headers = new Headers();
+  obxecto.writeHttpMetadata(headers);
+  headers.set('Content-Type', headers.get('Content-Type') || 'application/octet-stream');
+  headers.set('Content-Disposition', `inline; filename="${nome}"`);
+  headers.set('Cache-Control', 'private, max-age=3600');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-SCPP-Storage', 'R2');
+  if (obxecto.httpEtag) headers.set('ETag', obxecto.httpEtag);
+  return new Response(obxecto.body, { status: 200, headers });
+}
+
+export async function onRequest({ request, env }) {
+  if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
   if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
     return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
   }
@@ -165,24 +255,27 @@ export async function onRequest({ request, env }) {
 
   let usuario;
   try {
-    usuario = await verificarTokenFirebase(
-      String(datos.idToken || '').trim(),
-      env.FIREBASE_API_KEY
-    );
+    usuario = await verificarTokenFirebase(String(datos.idToken || '').trim(), env.FIREBASE_API_KEY);
   } catch (erro) {
     console.error('Erro ao validar Firebase:', erro);
   }
-  if (!usuario) {
-    return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
-  }
+  if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
   const accion = String(datos.accion || 'listarRepertorioPortal').trim();
-  if (![
-    'listarRepertorioPortal',
-    'listarAsistenciasConcertosPortal',
-    'obterFicheiroRepertorio'
-  ].includes(accion)) {
+  if (!['listarRepertorioPortal', 'listarAsistenciasConcertosPortal', 'obterFicheiroRepertorio'].includes(accion)) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
+  }
+
+  if (accion === 'obterFicheiroRepertorio') {
+    const clave = claveR2Valida(datos.r2Key || datos.ruta);
+    if (clave) {
+      try {
+        return await respostaR2(env, clave);
+      } catch (erro) {
+        console.error('Erro ao obter o ficheiro de R2:', erro);
+        return json(503, { ok: false, erro: 'Non foi posible abrir o ficheiro desde R2.' });
+      }
+    }
   }
 
   const duracionCache = accion === 'listarRepertorioPortal'
@@ -192,9 +285,9 @@ export async function onRequest({ request, env }) {
       : 0;
 
   if (duracionCache) {
-    const resultadoCacheado = await lerCachePersistente(request, accion, duracionCache);
-    if (resultadoCacheado) {
-      return json(200, resultadoCacheado, {
+    const cacheado = await lerCachePersistente(request, accion, duracionCache);
+    if (cacheado) {
+      return json(200, adaptarRecursosR2(cacheado), {
         'X-SCPP-Cache': 'HIT',
         'Server-Timing': 'apps-script;dur=0'
       });
@@ -230,17 +323,17 @@ export async function onRequest({ request, env }) {
         erro: resultado?.erro || 'Non foi posible consultar o repertorio.'
       });
     }
+
     if (accion === 'obterFicheiroRepertorio') {
-      const resposta = respostaFicheiro(resultado);
+      const resposta = respostaFicheiroDrive(resultado);
       if (usouRespaldo) resposta.headers.set('X-SCPP-AppScript', 'FALLBACK');
       return resposta;
     }
 
-    if (duracionCache) {
-      await gardarCachePersistente(request, accion, resultado, duracionCache);
-    }
+    const adaptado = adaptarRecursosR2(resultado);
+    if (duracionCache) await gardarCachePersistente(request, accion, adaptado, duracionCache);
 
-    return json(200, resultado, {
+    return json(200, adaptado, {
       'X-SCPP-Cache': 'MISS',
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
       'X-SCPP-AppScript-Attempt': String(intento),
