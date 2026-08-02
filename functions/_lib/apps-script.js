@@ -7,7 +7,10 @@ const ACCIONS_FOTOS_SO_PRINCIPAL = new Set([
   'actualizarRevisionFoto',
   'actualizarPublicacionFoto',
   'obterFotoParaR2',
-  'gardarRutasFotoR2'
+  'gardarRutasFotoR2',
+  'listarFotosGaleria',
+  'listarFotosPublicadas',
+  'listarFotosPendentesR2'
 ]);
 
 export class AppsScriptError extends Error {
