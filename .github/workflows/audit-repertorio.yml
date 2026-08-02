@@ -1,0 +1,79 @@
+name: Auditar repertorio
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-repertorio-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: r2-migration
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            boto3==1.40.1 \
+            google-api-python-client==2.177.0 \
+            google-auth==2.40.3
+
+      - name: Ejecutar auditoría
+        id: audit
+        continue-on-error: true
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AUDIT_REPORT_CSV: repertorio-audit.csv
+          AUDIT_REPORT_MD: repertorio-audit.md
+        run: |
+          set -o pipefail
+          python scripts/audit-repertorio.py 2>&1 | tee repertorio-audit.log
+
+      - name: Mostrar resumo
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f repertorio-audit.md ]]; then
+            cat repertorio-audit.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## A auditoría non xerou informe" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Gardar informes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repertorio-audit-${{ github.run_number }}
+          path: |
+            repertorio-audit.csv
+            repertorio-audit.md
+            repertorio-audit.log
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Marcar erros críticos
+        if: steps.audit.outcome == 'failure'
+        run: |
+          echo "A auditoría detectou erros críticos. Consulta o resumo e o artefacto CSV."
+          exit 1
