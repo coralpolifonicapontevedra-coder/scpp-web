@@ -114,11 +114,12 @@ def main():
         record_id = canon(row.get("Id_Audio"))
         if not truthy(row.get("Activo")) or number(record_id, -1) < 176:
             continue
-        work_id = canon(row.get("NomeObra"))
+        raw_work_id = str(row.get("NomeObra") or "").strip()
+        work_id = canon(raw_work_id)
         source_name = basename(row.get("AudioFile"))
         key = str(row.get("R2Key") or "").strip().lstrip("/")
         if not key:
-            key = f"repertorio/audios/{work_id}/{slug_filename(source_name)}"
+            key = f"repertorio/audios/{raw_work_id}/{slug_filename(source_name)}"
         obj = head(client, bucket, key)
         if obj is None:
             missing.append(f"audio {record_id}: {key}")
