@@ -14,6 +14,8 @@
  * }
  *
  * Estas funcións non eliminan nin modifican os ficheiros orixinais de Drive.
+ * A publicación é transaccional: unha foto pode prepararse estando Pendente e
+ * só pasa a Aprobada cando as rutas R2 quedan gardadas correctamente.
  */
 
 function obterFotoParaR2Portal_(datos) {
@@ -47,14 +49,16 @@ function obterFotoParaR2Portal_(datos) {
 
   var fila = valores[indiceFila];
   var estado = String(fila[indice.EstadoRevision] || '').trim().toLowerCase();
-  if (estado !== 'aprobada') {
-    return { ok: false, erro: 'Só se poden migrar fotografías aprobadas' };
+  if (['pendente', 'aprobada'].indexOf(estado) === -1) {
+    return { ok: false, erro: 'A fotografía non está dispoñible para publicar' };
   }
 
-  var publicarPublica = valorBooleanoPortal_(fila[indice.Publicar_Publica]);
-  var publicarPrivada = valorBooleanoPortal_(fila[indice.Publicar_Privada]);
+  var publicarPublica = datos.publicarPublica === true ||
+    valorBooleanoPortal_(fila[indice.Publicar_Publica]);
+  var publicarPrivada = datos.publicarPrivada === true ||
+    valorBooleanoPortal_(fila[indice.Publicar_Privada]);
   if (!publicarPublica && !publicarPrivada) {
-    return { ok: false, erro: 'A fotografía non está publicada en ningunha galería' };
+    return { ok: false, erro: 'A fotografía non está destinada a ningunha galería' };
   }
 
   var ficheiro = localizarFicheiroFoto_(fila[indice.Foto]);
@@ -102,12 +106,13 @@ function listarFotosPendentesR2Portal_(datos) {
   var indice = indiceR2Fotos_(cabeceiras);
 
   var fotos = valores.slice(1).filter(function(fila) {
-    var aprobada = String(fila[indice.EstadoRevision] || '').trim().toLowerCase() === 'aprobada';
+    var estado = String(fila[indice.EstadoRevision] || '').trim().toLowerCase();
+    var publicable = estado === 'aprobada' || estado === 'pendente';
     var publica = valorBooleanoPortal_(fila[indice.Publicar_Publica]);
     var privada = valorBooleanoPortal_(fila[indice.Publicar_Privada]);
     var faltaPublica = publica && !String(fila[indice.RutaR2_Publica] || '').trim();
     var faltaPrivada = privada && !String(fila[indice.RutaR2_Privada] || '').trim();
-    return aprobada && (faltaPublica || faltaPrivada);
+    return publicable && (faltaPublica || faltaPrivada);
   }).map(function(fila) {
     return {
       idFoto: String(fila[indice.Id_Foto] || '').trim(),
@@ -149,17 +154,34 @@ function gardarRutasFotoR2Portal_(datos) {
     return { ok: false, erro: 'Non se atopou a fotografía' };
   }
 
+  var numeroFila = indiceFila + 1;
   if (rutaPublica) {
-    folla.getRange(indiceFila + 1, indice.RutaR2_Publica + 1).setValue(rutaPublica);
+    folla.getRange(numeroFila, indice.RutaR2_Publica + 1).setValue(rutaPublica);
   }
   if (rutaPrivada) {
-    folla.getRange(indiceFila + 1, indice.RutaR2_Privada + 1).setValue(rutaPrivada);
+    folla.getRange(numeroFila, indice.RutaR2_Privada + 1).setValue(rutaPrivada);
+  }
+
+  // Só agora, cando R2 confirmou e as rutas están dispoñibles, publícase.
+  folla.getRange(numeroFila, indice.EstadoRevision + 1).setValue('Aprobada');
+  if (indice.Data_Revision !== -1) {
+    folla.getRange(numeroFila, indice.Data_Revision + 1).setValue(new Date());
+  }
+  if (indice.Revisada_Por !== -1) {
+    folla.getRange(numeroFila, indice.Revisada_Por + 1).setValue(correo);
+  }
+  if (rutaPublica && indice.Data_Publicacion_Publica !== -1) {
+    folla.getRange(numeroFila, indice.Data_Publicacion_Publica + 1).setValue(new Date());
+  }
+  if (rutaPrivada && indice.Data_Publicacion_Privada !== -1) {
+    folla.getRange(numeroFila, indice.Data_Publicacion_Privada + 1).setValue(new Date());
   }
   SpreadsheetApp.flush();
 
   return {
     ok: true,
     idFoto: idFoto,
+    estado: 'Aprobada',
     rutaPublica: rutaPublica,
     rutaPrivada: rutaPrivada
   };
@@ -178,5 +200,11 @@ function indiceR2Fotos_(cabeceiras) {
       throw new Error('Falta a columna ' + nome + ' na folla Fotos');
     }
   });
+
+  ['Data_Revision', 'Revisada_Por', 'Data_Publicacion_Publica',
+    'Data_Publicacion_Privada'].forEach(function(nomeOpcional) {
+    indice[nomeOpcional] = cabeceiras.indexOf(nomeOpcional);
+  });
+
   return indice;
 }
