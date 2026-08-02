@@ -50,14 +50,25 @@ jobs:
           set -o pipefail
           python scripts/audit-repertorio.py 2>&1 | tee repertorio-audit.log
 
-      - name: Mostrar resumo
+      - name: Mostrar incidencias no log e no resumo
         if: always()
         shell: bash
         run: |
+          echo
+          echo "===== RESUMO DA AUDITORÍA ====="
           if [[ -f repertorio-audit.md ]]; then
+            cat repertorio-audit.md
             cat repertorio-audit.md >> "$GITHUB_STEP_SUMMARY"
           else
+            echo "A auditoría non xerou informe."
             echo "## A auditoría non xerou informe" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo
+          echo "===== INCIDENCIAS DETALLADAS ====="
+          if [[ -f repertorio-audit.csv ]]; then
+            cat repertorio-audit.csv
+          else
+            echo "Non se xerou o CSV de incidencias."
           fi
 
       - name: Gardar informes
@@ -75,5 +86,5 @@ jobs:
       - name: Marcar erros críticos
         if: steps.audit.outcome == 'failure'
         run: |
-          echo "A auditoría detectou erros críticos. Consulta o resumo e o artefacto CSV."
+          echo "A auditoría detectou erros críticos. As incidencias completas aparecen no paso anterior."
           exit 1
