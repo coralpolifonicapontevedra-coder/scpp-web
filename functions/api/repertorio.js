@@ -1,7 +1,8 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
+import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
 const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
-const CACHE_REPERTORIO_VERSION = '2026-08-02-r2-2';
+const CACHE_REPERTORIO_VERSION = '2026-08-02-r2-index-completo-1';
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
@@ -142,23 +143,6 @@ function respostaFicheiroDrive(resultado) {
   });
 }
 
-function basename(valor) {
-  return String(valor || '').trim().replace(/\\/g, '/').split('/').pop() || '';
-}
-
-function slugAudio(nome) {
-  const punto = nome.lastIndexOf('.');
-  const base = punto > 0 ? nome.slice(0, punto) : nome;
-  const extension = punto > 0 ? nome.slice(punto).toLowerCase() : '';
-  const slug = base
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return slug ? `${slug}${extension}` : '';
-}
-
 function claveR2Valida(valor) {
   const clave = String(valor || '').trim().replace(/^\/+/, '');
   if (!clave || clave.includes('..') || clave.includes('\\')) return '';
@@ -166,58 +150,70 @@ function claveR2Valida(valor) {
   return clave;
 }
 
-function claveR2Recurso(recurso, tipo, idObra) {
-  if (!recurso || typeof recurso !== 'object') return '';
-
-  const explicita = claveR2Valida(
-    recurso.r2Key || recurso.R2Key || recurso.r2key || recurso.rutaR2 || recurso.RutaR2
-  );
-  if (explicita) return explicita;
-
-  const rutaDrive = recurso.ruta || recurso.PDF || recurso.AudioFile || recurso.pdf || recurso.audioFile || '';
-  const nome = basename(rutaDrive);
-  if (!nome) return '';
-
-  if (tipo === 'partitura') return claveR2Valida(`partituras/${nome}`);
-
-  const obra = String(idObra || recurso.idRepertorio || recurso.Id_Repertorio || recurso.NomeObra || '').trim();
-  const nomeR2 = slugAudio(nome);
-  return obra && nomeR2 ? claveR2Valida(`repertorio/audios/${obra}/${nomeR2}`) : '';
+function canonId(valor) {
+  const texto = String(valor ?? '').trim();
+  if (!texto) return '';
+  const numero = Number(texto.replace(',', '.'));
+  return Number.isFinite(numero) ? String(Math.trunc(numero)) : texto;
 }
 
-function adaptarRecursosR2(resultado) {
+function idObra(obra) {
+  return canonId(
+    obra?.id ??
+    obra?.Id_Repertorio ??
+    obra?.idRepertorio ??
+    obra?.ID_Repertorio ??
+    obra?.IdRepertorio ??
+    obra?.codigo ??
+    obra?.Codigo
+  );
+}
+
+function copiarRecursos(recursos) {
+  return recursos.map((recurso) => ({
+    ...recurso,
+    ruta: recurso.r2Key || recurso.ruta,
+    r2Key: recurso.r2Key || recurso.ruta,
+    orixe: 'r2'
+  }));
+}
+
+function incorporarIndiceCompleto(resultado) {
   if (!resultado || typeof resultado !== 'object') return resultado;
   const obras = Array.isArray(resultado.obras)
     ? resultado.obras
     : Array.isArray(resultado.repertorio)
       ? resultado.repertorio
-      : [];
+      : Array.isArray(resultado.datos)
+        ? resultado.datos
+        : [];
+
+  let obrasEnriquecidas = 0;
+  let audios = 0;
+  let partituras = 0;
 
   for (const obra of obras) {
-    const idObra = String(obra?.id || obra?.Id_Repertorio || obra?.idRepertorio || '').trim();
+    const id = idObra(obra);
+    const recursos = id ? REPERTORIO_R2[id] : null;
+    if (!recursos) continue;
 
-    const partituras = Array.isArray(obra?.partituras) ? obra.partituras : [];
-    for (const recurso of partituras) {
-      const clave = claveR2Recurso(recurso, 'partitura', idObra);
-      if (clave) {
-        recurso.rutaDrive = recurso.ruta || recurso.PDF || recurso.pdf || '';
-        recurso.ruta = clave;
-        recurso.r2Key = clave;
-        recurso.orixe = 'r2';
-      }
-    }
+    obra.audios = copiarRecursos(recursos.audios || []);
+    obra.partituras = copiarRecursos(recursos.partituras || []);
+    obra.audiosR2 = obra.audios;
+    obra.partiturasR2 = obra.partituras;
+    obra.tenRecursosR2 = obra.audios.length > 0 || obra.partituras.length > 0;
 
-    const audios = Array.isArray(obra?.audios) ? obra.audios : [];
-    for (const recurso of audios) {
-      const clave = claveR2Recurso(recurso, 'audio', idObra);
-      if (clave) {
-        recurso.rutaDrive = recurso.ruta || recurso.AudioFile || recurso.audioFile || '';
-        recurso.ruta = clave;
-        recurso.r2Key = clave;
-        recurso.orixe = 'r2';
-      }
-    }
+    obrasEnriquecidas += 1;
+    audios += obra.audios.length;
+    partituras += obra.partituras.length;
   }
+
+  resultado.indiceR2 = {
+    obras: obrasEnriquecidas,
+    audios,
+    partituras,
+    completo: audios === 231 && partituras === 99
+  };
   return resultado;
 }
 
@@ -287,7 +283,7 @@ export async function onRequest({ request, env }) {
   if (duracionCache) {
     const cacheado = await lerCachePersistente(request, accion, duracionCache);
     if (cacheado) {
-      return json(200, adaptarRecursosR2(cacheado), {
+      return json(200, accion === 'listarRepertorioPortal' ? incorporarIndiceCompleto(cacheado) : cacheado, {
         'X-SCPP-Cache': 'HIT',
         'Server-Timing': 'apps-script;dur=0'
       });
@@ -330,13 +326,17 @@ export async function onRequest({ request, env }) {
       return resposta;
     }
 
-    const adaptado = adaptarRecursosR2(resultado);
+    const adaptado = accion === 'listarRepertorioPortal'
+      ? incorporarIndiceCompleto(resultado)
+      : resultado;
     if (duracionCache) await gardarCachePersistente(request, accion, adaptado, duracionCache);
 
     return json(200, adaptado, {
       'X-SCPP-Cache': 'MISS',
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
       'X-SCPP-AppScript-Attempt': String(intento),
+      'X-SCPP-R2-Audios': String(adaptado?.indiceR2?.audios || 0),
+      'X-SCPP-R2-Partituras': String(adaptado?.indiceR2?.partituras || 0),
       'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
     });
   } catch (erro) {
