@@ -3,9 +3,11 @@
 
   const previousFetch = window.fetch.bind(window);
   const CACHE_KEYS = [
+    'scpp:repertorio:completo:v4',
     'scpp:repertorio:completo:v3',
     'scpp:repertorio:completo:v2'
   ];
+  const IDS_BRAIS_RETIRADOS = new Set(['28', '29', '30', '31', '32', '33', '34']);
   const obrasPorId = new Map();
 
   function canonId(valor) {
@@ -15,6 +17,21 @@
     return Number.isFinite(numero) ? String(Math.trunc(numero)) : texto;
   }
 
+  function idObra(obra) {
+    return canonId(obra?.id ?? obra?.Id_Repertorio ?? obra?.idRepertorio);
+  }
+
+  function limparDuplicados(resultado) {
+    if (!resultado || !Array.isArray(resultado.obras)) return resultado;
+    resultado.obras = resultado.obras.filter((obra) => !IDS_BRAIS_RETIRADOS.has(idObra(obra)));
+    return resultado;
+  }
+
+  function limparCachesAntigas() {
+    for (const key of CACHE_KEYS.slice(1)) localStorage.removeItem(key);
+  }
+  limparCachesAntigas();
+
   function normalizar(valor) {
     return String(valor || '')
       .normalize('NFD')
@@ -23,9 +40,11 @@
   }
 
   function indexarObras(resultado) {
+    limparDuplicados(resultado);
     if (!Array.isArray(resultado?.obras)) return;
+    obrasPorId.clear();
     resultado.obras.forEach((obra) => {
-      const id = canonId(obra?.id ?? obra?.Id_Repertorio ?? obra?.idRepertorio);
+      const id = idObra(obra);
       if (id) obrasPorId.set(id, obra);
     });
   }
@@ -33,7 +52,7 @@
   function readCompleteCache() {
     for (const key of CACHE_KEYS) {
       try {
-        const stored = JSON.parse(localStorage.getItem(key) || 'null');
+        const stored = limparDuplicados(JSON.parse(localStorage.getItem(key) || 'null'));
         if (!stored?.ok || !Array.isArray(stored.obras) || !stored.obras.length) continue;
         const hasR2Resources = stored.obras.some((obra) =>
           (Array.isArray(obra?.audios) && obra.audios.some((r) => r?.r2Key || String(r?.ruta || '').startsWith('repertorio/audios/'))) ||
@@ -191,15 +210,25 @@
 
     if (!isRepertoireList(url, body) || !response.ok) return response;
 
-    const result = await response.clone().json().catch(() => null);
+    const result = limparDuplicados(await response.clone().json().catch(() => null));
     if (!result?.ok || !Array.isArray(result.obras)) return response;
     indexarObras(result);
 
     const source = response.headers.get('X-SCPP-Repertorio');
-    if (source === 'FULL' || result?.indiceR2?.completo === true) return response;
+    if (source === 'FULL' || result?.indiceR2?.completo === true) {
+      return new Response(JSON.stringify(result), {
+        status: response.status,
+        headers: response.headers
+      });
+    }
 
     const complete = readCompleteCache();
-    if (!complete) return response;
+    if (!complete) {
+      return new Response(JSON.stringify(result), {
+        status: response.status,
+        headers: response.headers
+      });
+    }
     indexarObras(complete);
 
     return new Response(JSON.stringify({
