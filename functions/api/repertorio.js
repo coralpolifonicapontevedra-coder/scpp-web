@@ -1,7 +1,7 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
-const CACHE_REPERTORIO_VERSION = '2026-08-01-audios-2';
+const CACHE_REPERTORIO_VERSION = '2026-08-02-r2-1';
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
@@ -148,6 +148,67 @@ function respostaFicheiro(resultado) {
   });
 }
 
+function claveR2Valida(valor) {
+  const clave = String(valor || '').trim().replace(/^\/+/, '');
+  if (!clave || clave.includes('..') || clave.includes('\\')) return '';
+  if (!clave.startsWith('repertorio/audios/') && !clave.startsWith('partituras/')) return '';
+  return clave;
+}
+
+function obterClaveR2(recurso) {
+  if (!recurso || typeof recurso !== 'object') return '';
+  return claveR2Valida(
+    recurso.r2Key || recurso.R2Key || recurso.r2key || recurso.rutaR2 || recurso.RutaR2
+  );
+}
+
+function adaptarRecursosR2(resultado) {
+  if (!resultado || typeof resultado !== 'object') return resultado;
+  const obras = Array.isArray(resultado.obras)
+    ? resultado.obras
+    : Array.isArray(resultado.repertorio)
+      ? resultado.repertorio
+      : [];
+
+  for (const obra of obras) {
+    for (const campo of ['partituras', 'audios']) {
+      const recursos = Array.isArray(obra?.[campo]) ? obra[campo] : [];
+      for (const recurso of recursos) {
+        const clave = obterClaveR2(recurso);
+        const estado = String(recurso?.estadoR2 || recurso?.EstadoR2 || '').trim().toLowerCase();
+        if (clave && (!estado || ['verificado', 'subido', 'migrado'].includes(estado))) {
+          recurso.rutaDrive = recurso.ruta || recurso.PDF || recurso.AudioFile || '';
+          recurso.ruta = clave;
+          recurso.orixe = 'r2';
+        }
+      }
+    }
+  }
+  return resultado;
+}
+
+async function respostaR2(env, clave) {
+  if (!env.R2_PRIVADO) {
+    return json(503, { ok: false, erro: 'O almacén privado R2 non está configurado.' });
+  }
+
+  const obxecto = await env.R2_PRIVADO.get(clave);
+  if (!obxecto) {
+    return json(404, { ok: false, erro: 'O ficheiro non aparece no almacén privado.' });
+  }
+
+  const nome = (clave.split('/').pop() || 'ficheiro').replace(/[\r\n"]/g, '');
+  const headers = new Headers();
+  obxecto.writeHttpMetadata(headers);
+  headers.set('Content-Type', headers.get('Content-Type') || 'application/octet-stream');
+  headers.set('Content-Disposition', `inline; filename="${nome}"`);
+  headers.set('Cache-Control', 'private, max-age=3600');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-SCPP-Storage', 'R2');
+  if (obxecto.httpEtag) headers.set('ETag', obxecto.httpEtag);
+  return new Response(obxecto.body, { status: 200, headers });
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') {
     return json(405, { ok: false, erro: 'Método non permitido' });
@@ -185,6 +246,18 @@ export async function onRequest({ request, env }) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
   }
 
+  if (accion === 'obterFicheiroRepertorio') {
+    const clave = claveR2Valida(datos.r2Key || datos.ruta);
+    if (clave) {
+      try {
+        return await respostaR2(env, clave);
+      } catch (erro) {
+        console.error('Erro ao obter o ficheiro de R2:', erro);
+        return json(503, { ok: false, erro: 'Non foi posible abrir o ficheiro desde R2.' });
+      }
+    }
+  }
+
   const duracionCache = accion === 'listarRepertorioPortal'
     ? CACHE_REPERTORIO_MS
     : accion === 'listarAsistenciasConcertosPortal'
@@ -194,7 +267,7 @@ export async function onRequest({ request, env }) {
   if (duracionCache) {
     const resultadoCacheado = await lerCachePersistente(request, accion, duracionCache);
     if (resultadoCacheado) {
-      return json(200, resultadoCacheado, {
+      return json(200, adaptarRecursosR2(resultadoCacheado), {
         'X-SCPP-Cache': 'HIT',
         'Server-Timing': 'apps-script;dur=0'
       });
@@ -233,14 +306,16 @@ export async function onRequest({ request, env }) {
     if (accion === 'obterFicheiroRepertorio') {
       const resposta = respostaFicheiro(resultado);
       if (usouRespaldo) resposta.headers.set('X-SCPP-AppScript', 'FALLBACK');
+      resposta.headers.set('X-SCPP-Storage', 'DRIVE-FALLBACK');
       return resposta;
     }
 
+    const resultadoAdaptado = adaptarRecursosR2(resultado);
     if (duracionCache) {
-      await gardarCachePersistente(request, accion, resultado, duracionCache);
+      await gardarCachePersistente(request, accion, resultadoAdaptado, duracionCache);
     }
 
-    return json(200, resultado, {
+    return json(200, resultadoAdaptado, {
       'X-SCPP-Cache': 'MISS',
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
       'X-SCPP-AppScript-Attempt': String(intento),
