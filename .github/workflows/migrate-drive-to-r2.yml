@@ -87,7 +87,13 @@ jobs:
         run: |
           set -o pipefail
           printf 'category,record_id,source_name,r2_key,status,size,sha256,detail\n' > r2-migration-report.csv
-          python scripts/migrate-drive-to-r2.py 2>&1 | tee r2-migration.log
+
+          if [[ "${MIGRATION_MODE}" == "plan" ]]; then
+            python scripts/migrate-drive-to-r2.py 2>&1 | tee r2-migration.log || true
+            echo "Plan completed (non-blocking). Review r2-migration-report.csv for errores."
+          else
+            python scripts/migrate-drive-to-r2.py 2>&1 | tee r2-migration.log
+          fi
 
       - name: Guardar informe y diagnóstico
         if: always()
