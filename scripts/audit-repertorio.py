@@ -7,6 +7,7 @@ import os
 import pathlib
 import re
 import sys
+import traceback
 import unicodedata
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -137,8 +138,7 @@ def list_drive_files(drive, folder_id: str):
 
 
 def derive_audio_key(row):
-    key = str(row.get("R2Key") or "").strip().lstrip("/")
-    return key
+    return str(row.get("R2Key") or "").strip().lstrip("/")
 
 
 def derive_score_key(row):
@@ -147,7 +147,45 @@ def derive_score_key(row):
     )
 
 
-def main():
+def write_reports(findings: list[Finding], works: dict, active_by_work) -> None:
+    REPORT_CSV.parent.mkdir(parents=True, exist_ok=True)
+    with REPORT_CSV.open("w", newline="", encoding="utf-8-sig") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["severity", "code", "work_id", "work_title", "resource_type", "record_id", "detail"])
+        for item in findings:
+            writer.writerow([item.severity, item.code, item.work_id, item.work_title, item.resource_type, item.record_id, item.detail])
+
+    counts = Counter(item.severity for item in findings)
+    resource_works = sum(
+        1 for work_id in works
+        if active_by_work[work_id]["audios"] or active_by_work[work_id]["partituras"]
+    )
+    lines = [
+        "# Auditoría automática do repertorio",
+        "",
+        f"- Obras: **{len(works)}**",
+        f"- Obras con recursos activos: **{resource_works}**",
+        f"- Audios activos: **{sum(v['audios'] for v in active_by_work.values())}**",
+        f"- Partituras activas: **{sum(v['partituras'] for v in active_by_work.values())}**",
+        f"- Erros: **{counts['ERROR']}**",
+        f"- Avisos: **{counts['WARNING']}**",
+        f"- Información: **{counts['INFO']}**",
+        "",
+        "## Incidencias",
+        "",
+    ]
+    if findings:
+        lines.extend(["| Nivel | Código | Obra | Detalle |", "|---|---|---|---|"])
+        for item in findings:
+            work = f"{item.work_id} — {item.work_title}".strip(" —")
+            detail = str(item.detail).replace("|", "\\|").replace("\n", " ")
+            lines.append(f"| {item.severity} | {item.code} | {work} | {detail} |")
+    else:
+        lines.append("Non se detectaron incidencias.")
+    REPORT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def run_audit():
     creds = credentials()
     sheets = build("sheets", "v4", credentials=creds, cache_discovery=False)
     drive = build("drive", "v3", credentials=creds, cache_discovery=False)
@@ -232,9 +270,9 @@ def main():
             active_keys.append(key)
         active_by_work[work_id]["partituras"] += 1
 
-    duplicate_keys = [key for key, count in Counter(active_keys).items() if count > 1]
-    for key in duplicate_keys:
-        findings.append(Finding("WARNING", "R2_KEY_REUSED", detail=key))
+    for key, count in Counter(active_keys).items():
+        if count > 1:
+            findings.append(Finding("WARNING", "R2_KEY_REUSED", detail=key))
 
     for work_id, row in works.items():
         counts = active_by_work[work_id]
@@ -247,8 +285,7 @@ def main():
             findings.append(Finding("WARNING", "WORK_WITHOUT_SCORE", work_id, title, detail="Ten audios pero non partitura"))
 
     try:
-        drive_files = list_drive_files(drive, OBRAS_FILES_FOLDER_ID)
-        for item in drive_files:
+        for item in list_drive_files(drive, OBRAS_FILES_FOLDER_ID):
             name = item.get("name", "")
             suffix = pathlib.PurePosixPath(name).suffix.lower()
             if suffix not in {".mp3", ".mp4", ".m4a", ".aac", ".mpeg", ".webm", ".wav", ".pdf"}:
@@ -258,45 +295,27 @@ def main():
     except Exception as exc:
         findings.append(Finding("WARNING", "DRIVE_SCAN_FAILED", detail=str(exc)))
 
-    REPORT_CSV.parent.mkdir(parents=True, exist_ok=True)
-    with REPORT_CSV.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(["severity", "code", "work_id", "work_title", "resource_type", "record_id", "detail"])
-        for item in findings:
-            writer.writerow([item.severity, item.code, item.work_id, item.work_title, item.resource_type, item.record_id, item.detail])
-
+    write_reports(findings, works, active_by_work)
     counts = Counter(item.severity for item in findings)
-    resource_works = sum(1 for work_id in works if active_by_work[work_id]["audios"] or active_by_work[work_id]["partituras"])
-    lines = [
-        "# Auditoría automática do repertorio",
-        "",
-        f"- Obras: **{len(works)}**",
-        f"- Obras con recursos activos: **{resource_works}**",
-        f"- Audios activos: **{sum(v['audios'] for v in active_by_work.values())}**",
-        f"- Partituras activas: **{sum(v['partituras'] for v in active_by_work.values())}**",
-        f"- Erros: **{counts['ERROR']}**",
-        f"- Avisos: **{counts['WARNING']}**",
-        f"- Información: **{counts['INFO']}**",
-        "",
-        "## Incidencias",
-        "",
-    ]
-    if findings:
-        lines.append("| Nivel | Código | Obra | Detalle |")
-        lines.append("|---|---|---|---|")
-        for item in findings:
-            work = f"{item.work_id} — {item.work_title}".strip(" —")
-            detail = item.detail.replace("|", "\\|").replace("\n", " ")
-            lines.append(f"| {item.severity} | {item.code} | {work} | {detail} |")
-    else:
-        lines.append("Non se detectaron incidencias.")
-    REPORT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
     print(f"Auditoría: obras={len(works)}, erros={counts['ERROR']}, avisos={counts['WARNING']}, info={counts['INFO']}")
     print(f"Informes: {REPORT_CSV} e {REPORT_MD}")
-    if counts["ERROR"]:
-        sys.exit(1)
+    return 1 if counts["ERROR"] else 0
+
+
+def main():
+    try:
+        return run_audit()
+    except Exception as exc:
+        detail = f"{type(exc).__name__}: {exc}"
+        print("A auditoría fallou antes de completarse:", detail, file=sys.stderr)
+        traceback.print_exc()
+        write_reports(
+            [Finding("ERROR", "AUDIT_EXECUTION_FAILED", detail=detail)],
+            {},
+            defaultdict(lambda: {"audios": 0, "partituras": 0}),
+        )
+        return 2
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
