@@ -18,6 +18,13 @@ function primeiraRuta(...valores) {
 }
 
 function normalizarFoto(foto = {}) {
+  const idFoto = primeiraRuta(
+    foto.idFoto,
+    foto.Id_Foto,
+    foto.rowId,
+    foto['Row ID']
+  );
+
   const rutaR2 = primeiraRuta(
     foto.rutaR2Publica,
     foto.rutaR2_Publica,
@@ -28,6 +35,7 @@ function normalizarFoto(foto = {}) {
 
   return {
     ...foto,
+    idFoto,
     rutaR2Publica: rutaR2,
     urlPublica: rutaR2
       ? `/arquivos/publico/${rutaR2.split('/').map(encodeURIComponent).join('/')}`
@@ -52,7 +60,8 @@ export async function onRequest({ request, env }) {
       env,
       {
         token: env.WEB_WRITE_TOKEN,
-        accion: 'listarFotosGaleria'
+        accion: 'listarFotosGaleria',
+        cacheBust: Date.now()
       },
       {
         timeoutMs: 75_000,
@@ -75,7 +84,9 @@ export async function onRequest({ request, env }) {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
         'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY'
       }
     });
