@@ -2,13 +2,14 @@
   'use strict';
 
   const previousFetch = window.fetch.bind(window);
-  const CACHE_KEYS = [
-    'scpp:repertorio:completo:v4',
-    'scpp:repertorio:completo:v3',
-    'scpp:repertorio:completo:v2'
-  ];
-  const IDS_BRAIS_RETIRADOS = new Set(['28', '29', '30', '31', '32', '33', '34']);
+  const IDS_BRAIS_RETIRADOS = new Set(['80', '81', '82', '83', '84', '85', '86']);
   const obrasPorId = new Map();
+
+  for (const key of [
+    'scpp:repertorio:completo:v2',
+    'scpp:repertorio:completo:v3',
+    'scpp:repertorio:completo:v4'
+  ]) localStorage.removeItem(key);
 
   function canonId(valor) {
     const texto = String(valor ?? '').trim();
@@ -21,60 +22,26 @@
     return canonId(obra?.id ?? obra?.Id_Repertorio ?? obra?.idRepertorio);
   }
 
-  function limparDuplicados(resultado) {
+  function filtrarSerieRetirada(resultado) {
     if (!resultado || !Array.isArray(resultado.obras)) return resultado;
     resultado.obras = resultado.obras.filter((obra) => !IDS_BRAIS_RETIRADOS.has(idObra(obra)));
     return resultado;
   }
 
-  function limparCachesAntigas() {
-    for (const key of CACHE_KEYS.slice(1)) localStorage.removeItem(key);
-  }
-  limparCachesAntigas();
-
-  function normalizar(valor) {
-    return String(valor || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-  }
-
   function indexarObras(resultado) {
-    limparDuplicados(resultado);
-    if (!Array.isArray(resultado?.obras)) return;
     obrasPorId.clear();
+    if (!Array.isArray(resultado?.obras)) return;
     resultado.obras.forEach((obra) => {
       const id = idObra(obra);
       if (id) obrasPorId.set(id, obra);
     });
   }
 
-  function readCompleteCache() {
-    for (const key of CACHE_KEYS) {
-      try {
-        const stored = limparDuplicados(JSON.parse(localStorage.getItem(key) || 'null'));
-        if (!stored?.ok || !Array.isArray(stored.obras) || !stored.obras.length) continue;
-        const hasR2Resources = stored.obras.some((obra) =>
-          (Array.isArray(obra?.audios) && obra.audios.some((r) => r?.r2Key || String(r?.ruta || '').startsWith('repertorio/audios/'))) ||
-          (Array.isArray(obra?.partituras) && obra.partituras.some((r) => r?.r2Key || String(r?.ruta || '').startsWith('partituras/')))
-        );
-        if (hasR2Resources) return stored;
-      } catch {
-        // Proba a seguinte versión da caché.
-      }
-    }
-    return null;
-  }
-
-  function isRepertoireList(url, body) {
-    return location.pathname.startsWith('/portal/repertorio') &&
-      url.includes('/api/repertorio') &&
-      body?.accion === 'listarRepertorioPortal';
-  }
-
-  function parseBody(init) {
-    if (!init || typeof init.body !== 'string') return null;
-    try { return JSON.parse(init.body); } catch { return null; }
+  function normalizar(valor) {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
   }
 
   function textoAudio(audio) {
@@ -118,10 +85,9 @@
   }
 
   function ordeGrupos(id) {
-    if (id === '78') {
-      return ['Escena I', 'Escena II', 'Escena III', 'Escena IIIa', 'Escena IIIb', 'Escena IV', 'Escena V', 'Escena VI', 'Outros audios'];
-    }
-    return ['Kyrie', 'Gloria', 'Credo', 'Sanctus', 'Benedictus', 'Agnus Dei', 'Outros audios'];
+    return id === '78'
+      ? ['Escena I', 'Escena II', 'Escena III', 'Escena IIIa', 'Escena IIIb', 'Escena IV', 'Escena V', 'Escena VI', 'Outros audios']
+      : ['Kyrie', 'Gloria', 'Credo', 'Sanctus', 'Benedictus', 'Agnus Dei', 'Outros audios'];
   }
 
   function engadirEstilos() {
@@ -137,7 +103,6 @@
         border-left: 3px solid var(--color-primary, #7b2436);
         background: rgba(123, 36, 54, .07);
         font-size: .95rem;
-        letter-spacing: .01em;
       }
       .audio-group-list {
         display: grid;
@@ -195,55 +160,33 @@
     observer.observe(lista, { childList: true });
     organizarAudios();
   }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', iniciarOrganizacion, { once: true });
   } else {
     iniciarOrganizacion();
   }
 
-  window.addEventListener('popstate', () => queueMicrotask(organizarAudios));
-
   window.fetch = async (input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
-    const body = parseBody(init);
     const response = await previousFetch(input, init);
+    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+    if (!location.pathname.startsWith('/portal/repertorio') || !url.includes('/api/repertorio') || !response.ok) return response;
 
-    if (!isRepertoireList(url, body) || !response.ok) return response;
-
-    const result = limparDuplicados(await response.clone().json().catch(() => null));
-    if (!result?.ok || !Array.isArray(result.obras)) return response;
-    indexarObras(result);
-
-    const source = response.headers.get('X-SCPP-Repertorio');
-    if (source === 'FULL' || result?.indiceR2?.completo === true) {
-      return new Response(JSON.stringify(result), {
-        status: response.status,
-        headers: response.headers
-      });
+    let body;
+    try {
+      body = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
+    } catch {
+      body = null;
     }
+    if (body?.accion !== 'listarRepertorioPortal') return response;
 
-    const complete = readCompleteCache();
-    if (!complete) {
-      return new Response(JSON.stringify(result), {
-        status: response.status,
-        headers: response.headers
-      });
-    }
-    indexarObras(complete);
+    const resultado = filtrarSerieRetirada(await response.clone().json().catch(() => null));
+    if (!resultado?.ok || !Array.isArray(resultado.obras)) return response;
+    indexarObras(resultado);
 
-    return new Response(JSON.stringify({
-      ...result,
-      ok: true,
-      obras: complete.obras,
-      indiceR2: complete.indiceR2 || result.indiceR2,
-      modoCarga: 'r2-cache-completa'
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'no-store',
-        'X-SCPP-Repertorio': 'R2-CACHE-COMPLETA'
-      }
+    return new Response(JSON.stringify(resultado), {
+      status: response.status,
+      headers: response.headers
     });
   };
 })();
