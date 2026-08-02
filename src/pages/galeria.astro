@@ -1,19 +1,5 @@
 ---
 import BaseLayout from '../layouts/Layout.astro';
-import { fotosGaleria } from '../data/galeria-fotos.js';
-
-const fotos = fotosGaleria
-  .map((foto) => ({
-    ...foto,
-    miniatura: `https://drive.google.com/thumbnail?id=${foto.id}&sz=w900`,
-    orixinal: `https://drive.google.com/thumbnail?id=${foto.id}&sz=w1800`
-  }))
-  .sort((a, b) => {
-    const anoA = Number.parseInt(a.ano || '0', 10);
-    const anoB = Number.parseInt(b.ano || '0', 10);
-    if (anoA !== anoB) return anoB - anoA;
-    return a.titulo.localeCompare(b.titulo, 'gl');
-  });
 
 const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa', 'Histórico', 'Viaxes', 'Outros'];
 ---
@@ -35,27 +21,10 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
       ))}
     </nav>
 
-    <p id="gallery-count" class="gallery-count">{fotos.length} fotografías</p>
+    <p id="gallery-count" class="gallery-count">Cargando fotografías…</p>
     <p id="gallery-status" class="gallery-status" aria-live="polite"></p>
 
-    <section id="gallery-grid" class="gallery-grid" aria-live="polite">
-      {fotos.map((foto) => (
-        <article class:list={['gallery-card', { 'is-document': foto.documento }]} data-category={foto.categoria} data-drive-id={foto.id}>
-          <button class="gallery-image-button" type="button" data-image={foto.orixinal} data-title={foto.titulo} aria-label={`Ampliar ${foto.titulo}`}>
-            <img src={foto.miniatura} alt={foto.titulo} loading="lazy" decoding="async" />
-            <span class="zoom-hint" aria-hidden="true">Ampliar</span>
-          </button>
-          <div class="gallery-content-box">
-            <div class="gallery-meta">
-              <span class="gallery-category">{foto.categoria}</span>
-              {foto.ano && <time>{foto.ano}</time>}
-            </div>
-            <h2>{foto.titulo}</h2>
-          </div>
-        </article>
-      ))}
-    </section>
-
+    <section id="gallery-grid" class="gallery-grid" aria-live="polite"></section>
     <p id="gallery-empty" class="gallery-empty" hidden>Non hai fotografías nesta categoría.</p>
   </main>
 
@@ -82,6 +51,15 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
   let activeFilter = 'Todos';
   const cards = () => Array.from(document.querySelectorAll('.gallery-card'));
 
+  function escaparHtml(valor) {
+    return String(valor || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
   function actualizarFiltro() {
     let visible = 0;
     cards().forEach((card) => {
@@ -103,13 +81,6 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
     dialog.showModal();
   }
 
-  function urlDrive(idDrive, tamano) {
-    const id = String(idDrive || '').trim();
-    return id
-      ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${tamano}`
-      : '';
-  }
-
   function urlR2(foto) {
     const directa = String(foto?.urlPublica || '').trim();
     if (directa) return directa;
@@ -126,53 +97,33 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
       : '';
   }
 
-  function urlsFoto(foto) {
-    const r2 = urlR2(foto);
-    return {
-      miniatura: r2 || urlDrive(foto?.idDrive, 900),
-      orixinal: r2 || urlDrive(foto?.idDrive, 1800)
-    };
-  }
-
   function crearTarxeta(foto) {
     const article = document.createElement('article');
-    article.className = 'gallery-card';
-    article.dataset.category = foto.categoria || 'Outros';
-    article.dataset.driveId = foto.idDrive || '';
+    const categoria = String(foto?.categoria || foto?.categoriaPublica || 'Outros').trim() || 'Outros';
+    const titulo = String(foto?.titulo || 'Fotografía da SCPP').trim();
+    const ano = String(foto?.ano || foto?.anoAproximado || '').trim();
+    const ruta = urlR2(foto);
 
-    const urls = urlsFoto(foto);
-    const titulo = foto.titulo || 'Fotografía da SCPP';
-    const tituloSeguro = titulo.replaceAll('"', '&quot;');
+    article.className = 'gallery-card';
+    article.dataset.category = categoria;
+    article.dataset.idFoto = String(foto?.idFoto || foto?.rowId || '').trim();
 
     article.innerHTML = `
-      <button class="gallery-image-button" type="button" data-image="${urls.orixinal}" data-title="${tituloSeguro}" aria-label="Ampliar ${tituloSeguro}">
-        <img src="${urls.miniatura}" alt="${tituloSeguro}" loading="lazy" decoding="async" />
+      <button class="gallery-image-button" type="button" data-image="${escaparHtml(ruta)}" data-title="${escaparHtml(titulo)}" aria-label="Ampliar ${escaparHtml(titulo)}">
+        <img src="${escaparHtml(ruta)}" alt="${escaparHtml(titulo)}" loading="lazy" decoding="async" />
         <span class="zoom-hint" aria-hidden="true">Ampliar</span>
       </button>
       <div class="gallery-content-box">
         <div class="gallery-meta">
-          <span class="gallery-category">${foto.categoria || 'Outros'}</span>
-          ${foto.ano ? `<time>${foto.ano}</time>` : ''}
+          <span class="gallery-category">${escaparHtml(categoria)}</span>
+          ${ano ? `<time>${escaparHtml(ano)}</time>` : ''}
         </div>
-        <h2>${titulo}</h2>
+        <h2>${escaparHtml(titulo)}</h2>
       </div>`;
 
     const button = article.querySelector('[data-image]');
     button?.addEventListener('click', () => abrirDialogo(button));
     return article;
-  }
-
-  function actualizarTarxetaExistente(tarxeta, foto) {
-    if (!(tarxeta instanceof HTMLElement)) return false;
-    const r2 = urlR2(foto);
-    if (!r2) return false;
-
-    const imaxe = tarxeta.querySelector('img');
-    const boton = tarxeta.querySelector('[data-image]');
-    if (imaxe instanceof HTMLImageElement) imaxe.src = r2;
-    if (boton instanceof HTMLElement) boton.setAttribute('data-image', r2);
-    tarxeta.dataset.storage = 'r2';
-    return true;
   }
 
   filterButtons.forEach((button) => {
@@ -183,10 +134,6 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
     });
   });
 
-  document.querySelectorAll('[data-image]').forEach((button) => {
-    button.addEventListener('click', () => abrirDialogo(button));
-  });
-
   dialogClose?.addEventListener('click', () => {
     if (dialog instanceof HTMLDialogElement) dialog.close();
   });
@@ -195,51 +142,28 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
     if (event.target === dialog && dialog instanceof HTMLDialogElement) dialog.close();
   });
 
-  async function cargarFotosDinamicas() {
+  async function cargarGaleriaR2() {
     try {
       if (status) status.textContent = 'Actualizando a galería…';
-      const resposta = await fetch('/api/galeria', { cache: 'no-store' });
+      const resposta = await fetch(`/api/galeria?t=${Date.now()}`, { cache: 'no-store' });
       const datos = await resposta.json();
-      if (!resposta.ok || !datos?.ok || !Array.isArray(datos.fotos)) throw new Error(datos?.erro || 'Erro ao cargar');
-
-      const existentes = new Map(
-        cards()
-          .map((card) => [card.getAttribute('data-drive-id'), card])
-          .filter(([id]) => Boolean(id))
-      );
-      let engadidas = 0;
-      let servidasDesdeR2 = 0;
-
-      datos.fotos.forEach((foto) => {
-        const idDrive = String(foto?.idDrive || '').trim();
-        const existente = idDrive ? existentes.get(idDrive) : null;
-
-        if (existente) {
-          if (actualizarTarxetaExistente(existente, foto)) servidasDesdeR2 += 1;
-          return;
-        }
-
-        grid?.appendChild(crearTarxeta(foto));
-        if (idDrive) existentes.set(idDrive, cards().at(-1));
-        if (urlR2(foto)) servidasDesdeR2 += 1;
-        engadidas += 1;
-      });
-
-      actualizarFiltro();
-      if (status) {
-        status.textContent = engadidas > 0
-          ? `Galería actualizada: ${engadidas} fotografía${engadidas === 1 ? '' : 's'} nova${engadidas === 1 ? '' : 's'}.`
-          : servidasDesdeR2 > 0
-            ? ''
-            : '';
+      if (!resposta.ok || !datos?.ok || !Array.isArray(datos.fotos)) {
+        throw new Error(datos?.erro || 'Erro ao cargar a galería');
       }
-    } catch (erro) {
-      console.error('Non foi posible actualizar a galería:', erro);
+
+      const fotos = datos.fotos.filter((foto) => Boolean(urlR2(foto)));
+      grid?.replaceChildren(...fotos.map(crearTarxeta));
+      actualizarFiltro();
       if (status) status.textContent = '';
+    } catch (erro) {
+      console.error('Non foi posible cargar a galería:', erro);
+      if (count) count.textContent = '0 fotografías';
+      if (status) status.textContent = 'Non foi posible cargar a galería neste momento.';
+      if (empty instanceof HTMLElement) empty.hidden = false;
     }
   }
 
-  cargarFotosDinamicas();
+  cargarGaleriaR2();
 </script>
 
 <style is:global>
@@ -261,9 +185,6 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
   .gallery-image-button { position:relative; display:block; width:100%; height:220px; padding:0; overflow:hidden; border:0; background:#eeeae7; cursor:zoom-in; }
   .gallery-image-button img { display:block; width:100%; height:100%; object-fit:cover; transition:transform .35s ease; }
   .gallery-card:hover img { transform:scale(1.025); }
-  .gallery-card.is-document .gallery-image-button { background:#f5f2ed; }
-  .gallery-card.is-document .gallery-image-button img { box-sizing:border-box; padding:.65rem; object-fit:contain; }
-  .gallery-card.is-document:hover img { transform:none; }
   .zoom-hint { position:absolute; right:.8rem; bottom:.8rem; padding:.3rem .55rem; border-radius:2px; background:rgba(50,31,34,.78); color:#fff; font-size:.68rem; font-weight:700; opacity:0; transform:translateY(4px); transition:opacity .2s ease,transform .2s ease; }
   .gallery-image-button:hover .zoom-hint,.gallery-image-button:focus-visible .zoom-hint { opacity:1; transform:translateY(0); }
   .gallery-content-box { padding:.9rem 1rem 1.05rem; }
