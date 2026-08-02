@@ -89,17 +89,16 @@ jobs:
         run: |
           set -o pipefail
           printf 'category,record_id,source_name,r2_key,status,size,sha256,detail\n' > r2-migration-report.csv
-
-          if [[ "${MIGRATION_MODE}" == "plan" ]]; then
-            python scripts/migrate-drive-to-r2.py 2>&1 | tee r2-migration.log
-          else
-            python scripts/migrate-drive-to-r2.py 2>&1 | tee r2-migration.log
-          fi
+          python scripts/migrate-drive-to-r2.py 2>&1 | tee r2-migration.log
 
       - name: Construir índice completo del repertorio
         shell: bash
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
           set -euo pipefail
           python scripts/build-r2-index.py | tee r2-index.log
