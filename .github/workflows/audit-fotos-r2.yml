@@ -63,16 +63,15 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
           set -euo pipefail
-          for name in GOOGLE_SERVICE_ACCOUNT_JSON R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+          for name in GOOGLE_SERVICE_ACCOUNT_JSON R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
             if [[ -z "${!name:-}" ]]; then
               echo "Falta el secreto $name"
               exit 1
             fi
           done
-          echo "Secretos configurados."
+          echo "Secretos configurados. Bucket público: scpp-publico"
 
       - name: Auditar fotografías públicas
         shell: bash
@@ -82,7 +81,7 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_BUCKET: scpp-publico
           REPORT_PATH: fotos-r2-audit.csv
         run: |
           set +e
@@ -91,14 +90,14 @@ jobs:
           status=${PIPESTATUS[0]}
           echo
           echo "===== FOTOS AUSENTES OU CON ERRO ====="
-          grep -E ',(MISSING_PLANNED|ERROR_)' fotos-r2-audit.csv || echo "Todas las rutas públicas existen en R2."
+          grep -E ',(MISSING_PLANNED|ERROR_)' fotos-r2-audit.csv || echo "Todas las rutas públicas existen en scpp-publico."
           exit "$status"
 
       - name: Resumen
         if: always()
         shell: bash
         run: |
-          echo "## Auditoría de fotografías R2" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Auditoría de fotografías R2 — scpp-publico" >> "$GITHUB_STEP_SUMMARY"
           if [[ -f fotos-r2-audit.log ]]; then
             tail -n 3 fotos-r2-audit.log >> "$GITHUB_STEP_SUMMARY"
           else
