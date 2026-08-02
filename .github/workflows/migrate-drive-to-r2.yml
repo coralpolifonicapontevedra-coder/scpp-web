@@ -76,6 +76,19 @@ jobs:
           done
           echo "Los cinco secretos necesarios están configurados."
 
+      - name: Migrar os oito audios pendentes
+        shell: bash
+        env:
+          MIGRATION_MODE: ${{ inputs.mode }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          python scripts/migrate-two-missing-audio-folders.py | tee r2-extra-audios.log
+
       - name: Ejecutar migración conservadora
         shell: bash
         env:
@@ -101,7 +114,7 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
           set -euo pipefail
-          python scripts/build-r2-index.py | tee r2-index.log
+          python scripts/build-r2-index-239.py | tee r2-index.log
 
       - name: Publicar índice en el repositorio
         shell: bash
@@ -123,6 +136,7 @@ jobs:
         with:
           name: r2-migration-report-${{ inputs.mode }}-${{ github.run_number }}
           path: |
+            r2-extra-audios.log
             r2-migration-report.csv
             r2-migration.log
             r2-index.log
