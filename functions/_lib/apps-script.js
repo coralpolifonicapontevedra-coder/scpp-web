@@ -2,6 +2,14 @@ const URL_RESPALDO_SCPP = 'https://script.google.com/macros/s/AKfycbwKBDO5bvPxlX
 
 const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
 
+const ACCIONS_FOTOS_SO_PRINCIPAL = new Set([
+  'subirFoto',
+  'actualizarRevisionFoto',
+  'actualizarPublicacionFoto',
+  'obterFotoParaR2',
+  'gardarRutasFotoR2'
+]);
+
 export class AppsScriptError extends Error {
   constructor(message, code = 'APPS_SCRIPT_UNAVAILABLE', status = 0) {
     super(message);
@@ -35,7 +43,12 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const timeoutTotalMs = Math.max(4000, Number(options.timeoutMs) || 20000);
   const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
   const expectJson = options.expectJson === true;
-  const urls = urlsAppsScript(env);
+  const urlsConfiguradas = urlsAppsScript(env);
+  const accion = String(corpo?.accion || '').trim();
+  const urls = ACCIONS_FOTOS_SO_PRINCIPAL.has(accion)
+    ? urlsConfiguradas.slice(0, 1)
+    : urlsConfiguradas;
+
   if (!urls.length) {
     throw new AppsScriptError('Non hai ningunha implementación de Apps Script configurada.', 'APPS_SCRIPT_NOT_CONFIGURED');
   }
