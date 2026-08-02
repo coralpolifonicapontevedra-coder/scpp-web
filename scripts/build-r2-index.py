@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import csv
 import json
 import os
 import pathlib
+import unicodedata
 from collections import defaultdict
 
+import boto3
+from botocore.exceptions import ClientError
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
@@ -27,6 +29,8 @@ def rows(sheets, spreadsheet_id: str, tab: str):
         range=f"{tab}!A:Z",
         valueRenderOption="FORMATTED_VALUE",
     ).execute().get("values", [])
+    if not values:
+        return []
     headers = [str(v).strip() for v in values[0]]
     result = []
     for raw in values[1:]:
@@ -37,7 +41,10 @@ def rows(sheets, spreadsheet_id: str, tab: str):
 
 def canon(value: str) -> str:
     value = str(value or "").strip()
-    return str(int(value)) if value.isdigit() else value
+    try:
+        return str(int(float(value)))
+    except (TypeError, ValueError):
+        return value
 
 
 def truthy(value: str) -> bool:
@@ -51,54 +58,104 @@ def number(value: str, default=0):
         return default
 
 
-def main():
-    report = {}
-    with open("r2-migration-report.csv", newline="", encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            if row["status"] not in {"UPLOADED_VERIFIED", "VERIFIED_EXISTING"}:
-                continue
-            report[(row["category"], canon(row["record_id"]))] = row
+def basename(value: str) -> str:
+    return pathlib.PurePosixPath(str(value or "").replace("\\", "/")).name
 
+
+def slug_filename(filename: str) -> str:
+    path = pathlib.PurePosixPath(filename)
+    stem = unicodedata.normalize("NFD", path.stem)
+    stem = "".join(ch for ch in stem if unicodedata.category(ch) != "Mn").lower()
+    chars = []
+    previous_dash = False
+    for ch in stem:
+        if ch.isalnum():
+            chars.append(ch)
+            previous_dash = False
+        elif not previous_dash:
+            chars.append("-")
+            previous_dash = True
+    slug = "".join(chars).strip("-")
+    return f"{slug}{path.suffix.lower()}"
+
+
+def r2_client():
+    account_id = os.environ["R2_ACCOUNT_ID"]
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+        aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+        region_name="auto",
+    )
+
+
+def head(client, bucket: str, key: str):
+    try:
+        return client.head_object(Bucket=bucket, Key=key)
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code")
+        if code in {"404", "NoSuchKey", "NotFound"}:
+            return None
+        raise
+
+
+def main():
     sheets = build("sheets", "v4", credentials=credentials(), cache_discovery=False)
     audio_rows = rows(sheets, AUDIO_SHEET_ID, "AudiosRepertorio")
     score_rows = rows(sheets, PARTITURA_SHEET_ID, "Partituras_App")
+    client = r2_client()
+    bucket = os.environ["R2_BUCKET"]
 
     index = defaultdict(lambda: {"partituras": [], "audios": []})
+    missing = []
 
     for row in audio_rows:
         record_id = canon(row.get("Id_Audio"))
-        item = report.get(("audio", record_id))
-        if not item or not truthy(row.get("Activo")):
+        if not truthy(row.get("Activo")) or number(record_id, -1) < 176:
             continue
         work_id = canon(row.get("NomeObra"))
+        source_name = basename(row.get("AudioFile"))
+        key = str(row.get("R2Key") or "").strip().lstrip("/")
+        if not key:
+            key = f"repertorio/audios/{work_id}/{slug_filename(source_name)}"
+        obj = head(client, bucket, key)
+        if obj is None:
+            missing.append(f"audio {record_id}: {key}")
+            continue
         index[work_id]["audios"].append({
             "id": record_id,
-            "nome": item["source_name"],
+            "nome": source_name,
             "voz": row.get("Voz") or "Audio",
             "tipo": row.get("TipoAudio") or "",
             "orde": number(row.get("Orde"), 999),
-            "ruta": item["r2_key"],
-            "r2Key": item["r2_key"],
-            "mimeType": row.get("MimeType") or "",
-            "tamano": number(item.get("size")),
+            "ruta": key,
+            "r2Key": key,
+            "mimeType": row.get("MimeType") or obj.get("ContentType") or "",
+            "tamano": number(obj.get("ContentLength")),
         })
 
     for row in score_rows:
-        record_id = canon(row.get("Id_Partitura"))
-        item = report.get(("partitura", record_id))
-        if not item or not truthy(row.get("Activa")):
+        if not truthy(row.get("Activa")):
             continue
+        record_id = canon(row.get("Id_Partitura"))
         work_id = canon(row.get("Id_Repertorio"))
+        source_name = basename(row.get("PDF"))
+        key = str(row.get("R2Key") or "").strip().lstrip("/") or f"partituras/{source_name}"
+        obj = head(client, bucket, key)
+        if obj is None:
+            missing.append(f"partitura {record_id}: {key}")
+            continue
         index[work_id]["partituras"].append({
             "id": record_id,
-            "nome": row.get("Nomepartitura") or item["source_name"],
+            "nome": row.get("Nomepartitura") or source_name,
             "voz": row.get("Voz") or "General",
             "tipo": row.get("TipoPartitura") or "",
             "principal": truthy(row.get("Principal")),
-            "ruta": item["r2_key"],
-            "r2Key": item["r2_key"],
+            "ruta": key,
+            "r2Key": key,
             "mimeType": "application/pdf",
-            "tamano": number(item.get("size")),
+            "tamano": number(obj.get("ContentLength")),
         })
 
     for work in index.values():
@@ -107,8 +164,12 @@ def main():
 
     total_audios = sum(len(x["audios"]) for x in index.values())
     total_scores = sum(len(x["partituras"]) for x in index.values())
-    if total_audios != 231 or total_scores != 99:
-        raise RuntimeError(f"Índice incompleto: audios={total_audios}/231, partituras={total_scores}/99")
+    if missing or total_audios != 231 or total_scores != 99:
+        detalle = "\n".join(missing[:30])
+        raise RuntimeError(
+            f"Índice incompleto: audios={total_audios}/231, partituras={total_scores}/99, faltantes={len(missing)}"
+            + (f"\n{detalle}" if detalle else "")
+        )
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(
