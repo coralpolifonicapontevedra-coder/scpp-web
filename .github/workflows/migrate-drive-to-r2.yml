@@ -107,7 +107,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- functions/_data/repertorio-r2.js; then
+          if [[ -z "$(git status --porcelain -- functions/_data/repertorio-r2.js)" ]]; then
             echo "El índice ya estaba actualizado."
             exit 0
           fi
