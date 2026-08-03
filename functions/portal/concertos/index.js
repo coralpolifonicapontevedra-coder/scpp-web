@@ -8,12 +8,13 @@ export async function onRequestGet({ request, env }) {
 
   let html = await resposta.text();
 
-  // A páxina debe consultar directamente o endpoint específico de asistencias.
-  // Evítanse interceptores de fetch, cachés herdadas e respostas mesturadas co repertorio.
-  html = html.replace(
-    "fetch('/api/repertorio', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({ idToken, accion: 'listarAsistenciasConcertosPortal' })",
-    "fetch('/api/asistencias-concertos', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({ idToken })"
-  );
+  // Nesta páxina a única chamada a /api/repertorio é a consulta de asistentes.
+  // A substitución simple funciona tamén sobre o HTML/JS compilado por Astro,
+  // independentemente do espazado ou minificación aplicados durante o build.
+  const rutaAntiga = '/api/repertorio';
+  const rutaNova = '/api/asistencias-concertos';
+  const coincidencias = html.split(rutaAntiga).length - 1;
+  html = html.replaceAll(rutaAntiga, rutaNova);
 
   const melloras = [
     '<style>#concert-document-name{display:none!important}</style>',
@@ -37,6 +38,8 @@ export async function onRequestGet({ request, env }) {
   cabeceiras.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   cabeceiras.set('Pragma', 'no-cache');
   cabeceiras.set('Expires', '0');
+  cabeceiras.set('X-SCPP-Asistencias-Route', coincidencias > 0 ? 'DIRECTA' : 'NON-ATOPADA');
+  cabeceiras.set('X-SCPP-Asistencias-Replacements', String(coincidencias));
 
   return new Response(html, {
     status: resposta.status,
