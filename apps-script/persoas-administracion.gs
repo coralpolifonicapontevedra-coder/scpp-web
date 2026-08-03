@@ -1,76 +1,85 @@
-/*
- * Portal > Administración > Persoas.
- *
- * Engadir ao despachador do doPost, despois de validar WEB_WRITE_TOKEN:
- *
- * case 'listarPersoasAdministracion':
- *   return responderJson_(listarPersoasAdministracion_(datos));
- * case 'obterFichaPersoaAdministracion':
- *   return responderJson_(obterFichaPersoaAdministracion_(datos));
- */
+/* Portal > Administración > Persoas. Fase 1 do Xestor de Arquivos. */
 
 const PERSOAS_ADMIN_CONFIG = {
   persoasSpreadsheetId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
   persoasSheetId: 388888827,
   usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
-  usuariosSheetId: 1291817000,
-  fichasFolderId: '1UmEo1fP5jyxxo90dQbXG6SM2SrmdysbN'
+  usuariosSheetId: 1291817000
 };
+
+const PERSOAS_ADMIN_CACHE_SEGUNDOS = 10 * 60;
+
+function cachePersoasAdmin_() {
+  return CacheService.getScriptCache();
+}
+
+function probarPersoasAdministracion() {
+  console.log(JSON.stringify(listarPersoasAdministracion_({ email: 'jcuinas@gmail.com' })));
+}
 
 function listarPersoasAdministracion_(datos) {
   const email = normalizarEmailPersoasAdmin_(datos && datos.email);
   const contexto = obterContextoPersoasAdmin_();
-  const administrador = obterAdministradorPersoasAdmin_(contexto, email);
+  const valoresPersoas = contexto.persoas.getDataRange().getValues();
+  const administrador = obterAdministradorPersoasAdmin_(contexto, email, valoresPersoas);
   if (!administrador) return { ok: false, erro: 'Usuario non autorizado' };
+  if (valoresPersoas.length < 2) return { ok: true, perfil: administrador, persoas: [] };
 
-  const valores = contexto.persoas.getDataRange().getValues();
-  if (valores.length < 2) return { ok: true, perfil: administrador, persoas: [] };
-  const indices = indicesPersoasAdmin_(valores[0]);
-
-  const persoas = valores.slice(1).reduce(function(saida, fila) {
-    const rowId = textoPersoasAdmin_(fila[indices['Row ID']]);
-    if (!rowId) return saida;
+  const indices = indicesPersoasAdmin_(valoresPersoas[0]);
+  requireHeaderPersoasAdmin_(indices, 'Id', 'Persoas');
+  const persoas = valoresPersoas.slice(1).reduce(function(saida, fila) {
+    if (!textoPersoasAdmin_(fila[indices.Id])) return saida;
     saida.push(construirPersoaAdmin_(fila, indices));
     return saida;
   }, []);
-
   persoas.sort(function(a, b) {
     return a.etiqueta.localeCompare(b.etiqueta, 'gl', { sensitivity: 'base' });
   });
-
   return { ok: true, perfil: administrador, persoas: persoas };
 }
 
+/* Valida permisos e devolve só a clave R2. O Worker entrega o PDF. */
 function obterFichaPersoaAdministracion_(datos) {
   const email = normalizarEmailPersoasAdmin_(datos && datos.email);
-  const rowId = textoPersoasAdmin_(datos && datos.rowId);
-  if (!rowId) return { ok: false, erro: 'Non se indicou a persoa' };
+  const idPersoa = textoPersoasAdmin_(datos && (datos.idPersoa || datos.id || datos.rowId));
+  if (!idPersoa) return { ok: false, erro: 'Non se indicou a persoa' };
 
   const contexto = obterContextoPersoasAdmin_();
-  const administrador = obterAdministradorPersoasAdmin_(contexto, email);
+  const valoresPersoas = contexto.persoas.getDataRange().getValues();
+  const administrador = obterAdministradorPersoasAdmin_(contexto, email, valoresPersoas);
   if (!administrador) return { ok: false, erro: 'Usuario non autorizado' };
 
-  const valores = contexto.persoas.getDataRange().getValues();
-  const indices = indicesPersoasAdmin_(valores[0] || []);
-  const fila = valores.slice(1).find(function(item) {
-    return textoPersoasAdmin_(item[indices['Row ID']]) === rowId;
+  const indices = indicesPersoasAdmin_(valoresPersoas[0] || []);
+  requireHeaderPersoasAdmin_(indices, 'Id', 'Persoas');
+  requireHeaderPersoasAdmin_(indices, 'FichaR2Key', 'Persoas');
+  requireHeaderPersoasAdmin_(indices, 'FichaR2Estado', 'Persoas');
+
+  const fila = valoresPersoas.slice(1).find(function(item) {
+    return textoPersoasAdmin_(item[indices.Id]) === idPersoa;
   });
   if (!fila) return { ok: false, erro: 'Non se atopou a persoa solicitada' };
 
-  const ruta = textoPersoasAdmin_(fila[indices.Ficha]);
-  if (!ruta) return { ok: false, erro: 'Esta persoa non ten ficha escaneada' };
+  const r2Key = textoPersoasAdmin_(fila[indices.FichaR2Key]);
+  const estado = textoPersoasAdmin_(fila[indices.FichaR2Estado]);
+  if (!r2Key || estado !== 'SINCRONIZADO') {
+    return {
+      ok: false,
+      erro: estado === 'CONFLITO'
+        ? 'A ficha ten un conflito de sincronización'
+        : 'A ficha aínda non está dispoñible no almacén R2'
+    };
+  }
 
-  const nomeFicheiro = ruta.split('/').pop();
-  const ficheiros = contexto.fichas.getFilesByName(nomeFicheiro);
-  if (!ficheiros.hasNext()) return { ok: false, erro: 'Non se localizou a ficha escaneada' };
-
-  const ficheiro = ficheiros.next();
-  const blob = ficheiro.getBlob();
   return {
     ok: true,
-    nomeFicheiro: ficheiro.getName(),
-    mimeType: blob.getContentType() || 'application/pdf',
-    base64: Utilities.base64Encode(blob.getBytes())
+    idPersoa: idPersoa,
+    r2Key: r2Key,
+    nomeFicheiro: r2Key.split('/').pop() || 'ficha.pdf',
+    mimeType: indices.FichaR2MimeType === undefined
+      ? 'application/pdf'
+      : textoPersoasAdmin_(fila[indices.FichaR2MimeType]) || 'application/pdf',
+    etag: indices.FichaR2ETag === undefined ? '' : textoPersoasAdmin_(fila[indices.FichaR2ETag]),
+    size: indices.FichaR2Size === undefined ? '' : textoPersoasAdmin_(fila[indices.FichaR2Size])
   };
 }
 
@@ -81,131 +90,109 @@ function obterContextoPersoasAdmin_() {
     .getSheetById(PERSOAS_ADMIN_CONFIG.usuariosSheetId);
   if (!persoas || persoas.getName() !== 'Persoas') throw new Error('Non se atopou a folla Persoas');
   if (!usuarios || usuarios.getName() !== 'UsuariosWeb') throw new Error('Non se atopou a folla UsuariosWeb');
-  return { persoas: persoas, usuarios: usuarios, fichas: DriveApp.getFolderById(PERSOAS_ADMIN_CONFIG.fichasFolderId) };
+  return { persoas: persoas, usuarios: usuarios };
 }
 
-function obterAdministradorPersoasAdmin_(contexto, email) {
+function obterAdministradorPersoasAdmin_(contexto, email, valoresPersoas) {
   if (!email) return null;
+  const cache = cachePersoasAdmin_();
+  const clave = 'persoas-admin-v4:perfil:' + email;
+  const cacheado = cache.get(clave);
+  if (cacheado) {
+    try { return JSON.parse(cacheado); } catch (erroCache) {
+      console.warn('Perfil de administración en cache non válido: ' + erroCache);
+    }
+  }
+
   const usuarios = contexto.usuarios.getDataRange().getValues();
   const iu = indicesPersoasAdmin_(usuarios[0] || []);
+  ['Email', 'Activo', 'Administrador', 'Persoa'].forEach(function(c) {
+    requireHeaderPersoasAdmin_(iu, c, 'UsuariosWeb');
+  });
   const usuario = usuarios.slice(1).find(function(fila) {
-    return normalizarEmailPersoasAdmin_(fila[iu.Email]) === email && booleanoPersoasAdmin_(fila[iu.Activo]);
+    return normalizarEmailPersoasAdmin_(fila[iu.Email]) === email &&
+      booleanoPersoasAdmin_(fila[iu.Activo]) &&
+      booleanoPersoasAdmin_(fila[iu.Administrador]);
   });
   if (!usuario) return null;
 
-  const referencia = textoPersoasAdmin_(usuario[iu.Persoa]);
-  const persoas = contexto.persoas.getDataRange().getValues();
+  const persoas = valoresPersoas || contexto.persoas.getDataRange().getValues();
   const ip = indicesPersoasAdmin_(persoas[0] || []);
+  requireHeaderPersoasAdmin_(ip, 'Id', 'Persoas');
+  const referencia = textoPersoasAdmin_(usuario[iu.Persoa]);
   const persoa = persoas.slice(1).find(function(fila) {
-    const id = textoPersoasAdmin_(fila[ip.Id]);
-    const rowId = textoPersoasAdmin_(fila[ip['Row ID']]);
-    return referencia && (referencia === id || referencia === rowId);
+    const correo = ip['Correo electrónico'] === undefined ? '' : normalizarEmailPersoasAdmin_(fila[ip['Correo electrónico']]);
+    return (referencia && referencia === textoPersoasAdmin_(fila[ip.Id])) || correo === email;
   });
   if (!persoa) return null;
 
-  const cargo = normalizarTextoPersoasAdmin_(persoa[ip.Cargo]);
-  const eAdmin = [
-    'presidente',
-    'presidenta',
-    'vicepresidente',
-    'vicepresidenta',
-    'secretario',
-    'secretaria',
-    'vicesecretario',
-    'vicesecretaria',
-    'tesoureiro',
-    'tesoureira',
-    'contador',
-    'contadora'
-  ].some(function(valor) { return cargo.indexOf(valor) >= 0; });
-  if (!eAdmin) return null;
-
-  return {
+  const iNome = ip.Nomecompleto !== undefined ? ip.Nomecompleto : ip.NomeCompleto;
+  const perfil = {
     email: email,
-    nome: textoPersoasAdmin_(usuario[iu.Nome]) || textoPersoasAdmin_(persoa[ip.Nomecompleto]),
-    cargo: textoPersoasAdmin_(persoa[ip.Cargo]),
+    idPersoa: textoPersoasAdmin_(persoa[ip.Id]),
+    nome: textoPersoasAdmin_(usuario[iu.Nome]) || (iNome === undefined ? '' : textoPersoasAdmin_(persoa[iNome])),
+    cargo: ip.Cargo === undefined ? '' : textoPersoasAdmin_(persoa[ip.Cargo]),
     nivel: 'Administración'
   };
+  try { cache.put(clave, JSON.stringify(perfil), PERSOAS_ADMIN_CACHE_SEGUNDOS); } catch (erroCache) {
+    console.warn('Non se puido gardar o perfil de administración en cache: ' + erroCache);
+  }
+  return perfil;
 }
 
 function construirPersoaAdmin_(fila, indices) {
-  const valor = function(cabeceira) {
-    const indice = indices[cabeceira];
-    return indice === undefined ? '' : fila[indice];
-  };
-  const texto = function(cabeceira) { return textoPersoasAdmin_(valor(cabeceira)); };
+  const valor = function(c) { return indices[c] === undefined ? '' : fila[indices[c]]; };
+  const texto = function(c) { return textoPersoasAdmin_(valor(c)); };
   const nome = texto('Nome');
   const primeiro = texto('Primeiro apelido');
   const segundo = texto('Segundo apelido');
-  const completo = texto('Nomecompleto') || [nome, primeiro, segundo].filter(Boolean).join(' ');
+  const id = texto('Id');
+  const r2Key = texto('FichaR2Key');
+  const r2Estado = texto('FichaR2Estado');
   return {
-    rowId: texto('Row ID'),
-    id: texto('Id'),
+    idPersoa: id, id: id, rowId: id,
     etiqueta: [primeiro, segundo, nome].filter(Boolean).join(' · '),
-    nomeCompleto: completo,
-    nome: nome,
-    primeiroApelido: primeiro,
-    segundoApelido: segundo,
-    voz: texto('Voz'),
-    nif: texto('NIF'),
-    telefono: texto('Teléfono'),
-    correo: texto('Correo electrónico'),
-    enderezo: texto('Enderezo'),
-    cidade: texto('Cidade'),
-    cp: texto('CP'),
-    activo: booleanoPersoasAdmin_(valor('Activo')),
-    mostrarWeb: booleanoPersoasAdmin_(valor('MostrarWeb')),
-    cargo: texto('Cargo'),
-    tipoSocio: texto('Tipo de socio'),
+    nomeCompleto: texto('Nomecompleto') || texto('NomeCompleto') || [nome, primeiro, segundo].filter(Boolean).join(' '),
+    nome: nome, primeiroApelido: primeiro, segundoApelido: segundo,
+    voz: texto('Voz'), nif: texto('NIF'), telefono: texto('Teléfono'), correo: texto('Correo electrónico'),
+    enderezo: texto('Enderezo'), cidade: texto('Cidade'), cp: texto('CP'),
+    activo: booleanoPersoasAdmin_(valor('Activo')), mostrarWeb: booleanoPersoasAdmin_(valor('MostrarWeb')),
+    cargo: texto('Cargo'), tipoSocio: texto('Tipo de socio'),
     dataNacemento: formatarDataPersoasAdmin_(valor('DataNacemento')),
     dataIncorporacion: formatarDataPersoasAdmin_(valor('DataIncorporacionSCPP')),
-    contactoEmerxencia: texto('ContactoEmerxencia'),
-    telefonoEmerxencia: texto('TelefonoEmerxencia'),
-    preferenciaComunicacion: texto('PreferenciaComunicacion'),
-    consentimentoFoto: texto('ConsentimentoFoto'),
+    contactoEmerxencia: texto('ContactoEmerxencia'), telefonoEmerxencia: texto('TelefonoEmerxencia'),
+    preferenciaComunicacion: texto('PreferenciaComunicacion'), consentimentoFoto: texto('ConsentimentoFoto'),
     mostrarAniversario: booleanoPersoasAdmin_(valor('MostrarAniversario')),
-    observacions: texto('Observacións'),
-    observacionsPrivadas: texto('ObservacionsPrivadas'),
-    actualizadoPor: texto('ActualizadoPor'),
-    dataActualizacion: formatarDataHoraPersoasAdmin_(valor('DataActualizacionPerfil')),
-    ficha: texto('Ficha')
+    observacions: texto('Observacións'), observacionsPrivadas: texto('ObservacionsPrivadas'),
+    actualizadoPor: texto('ActualizadoPor'), dataActualizacion: formatarDataHoraPersoasAdmin_(valor('DataActualizacionPerfil')),
+    ficha: texto('Ficha'), fichaR2Key: r2Key, fichaR2Estado: r2Estado,
+    fichaDisponibleR2: Boolean(r2Key) && r2Estado === 'SINCRONIZADO'
   };
 }
 
 function indicesPersoasAdmin_(cabeceiras) {
   return cabeceiras.reduce(function(saida, valor, indice) {
-    saida[String(valor || '').trim()] = indice;
-    return saida;
+    saida[String(valor || '').trim()] = indice; return saida;
   }, {});
 }
-
-function textoPersoasAdmin_(valor) {
-  return valor == null ? '' : String(valor).trim();
+function requireHeaderPersoasAdmin_(indices, cabeceira, folla) {
+  if (indices[cabeceira] === undefined) throw new Error('Falta a columna ' + cabeceira + ' na folla ' + folla);
 }
-
-function normalizarEmailPersoasAdmin_(valor) {
-  return textoPersoasAdmin_(valor).toLowerCase();
-}
-
+function textoPersoasAdmin_(valor) { return valor == null ? '' : String(valor).trim(); }
+function normalizarEmailPersoasAdmin_(valor) { return textoPersoasAdmin_(valor).toLowerCase(); }
 function normalizarTextoPersoasAdmin_(valor) {
   return textoPersoasAdmin_(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
-
 function booleanoPersoasAdmin_(valor) {
-  if (valor === true) return true;
-  return ['true', 'y', 'si', 'sí', 'yes', '1', 'verdadeiro'].indexOf(normalizarTextoPersoasAdmin_(valor)) >= 0;
+  return valor === true || ['true','y','si','sí','yes','1','verdadeiro'].indexOf(normalizarTextoPersoasAdmin_(valor)) >= 0;
 }
-
 function formatarDataPersoasAdmin_(valor) {
-  if (Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())) {
-    return Utilities.formatDate(valor, Session.getScriptTimeZone() || 'Europe/Madrid', 'dd/MM/yyyy');
-  }
-  return textoPersoasAdmin_(valor);
+  return Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())
+    ? Utilities.formatDate(valor, Session.getScriptTimeZone() || 'Europe/Madrid', 'dd/MM/yyyy')
+    : textoPersoasAdmin_(valor);
 }
-
 function formatarDataHoraPersoasAdmin_(valor) {
-  if (Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())) {
-    return Utilities.formatDate(valor, Session.getScriptTimeZone() || 'Europe/Madrid', 'dd/MM/yyyy HH:mm');
-  }
-  return textoPersoasAdmin_(valor);
+  return Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())
+    ? Utilities.formatDate(valor, Session.getScriptTimeZone() || 'Europe/Madrid', 'dd/MM/yyyy HH:mm')
+    : textoPersoasAdmin_(valor);
 }
