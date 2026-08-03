@@ -9,16 +9,16 @@ export async function onRequestGet({ request, env }) {
   let html = await resposta.text();
 
   const recursos = [
-    '<link rel="stylesheet" href="/css/concertos-novo-visual.css?v=2">',
-    '<script type="module" src="/js/concertos-novo-visual.js?v=2"></script>'
+    '<link rel="stylesheet" href="/css/concertos-novo-visual.css?v=4">',
+    '<link rel="stylesheet" href="/css/concertos-novo-clasico.css?v=1">',
+    '<script type="module" src="/js/concertos-novo-visual.js?v=4"></script>',
+    '<script type="module" src="/js/concertos-novo-clasico.js?v=1"></script>'
   ];
 
   recursos.forEach((recurso) => {
-    const identificador = recurso.includes('stylesheet')
-      ? '/css/concertos-novo-visual.css'
-      : '/js/concertos-novo-visual.js';
-
-    if (html.includes(identificador)) return;
+    const coincidencia = recurso.match(/(?:href|src)="([^"]+)"/);
+    const identificador = coincidencia?.[1]?.split('?')[0] || '';
+    if (identificador && html.includes(identificador)) return;
 
     if (recurso.includes('stylesheet') && html.includes('</head>')) {
       html = html.replace('</head>', `${recurso}</head>`);
