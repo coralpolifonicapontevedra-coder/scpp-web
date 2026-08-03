@@ -1,0 +1,245 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Concertos" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="concertos" logoutId="concertos-novo-logout" />
+
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <span>Portal do Coralista</span>
+          <h1>Concertos</h1>
+          <p>Nova versión provisional, cunha carga separada de concertos e asistentes.</p>
+        </div>
+        <strong id="user-email">—</strong>
+      </header>
+
+      <section id="estado" class="estado">Cargando concertos…</section>
+
+      <section id="app" hidden>
+        <div class="toolbar">
+          <input id="busca" type="search" placeholder="Buscar concerto, cidade ou lugar" />
+          <button id="ver-concertos" class="activo" type="button">Concertos</button>
+          <button id="ver-informe" type="button">Informe de asistencia</button>
+          <span id="estado-asistencias">Asistentes: cargando…</span>
+        </div>
+
+        <div id="vista-concertos">
+          <div id="grid" class="grid"></div>
+        </div>
+
+        <section id="vista-informe" hidden>
+          <h2>Informe de asistencia</h2>
+          <p id="resumo-informe"></p>
+          <div id="informe"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="dialogo">
+    <button id="pechar" type="button" aria-label="Pechar">×</button>
+    <h2 id="titulo"></h2>
+    <p id="detalle"></p>
+    <h3>Programa</h3>
+    <ol id="programa"></ol>
+    <details open>
+      <summary>Asistentes <strong id="contador-asistentes"></strong></summary>
+      <div id="grupos-asistentes"></div>
+      <p id="sen-asistentes" hidden>Non hai asistentes rexistrados.</p>
+    </details>
+  </dialog>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
+  const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
+  const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const estado = document.querySelector('#estado');
+  const app = document.querySelector('#app');
+  const grid = document.querySelector('#grid');
+  const busca = document.querySelector('#busca');
+  const estadoAsistencias = document.querySelector('#estado-asistencias');
+  const dialogo = document.querySelector('#dialogo');
+  const vistaConcertos = document.querySelector('#vista-concertos');
+  const vistaInforme = document.querySelector('#vista-informe');
+  const informe = document.querySelector('#informe');
+  const resumoInforme = document.querySelector('#resumo-informe');
+  const logout = document.querySelector('#concertos-novo-logout');
+
+  let concertos = [];
+  let asistenciasPorConcerto = {};
+
+  const normalizar = (v = '') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const escapar = (v = '') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+
+  function parseCSV(texto) {
+    const filas = [];
+    let fila = [], campo = '', comillas = false;
+    for (let i = 0; i < texto.length; i += 1) {
+      const c = texto[i], s = texto[i + 1];
+      if (c === '"' && comillas && s === '"') { campo += '"'; i += 1; }
+      else if (c === '"') comillas = !comillas;
+      else if (c === ',' && !comillas) { fila.push(campo); campo = ''; }
+      else if ((c === '\n' || c === '\r') && !comillas) {
+        if (c === '\r' && s === '\n') i += 1;
+        fila.push(campo);
+        if (fila.some((x) => x.trim())) filas.push(fila);
+        fila = []; campo = '';
+      } else campo += c;
+    }
+    if (campo || fila.length) { fila.push(campo); filas.push(fila); }
+    const cab = (filas.shift() || []).map(normalizar);
+    return filas.map((valores) => Object.fromEntries(cab.map((h, i) => [h, String(valores[i] || '').trim()])));
+  }
+
+  const valor = (fila, ...nomes) => {
+    for (const nome of nomes) {
+      const v = fila[normalizar(nome)];
+      if (v !== undefined && v !== '') return v;
+    }
+    return '';
+  };
+
+  async function lerCSV(url) {
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error(`Erro ao ler datos (${r.status})`);
+    return parseCSV(await r.text());
+  }
+
+  function pintarConcertos() {
+    if (!(grid instanceof HTMLElement)) return;
+    const q = normalizar(busca instanceof HTMLInputElement ? busca.value : '');
+    const listaxe = concertos.filter((c) => normalizar(`${c.nome} ${c.cidade} ${c.lugar}`).includes(q));
+    grid.innerHTML = listaxe.map((c) => `
+      <button type="button" class="card" data-id="${escapar(c.id)}">
+        <small>${escapar(c.data)}</small>
+        <strong>${escapar(c.nome)}</strong>
+        <span>${escapar([c.lugar,c.cidade].filter(Boolean).join(' · '))}</span>
+        <em>${(c.asistentes || []).length} asistentes</em>
+      </button>`).join('');
+  }
+
+  function pintarInforme() {
+    if (!(informe instanceof HTMLElement)) return;
+    const persoas = new Map();
+    concertos.forEach((c) => (c.asistentes || []).forEach((p) => {
+      const clave = `${p.voz}|${p.nome}`;
+      if (!persoas.has(clave)) persoas.set(clave, { ...p, total: 0 });
+      persoas.get(clave).total += 1;
+    }));
+    const listaxe = [...persoas.values()].sort((a,b) => b.total - a.total || a.nome.localeCompare(b.nome,'gl'));
+    informe.innerHTML = listaxe.map((p) => `<p><strong>${escapar(p.nome)}</strong> · ${escapar(p.voz)} · ${p.total} concerto${p.total === 1 ? '' : 's'}</p>`).join('');
+    if (resumoInforme) resumoInforme.textContent = `${listaxe.length} persoas`;
+  }
+
+  function abrirConcerto(id) {
+    const c = concertos.find((x) => x.id === id);
+    if (!c || !(dialogo instanceof HTMLDialogElement)) return;
+    const set = (s,v) => { const e = document.querySelector(s); if (e) e.textContent = String(v || ''); };
+    set('#titulo', c.nome);
+    set('#detalle', [c.data,c.lugar,c.cidade].filter(Boolean).join(' · '));
+    const programa = document.querySelector('#programa');
+    if (programa) programa.innerHTML = c.programa.map((p) => `<li>${escapar(p.obra)}${p.autor ? ` — ${escapar(p.autor)}` : ''}</li>`).join('');
+    const asistentes = c.asistentes || [];
+    set('#contador-asistentes', `${asistentes.length} persoas`);
+    const grupos = document.querySelector('#grupos-asistentes');
+    if (grupos) {
+      const porVoz = asistentes.reduce((acc,p) => { (acc[p.voz || 'Sen voz'] ||= []).push(p.nome); return acc; }, {});
+      grupos.innerHTML = Object.entries(porVoz).map(([voz, nomes]) => `<section><h4>${escapar(voz)} (${nomes.length})</h4><ul>${nomes.map((n) => `<li>${escapar(n)}</li>`).join('')}</ul></section>`).join('');
+    }
+    const sen = document.querySelector('#sen-asistentes');
+    if (sen instanceof HTMLElement) sen.hidden = asistentes.length > 0;
+    dialogo.showModal();
+  }
+
+  async function cargarConcertos() {
+    const [cRows, pRows, rRows] = await Promise.all([lerCSV(URL_CONCERTOS), lerCSV(URL_PROGRAMAS), lerCSV(URL_REPERTORIO)]);
+    const obras = new Map(rRows.map((r) => [valor(r,'Id','Row ID'), { nome: valor(r,'NomeObra','Nome','Obra'), autor: valor(r,'Compositor','Autor') }]));
+    concertos = cRows.map((r) => {
+      const id = valor(r,'Id','Row ID');
+      const programa = pRows.filter((p) => valor(p,'Id_Conciertos','Id_Concertos') === id).map((p) => {
+        const obraId = valor(p,'Id_Obras');
+        const obra = obras.get(obraId) || {};
+        return { obra: obra.nome || obraId, autor: obra.autor || '', orde: Number(valor(p,'Orde')) || 999 };
+      }).sort((a,b) => a.orde - b.orde);
+      return { id, data: valor(r,'Data'), nome: valor(r,'Nome'), cidade: valor(r,'Cidade'), lugar: valor(r,'Lugar'), programa, asistentes: [] };
+    }).filter((c) => c.id && c.nome);
+    pintarConcertos();
+    if (app instanceof HTMLElement) app.hidden = false;
+    if (estado instanceof HTMLElement) estado.hidden = true;
+  }
+
+  async function cargarAsistencias(user) {
+    const inicio = performance.now();
+    try {
+      const idToken = await user.getIdToken(true);
+      const r = await fetch(`/api/asistencias-concertos?t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ idToken }),
+        cache: 'no-store'
+      });
+      const datos = await r.json();
+      if (!r.ok || !datos?.ok) throw new Error(datos?.erro || `HTTP ${r.status}`);
+      asistenciasPorConcerto = datos.asistenciasPorConcerto || {};
+      concertos = concertos.map((c) => ({ ...c, asistentes: Array.isArray(asistenciasPorConcerto[c.id]) ? asistenciasPorConcerto[c.id] : [] }));
+      pintarConcertos();
+      pintarInforme();
+      if (estadoAsistencias) estadoAsistencias.textContent = `Asistentes cargados en ${Math.round(performance.now() - inicio)} ms`;
+    } catch (e) {
+      if (estadoAsistencias) estadoAsistencias.textContent = `Erro ao cargar asistentes: ${e instanceof Error ? e.message : e}`;
+    }
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) { window.location.replace('/portal/'); return; }
+    const email = document.querySelector('#user-email');
+    if (email) email.textContent = user.email;
+    try {
+      await cargarConcertos();
+      cargarAsistencias(user);
+    } catch (e) {
+      if (estado) estado.textContent = e instanceof Error ? e.message : String(e);
+    }
+  });
+
+  busca?.addEventListener('input', pintarConcertos);
+  grid?.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('[data-id]');
+    if (button) abrirConcerto(button.getAttribute('data-id') || '');
+  });
+  document.querySelector('#ver-concertos')?.addEventListener('click', () => {
+    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = false;
+    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = true;
+  });
+  document.querySelector('#ver-informe')?.addEventListener('click', () => {
+    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = true;
+    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = false;
+  });
+  document.querySelector('#pechar')?.addEventListener('click', () => dialogo instanceof HTMLDialogElement && dialogo.close());
+  logout?.addEventListener('click', async () => { await signOut(auth); window.location.href = '/portal/'; });
+</script>
+
+<style>
+  .private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh}.main{padding:2.5rem clamp(1rem,4vw,4rem)}.page-header{display:flex;justify-content:space-between;gap:2rem;align-items:start}.page-header span{color:var(--color-principal);font-size:.72rem;font-weight:800;text-transform:uppercase}.page-header h1{margin:.3rem 0;color:var(--color-principal)}.estado,.toolbar{margin-top:1.2rem;padding:1rem;border:1px solid #ddd8d3}.toolbar{display:flex;gap:.7rem;align-items:center;flex-wrap:wrap}.toolbar input{min-width:280px;padding:.65rem}.toolbar button{padding:.65rem .85rem;border:1px solid var(--color-principal);background:#fff;color:var(--color-principal)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-top:1rem}.card{display:grid;gap:.55rem;padding:1rem;border:1px solid #ddd8d3;background:#fff;text-align:left;cursor:pointer}.card strong{color:var(--color-principal);font-size:1rem}.card span,.card small{color:#6d6762}.card em{font-style:normal;font-weight:700;color:#a18331}dialog{width:min(850px,calc(100vw - 2rem));max-height:90vh;padding:2rem;border:0;border-top:5px solid var(--color-principal)}dialog>button{float:right;border:0;background:transparent;font-size:1.8rem}#grupos-asistentes{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem}#grupos-asistentes section{border:1px solid #ddd8d3;padding:.8rem}#grupos-asistentes h4{margin:0 0 .5rem;color:var(--color-principal)}@media(max-width:900px){.private-layout{grid-template-columns:1fr}.main{padding:1.5rem 1rem}}
+</style>
