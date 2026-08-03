@@ -125,24 +125,36 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     }
   }
 
-  function dataSection(title, fields) {
-    const visible = fields.filter((item) => clean(item.value));
+  function dataSection(title, fields, options = {}) {
+    const visible = options.showEmpty
+      ? fields
+      : fields.filter((item) => clean(item.value));
+
     if (!visible.length) return null;
+
     const section = document.createElement('section');
     section.className = 'data-section';
+    if (options.className) section.classList.add(options.className);
+
     const heading = document.createElement('h3');
     heading.textContent = title;
+
     const dl = document.createElement('dl');
+
     visible.forEach(({ label, value, wide }) => {
       const wrapper = document.createElement('div');
       if (wide) wrapper.className = 'is-wide';
+
       const dt = document.createElement('dt');
       const dd = document.createElement('dd');
+
       dt.textContent = label;
-      dd.textContent = clean(value);
+      dd.textContent = clean(value) || 'Sen indicar';
+
       wrapper.append(dt, dd);
       dl.append(wrapper);
     });
+
     section.append(heading, dl);
     return section;
   }
@@ -150,23 +162,31 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   function drawPerson() {
     if (!(select instanceof HTMLSelectElement)) return;
     selected = persoas.find((item) => String(item.idPersoa || item.id) === select.value) || null;
+
     if (emptySelection instanceof HTMLElement) emptySelection.hidden = Boolean(selected);
     if (!(card instanceof HTMLElement)) return;
+
     card.hidden = !selected;
     if (!selected) return;
 
     if (nameNode instanceof HTMLElement) nameNode.textContent = selected.nomeCompleto || 'Persoa sen nome';
-    if (summaryNode instanceof HTMLElement) summaryNode.textContent = [selected.voz, selected.tipoSocio, selected.cargo].filter(Boolean).join(' · ');
+    if (summaryNode instanceof HTMLElement) {
+      summaryNode.textContent = [selected.voz, selected.tipoSocio, selected.cargo].filter(Boolean).join(' · ');
+    }
+
     if (statusNode instanceof HTMLElement) {
       statusNode.textContent = selected.activo ? 'Activa' : 'Baixa';
       statusNode.classList.toggle('is-inactive', !selected.activo);
     }
+
     if (openFileButton instanceof HTMLButtonElement) {
       openFileButton.hidden = selected.fichaDisponibleR2 !== true;
     }
 
     if (!(sectionsNode instanceof HTMLElement)) return;
+
     sectionsNode.replaceChildren();
+
     [
       dataSection('Identificación', [
         { label: 'Nome', value: selected.nome },
@@ -183,6 +203,20 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
         { label: 'Cidade', value: selected.cidade },
         { label: 'Código postal', value: selected.cp }
       ]),
+      dataSection('Contacto de emerxencia', [
+        {
+          label: 'Persoa de contacto en caso de emerxencia',
+          value: selected.contactoEmerxencia,
+          wide: true
+        },
+        {
+          label: 'Teléfono de emerxencia',
+          value: selected.telefonoEmerxencia
+        }
+      ], {
+        showEmpty: true,
+        className: 'emergency-section'
+      }),
       dataSection('Relación coa Coral', [
         { label: 'Voz', value: selected.voz },
         { label: 'Tipo de socio', value: selected.tipoSocio },
@@ -201,22 +235,38 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     if (loading instanceof HTMLElement) loading.hidden = false;
     if (errorState instanceof HTMLElement) errorState.hidden = true;
     if (app instanceof HTMLElement) app.hidden = true;
+
     try {
       const result = await requestV2('listarPersoasAdministracion');
-      if (emailNode instanceof HTMLElement) emailNode.textContent = result.perfil?.email || auth.currentUser?.email || '—';
-      if (levelNode instanceof HTMLElement) levelNode.textContent = result.perfil?.nivel || '—';
-      if (result.perfil?.nivel !== 'Administración') {
-        throw Object.assign(new Error('Non tes permiso para acceder a esta sección.'), { stage: 'PERMISOS' });
+
+      if (emailNode instanceof HTMLElement) {
+        emailNode.textContent = result.perfil?.email || auth.currentUser?.email || '—';
       }
+      if (levelNode instanceof HTMLElement) {
+        levelNode.textContent = result.perfil?.nivel || '—';
+      }
+
+      if (result.perfil?.nivel !== 'Administración') {
+        throw Object.assign(
+          new Error('Non tes permiso para acceder a esta sección.'),
+          { stage: 'PERMISOS' }
+        );
+      }
+
       persoas = Array.isArray(result.persoas) ? result.persoas : [];
+
       if (select instanceof HTMLSelectElement) {
         select.replaceChildren(new Option('Escolle unha persoa…', ''));
+
         persoas.forEach((item) => {
           const id = String(item.idPersoa || item.id || '');
           if (id) select.add(new Option(item.etiqueta || item.nomeCompleto, id));
         });
       }
-      if (countNode instanceof HTMLElement) countNode.textContent = `${persoas.length} persoas cargadas`;
+
+      if (countNode instanceof HTMLElement) {
+        countNode.textContent = `${persoas.length} persoas cargadas`;
+      }
       if (loading instanceof HTMLElement) loading.hidden = true;
       if (app instanceof HTMLElement) app.hidden = false;
     } catch (error) {
@@ -227,16 +277,29 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   async function openFile() {
     const idPersoa = String(selected?.idPersoa || selected?.id || '');
     if (!idPersoa || !(openFileButton instanceof HTMLButtonElement)) return;
+
     const previous = openFileButton.textContent;
     openFileButton.disabled = true;
     openFileButton.textContent = 'Abrindo…';
+
     try {
-      const blob = await requestV2('obterFichaPersoaAdministracion', { idPersoa }, true);
+      const blob = await requestV2(
+        'obterFichaPersoaAdministracion',
+        { idPersoa },
+        true
+      );
+
       if (fileUrl) URL.revokeObjectURL(fileUrl);
       fileUrl = URL.createObjectURL(blob);
       window.open(fileUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
-      window.alert(`${error?.stage ? `[${error.stage}] ` : ''}${error instanceof Error ? error.message : 'Non foi posible abrir a ficha.'}`);
+      window.alert(
+        `${error?.stage ? `[${error.stage}] ` : ''}${
+          error instanceof Error
+            ? error.message
+            : 'Non foi posible abrir a ficha.'
+        }`
+      );
     } finally {
       openFileButton.disabled = false;
       openFileButton.textContent = previous || 'Ver ficha escaneada';
@@ -255,7 +318,9 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   openFileButton?.addEventListener('click', openFile);
   retryButton?.addEventListener('click', loadPeople);
   logout?.addEventListener('click', () => closePortalSession());
-  window.addEventListener('beforeunload', () => { if (fileUrl) URL.revokeObjectURL(fileUrl); });
+  window.addEventListener('beforeunload', () => {
+    if (fileUrl) URL.revokeObjectURL(fileUrl);
+  });
 </script>
 
 <style is:global>
@@ -292,6 +357,9 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   .data-section .is-wide { grid-column: 1 / -1; }
   .data-section dt { color: #817873; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
   .data-section dd { margin: .15rem 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .emergency-section { background: #fffaf8; box-shadow: inset 4px 0 0 var(--color-principal); }
+  .emergency-section h3 { color: var(--color-principal); }
+  .emergency-section dd { min-height: 1.45rem; }
   @media (max-width: 900px) {
     .private-layout { display: block; }
     .private-page-header, .toolbar { display: grid; }
