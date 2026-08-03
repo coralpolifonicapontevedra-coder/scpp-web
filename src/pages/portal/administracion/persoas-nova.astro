@@ -3,16 +3,16 @@ import BaseLayout from '../../../layouts/Layout.astro';
 import PortalSidebar from '../../../components/PortalSidebar.astro';
 ---
 
-<BaseLayout title="Administración de persoas · Nova" lang="gl">
+<BaseLayout title="Administración de persoas" lang="gl">
   <div class="private-layout">
     <PortalSidebar active="administracion" logoutId="persoas-v2-logout" />
 
     <main class="people-main">
       <header class="private-page-header">
         <div>
-          <span class="section-kicker">Administración · versión nova</span>
+          <span class="section-kicker">Administración</span>
           <h1>Xestión de persoas</h1>
-          <p>Consulta dos datos persoais e das fichas escaneadas servidas desde R2.</p>
+          <p>Consulta restrinxida dos datos persoais e das fichas escaneadas servidas desde R2.</p>
         </div>
         <div class="account-card">
           <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
@@ -87,11 +87,18 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   let selected = null;
   let fileUrl = '';
 
-  const clean = (value) => value === true ? 'Si' : value === false ? 'Non' : String(value ?? '').trim();
+  const clean = (value) => value === true
+    ? 'Si'
+    : value === false
+      ? 'Non'
+      : String(value ?? '').trim();
 
   async function requestV2(action, extra = {}, blob = false) {
     const user = auth.currentUser;
-    if (!user?.email) throw Object.assign(new Error('A sesión non está activa.'), { stage: 'AUTH' });
+    if (!user?.email) {
+      throw Object.assign(new Error('A sesión non está activa.'), { stage: 'AUTH' });
+    }
+
     const idToken = await user.getIdToken(true);
     const response = await fetch('/api/persoas-v2', {
       method: 'POST',
@@ -121,7 +128,9 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       errorStage.textContent = `Etapa: ${stage}${code}`;
     }
     if (errorMessage instanceof HTMLElement) {
-      errorMessage.textContent = error instanceof Error ? error.message : 'Produciuse un erro inesperado.';
+      errorMessage.textContent = error instanceof Error
+        ? error.message
+        : 'Produciuse un erro inesperado.';
     }
   }
 
@@ -138,7 +147,6 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 
     const heading = document.createElement('h3');
     heading.textContent = title;
-
     const dl = document.createElement('dl');
 
     visible.forEach(({ label, value, wide }) => {
@@ -147,10 +155,8 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 
       const dt = document.createElement('dt');
       const dd = document.createElement('dd');
-
       dt.textContent = label;
       dd.textContent = clean(value) || 'Sen indicar';
-
       wrapper.append(dt, dd);
       dl.append(wrapper);
     });
@@ -161,30 +167,36 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 
   function drawPerson() {
     if (!(select instanceof HTMLSelectElement)) return;
-    selected = persoas.find((item) => String(item.idPersoa || item.id) === select.value) || null;
 
-    if (emptySelection instanceof HTMLElement) emptySelection.hidden = Boolean(selected);
+    selected = persoas.find(
+      (item) => String(item.idPersoa || item.id) === select.value
+    ) || null;
+
+    if (emptySelection instanceof HTMLElement) {
+      emptySelection.hidden = Boolean(selected);
+    }
     if (!(card instanceof HTMLElement)) return;
 
     card.hidden = !selected;
     if (!selected) return;
 
-    if (nameNode instanceof HTMLElement) nameNode.textContent = selected.nomeCompleto || 'Persoa sen nome';
-    if (summaryNode instanceof HTMLElement) {
-      summaryNode.textContent = [selected.voz, selected.tipoSocio, selected.cargo].filter(Boolean).join(' · ');
+    if (nameNode instanceof HTMLElement) {
+      nameNode.textContent = selected.nomeCompleto || 'Persoa sen nome';
     }
-
+    if (summaryNode instanceof HTMLElement) {
+      summaryNode.textContent = [selected.voz, selected.tipoSocio, selected.cargo]
+        .filter(Boolean)
+        .join(' · ');
+    }
     if (statusNode instanceof HTMLElement) {
       statusNode.textContent = selected.activo ? 'Activa' : 'Baixa';
       statusNode.classList.toggle('is-inactive', !selected.activo);
     }
-
     if (openFileButton instanceof HTMLButtonElement) {
       openFileButton.hidden = selected.fichaDisponibleR2 !== true;
     }
 
     if (!(sectionsNode instanceof HTMLElement)) return;
-
     sectionsNode.replaceChildren();
 
     [
@@ -245,7 +257,6 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       if (levelNode instanceof HTMLElement) {
         levelNode.textContent = result.perfil?.nivel || '—';
       }
-
       if (result.perfil?.nivel !== 'Administración') {
         throw Object.assign(
           new Error('Non tes permiso para acceder a esta sección.'),
@@ -257,7 +268,6 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 
       if (select instanceof HTMLSelectElement) {
         select.replaceChildren(new Option('Escolle unha persoa…', ''));
-
         persoas.forEach((item) => {
           const id = String(item.idPersoa || item.id || '');
           if (id) select.add(new Option(item.etiqueta || item.nomeCompleto, id));
@@ -288,7 +298,6 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
         { idPersoa },
         true
       );
-
       if (fileUrl) URL.revokeObjectURL(fileUrl);
       fileUrl = URL.createObjectURL(blob);
       window.open(fileUrl, '_blank', 'noopener,noreferrer');
@@ -359,7 +368,8 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   .data-section dd { margin: .15rem 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
   .emergency-section { background: #fffaf8; box-shadow: inset 4px 0 0 var(--color-principal); }
   .emergency-section h3 { color: var(--color-principal); }
-  .emergency-section dd { min-height: 1.45rem; }
+  .emergency-section dd { min-height: 1.4rem; }
+
   @media (max-width: 900px) {
     .private-layout { display: block; }
     .private-page-header, .toolbar { display: grid; }
