@@ -5,8 +5,8 @@ export async function onRequest(context) {
 
   const html = await response.text();
   const scripts = [
-    '<script src="/js/repertorio-r2-bridge.js?v=20260802-1"></script>',
-    '<script src="/js/repertorio-direct-api.js?v=20260803-1"></script>'
+    '<script src="/js/repertorio-direct-api.js?v=20260803-2"></script>',
+    '<script src="/js/repertorio-r2-bridge.js?v=20260803-2"></script>'
   ].join('');
   const body = html.includes('</body>')
     ? html.replace('</body>', `${scripts}</body>`)
