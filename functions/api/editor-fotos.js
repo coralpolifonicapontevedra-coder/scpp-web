@@ -2,7 +2,6 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const TIPOS = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const SESION_MS = 30 * 60 * 1000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -40,40 +39,6 @@ function extensionPorMime(mimeType) {
   return 'jpg';
 }
 
-const sesionKey = (uid) => `editor/sesions/${uid}.json`;
-const estadoKey = (idFoto) => `editor/estado/${idFoto}.json`;
-
-async function gardarJson(bucket, key, value) {
-  await bucket.put(key, JSON.stringify(value), {
-    httpMetadata: {
-      contentType: 'application/json; charset=utf-8',
-      cacheControl: 'private, no-store'
-    }
-  });
-}
-
-async function crearSesionEditor(env, usuario) {
-  const sesion = {
-    uid: usuario.uid,
-    email: usuario.email,
-    creadaEn: new Date().toISOString(),
-    caducaEn: new Date(Date.now() + SESION_MS).toISOString()
-  };
-  await gardarJson(env.R2_PRIVADO, sesionKey(usuario.uid), sesion);
-}
-
-async function validarSesionEditor(env, usuario) {
-  const obxecto = await env.R2_PRIVADO.get(sesionKey(usuario.uid));
-  if (!obxecto) return false;
-  try {
-    const sesion = await obxecto.json();
-    return String(sesion?.email || '').toLowerCase() === usuario.email &&
-      Date.parse(String(sesion?.caducaEn || '')) > Date.now();
-  } catch {
-    return false;
-  }
-}
-
 async function comprobarAdministracion(env, usuario) {
   const { resultado } = await obterJsonAppsScript(env, {
     token: env.WEB_WRITE_TOKEN,
@@ -82,7 +47,6 @@ async function comprobarAdministracion(env, usuario) {
     uidFirebase: usuario.uid
   }, { timeoutMs: 35_000, attemptTimeoutMs: 12_000 });
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Administración non autorizada');
-  await crearSesionEditor(env, usuario);
 }
 
 async function obterOriginal(env, usuario, idFoto) {
@@ -101,7 +65,6 @@ async function obterOriginal(env, usuario, idFoto) {
     throw new Error(resultado?.erro || 'Non se puido obter a fotografía orixinal.');
   }
 
-  await crearSesionEditor(env, usuario);
   return {
     ok: true,
     idFoto: String(resultado.idFoto || resultado.rowId || idFoto),
@@ -112,68 +75,75 @@ async function obterOriginal(env, usuario, idFoto) {
   };
 }
 
-async function sincronizarSheet(env, usuario, traballo) {
-  const estadoBase = {
-    idFoto: traballo.idFoto,
-    rutaPublica: traballo.rutaPublica,
-    rutaPrivada: traballo.rutaPrivada,
-    actualizadoEn: new Date().toISOString()
-  };
+async function escribirEstado(env, idFoto, estado) {
+  if (!env.R2_PRIVADO) return;
+  await env.R2_PRIVADO.put(
+    `fotos/estado-edicion/${idFoto}.json`,
+    JSON.stringify({ idFoto, ...estado, actualizadoEn: new Date().toISOString() }),
+    { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'no-store' } }
+  );
+}
 
+async function sincronizarSheet(env, usuario, datos, rutas) {
+  const idFoto = String(datos.idFoto || '').trim();
   try {
-    const { resultado: rutas } = await obterJsonAppsScript(env, {
-      token: env.WEB_WRITE_TOKEN,
-      accion: 'gardarRutasFotoR2',
-      email: usuario.email,
-      uidFirebase: usuario.uid,
-      idFoto: traballo.idFoto,
-      rutaPublica: traballo.rutaPublica,
-      rutaPrivada: traballo.rutaPrivada
-    }, { timeoutMs: 45_000, attemptTimeoutMs: 15_000 });
-    if (!rutas?.ok) throw new Error(rutas?.erro || 'Non se puideron gardar as rutas na Sheet.');
+    await escribirEstado(env, idFoto, { estado: 'sincronizando' });
+
+    const publicarPublica = datos.publicarPublica === true;
+    const publicarPrivada = datos.publicarPrivada === true;
+    const estado = String(datos.estado || 'Aprobada').trim();
 
     const { resultado: revision } = await obterJsonAppsScript(env, {
       token: env.WEB_WRITE_TOKEN,
       accion: 'actualizarRevisionFoto',
       email: usuario.email,
       uidFirebase: usuario.uid,
-      rowId: traballo.idFoto,
-      idFoto: traballo.idFoto,
-      estado: 'Aprobada',
-      publicarPublica: traballo.publicarPublica,
-      publicarPrivada: traballo.publicarPrivada,
-      destacadaPublica: traballo.destacadaPublica,
-      destacadaPrivada: traballo.destacadaPrivada,
-      titulo: traballo.titulo,
-      peFoto: traballo.peFoto,
-      observacions: traballo.observacions
+      rowId: idFoto,
+      idFoto,
+      estado,
+      publicarPublica,
+      publicarPrivada,
+      destacadaPublica: publicarPublica && datos.destacadaPublica === true,
+      destacadaPrivada: publicarPrivada && datos.destacadaPrivada === true,
+      titulo: String(datos.titulo || '').trim(),
+      peFoto: String(datos.peFoto || '').trim(),
+      observacions: String(datos.observacions || '').trim()
     }, { timeoutMs: 45_000, attemptTimeoutMs: 15_000 });
-    if (!revision?.ok) throw new Error(revision?.erro || 'Non se puido completar a publicación.');
 
-    await gardarJson(env.R2_PRIVADO, estadoKey(traballo.idFoto), {
-      ...estadoBase,
+    if (!revision?.ok) throw new Error(revision?.erro || 'Non se puido actualizar a revisión.');
+
+    const { resultado: gardado } = await obterJsonAppsScript(env, {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'gardarRutasFotoR2',
+      email: usuario.email,
+      uidFirebase: usuario.uid,
+      idFoto,
+      rowId: idFoto,
+      rutaPublica: rutas.rutaPublica,
+      rutaPrivada: rutas.rutaPrivada
+    }, { timeoutMs: 45_000, attemptTimeoutMs: 15_000 });
+
+    if (!gardado?.ok) throw new Error(gardado?.erro || 'Non se puideron gardar as rutas R2.');
+
+    await escribirEstado(env, idFoto, {
       estado: 'sincronizada',
-      mensaxe: 'Edición gardada e publicación sincronizada.'
+      rutaPublica: rutas.rutaPublica,
+      rutaPrivada: rutas.rutaPrivada
     });
   } catch (erro) {
     console.error('Erro ao sincronizar edición coa Sheet:', erro);
-    await gardarJson(env.R2_PRIVADO, estadoKey(traballo.idFoto), {
-      ...estadoBase,
+    await escribirEstado(env, idFoto, {
       estado: 'erro',
-      erro: erro instanceof Error ? erro.message : 'Erro descoñecido ao sincronizar.'
+      erro: erro instanceof Error ? erro.message : String(erro)
     });
   }
 }
 
-async function gardarEdicion(env, usuario, datos, waitUntil) {
+async function gardarEdicion(env, usuario, datos, context) {
   const idFoto = String(datos.idFoto || '').trim();
   const mimeType = String(datos.mimeType || '').trim().toLowerCase();
   const base64 = String(datos.base64 || '').trim();
   if (!idFoto || !TIPOS.has(mimeType) || !base64) throw new Error('Faltan datos da fotografía editada.');
-
-  if (!(await validarSesionEditor(env, usuario))) {
-    throw new Error('A autorización temporal do editor caducou. Volve cargar a fotografía.');
-  }
 
   const bytes = decodificarBase64(base64);
   if (!bytes.byteLength || bytes.byteLength > MAX_BYTES) throw new Error('A versión editada supera o máximo permitido de 12 MB.');
@@ -194,72 +164,47 @@ async function gardarEdicion(env, usuario, datos, waitUntil) {
 
   const publicarPublica = datos.publicarPublica === true;
   const publicarPrivada = datos.publicarPrivada === true;
-  const modo = String(datos.modo || 'borrador') === 'publicar' ? 'publicar' : 'borrador';
+  let rutaPublica = '';
+  let rutaPrivada = rutaBase;
 
   await env.R2_PRIVADO.put(rutaBase, bytes, metadata);
-  const rutaPrivada = rutaBase;
-  let rutaPublica = '';
   if (publicarPublica) {
     await env.R2_PUBLICO.put(rutaBase, bytes, metadata);
     rutaPublica = rutaBase;
   }
 
-  const traballo = {
-    idFoto,
+  await escribirEstado(env, idFoto, {
+    estado: 'pendente',
     rutaPublica,
-    rutaPrivada,
-    publicarPublica,
-    publicarPrivada,
-    destacadaPublica: datos.destacadaPublica === true,
-    destacadaPrivada: datos.destacadaPrivada === true,
-    titulo: String(datos.titulo || '').trim(),
-    peFoto: String(datos.peFoto || '').trim(),
-    observacions: String(datos.observacions || '').trim()
-  };
-
-  await gardarJson(env.R2_PRIVADO, estadoKey(idFoto), {
-    idFoto,
-    estado: modo === 'publicar' ? 'pendente' : 'borrador',
-    rutaPublica,
-    rutaPrivada,
-    actualizadoEn: new Date().toISOString(),
-    mensaxe: modo === 'publicar'
-      ? 'A edición xa está en R2. A publicación está sincronizándose.'
-      : 'Borrador editado gardado en R2; o orixinal consérvase.'
+    rutaPrivada
   });
 
-  if (modo === 'publicar') {
-    waitUntil(sincronizarSheet(env, usuario, traballo));
-  }
+  const tarefa = sincronizarSheet(env, usuario, datos, { rutaPublica, rutaPrivada });
+  if (context?.waitUntil) context.waitUntil(tarefa);
+  else tarefa.catch((erro) => console.error('Sincronización diferida fallida:', erro));
 
   return {
     ok: true,
     idFoto,
-    estado: modo === 'publicar' ? 'pendente' : 'borrador',
     rutaPublica,
     rutaPrivada,
-    mensaxe: modo === 'publicar'
-      ? 'Edición gardada en R2. A publicación continúa en segundo plano.'
-      : 'Borrador editado gardado en R2. O orixinal consérvase sen cambios.'
+    sincronizacion: 'pendente',
+    mensaxe: 'A versión editada gardouse en R2. A actualización da Sheet continúa en segundo plano.'
   };
 }
 
 async function obterEstado(env, idFoto) {
-  const obxecto = await env.R2_PRIVADO.get(estadoKey(String(idFoto || '').trim()));
-  if (!obxecto) return { ok: true, estado: 'sen-datos' };
-  try {
-    return { ok: true, ...(await obxecto.json()) };
-  } catch {
-    return { ok: true, estado: 'sen-datos' };
-  }
+  if (!env.R2_PRIVADO) throw new Error('R2 privado non está configurado.');
+  const obxecto = await env.R2_PRIVADO.get(`fotos/estado-edicion/${idFoto}.json`);
+  if (!obxecto) return { ok: true, idFoto, estado: 'sen-datos' };
+  const datos = await obxecto.json();
+  return { ok: true, ...datos };
 }
 
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
-  if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN || !env.R2_PRIVADO) {
-    return json(500, { ok: false, erro: 'O editor non está configurado correctamente.' });
-  }
+  if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN) return json(500, { ok: false, erro: 'O editor non está configurado correctamente.' });
 
   let datos;
   try { datos = await request.json(); }
@@ -270,19 +215,13 @@ export async function onRequest(context) {
   catch (erro) { console.error('Erro Firebase editor:', erro); }
   if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
-  const accion = String(datos.accion || '').trim();
   try {
-    if (accion === 'obterOriginal') {
-      await comprobarAdministracion(env, usuario);
-      return json(200, await obterOriginal(env, usuario, String(datos.idFoto || datos.rowId || '').trim()));
-    }
-    if (accion === 'gardarEdicion') {
-      return json(200, await gardarEdicion(env, usuario, datos, context.waitUntil.bind(context)));
-    }
-    if (accion === 'estadoEdicion') {
-      if (!(await validarSesionEditor(env, usuario))) return json(403, { ok: false, erro: 'Sesión do editor caducada' });
-      return json(200, await obterEstado(env, datos.idFoto));
-    }
+    await comprobarAdministracion(env, usuario);
+    const accion = String(datos.accion || '').trim();
+    const idFoto = String(datos.idFoto || datos.rowId || '').trim();
+    if (accion === 'obterOriginal') return json(200, await obterOriginal(env, usuario, idFoto));
+    if (accion === 'gardarEdicion') return json(200, await gardarEdicion(env, usuario, datos, context));
+    if (accion === 'estadoSincronizacion') return json(200, await obterEstado(env, idFoto));
     return json(400, { ok: false, erro: 'Acción non permitida' });
   } catch (erro) {
     console.error('Erro no editor de fotografías:', erro);
