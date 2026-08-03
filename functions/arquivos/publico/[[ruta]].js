@@ -40,7 +40,7 @@ async function responderObxecto(bucket, chave, request, senCorpo = false) {
   const headers = new Headers();
   obxecto.writeHttpMetadata(headers);
   headers.set('ETag', obxecto.httpEtag);
-  headers.set('Cache-Control', 'public, max-age=3600, s-maxage=86400, immutable');
+  headers.set('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=60');
   headers.set('X-Content-Type-Options', 'nosniff');
 
   if (request.headers.has('Range') && 'range' in obxecto) {
