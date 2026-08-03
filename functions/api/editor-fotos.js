@@ -56,7 +56,11 @@ async function obterOriginal(env, usuario, idFoto) {
     email: usuario.email,
     uidFirebase: usuario.uid,
     idFoto,
-    rowId: idFoto
+    rowId: idFoto,
+    // O editor necesita ler tamén fotografías pendentes antes de decidir o destino.
+    // Estes valores só permiten obter o blob; non modifican a Sheet nin publican nada.
+    publicarPrivada: true,
+    publicarPublica: false
   }, { timeoutMs: 75_000, attemptTimeoutMs: 25_000 });
 
   if (!resultado?.ok || !resultado.base64 || !TIPOS.has(String(resultado.mimeType || '').toLowerCase())) {
@@ -97,11 +101,9 @@ async function gardarEdicion(env, usuario, datos) {
   };
 
   const publica = datos.publicarPublica === true;
-  const privada = datos.publicarPrivada === true;
   let rutaPublica = '';
   let rutaPrivada = '';
 
-  // Gardamos sempre unha copia privada da edición; o orixinal permanece en Drive e non se sobrescribe.
   await env.R2_PRIVADO.put(rutaBase, bytes, metadata);
   rutaPrivada = rutaBase;
   if (publica) {
