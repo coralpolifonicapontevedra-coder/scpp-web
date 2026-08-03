@@ -2,6 +2,7 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const TIPOS = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const AUTH_TTL_MS = 15 * 60 * 1000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -33,13 +34,58 @@ function decodificarBase64(base64) {
   return bytes;
 }
 
+function codificarBase64(bytes) {
+  const bloque = 0x8000;
+  let binario = '';
+  for (let i = 0; i < bytes.length; i += bloque) {
+    binario += String.fromCharCode(...bytes.subarray(i, Math.min(i + bloque, bytes.length)));
+  }
+  return btoa(binario);
+}
+
 function extensionPorMime(mimeType) {
   if (mimeType === 'image/png') return 'png';
   if (mimeType === 'image/webp') return 'webp';
   return 'jpg';
 }
 
+async function claveCorreo(email) {
+  const datos = new TextEncoder().encode(String(email || '').trim().toLowerCase());
+  const hash = await crypto.subtle.digest('SHA-256', datos);
+  return [...new Uint8Array(hash)].map((v) => v.toString(16).padStart(2, '0')).join('');
+}
+
 async function comprobarAdministracion(env, usuario) {
+  if (env.R2_PRIVADO) {
+    const clave = await claveCorreo(usuario.email);
+    const ruta = `cache/autorizacion-fotos/${clave}.json`;
+    const gardada = await env.R2_PRIVADO.get(ruta);
+    if (gardada) {
+      const datos = await gardada.json().catch(() => null);
+      const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
+      if (datos?.administrador === true && Number.isFinite(verificadaEn) && Date.now() - verificadaEn < AUTH_TTL_MS) {
+        return;
+      }
+    }
+
+    const { resultado } = await obterJsonAppsScript(env, {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'listarFotosRevision',
+      email: usuario.email,
+      uidFirebase: usuario.uid
+    }, { timeoutMs: 35_000, attemptTimeoutMs: 12_000 });
+    if (!resultado?.ok) throw new Error(resultado?.erro || 'Administración non autorizada');
+
+    await env.R2_PRIVADO.put(ruta, JSON.stringify({
+      administrador: true,
+      email: usuario.email,
+      verificadaEn: new Date().toISOString()
+    }), {
+      httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, max-age=900' }
+    });
+    return;
+  }
+
   const { resultado } = await obterJsonAppsScript(env, {
     token: env.WEB_WRITE_TOKEN,
     accion: 'listarFotosRevision',
@@ -49,7 +95,54 @@ async function comprobarAdministracion(env, usuario) {
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Administración non autorizada');
 }
 
+async function lerOriginalR2(env, idFoto) {
+  if (!env.R2_PRIVADO) return null;
+  const indice = await env.R2_PRIVADO.get(`fotos/traballo/${idFoto}.json`);
+  if (!indice) return null;
+  const datos = await indice.json().catch(() => null);
+  const ruta = String(datos?.ruta || '').trim();
+  const mimeType = String(datos?.mimeType || '').trim().toLowerCase();
+  if (!ruta || !TIPOS.has(mimeType)) return null;
+  const obxecto = await env.R2_PRIVADO.get(ruta);
+  if (!obxecto) return null;
+  const bytes = new Uint8Array(await obxecto.arrayBuffer());
+  return {
+    ok: true,
+    idFoto,
+    mimeType,
+    base64: codificarBase64(bytes),
+    publicarPublica: datos.publicarPublica === true,
+    publicarPrivada: datos.publicarPrivada === true,
+    orixe: 'R2'
+  };
+}
+
+async function gardarOriginalTraballo(env, resultado, idFoto) {
+  if (!env.R2_PRIVADO) return;
+  const mimeType = String(resultado.mimeType || '').trim().toLowerCase();
+  const bytes = decodificarBase64(String(resultado.base64 || ''));
+  const extension = extensionPorMime(mimeType);
+  const ruta = `fotos/traballo/${idFoto}.${extension}`;
+  await env.R2_PRIVADO.put(ruta, bytes, {
+    httpMetadata: { contentType: mimeType, cacheControl: 'private, max-age=31536000, immutable' },
+    customMetadata: { idFoto, tipo: 'orixinal-traballo' }
+  });
+  await env.R2_PRIVADO.put(`fotos/traballo/${idFoto}.json`, JSON.stringify({
+    idFoto,
+    ruta,
+    mimeType,
+    publicarPublica: resultado.publicarPublica === true,
+    publicarPrivada: resultado.publicarPrivada === true,
+    creadoEn: new Date().toISOString()
+  }), {
+    httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, max-age=31536000' }
+  });
+}
+
 async function obterOriginal(env, usuario, idFoto) {
+  const enR2 = await lerOriginalR2(env, idFoto);
+  if (enR2) return enR2;
+
   const { resultado } = await obterJsonAppsScript(env, {
     token: env.WEB_WRITE_TOKEN,
     accion: 'obterFotoParaR2',
@@ -65,13 +158,17 @@ async function obterOriginal(env, usuario, idFoto) {
     throw new Error(resultado?.erro || 'Non se puido obter a fotografía orixinal.');
   }
 
+  const idGardado = String(resultado.idFoto || resultado.rowId || idFoto);
+  await gardarOriginalTraballo(env, resultado, idGardado);
+
   return {
     ok: true,
-    idFoto: String(resultado.idFoto || resultado.rowId || idFoto),
+    idFoto: idGardado,
     mimeType: String(resultado.mimeType).toLowerCase(),
     base64: String(resultado.base64),
     publicarPublica: resultado.publicarPublica === true,
-    publicarPrivada: resultado.publicarPrivada === true
+    publicarPrivada: resultado.publicarPrivada === true,
+    orixe: 'DRIVE-CACHEADA'
   };
 }
 
@@ -163,9 +260,8 @@ async function gardarEdicion(env, usuario, datos, context) {
   };
 
   const publicarPublica = datos.publicarPublica === true;
-  const publicarPrivada = datos.publicarPrivada === true;
   let rutaPublica = '';
-  let rutaPrivada = rutaBase;
+  const rutaPrivada = rutaBase;
 
   await env.R2_PRIVADO.put(rutaBase, bytes, metadata);
   if (publicarPublica) {
