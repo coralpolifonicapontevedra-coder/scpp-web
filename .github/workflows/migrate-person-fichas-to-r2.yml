@@ -56,6 +56,18 @@ jobs:
             google-api-python-client==2.177.0 \
             google-auth==2.40.3
 
+      - name: Mostrar conta de servizo
+        shell: bash
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          datos = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT_JSON'])
+          print('CONTA_DE_SERVIZO=' + datos.get('client_email', 'NON_ATOPADA'))
+          PY
+
       - name: Executar migración e verificación
         shell: bash
         env:
