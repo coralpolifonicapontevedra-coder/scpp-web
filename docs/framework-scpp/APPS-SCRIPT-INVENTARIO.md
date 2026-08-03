@@ -1,172 +1,198 @@
 # Inventario de Apps Script da SCPP
 
-Estado: **inventario inicial, parcialmente confirmado**  
+Estado: **inventario funcional confirmado do ficheiro principal; inventario de ficheiros do proxecto aínda incompleto**  
 Data de revisión: 2026-08-03
 
 ## 1. Obxectivo
 
-Este documento identifica os ficheiros, accións, propiedades, dependencias e débeda técnica do proxecto Apps Script que atende o portal privado da SCPP.
+Este documento identifica o despachador, as accións, propiedades, dependencias, follas e débeda técnica do proxecto Apps Script que atende o portal privado da SCPP.
 
-A regra de traballo é distinguir sempre entre:
+A fonte principal desta revisión é a copia actual de `Código.gs` recibida o 03/08/2026, con 1.988 liñas. Esta copia substitúe como referencia a copia histórica de 792 liñas usada no primeiro inventario.
 
-- **Confirmado no código actual**: funcións ou accións verificadas nunha copia recente.
-- **Confirmado polo consumo web**: accións invocadas polos Workers e páxinas, aínda que o seu despachador non estea consolidado no repositorio.
-- **Histórico ou potencialmente obsoleto**: código conservado en copias anteriores que non debe asumirse como despregado.
-- **Pendente de verificar no editor real**: elementos que só se poden confirmar comparando co proxecto publicado en Apps Script.
+## 2. Alcance confirmado
 
-## 2. Fontes utilizadas
+Queda confirmado o contido funcional do ficheiro principal `Código.gs`:
 
-O inventario inicial parte de:
-
-- unha copia de `Código.gs` de 792 liñas conservada na biblioteca de traballo;
-- `persoas-administracion-v3.gs`, versión recente do módulo de administración de persoas;
-- os ficheiros baixo `apps-script/` e `scripts/apps-script/` do repositorio;
-- os endpoints de Cloudflare Functions que invocan accións de Apps Script.
-
-A copia de `Código.gs` non se considera automaticamente o estado actual do despregamento.
-
-## 3. Estrutura funcional coñecida
-
-### 3.1. Ficheiro principal histórico: `Código.gs`
-
-A copia revisada contén:
-
-- `configurarProba()`;
-- `doGet()`;
+- `doGet(e)`;
 - `doPost(e)`;
+- configuración inicial do portal;
 - autenticación mediante `WEB_WRITE_TOKEN`;
-- comprobación opcional de `WEB_TEST_EMAIL` para unha acción de proba;
-- rexistro de accesos;
-- aceptación da política de privacidade;
-- subida e revisión de fotografías;
-- resposta JSON común.
+- alta e consulta de usuarios web;
+- aceptación legal;
+- perfil persoal;
+- concertos e documentos de concertos;
+- fotografías;
+- repertorio, partituras e audios;
+- asistencias a concertos;
+- documentación e actas;
+- administración de persoas;
+- auditoría de accesos.
 
-### 3.2. Accións que despacha esta copia de `doPost`
+Segue pendente confirmar a lista exacta de todos os ficheiros que aparecen no editor de Apps Script e comprobar se existen funcións duplicadas entre eles.
 
-| Acción | Función chamada | Escritura | Lock | Estado do inventario |
+## 3. Entrada HTTP
+
+### `doGet(e)`
+
+Comportamento confirmado:
+
+- se `recurso=publicacions`, chama `listarPublicacionsWeb_()`;
+- no resto dos casos devolve o estado básico do servizo;
+- captura erros e responde sempre en JSON.
+
+### `doPost(e)`
+
+Responsabilidades actuais:
+
+1. interpretar o JSON recibido;
+2. normalizar `accion` e correo;
+3. validar `WEB_WRITE_TOKEN`;
+4. adquirir `ScriptLock` nas escrituras que o requiren;
+5. despachar a acción;
+6. rexistrar parte das operacións en `RexistroAccesosWeb`;
+7. devolver JSON;
+8. liberar o lock no bloque `finally`.
+
+O despachador contén demasiada lóxica e debería reducirse no futuro a un mapa de accións.
+
+## 4. Mapa real de accións de `doPost`
+
+| Acción | Función ou fluxo | Escritura | Lock explícito | Módulo |
 |---|---|---:|---:|---|
-| `comprobarAceptacion` | `comprobarAceptacion(...)` | Non | Non | Confirmada na copia histórica |
-| `rexistrarAceptacion` | `rexistrarAceptacion(...)` | Si | Si | Confirmada na copia histórica |
-| `subirFoto` | `subirFotoPortal_(datos)` | Si | Si | Confirmada na copia histórica |
-| `listarFotosRevision` | `listarFotosRevisionPortal_(datos)` | Non | Non | Confirmada na copia histórica |
-| `actualizarRevisionFoto` | `actualizarRevisionFotoPortal_(datos)` | Si | Si | Confirmada na copia histórica |
-| `actualizarObservacions` | lóxica interna de `doPost` | Si | Si | Acción de proba, non patrón definitivo |
+| `rexistrarSolicitudeWeb` | `rexistrarSolicitudeWeb_(datos)` | Si | Si | Solicitudes |
+| `comprobarAceptacion` | `tenAceptacionVixente_(correo, version)` | Pode crear contexto de usuario indirectamente, pero a acción é lectura | Non | Portal / Aceptación |
+| `rexistrarAceptacion` | `obterOuCrearUsuarioWebPorEmail_()` + `rexistrarAceptacion()` | Si | Si | Aceptación |
+| `obterPerfil` | `obterPerfilPortal_(datos)` | Non | Non | Perfil |
+| `actualizarPerfil` | `actualizarPerfilPortal_(datos)` | Si | Si | Perfil |
+| `obterDocumentoConcerto` | `obterDocumentoConcerto_(datos)` | Non | Non | Concertos |
+| `subirFoto` | `subirFotoPortal_(datos)` | Si | Si | Fotos |
+| `listarFotosRevision` | `listarFotosRevisionPortal_(datos)` | Non | Non | Fotos |
+| `listarFotosGaleria` | `listarFotosGaleriaPortal_()` | Non | Non | Fotos |
+| `actualizarRevisionFoto` | `actualizarRevisionFotoPortal_(datos)` | Si | Si | Fotos |
+| `listarFotosPublicadas` | `listarFotosPublicadasPortal_(datos)` | Non | Non | Fotos |
+| `actualizarPublicacionFoto` | `actualizarPublicacionFotoPortal_(datos)` | Si | Non no despachador actual | Fotos |
+| `obterFotoParaR2` | `obterFotoParaR2Portal_(datos)` | Non | Non | Fotos / R2 |
+| `listarFotosPendentesR2` | `listarFotosPendentesR2Portal_(datos)` | Non | Non | Fotos / R2 |
+| `gardarRutasFotoR2` | `gardarRutasFotoR2Portal_(datos)` | Si | Non no despachador actual | Fotos / R2 |
+| `listarRepertorioPortal` | `listarRepertorioPortal_(datos)` | Non | Non | Repertorio |
+| `listarAsistenciasConcertosPortal` | `listarAsistenciasConcertosPortal_(datos)` | Non | Non | Concertos |
+| `obterFicheiroRepertorio` | `obterFicheiroRepertorio_(datos)` | Non | Non | Repertorio |
+| `listarDocumentacionPortal` | `listarDocumentacionPortal_(datos)` | Non | Non | Documentación |
+| `obterFicheiroDocumentacion` | `obterFicheiroDocumentacion_(datos)` | Non | Non | Documentación |
+| `listarPersoasAdministracion` | `listarPersoasAdministracion_(datos)` | Non | Non | Administración |
+| `obterFichaPersoaAdministracion` | `obterFichaPersoaAdministracion_(datos)` | Non | Non | Administración |
+| `actualizarObservacions` | lóxica interna no propio `doPost` | Si | Si | UsuariosWeb / proba herdada |
 
-Calquera outra acción devolve `Acción non permitida` nesta copia.
+Calquera outra acción devolve `Acción non permitida`.
 
-## 4. Accións actuais confirmadas fóra da copia histórica
+## 5. Módulos e estado da arquitectura de ficheiros
 
-Estas accións están confirmadas por módulos recentes e/ou polos endpoints que as consumen, pero non aparecen no `doPost` histórico revisado. Polo tanto, o proxecto despregado debe conter un despachador máis novo ou ficheiros adicionais.
+### 5.1. Administración de Persoas
 
-| Acción | Módulo | Función de Apps Script esperada | Estado |
-|---|---|---|---|
-| `listarPersoasAdministracion` | Administración de Persoas | `listarPersoasAdministracion_(datos)` | Confirmada en `persoas-administracion-v3.gs` |
-| `obterFichaPersoaAdministracion` | Administración de Persoas | `obterFichaPersoaAdministracion_(datos)` | Confirmada en `persoas-administracion-v3.gs` |
-| `listarDocumentacionPortal` | Documentación | `listarDocumentacionPortal_(datos)` | Confirmada no repositorio |
-| `obterFicheiroDocumentacion` | Documentación | `obterFicheiroDocumentacion_(datos)` | Confirmada no repositorio, aínda usa Drive/Base64 |
-| accións de repertorio | Repertorio | por inventariar | Confirmadas polo endpoint, pendentes de mapear |
-| accións de asistencias | Concertos | por inventariar | Confirmadas polo endpoint, pendentes de mapear |
-| accións de galería e fotos publicadas | Fotografías | por inventariar | Confirmadas polos endpoints, pendentes de mapear |
+Estado: **modelo de referencia actual**.
 
-## 5. Módulo de Administración de Persoas
+- `listarPersoasAdministracion_(datos)` devolve o catálogo de persoas.
+- `obterFichaPersoaAdministracion_(datos)` valida permisos e devolve `FichaR2Key` e metadatos.
+- O Worker le `R2_PRIVADO`.
+- Non usa Drive nin Base64 para servir a ficha.
 
-### Ficheiro
+### 5.2. Documentación e Actas
 
-`persoas-administracion-v3.gs`
+Estado: **pendente de migración a R2**.
 
-### Funcións públicas do módulo
+- O catálogo sae de Sheets.
+- `obterFicheiroDocumentacion_(datos)` segue buscando o documento en Drive.
+- O ficheiro viaxa en Base64.
 
-- `listarPersoasAdministracion_(datos)`
-- `obterFichaPersoaAdministracion_(datos)`
+### 5.3. Repertorio
 
-### Funcións auxiliares principais
+Estado: **catálogo en Sheets; descarga heredada desde Drive**.
 
-- `obterContextoPersoasAdmin_()`
-- `obterAdministradorPersoasAdmin_(...)`
-- `construirPersoaAdmin_(...)`
-- `indicesPersoasAdmin_(...)`
-- `requireHeaderPersoasAdmin_(...)`
-- funcións de normalización, booleanos e datas.
+`listarRepertorioPortal_(datos)` abre por ID explícito:
 
-### Comportamento relevante
+- `Repertorio`;
+- `AudiosRepertorio`;
+- `Partituras`;
+- `ConcertosRepertorio`;
+- `Concertos`.
 
-- abre as follas mediante IDs explícitos;
-- le `Persoas` unha única vez por operación de listado;
-- acepta `Id` e mantén compatibilidade temporal con `Row ID`;
-- valida administración mediante campo explícito, cargo ou módulo permitido;
-- usa `CacheService` para o perfil administrativo;
-- non le o PDF desde Drive;
-- devolve `FichaR2Key`, estado, MIME, ETag e tamaño;
-- o Worker é responsable de ler `R2_PRIVADO`.
+`obterFicheiroRepertorio_(datos)` segue:
 
-### Dependencias de columnas
+- validando unha ruta de dúas partes;
+- buscando por nome en carpetas permitidas de Drive;
+- lendo o blob;
+- devolvendo Base64.
 
-Obrigatorias para o fluxo actual:
+Este fluxo debe migrarse ao Gestor de Arquivos e R2.
 
-- `Id`
-- `FichaR2Key`
-- `FichaR2Estado`
+### 5.4. Fotografías
 
-Campos adicionais utilizados no listado:
+Estado: **arquitectura mixta**.
 
-- `Row ID` durante a compatibilidade;
-- `Nome`, `Primeiro apelido`, `Segundo apelido`;
-- `Voz`, `NIF`, `Teléfono`, `Correo electrónico`;
-- `Enderezo`, `Cidade`, `CP`;
-- `Activo`, `MostrarWeb`, `Cargo`, `Tipo de socio`;
-- `DataNacemento`, `DataIncorporacionSCPP`;
-- `ContactoEmerxencia`, `TelefonoEmerxencia`;
-- consentimentos, observacións e campos de auditoría.
+Hai accións específicas para:
 
-## 6. Propiedades do script coñecidas
+- subir;
+- revisar;
+- listar galería;
+- xestionar publicación;
+- localizar pendentes de R2;
+- gardar rutas R2.
+
+Debe inventariarse cada ficheiro do módulo antes de consolidalo no Gestor de Arquivos.
+
+### 5.5. Concertos e asistencias
+
+- As asistencias léense desde `AsistenciasConcertos`.
+- O código elimina duplicados por concerto, nome e voz.
+- Os documentos de concerto deben revisarse por separado para confirmar se usan Drive/Base64 ou R2.
+
+### 5.6. Perfil
+
+- `obterPerfil` e `actualizarPerfil` están despachadas no ficheiro principal.
+- As súas implementacións están noutro ficheiro do proxecto e deben incorporarse ao inventario de ficheiros.
+
+## 6. Libros e follas identificados
+
+### Acceso e identidade
+
+- `UsuariosWeb`
+- `Persoas`
+- `Aceptación`
+- `RexistroAccesosWeb`
+
+### Repertorio
+
+- `Repertorio`
+- `AudiosRepertorio`
+- `Partituras`
+- `ConcertosRepertorio`
+- `Concertos`
+
+### Concertos
+
+- `AsistenciasConcertos`
+
+### Documentación
+
+- `Documentación`
+- `Actas XD e AX`
+
+### Fotografías
+
+- `Fotos`
+
+## 7. Propiedades de Script coñecidas
 
 | Propiedade | Uso | Clasificación |
 |---|---|---|
-| `WEB_WRITE_TOKEN` | autenticación entre Worker e Apps Script | Segredo obrigatorio |
-| `WEB_TEST_EMAIL` | probas históricas e acción restrinxida de observacións | Temporal/herdada |
-| `USUARIOS_WEB_SPREADSHEET_ID` | acceso directo ao libro de usuarios en versións posteriores | Configuración |
-| `PERSOAS_SPREADSHEET_ID` | acceso directo ao libro de persoas en versións posteriores | Configuración |
+| `WEB_WRITE_TOKEN` | autenticación Worker → Apps Script | Segredo obrigatorio |
+| `WEB_TEST_EMAIL` | proba histórica `actualizarObservacions` | Herdada / revisar |
+| `USUARIOS_WEB_SPREADSHEET_ID` | abrir directamente `UsuariosWeb` | Configuración |
+| `PERSOAS_SPREADSHEET_ID` | abrir directamente `Persoas` | Configuración |
 
-Non se deben gardar valores reais destas propiedades no repositorio.
+Non se gardarán valores reais destas propiedades no repositorio.
 
-## 7. Follas e libros identificados
-
-### `UsuariosWeb`
-
-Campos utilizados ou esperados:
-
-- `Row ID`
-- `Persoa`
-- `Email`
-- `Nome`
-- `Activo`
-- `Administrador`
-- `ModulosPermitidos`
-- `DataAlta`
-- `DataBaixa`
-- `Observacions`
-
-### `Persoas`
-
-É a fonte principal para identidade, cargo, datos de contacto, administración e fichas R2.
-
-### `Aceptación`
-
-Utilizada para comprobar e rexistrar aceptacións vixentes da política de privacidade.
-
-### `RexistroAccesosWeb`
-
-Utilizada para rexistrar eventos, resultados e detalles de acceso.
-
-### `Fotos`
-
-Utilizada polos módulos de subida, revisión, galería e publicación.
-
-### `Documentación` e `Actas XD e AX`
-
-Utilizadas polo portal documental. Na situación actual os metadatos están en Sheets, pero os PDF aínda se serven desde Drive mediante Base64.
-
-## 8. Servizos de Apps Script usados
+## 8. Servizos de Apps Script utilizados
 
 - `PropertiesService`
 - `SpreadsheetApp`
@@ -175,91 +201,121 @@ Utilizadas polo portal documental. Na situación actual os metadatos están en S
 - `ContentService`
 - `Utilities`
 - `Session`
-- `DriveApp` nos módulos aínda non migrados a R2
+- `DriveApp`
 
-## 9. Problemas detectados
+`DriveApp` queda considerado temporal para os fluxos de entrega de ficheiros.
 
-### 9.1. Diverxencia entre código conservado e código despregado
+## 9. Utilidades compartidas confirmadas
 
-A copia principal de `Código.gs` non contén varias accións actualmente operativas. Non debe utilizarse como copia completa de restauración.
+- `respostaJSON(datos)`
+- `obterFollaUsuariosWeb_()`
+- `buscarUsuarioWebPorEmail_(correo)`
+- `obterOuCrearUsuarioWebPorEmail_(correo)`
+- `obterPersoaActivaPorEmail_(correo)`
+- `obterFollaPersoas_()`
+- `normalizarCabeceiraPortal_(valor)`
+- `indiceCabeceiraPortal_(...)`
+- validadores de cabeceiras;
+- `valorBooleanoPortal_(valor)`
+- `valorActivoPersoaPortal_(valor)`
+- `rexistrarAcceso(datos)`
 
-### 9.2. Despachador non versionado de forma íntegra
+## 10. Problemas técnicos detectados
 
-O `doPost` real, co conxunto completo de accións activas, non está consolidado nun ficheiro único e verificable no repositorio.
+### 10.1. Ficheiro principal demasiado grande
 
-### 9.3. IDs embebidos
+`Código.gs` concentra despachador, configuración, acceso, aceptación, repertorio, asistencias, utilidades e probas. Debe dividirse sen cambiar primeiro o comportamento público.
 
-Algúns módulos conteñen IDs de libros e follas directamente no código. Non son segredos, pero dificultan cambios de contorno e probas.
+### 10.2. Lóxica de negocio dentro de `doPost`
 
-### 9.4. Duplicación de utilidades
+A acción `actualizarObservacions` está implementada directamente no despachador. Debe extraerse ou retirarse se xa non é necesaria.
 
-Hai varias funcións de normalización de emails, cabeceiras, booleanos, datas e autorizacións con nomes diferentes.
+### 10.3. Lock inconsistente
 
-### 9.5. Mestura de código de proba e produción
+Hai accións de escritura, como `actualizarPublicacionFoto` e `gardarRutasFotoR2`, que non adquiren lock no despachador. Debe verificarse se bloquean internamente.
 
-`configurarProba`, `WEB_TEST_EMAIL`, `actualizarObservacions` e funcións manuais de comprobación comparten ficheiro co despachador de produción.
+### 10.4. Rexistro síncrono
 
-### 9.6. Lock global potencialmente excesivo
+`rexistrarAcceso()` fai `appendRow()` e `SpreadsheetApp.flush()` durante numerosas peticións. Isto engade latencia e pode explicar parte dos tempos de espera.
 
-O `ScriptLock` úsase en operacións de escritura, pero debe revisarse que non se adquira antes de lecturas custosas nin se manteña máis tempo do necesario.
+### 10.5. IDs embebidos
 
-### 9.7. Rexistro síncrono
+Varios IDs de libros, follas e carpetas están escritos directamente no código. Deben trasladarse progresivamente a configuración central, sen tratar os IDs públicos como segredos.
 
-`rexistrarAcceso()` fai `appendRow()` e `flush()`. Isto engade latencia ás peticións nas que se utiliza.
+### 10.6. Drive e Base64
 
-### 9.8. Drive e Base64
+Os fluxos de Repertorio e Documentación aínda transportan ficheiros completos desde Drive en Base64. Isto incumpre o patrón obxectivo do Framework SCPP.
 
-Documentación aínda le os ficheiros en Drive e os converte a Base64. Este patrón queda declarado como temporal e debe desaparecer coa migración a R2.
+### 10.7. Compatibilidade con `Row ID`
 
-## 10. Clasificación proposta dos ficheiros
+O código novo xa prioriza IDs estables, pero aínda conserva compatibilidade con `Row ID` nalgúns módulos. Esta compatibilidade debe ter unha data de retirada.
 
-| Grupo | Contido |
+### 10.8. Nomenclatura de voces
+
+No repertorio aínda aparece `Contraalto`, mentres a nomenclatura actual é `Contralto`. Debe revisarse a normalización para evitar agrupacións inconsistentes.
+
+## 11. Clasificación proposta dos ficheiros
+
+| Prefixo | Grupo |
 |---|---|
-| `00-core` | `doGet`, `doPost`, resposta JSON, validación do token |
-| `10-auth` | UsuariosWeb, perfís, permisos e niveis |
-| `20-audit` | Rexistro de accesos e trazabilidade |
-| `30-aceptacion` | RGPD e aceptación legal |
-| `40-persoas` | perfil e administración de persoas |
-| `50-documentacion` | documentos e actas |
-| `60-fotos` | subida, revisión, galería e publicación |
-| `70-repertorio` | obras, audios e partituras |
-| `80-concertos` | concertos e asistencias |
-| `90-tests` | probas manuais, diagnósticos e migracións |
+| `00-` | Core HTTP e despachador |
+| `10-` | Identidade, UsuariosWeb e permisos |
+| `20-` | Auditoría |
+| `30-` | Aceptación legal |
+| `40-` | Perfil e Persoas |
+| `50-` | Documentación e Actas |
+| `60-` | Fotografías |
+| `70-` | Repertorio, Partituras e Audios |
+| `80-` | Concertos e Asistencias |
+| `90-` | Probas, diagnósticos e migracións |
 
-Esta clasificación é documental; non se renomearán ficheiros no proxecto real ata completar o inventario.
+Esta clasificación é documental. Non se renomeará nada no editor de produción ata completar as probas.
 
-## 11. Contrato futuro do despachador
+## 12. Contrato futuro do despachador
 
-O despachador debe limitarse a:
+O `doPost` futuro debe:
 
-1. interpretar JSON;
-2. validar `WEB_WRITE_TOKEN`;
-3. normalizar `accion`, `email` e identificadores;
-4. consultar un mapa explícito de accións;
-5. aplicar lock só cando a acción o requira;
-6. chamar unha única función de módulo;
-7. devolver JSON consistente;
-8. rexistrar métricas e erros sen ocultar a etapa real.
+1. interpretar a entrada;
+2. validar o token;
+3. normalizar identidade e acción;
+4. consultar un mapa de accións;
+5. aplicar lock segundo configuración;
+6. chamar unha función de módulo;
+7. devolver unha resposta uniforme;
+8. rexistrar métricas e auditoría sen bloquear a resposta máis do necesario.
 
-O despachador non debe conter lóxica de negocio extensa.
+Exemplo conceptual:
 
-## 12. Datos pendentes para completar o inventario
+```javascript
+const ACCIONS = {
+  listarPersoasAdministracion: {
+    handler: listarPersoasAdministracion_,
+    lock: false,
+    modulo: 'Administración'
+  }
+};
+```
 
-Para converter este documento en inventario definitivo é necesario obter do editor real de Apps Script:
+## 13. Pendentes para pechar o inventario
 
-1. nome exacto de todos os ficheiros do proxecto;
-2. contido actual de `Código.gs`;
-3. mapa completo de accións de `doPost`;
-4. lista de propiedades do script, sen valores secretos;
-5. implementación activa e número/descrición da versión;
-6. zona horaria do proxecto;
-7. servizos avanzados habilitados;
-8. desencadeadores instalados;
-9. funcións duplicadas entre ficheiros;
-10. módulos presentes no editor que non están en GitHub.
+1. Capturar a lista exacta de ficheiros visibles no editor.
+2. Copiar ou exportar cada ficheiro actual.
+3. Detectar funcións duplicadas entre ficheiros.
+4. Confirmar nomes das propiedades de script desde Configuración do proxecto.
+5. Confirmar zona horaria.
+6. Confirmar servizos avanzados.
+7. Confirmar desencadeadores instalados.
+8. Confirmar implementación activa e versión publicada.
+9. Versionar en GitHub unha copia canónica completa do proxecto Apps Script.
 
-## 13. Próxima acción segura
+## 14. Próxima acción segura
 
-Non se debe substituír nin reorganizar o proxecto real aínda.
+Non reorganizar aínda o proxecto de produción.
 
-O seguinte paso é copiar ou exportar os ficheiros actuais do editor de Apps Script e comparalos co inventario. Unha vez feita esa comparación, crearase en GitHub unha copia canónica do proxecto e un despachador documentado, sen modificar a implementación pública ata superar as probas de compatibilidade.
+O seguinte paso é obter a lista de ficheiros do editor e comparala coas funcións referenciadas por `Código.gs`. Con esa lista poderemos crear un mapa exacto:
+
+```text
+acción → función → ficheiro → Sheets/Drive/R2 → Worker consumidor
+```
+
+Despois prepararase unha copia canónica en GitHub e unha refactorización por fases, sempre mantendo a implementación pública actual ata superar probas de compatibilidade.
