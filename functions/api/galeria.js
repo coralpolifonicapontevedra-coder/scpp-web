@@ -17,6 +17,20 @@ function primeiraRuta(...valores) {
     .find(Boolean) || '';
 }
 
+function versionFoto(foto = {}, idFoto = '') {
+  const valor = primeiraRuta(
+    foto.dataPublicacionPublica,
+    foto.Data_Publicacion_Publica,
+    foto.dataRevision,
+    foto.Data_Revision,
+    foto.dataSubida,
+    foto.DataSubida,
+    idFoto
+  );
+
+  return encodeURIComponent(valor || idFoto || '1');
+}
+
 function normalizarFoto(foto = {}) {
   const idFoto = primeiraRuta(
     foto.idFoto,
@@ -33,12 +47,16 @@ function normalizarFoto(foto = {}) {
     foto.RutaR2
   );
 
+  const rutaCodificada = rutaR2
+    ? rutaR2.split('/').map(encodeURIComponent).join('/')
+    : '';
+
   return {
     ...foto,
     idFoto,
     rutaR2Publica: rutaR2,
-    urlPublica: rutaR2
-      ? `/arquivos/publico/${rutaR2.split('/').map(encodeURIComponent).join('/')}`
+    urlPublica: rutaCodificada
+      ? `/arquivos/publico/${rutaCodificada}?v=${versionFoto(foto, idFoto)}`
       : ''
   };
 }
