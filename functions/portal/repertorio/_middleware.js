@@ -4,10 +4,13 @@ export async function onRequest(context) {
   if (!contentType.includes('text/html')) return response;
 
   const html = await response.text();
-  const script = '<script src="/js/repertorio-r2-bridge.js?v=20260802-1"></script>';
+  const scripts = [
+    '<script src="/js/repertorio-r2-bridge.js?v=20260802-1"></script>',
+    '<script src="/js/repertorio-direct-api.js?v=20260803-1"></script>'
+  ].join('');
   const body = html.includes('</body>')
-    ? html.replace('</body>', `${script}</body>`)
-    : `${html}${script}`;
+    ? html.replace('</body>', `${scripts}</body>`)
+    : `${html}${scripts}`;
 
   const headers = new Headers(response.headers);
   headers.delete('Content-Length');
