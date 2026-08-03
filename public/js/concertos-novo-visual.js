@@ -102,6 +102,47 @@ function prepararDialogo() {
 
 let concertosVisual = new Map();
 
+function aplicarMiniaturas() {
+  document.querySelectorAll('.concert-square[data-id]').forEach((tarxeta) => {
+    if (!(tarxeta instanceof HTMLButtonElement)) return;
+
+    const id = String(tarxeta.dataset.id || '');
+    const datos = concertosVisual.get(id) || {};
+    const url = cartelPublico(datos.cartel || '');
+
+    let corpo = tarxeta.querySelector('.concert-card-body');
+    if (!(corpo instanceof HTMLElement)) {
+      corpo = document.createElement('span');
+      corpo.className = 'concert-card-body';
+      const nodos = [...tarxeta.childNodes];
+      nodos.forEach((nodo) => corpo.append(nodo));
+      tarxeta.append(corpo);
+    }
+
+    let miniatura = tarxeta.querySelector('.concert-thumb');
+    if (!(miniatura instanceof HTMLImageElement)) {
+      miniatura = document.createElement('img');
+      miniatura.className = 'concert-thumb';
+      miniatura.loading = 'lazy';
+      miniatura.decoding = 'async';
+      tarxeta.insertBefore(miniatura, corpo);
+    }
+
+    miniatura.hidden = !url;
+    if (!url) {
+      miniatura.removeAttribute('src');
+      miniatura.alt = '';
+      return;
+    }
+
+    miniatura.src = url;
+    miniatura.alt = `Cartel de ${tarxeta.querySelector('.square-copy strong')?.textContent || 'concerto'}`;
+    miniatura.onerror = () => {
+      miniatura.hidden = true;
+    };
+  });
+}
+
 async function cargarDatosVisuales() {
   try {
     const resposta = await fetch(`${URL_CONCERTOS_VISUAL}&v=${Date.now()}`, { cache: 'no-store' });
@@ -115,6 +156,7 @@ async function cargarDatosVisuales() {
         hora: valorVisual(fila, 'Hora')
       }
     ]));
+    aplicarMiniaturas();
   } catch (erro) {
     console.warn('Non foi posible cargar os datos visuais dos concertos.', erro);
   }
@@ -164,6 +206,14 @@ function enlazarEventos() {
   }, true);
 }
 
+function observarTarxetas() {
+  const grid = document.querySelector('#grid');
+  if (!(grid instanceof HTMLElement)) return;
+  const observer = new MutationObserver(() => aplicarMiniaturas());
+  observer.observe(grid, { childList: true });
+}
+
 prepararDialogo();
 enlazarEventos();
+observarTarxetas();
 cargarDatosVisuales();
