@@ -9,10 +9,8 @@ export async function onRequestGet({ request, env }) {
   let html = await resposta.text();
 
   const recursos = [
-    '<link rel="stylesheet" href="/css/concertos-novo-visual.css?v=4">',
-    '<link rel="stylesheet" href="/css/concertos-novo-clasico.css?v=1">',
-    '<script type="module" src="/js/concertos-novo-visual.js?v=4"></script>',
-    '<script type="module" src="/js/concertos-novo-clasico.js?v=1"></script>'
+    '<link rel="stylesheet" href="/css/concertos-novo-clasico.css?v=2">',
+    '<script type="module" src="/js/concertos-novo-clasico.js?v=2"></script>'
   ];
 
   recursos.forEach((recurso) => {
