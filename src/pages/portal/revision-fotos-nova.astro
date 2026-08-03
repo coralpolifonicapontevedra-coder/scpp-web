@@ -1,0 +1,303 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Revisión e edición de fotografías" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="revisar" logoutId="review-editor-logout" />
+    <main class="page-main">
+      <header class="page-header">
+        <span>Arquivo fotográfico</span>
+        <h1>Revisión e edición</h1>
+        <p>Edita, completa os datos e publica a fotografía nun único fluxo. O orixinal consérvase sen cambios.</p>
+      </header>
+
+      <section id="state" class="state">Comprobando permisos e fotografías pendentes…</section>
+
+      <section id="shell" hidden>
+        <div class="selector-row">
+          <label><span>Fotografía pendente</span><select id="photo-select"></select></label>
+          <button id="load-photo" type="button">Cargar fotografía</button>
+        </div>
+
+        <div class="workspace">
+          <section class="image-column">
+            <div id="canvas-wrap" class="canvas-wrap">
+              <canvas id="editor-canvas"></canvas>
+              <div id="crop-box" class="crop-box" hidden></div>
+            </div>
+
+            <div class="tools" aria-label="Ferramentas de edición">
+              <button data-tool="rotate-left" type="button">↺ Girar esquerda</button>
+              <button data-tool="rotate-right" type="button">↻ Girar dereita</button>
+              <button data-tool="flip-x" type="button">↔ Voltear horizontal</button>
+              <button data-tool="flip-y" type="button">↕ Voltear vertical</button>
+              <button id="start-crop" type="button">✂ Seleccionar recorte</button>
+              <button id="apply-crop" type="button" disabled>Aplicar recorte</button>
+              <button id="reset-photo" type="button">Restablecer orixinal</button>
+            </div>
+          </section>
+
+          <aside class="review-column">
+            <section class="field-group">
+              <h2>Datos da fotografía</h2>
+              <label><span>Título ou descrición</span><input id="title" maxlength="120" /></label>
+              <label><span>Pé de foto</span><textarea id="caption" rows="3" maxlength="600"></textarea></label>
+              <label><span>Observacións privadas</span><textarea id="notes" rows="3" maxlength="500"></textarea></label>
+            </section>
+
+            <section class="field-group">
+              <h2>Destino da publicación</h2>
+              <label class="check"><input id="publish-public" type="checkbox" /><span><strong>Galería pública</strong><small>Visible para calquera visitante</small></span></label>
+              <label class="check secondary"><input id="featured-public" type="checkbox" disabled /><span>Destacar na galería pública</span></label>
+              <label class="check"><input id="publish-private" type="checkbox" /><span><strong>Galería privada</strong><small>Visible para persoas autorizadas</small></span></label>
+              <label class="check secondary"><input id="featured-private" type="checkbox" disabled /><span>Destacar na galería privada</span></label>
+            </section>
+
+            <section class="actions">
+              <button id="save-draft" type="button">Guardar borrador editado</button>
+              <button id="publish" class="primary" type="button">Publicar edición</button>
+            </section>
+
+            <div class="status-grid">
+              <div><span>R2</span><strong id="r2-status">Sin guardar</strong></div>
+              <div><span>Sheet</span><strong id="sheet-status">Sin sincronizar</strong></div>
+            </div>
+            <p id="message" class="message" role="status" aria-live="polite"></p>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const state = document.querySelector('#state');
+  const shell = document.querySelector('#shell');
+  const select = document.querySelector('#photo-select');
+  const canvas = document.querySelector('#editor-canvas');
+  const wrap = document.querySelector('#canvas-wrap');
+  const cropBox = document.querySelector('#crop-box');
+  const applyCrop = document.querySelector('#apply-crop');
+  const message = document.querySelector('#message');
+  const r2Status = document.querySelector('#r2-status');
+  const sheetStatus = document.querySelector('#sheet-status');
+  const publishPublic = document.querySelector('#publish-public');
+  const publishPrivate = document.querySelector('#publish-private');
+  const featuredPublic = document.querySelector('#featured-public');
+  const featuredPrivate = document.querySelector('#featured-private');
+  const ctx = canvas instanceof HTMLCanvasElement ? canvas.getContext('2d') : null;
+
+  let idToken = '';
+  let fotos = [];
+  let actual = null;
+  let original = null;
+  let mimeType = 'image/jpeg';
+  let cropMode = false;
+  let cropStart = null;
+  let cropRect = null;
+  let polling = 0;
+
+  const texto = (v='') => String(v ?? '').trim();
+  const escapar = (v='') => texto(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+
+  function setMessage(value='', error=false) {
+    if (!(message instanceof HTMLElement)) return;
+    message.textContent = value;
+    message.dataset.error = error ? 'true' : 'false';
+  }
+
+  async function api(url, body) {
+    const response = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      cache:'no-store',
+      body:JSON.stringify({ idToken, ...body })
+    });
+    const result = await response.json().catch(()=>null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || `HTTP ${response.status}`);
+    return result;
+  }
+
+  function drawImage(image) {
+    if (!(canvas instanceof HTMLCanvasElement) || !ctx) return;
+    const maxW = 1500, maxH = 1050;
+    const scale = Math.min(1, maxW/image.width, maxH/image.height);
+    canvas.width = Math.max(1, Math.round(image.width*scale));
+    canvas.height = Math.max(1, Math.round(image.height*scale));
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(image,0,0,canvas.width,canvas.height);
+  }
+
+  function imageFromCanvas() {
+    return new Promise((resolve,reject)=>{
+      if (!(canvas instanceof HTMLCanvasElement)) return reject(new Error('Canvas non dispoñible'));
+      const image = new Image();
+      image.onload = ()=>resolve(image);
+      image.onerror = ()=>reject(new Error('Non se puido reconstruír a imaxe'));
+      image.src = canvas.toDataURL('image/jpeg',.92);
+    });
+  }
+
+  async function rotate(degrees) {
+    if (!(canvas instanceof HTMLCanvasElement) || !ctx) return;
+    const source = await imageFromCanvas();
+    const swap = Math.abs(degrees)%180===90;
+    const temp = document.createElement('canvas');
+    temp.width = swap ? source.height : source.width;
+    temp.height = swap ? source.width : source.height;
+    const t = temp.getContext('2d');
+    if (!t) return;
+    t.translate(temp.width/2,temp.height/2);
+    t.rotate(degrees*Math.PI/180);
+    t.drawImage(source,-source.width/2,-source.height/2);
+    canvas.width=temp.width; canvas.height=temp.height;
+    ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(temp,0,0);
+    resetCrop();
+  }
+
+  async function flip(axis) {
+    if (!(canvas instanceof HTMLCanvasElement) || !ctx) return;
+    const source = await imageFromCanvas();
+    ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.translate(canvas.width/2,canvas.height/2);
+    ctx.scale(axis==='x'?-1:1,axis==='y'?-1:1);
+    ctx.drawImage(source,-canvas.width/2,-canvas.height/2);
+    ctx.setTransform(1,0,0,1,0,0);
+    resetCrop();
+  }
+
+  function resetCrop() {
+    cropMode=false; cropStart=null; cropRect=null;
+    if (cropBox instanceof HTMLElement) cropBox.hidden=true;
+    if (applyCrop instanceof HTMLButtonElement) applyCrop.disabled=true;
+    wrap?.classList.remove('is-cropping');
+  }
+
+  function pointerPosition(event) {
+    if (!(canvas instanceof HTMLCanvasElement)) return {x:0,y:0};
+    const rect=canvas.getBoundingClientRect();
+    return {x:Math.max(0,Math.min(rect.width,event.clientX-rect.left)),y:Math.max(0,Math.min(rect.height,event.clientY-rect.top))};
+  }
+
+  function drawCropBox() {
+    if (!(cropBox instanceof HTMLElement) || !cropRect) return;
+    cropBox.hidden=false;
+    cropBox.style.left=`${cropRect.x}px`; cropBox.style.top=`${cropRect.y}px`;
+    cropBox.style.width=`${cropRect.w}px`; cropBox.style.height=`${cropRect.h}px`;
+  }
+
+  function loadFields() {
+    const value=(selector,v)=>{const e=document.querySelector(selector); if(e instanceof HTMLInputElement||e instanceof HTMLTextAreaElement)e.value=texto(v)};
+    value('#title',actual?.titulo); value('#caption',actual?.peFoto); value('#notes',actual?.observacions);
+    if (publishPublic instanceof HTMLInputElement) publishPublic.checked=actual?.publicarPublica===true;
+    if (publishPrivate instanceof HTMLInputElement) publishPrivate.checked=actual?.publicarPrivada===true;
+    updateFeatured();
+  }
+
+  function updateFeatured() {
+    if (featuredPublic instanceof HTMLInputElement && publishPublic instanceof HTMLInputElement) {featuredPublic.disabled=!publishPublic.checked;if(!publishPublic.checked)featuredPublic.checked=false;}
+    if (featuredPrivate instanceof HTMLInputElement && publishPrivate instanceof HTMLInputElement) {featuredPrivate.disabled=!publishPrivate.checked;if(!publishPrivate.checked)featuredPrivate.checked=false;}
+  }
+
+  async function loadSelected() {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const id=select.value;
+    actual=fotos.find(f=>texto(f.rowId||f.idFoto)===id);
+    if(!actual)return;
+    setMessage('Cargando o orixinal…');
+    const result=await api('/api/editor-fotos',{accion:'obterOriginal',idFoto:id});
+    mimeType=result.mimeType||'image/jpeg';
+    const image=new Image();
+    image.onload=()=>{original=image;drawImage(image);resetCrop();loadFields();setMessage('Fotografía preparada para editar.');};
+    image.onerror=()=>setMessage('Non se puido abrir a fotografía.',true);
+    image.src=`data:${mimeType};base64,${result.base64}`;
+  }
+
+  function fieldValue(id) { const e=document.querySelector(id); return e instanceof HTMLInputElement||e instanceof HTMLTextAreaElement ? e.value : ''; }
+
+  async function save(publish) {
+    if (!(canvas instanceof HTMLCanvasElement) || !actual) return;
+    const publica=publish && publishPublic instanceof HTMLInputElement && publishPublic.checked;
+    const privada=publish && publishPrivate instanceof HTMLInputElement && publishPrivate.checked;
+    if(publish&&!publica&&!privada){setMessage('Selecciona a galería pública, a privada ou ambas.',true);return;}
+    setMessage('Gardando a versión editada en R2…');
+    if(r2Status instanceof HTMLElement)r2Status.textContent='Gardando';
+    if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='En espera';
+    const base64=canvas.toDataURL('image/jpeg',.9).split(',')[1]||'';
+    try{
+      const result=await api('/api/editor-fotos',{
+        accion:'gardarEdicion',idFoto:texto(actual.rowId||actual.idFoto),mimeType:'image/jpeg',base64,
+        estado:'Aprobada',titulo:fieldValue('#title'),peFoto:fieldValue('#caption'),observacions:fieldValue('#notes'),
+        publicarPublica:publica,publicarPrivada:privada,
+        destacadaPublica:publica&&featuredPublic instanceof HTMLInputElement&&featuredPublic.checked,
+        destacadaPrivada:privada&&featuredPrivate instanceof HTMLInputElement&&featuredPrivate.checked
+      });
+      if(r2Status instanceof HTMLElement)r2Status.textContent='Gardado';
+      if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='Sincronizando';
+      setMessage(result.mensaxe||'Edición gardada.');
+      startPolling();
+    }catch(error){if(r2Status instanceof HTMLElement)r2Status.textContent='Erro';setMessage(error instanceof Error?error.message:'Non se puido gardar.',true);}
+  }
+
+  function startPolling(){
+    if(polling)window.clearInterval(polling);
+    const id=texto(actual?.rowId||actual?.idFoto);
+    let tries=0;
+    polling=window.setInterval(async()=>{
+      tries+=1;
+      try{
+        const result=await api('/api/editor-fotos',{accion:'estadoSincronizacion',idFoto:id});
+        if(sheetStatus instanceof HTMLElement)sheetStatus.textContent=result.estado==='sincronizada'?'Sincronizada':result.estado==='erro'?'Erro':'Sincronizando';
+        if(result.estado==='sincronizada'){setMessage('Edición gardada en R2 e Sheet sincronizada.');window.clearInterval(polling);polling=0;}
+        if(result.estado==='erro'){setMessage(`A edición está en R2, pero a Sheet deu erro: ${result.erro||''}`,true);window.clearInterval(polling);polling=0;}
+      }catch{}
+      if(tries>=20&&polling){window.clearInterval(polling);polling=0;}
+    },2000);
+  }
+
+  onAuthStateChanged(auth,async user=>{
+    if(!user?.email)return window.location.replace('/portal/');
+    try{
+      idToken=await user.getIdToken(true);
+      const result=await api('/api/fotos',{accion:'listarFotosRevision'});
+      fotos=Array.isArray(result.fotos)?result.fotos:[];
+      if(select instanceof HTMLSelectElement)select.innerHTML=fotos.map((f,i)=>`<option value="${escapar(texto(f.rowId||f.idFoto))}">${escapar(texto(f.titulo||f.nomeFicheiro||`Fotografía ${i+1}`))}</option>`).join('');
+      if(state instanceof HTMLElement)state.hidden=true;
+      if(shell instanceof HTMLElement)shell.hidden=false;
+      if(fotos.length)await loadSelected();else setMessage('Non hai fotografías pendentes de revisión.');
+    }catch(error){if(state instanceof HTMLElement)state.textContent=error instanceof Error?error.message:'Non se puido abrir o módulo.';}
+  });
+
+  document.querySelector('#load-photo')?.addEventListener('click',loadSelected);
+  document.querySelectorAll('[data-tool]').forEach(button=>button.addEventListener('click',async()=>{const tool=button.getAttribute('data-tool');if(tool==='rotate-left')await rotate(-90);if(tool==='rotate-right')await rotate(90);if(tool==='flip-x')await flip('x');if(tool==='flip-y')await flip('y');}));
+  document.querySelector('#start-crop')?.addEventListener('click',()=>{cropMode=true;cropRect=null;wrap?.classList.add('is-cropping');setMessage('Arrastra sobre a imaxe para seleccionar o recorte.');});
+  canvas?.addEventListener('pointerdown',event=>{if(!cropMode||!(canvas instanceof HTMLCanvasElement))return;canvas.setPointerCapture(event.pointerId);cropStart=pointerPosition(event);cropRect={x:cropStart.x,y:cropStart.y,w:0,h:0};drawCropBox();});
+  canvas?.addEventListener('pointermove',event=>{if(!cropMode||!cropStart)return;const p=pointerPosition(event);cropRect={x:Math.min(cropStart.x,p.x),y:Math.min(cropStart.y,p.y),w:Math.abs(p.x-cropStart.x),h:Math.abs(p.y-cropStart.y)};drawCropBox();});
+  canvas?.addEventListener('pointerup',()=>{if(applyCrop instanceof HTMLButtonElement)applyCrop.disabled=!cropRect||cropRect.w<10||cropRect.h<10;});
+  applyCrop?.addEventListener('click',()=>{if(!(canvas instanceof HTMLCanvasElement)||!ctx||!cropRect)return;const rect=canvas.getBoundingClientRect();const sx=canvas.width/rect.width,sy=canvas.height/rect.height;const x=Math.round(cropRect.x*sx),y=Math.round(cropRect.y*sy),w=Math.round(cropRect.w*sx),h=Math.round(cropRect.h*sy);const data=ctx.getImageData(x,y,w,h);canvas.width=w;canvas.height=h;ctx.putImageData(data,0,0);resetCrop();setMessage('Recorte aplicado.');});
+  document.querySelector('#reset-photo')?.addEventListener('click',()=>{if(original){drawImage(original);resetCrop();setMessage('Recuperouse o orixinal.');}});
+  publishPublic?.addEventListener('change',updateFeatured);publishPrivate?.addEventListener('change',updateFeatured);
+  document.querySelector('#save-draft')?.addEventListener('click',()=>save(false));
+  document.querySelector('#publish')?.addEventListener('click',()=>save(true));
+  document.querySelector('#review-editor-logout')?.addEventListener('click',async()=>{await signOut(auth);window.location.href='/portal/';});
+</script>
+
+<style>
+  :global(body){background:#f5f3f0}.private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh}.page-main{padding:2.5rem clamp(1rem,3.5vw,3.5rem) 5rem;font-family:Aptos,'Segoe UI',Arial,sans-serif}.page-header>span{color:var(--color-acento);font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.page-header h1{margin:.35rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,3.4vw,3rem);font-weight:400}.page-header p{max-width:760px;margin:0 0 1.5rem;color:#655f5b}.state,.selector-row,.image-column,.review-column{border:1px solid #ddd7d2;background:#fff}.state{padding:1rem}.selector-row{display:flex;gap:1rem;align-items:end;padding:1rem;margin-bottom:1rem}.selector-row label{display:grid;gap:.35rem;flex:1}.selector-row span,.field-group h2,.field-group label>span,.status-grid span{font-size:.67rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}.selector-row select,.selector-row button,input,textarea,.tools button,.actions button{font:inherit}.selector-row select,.selector-row button{min-height:2.6rem;padding:.6rem .75rem;border:1px solid #cfc7c1;background:#fff}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:1rem}.image-column{padding:1rem;background:#ebe7e2}.canvas-wrap{position:relative;display:grid;min-height:540px;place-items:center}.canvas-wrap canvas{display:block;max-width:100%;max-height:72vh;background:#fff;box-shadow:0 8px 28px rgba(30,24,20,.12);touch-action:none}.canvas-wrap.is-cropping canvas{cursor:crosshair}.crop-box{position:absolute;border:2px solid #fff;outline:1px solid #6d2032;background:rgba(109,32,50,.12);pointer-events:none}.tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin-top:1rem}.tools button,.actions button{min-height:2.6rem;padding:.55rem .7rem;border:1px solid #cfc7c1;background:#fff;color:#4b4642;cursor:pointer}.review-column{padding:1rem;align-self:start}.field-group+.field-group{margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid #e5e0dc}.field-group h2{margin:0 0 .8rem;color:var(--color-principal)}.field-group label:not(.check){display:grid;gap:.35rem;margin-bottom:.8rem}.field-group input,.field-group textarea{width:100%;padding:.65rem;border:1px solid #d4cec9;background:#fff}.check{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:start;padding:.65rem 0}.check input{margin-top:.18rem}.check span{display:grid;gap:.15rem;text-transform:none;letter-spacing:0}.check strong{font-weight:600}.check small{color:#6b6561}.check.secondary{padding:.25rem 0 .7rem 1.65rem}.actions{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1.2rem}.actions .primary{background:var(--color-principal);color:#fff;border-color:var(--color-principal)}.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1rem}.status-grid div{display:grid;gap:.2rem;padding:.65rem;border:1px solid #e1dcd7;background:#faf8f6}.status-grid strong{font-size:.82rem;font-weight:600}.message{min-height:2.6rem;margin:1rem 0 0;padding:.7rem;border-left:3px solid var(--color-acento);background:#faf8f6;font-size:.82rem}.message[data-error='true']{border-left-color:#a12b2b;color:#842323}@media(max-width:1050px){.private-layout{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.review-column{width:100%}}@media(max-width:650px){.selector-row{flex-direction:column;align-items:stretch}.tools{grid-template-columns:1fr 1fr}.actions{grid-template-columns:1fr}.canvas-wrap{min-height:320px}.status-grid{grid-template-columns:1fr}}
+</style>
