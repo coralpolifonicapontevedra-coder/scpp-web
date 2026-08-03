@@ -3,6 +3,91 @@
   const supportedPoster = /\.(?:jpe?g|png|webp)$/i;
   const thumbnailSuffix = '.thumb.webp';
 
+  const installMobileAgendaStyles = () => {
+    if (document.querySelector('#agenda-mobile-layout-fix')) return;
+
+    const style = document.createElement('style');
+    style.id = 'agenda-mobile-layout-fix';
+    style.textContent = `
+      @media (max-width: 650px) {
+        .agenda-page .concert-card.has-poster {
+          display: flex !important;
+          flex-direction: column !important;
+          grid-template-columns: none !important;
+          gap: 1.25rem !important;
+          width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        .agenda-page .concert-card.has-poster .poster-thumb {
+          order: -1;
+          width: 100% !important;
+          max-width: none !important;
+          margin: 0 auto !important;
+        }
+
+        .agenda-page .concert-card.has-poster .poster-thumb img {
+          width: min(100%, 320px) !important;
+          max-width: 320px !important;
+          max-height: none !important;
+          margin: 0 auto !important;
+          object-fit: contain !important;
+        }
+
+        .agenda-page .concert-card.has-poster .poster-thumb span {
+          margin-top: .55rem !important;
+          font-size: .8rem !important;
+        }
+
+        .agenda-page .concert-card .concert-content,
+        .agenda-page .concert-card .description,
+        .agenda-page .concert-card .programa,
+        .agenda-page .concert-card .documentos {
+          width: 100% !important;
+          max-width: none !important;
+          min-width: 0 !important;
+        }
+
+        .agenda-page .concert-card .description {
+          margin-right: 0 !important;
+          margin-left: 0 !important;
+          line-height: 1.65 !important;
+          overflow-wrap: normal !important;
+          word-break: normal !important;
+          hyphens: none !important;
+        }
+
+        .agenda-page .concert-card .concert-meta {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: .55rem !important;
+        }
+
+        .agenda-page .historical-item.has-poster .historical-main {
+          display: flex !important;
+          flex-direction: column !important;
+          grid-template-columns: none !important;
+          gap: 1rem !important;
+        }
+
+        .agenda-page .historical-item.has-poster .poster-thumb {
+          order: -1;
+          width: 100% !important;
+          max-width: none !important;
+        }
+
+        .agenda-page .historical-item.has-poster .poster-thumb img {
+          width: min(100%, 280px) !important;
+          max-width: 280px !important;
+          max-height: none !important;
+          margin: 0 auto !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  };
+
   const getThumbnailUrl = (source) => {
     try {
       const url = new URL(source, window.location.href);
@@ -47,6 +132,7 @@
   };
 
   const start = () => {
+    installMobileAgendaStyles();
     scan(document);
 
     const observer = new MutationObserver((mutations) => {
