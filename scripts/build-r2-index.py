@@ -16,6 +16,8 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 AUDIO_SHEET_ID = "16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0"
 PARTITURA_SHEET_ID = "18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0"
 OUTPUT = pathlib.Path("functions/_data/repertorio-r2.js")
+EXPECTED_AUDIOS = 219
+EXPECTED_SCORES = 99
 
 
 def credentials():
@@ -112,7 +114,7 @@ def main():
 
     for row in audio_rows:
         record_id = canon(row.get("Id_Audio"))
-        if not truthy(row.get("Activo")) or number(record_id, -1) < 176:
+        if not record_id or not truthy(row.get("Activo")):
             continue
         raw_work_id = str(row.get("NomeObra") or "").strip()
         work_id = canon(raw_work_id)
@@ -130,6 +132,7 @@ def main():
             "voz": row.get("Voz") or "Audio",
             "tipo": row.get("TipoAudio") or "",
             "orde": number(row.get("Orde"), 999),
+            "grupo": row.get("Observacións") or "",
             "ruta": key,
             "r2Key": key,
             "mimeType": row.get("MimeType") or obj.get("ContentType") or "",
@@ -165,10 +168,11 @@ def main():
 
     total_audios = sum(len(x["audios"]) for x in index.values())
     total_scores = sum(len(x["partituras"]) for x in index.values())
-    if missing or total_audios != 231 or total_scores != 99:
+    if missing or total_audios != EXPECTED_AUDIOS or total_scores != EXPECTED_SCORES:
         detalle = "\n".join(missing[:30])
         raise RuntimeError(
-            f"Índice incompleto: audios={total_audios}/231, partituras={total_scores}/99, faltantes={len(missing)}"
+            f"Índice incompleto: audios={total_audios}/{EXPECTED_AUDIOS}, "
+            f"partituras={total_scores}/{EXPECTED_SCORES}, faltantes={len(missing)}"
             + (f"\n{detalle}" if detalle else "")
         )
 
@@ -180,7 +184,10 @@ def main():
         + ";\n",
         encoding="utf-8",
     )
-    print(f"Índice completo: {total_audios} audios, {total_scores} partituras, {len(index)} obras con recursos")
+    print(
+        f"Índice completo: {total_audios} audios, "
+        f"{total_scores} partituras, {len(index)} obras con recursos"
+    )
 
 
 if __name__ == "__main__":
