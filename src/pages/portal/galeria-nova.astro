@@ -1,0 +1,185 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Galería privada" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="galeria" logoutId="gallery-new-logout" />
+    <main class="gallery-main">
+      <header class="gallery-header">
+        <div>
+          <span>Arquivo fotográfico</span>
+          <h1>Galería privada</h1>
+          <p>Fotografías publicadas para as persoas coralistas, servidas desde o arquivo privado de R2.</p>
+        </div>
+        <a href="/portal/fotos/" class="upload-link">＋ Subir fotografías</a>
+      </header>
+
+      <section id="gallery-state" class="gallery-state">Cargando a galería privada…</section>
+
+      <section id="gallery-shell" hidden>
+        <div class="gallery-controls">
+          <label><span>Buscar</span><input id="gallery-search" type="search" placeholder="Título, concerto, lugar ou ano…" /></label>
+          <label><span>Ano</span><select id="gallery-year"><option value="">Todos os anos</option></select></label>
+          <strong id="gallery-count">0 fotografías</strong>
+        </div>
+        <p id="gallery-source" class="gallery-source"></p>
+        <div id="gallery-content" class="gallery-content"></div>
+        <p id="gallery-empty" class="gallery-empty" hidden>Non hai fotografías que coincidan coa busca.</p>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="viewer" class="viewer" aria-labelledby="viewer-title">
+    <button id="viewer-close" class="viewer-close" type="button" aria-label="Pechar">×</button>
+    <div class="viewer-photo"><img id="viewer-image" alt="" /></div>
+    <div class="viewer-copy">
+      <small id="viewer-position"></small>
+      <h2 id="viewer-title"></h2>
+      <p id="viewer-description"></p>
+      <dl>
+        <div><dt>Data</dt><dd id="viewer-date"></dd></div>
+        <div><dt>Lugar</dt><dd id="viewer-place"></dd></div>
+        <div><dt>Autoría</dt><dd id="viewer-author"></dd></div>
+      </dl>
+      <div class="viewer-actions"><button id="viewer-prev" type="button">← Anterior</button><button id="viewer-next" type="button">Seguinte →</button></div>
+    </div>
+  </dialog>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const state = document.querySelector('#gallery-state');
+  const shell = document.querySelector('#gallery-shell');
+  const content = document.querySelector('#gallery-content');
+  const search = document.querySelector('#gallery-search');
+  const year = document.querySelector('#gallery-year');
+  const count = document.querySelector('#gallery-count');
+  const empty = document.querySelector('#gallery-empty');
+  const source = document.querySelector('#gallery-source');
+  const viewer = document.querySelector('#viewer');
+  const viewerImage = document.querySelector('#viewer-image');
+  const logout = document.querySelector('#gallery-new-logout');
+
+  let fotos = [];
+  let visibles = [];
+  let actual = -1;
+  let idToken = '';
+  const urls = new Map();
+
+  const escapar = (v='') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const normalizar = (v='') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  const anoFoto = (f) => String(f.anoAproximado || String(f.data || '').match(/(19|20)\d{2}/)?.[0] || '').trim();
+
+  async function chamar(accion, extra={}) {
+    const r = await fetch('/api/galeria-privada', {
+      method:'POST', headers:{'Content-Type':'application/json'}, cache:'no-store',
+      body:JSON.stringify({ idToken, accion, ...extra })
+    });
+    if (accion === 'imaxe') {
+      if (!r.ok) throw new Error((await r.json().catch(()=>null))?.erro || `HTTP ${r.status}`);
+      return r.blob();
+    }
+    const datos = await r.json().catch(()=>null);
+    if (!r.ok || !datos?.ok) throw new Error(datos?.erro || `HTTP ${r.status}`);
+    return { datos, orixe:r.headers.get('X-SCPP-Galeria-Orige') || '' };
+  }
+
+  async function urlFoto(idFoto) {
+    if (urls.has(idFoto)) return urls.get(idFoto);
+    const blob = await chamar('imaxe', { idFoto });
+    const url = URL.createObjectURL(blob);
+    urls.set(idFoto, url);
+    return url;
+  }
+
+  function gruposFiltrados() {
+    const q = normalizar(search instanceof HTMLInputElement ? search.value : '');
+    const a = year instanceof HTMLSelectElement ? year.value : '';
+    visibles = fotos.filter((f) => {
+      const texto = normalizar([f.titulo,f.grupo,f.peFoto,f.concerto,f.evento,f.lugar,f.data,f.anoAproximado,f.autor].join(' '));
+      return (!q || texto.includes(q)) && (!a || anoFoto(f) === a);
+    });
+    const mapa = new Map();
+    visibles.forEach((f) => {
+      const chave = f.grupo || f.evento || f.concerto || f.peFoto || 'Arquivo fotográfico';
+      if (!mapa.has(chave)) mapa.set(chave, []);
+      mapa.get(chave).push(f);
+    });
+    return mapa;
+  }
+
+  function pintar() {
+    if (!(content instanceof HTMLElement)) return;
+    const grupos = gruposFiltrados();
+    if (count instanceof HTMLElement) count.textContent = `${visibles.length} ${visibles.length === 1 ? 'fotografía' : 'fotografías'}`;
+    if (empty instanceof HTMLElement) empty.hidden = visibles.length > 0;
+    content.innerHTML = [...grupos.entries()].map(([grupo, items]) => `<article class="album">
+      <header><div><small>${escapar(items[0]?.data || items[0]?.anoAproximado || '')}${items[0]?.lugar ? ` · ${escapar(items[0].lugar)}` : ''}</small><h2>${escapar(grupo)}</h2></div><strong>${items.length}</strong></header>
+      <div class="photo-grid">${items.map((f,i) => `<button type="button" class="photo-card ${i===0?'cover':''}" data-id="${escapar(f.idFoto)}"><span class="photo-frame"><span class="photo-loading">Cargando…</span><img alt="${escapar(f.titulo)}" loading="lazy"></span><span class="photo-label"><b>${escapar(f.titulo)}</b><small>${escapar(f.data || f.anoAproximado || '')}</small></span></button>`).join('')}</div>
+    </article>`).join('');
+
+    content.querySelectorAll('[data-id]').forEach((boton) => {
+      const id = boton.getAttribute('data-id') || '';
+      const img = boton.querySelector('img');
+      const loading = boton.querySelector('.photo-loading');
+      urlFoto(id).then((url) => { if (img instanceof HTMLImageElement) img.src = url; if (loading instanceof HTMLElement) loading.hidden = true; })
+        .catch(() => { if (loading instanceof HTMLElement) loading.textContent = 'Non dispoñible'; });
+    });
+  }
+
+  async function abrir(id) {
+    actual = visibles.findIndex((f) => f.idFoto === id);
+    if (actual < 0 || !(viewer instanceof HTMLDialogElement)) return;
+    const f = visibles[actual];
+    if (viewerImage instanceof HTMLImageElement) { viewerImage.src = await urlFoto(f.idFoto); viewerImage.alt = f.titulo || 'Fotografía'; }
+    const set = (s,v) => { const e=viewer.querySelector(s); if(e) e.textContent=String(v||''); };
+    set('#viewer-position', `${actual+1} de ${visibles.length}`); set('#viewer-title', f.titulo); set('#viewer-description', f.peFoto || f.evento || f.concerto || ''); set('#viewer-date', f.data || f.anoAproximado); set('#viewer-place', f.lugar); set('#viewer-author', f.autor || f.procedencia);
+    viewer.showModal();
+  }
+
+  async function mover(delta) { if (!visibles.length) return; actual=(actual+delta+visibles.length)%visibles.length; await abrir(visibles[actual].idFoto); }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) { window.location.replace('/portal/'); return; }
+    try {
+      idToken = await user.getIdToken(true);
+      const { datos, orixe } = await chamar('listar');
+      fotos = Array.isArray(datos.fotos) ? datos.fotos : [];
+      const anos = [...new Set(fotos.map(anoFoto).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+      if (year instanceof HTMLSelectElement) anos.forEach((a)=>year.insertAdjacentHTML('beforeend', `<option value="${escapar(a)}">${escapar(a)}</option>`));
+      if (source instanceof HTMLElement) source.textContent = `Índice privado: ${orixe || 'R2'} · ${datos.total || fotos.length} fotografías`;
+      pintar();
+      if (state instanceof HTMLElement) state.hidden = true;
+      if (shell instanceof HTMLElement) shell.hidden = false;
+    } catch (erro) {
+      if (state instanceof HTMLElement) state.textContent = `Non foi posible cargar a galería: ${erro instanceof Error ? erro.message : erro}`;
+    }
+  });
+
+  content?.addEventListener('click', (e)=>{ const t=e.target; if(!(t instanceof Element)) return; const b=t.closest('[data-id]'); if(b) abrir(b.getAttribute('data-id')||''); });
+  search?.addEventListener('input', pintar); year?.addEventListener('change', pintar);
+  document.querySelector('#viewer-close')?.addEventListener('click',()=>viewer instanceof HTMLDialogElement&&viewer.close());
+  document.querySelector('#viewer-prev')?.addEventListener('click',()=>mover(-1));
+  document.querySelector('#viewer-next')?.addEventListener('click',()=>mover(1));
+  viewer?.addEventListener('click',(e)=>{ if(e.target===viewer && viewer instanceof HTMLDialogElement) viewer.close(); });
+  logout?.addEventListener('click',async()=>{ await signOut(auth); window.location.href='/portal/'; });
+  window.addEventListener('beforeunload',()=>urls.forEach((url)=>URL.revokeObjectURL(url)));
+</script>
+
+<style>
+  :global(body){background:#f5f3f0}.private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh}.gallery-main{width:100%;max-width:1500px;margin:0 auto;padding:2.7rem clamp(1.3rem,4vw,4.2rem) 5rem;font-family:Aptos,'Segoe UI',Arial,sans-serif}.gallery-header{display:flex;justify-content:space-between;gap:2rem;margin-bottom:2rem}.gallery-header>div>span{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase}.gallery-header h1{margin:.3rem 0 .5rem;color:var(--color-principal);font-size:clamp(2.2rem,4vw,3.7rem);font-weight:500}.gallery-header p{max-width:760px;margin:0;color:#625d59}.upload-link{align-self:start;padding:.7rem 1rem;border:1px solid var(--color-principal);color:var(--color-principal);font-size:.78rem;font-weight:700;text-decoration:none}.gallery-state,.gallery-controls{padding:1rem;border:1px solid #ddd8d3;background:#fff}.gallery-controls{display:grid;grid-template-columns:minmax(240px,1fr) 180px auto;gap:1rem;align-items:end}.gallery-controls label{display:grid;gap:.35rem}.gallery-controls span{font-size:.68rem;font-weight:800;text-transform:uppercase}.gallery-controls input,.gallery-controls select{min-height:2.55rem;padding:.55rem .7rem;border:1px solid #d7d1cc;background:#fff;font:inherit}.gallery-controls strong{padding-bottom:.65rem;color:var(--color-principal);font-size:.8rem}.gallery-source{margin:.65rem 0 1.2rem;color:#77706b;font-size:.7rem}.gallery-content{display:grid;gap:1.4rem}.album{padding:1rem;border:1px solid #ddd7d2;background:#fff}.album>header{display:flex;justify-content:space-between;gap:1rem;margin-bottom:1rem}.album small{color:#817a75}.album h2{margin:.2rem 0;color:#332f2c;font-size:1.15rem}.album>header>strong{color:var(--color-principal)}.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem}.photo-card{padding:0;border:1px solid #ddd7d2;background:#fff;text-align:left;cursor:pointer}.photo-frame{position:relative;display:grid;height:170px;place-items:center;overflow:hidden;background:#eeeae6}.photo-frame img{width:100%;height:100%;object-fit:contain}.photo-loading{position:absolute;color:#777;font-size:.7rem}.photo-label{display:grid;gap:.2rem;padding:.65rem}.photo-label b{font-size:.76rem}.photo-label small{font-size:.66rem}.viewer{width:min(1100px,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;border:0;background:#fff}.viewer::backdrop{background:rgba(20,18,17,.8)}.viewer-close{position:absolute;top:.5rem;right:.65rem;z-index:2;border:0;background:#fff;color:var(--color-principal);font-size:1.8rem}.viewer-photo{display:grid;min-height:60vh;place-items:center;background:#eeeae6}.viewer-photo img{max-width:100%;max-height:72vh;object-fit:contain}.viewer-copy{padding:1rem 1.2rem}.viewer-copy h2{margin:.3rem 0;color:#302c29}.viewer-copy dl{display:flex;flex-wrap:wrap;gap:1rem}.viewer-copy dl div{display:grid;gap:.15rem}.viewer-copy dt{font-size:.65rem;font-weight:800;text-transform:uppercase}.viewer-copy dd{margin:0;font-size:.78rem}.viewer-actions{display:flex;justify-content:space-between;margin-top:1rem}.viewer-actions button{padding:.55rem .8rem;border:1px solid var(--color-principal);background:#fff;color:var(--color-principal)}.gallery-empty{padding:2rem;text-align:center}@media(max-width:900px){.private-layout{grid-template-columns:1fr}.gallery-controls{grid-template-columns:1fr 160px}}@media(max-width:620px){.gallery-header{flex-direction:column}.gallery-controls{grid-template-columns:1fr}.photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.photo-frame{height:140px}}
+</style>
