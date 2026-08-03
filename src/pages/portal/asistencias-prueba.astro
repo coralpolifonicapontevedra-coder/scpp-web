@@ -1,0 +1,171 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Proba de asistencias" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="concertos" logoutId="proba-logout" />
+
+    <main class="proba-main">
+      <header>
+        <span>Diagnóstico provisional</span>
+        <h1>Proba de asistentes</h1>
+        <p>Esta páxina non carga concertos, programas, repertorio nin cachés. Só comproba a autenticación e consulta directamente as asistencias.</p>
+      </header>
+
+      <section id="estado" class="panel">Agardando pola sesión…</section>
+
+      <section id="resumo" class="panel" hidden>
+        <dl>
+          <div><dt>Conta</dt><dd id="email">—</dd></div>
+          <div><dt>Estado HTTP</dt><dd id="http">—</dd></div>
+          <div><dt>Tempo</dt><dd id="tempo">—</dd></div>
+          <div><dt>Concertos con asistentes</dt><dd id="concertos">—</dd></div>
+          <div><dt>Asistentes do concerto 2</dt><dd id="concerto2">—</dd></div>
+          <div><dt>Implementación Apps Script</dt><dd id="implementacion">—</dd></div>
+        </dl>
+      </section>
+
+      <section id="datos" class="panel" hidden>
+        <h2>Primeiros asistentes do concerto 2</h2>
+        <ol id="lista"></ol>
+      </section>
+
+      <section id="erro" class="panel erro" hidden>
+        <h2>Erro da consulta</h2>
+        <pre id="mensaxe"></pre>
+      </section>
+
+      <button id="repetir" type="button" hidden>Repetir a proba</button>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const estado = document.querySelector('#estado');
+  const resumo = document.querySelector('#resumo');
+  const datos = document.querySelector('#datos');
+  const erro = document.querySelector('#erro');
+  const repetir = document.querySelector('#repetir');
+  const logout = document.querySelector('#proba-logout');
+
+  const poñerTexto = (id, valor) => {
+    const elemento = document.querySelector(id);
+    if (elemento) elemento.textContent = String(valor ?? '—');
+  };
+
+  async function executarProba(user) {
+    if (estado) estado.textContent = 'Consultando as asistencias…';
+    if (resumo instanceof HTMLElement) resumo.hidden = true;
+    if (datos instanceof HTMLElement) datos.hidden = true;
+    if (erro instanceof HTMLElement) erro.hidden = true;
+    if (repetir instanceof HTMLButtonElement) repetir.hidden = true;
+
+    const inicio = performance.now();
+
+    try {
+      const idToken = await user.getIdToken(true);
+      const response = await fetch(`/api/asistencias-concertos?proba=${Date.now()}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ idToken }),
+        cache: 'no-store'
+      });
+
+      const tempo = Math.round(performance.now() - inicio);
+      const texto = await response.text();
+      let resultado = null;
+      try {
+        resultado = JSON.parse(texto);
+      } catch {
+        throw new Error(`HTTP ${response.status}. Resposta non JSON: ${texto.slice(0, 500)}`);
+      }
+
+      if (!response.ok || resultado?.ok !== true) {
+        throw new Error(`HTTP ${response.status}: ${resultado?.erro || 'erro sen detalle'}`);
+      }
+
+      const porConcerto = resultado.asistenciasPorConcerto || {};
+      const concerto2 = Array.isArray(porConcerto['2']) ? porConcerto['2'] : [];
+
+      poñerTexto('#email', user.email || '');
+      poñerTexto('#http', response.status);
+      poñerTexto('#tempo', `${tempo} ms`);
+      poñerTexto('#concertos', Object.keys(porConcerto).length);
+      poñerTexto('#concerto2', concerto2.length);
+      poñerTexto('#implementacion', response.headers.get('X-SCPP-AppScript') || 'sen cabeceira');
+
+      const lista = document.querySelector('#lista');
+      if (lista) {
+        lista.replaceChildren(...concerto2.slice(0, 10).map((persoa) => {
+          const item = document.createElement('li');
+          item.textContent = `${persoa.nome || ''} — ${persoa.voz || ''}`;
+          return item;
+        }));
+      }
+
+      if (estado) estado.textContent = 'Consulta completada correctamente.';
+      if (resumo instanceof HTMLElement) resumo.hidden = false;
+      if (datos instanceof HTMLElement) datos.hidden = false;
+    } catch (e) {
+      if (estado) estado.textContent = 'A consulta fallou.';
+      poñerTexto('#mensaxe', e instanceof Error ? e.message : String(e));
+      if (erro instanceof HTMLElement) erro.hidden = false;
+    } finally {
+      if (repetir instanceof HTMLButtonElement) repetir.hidden = false;
+    }
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user?.email) {
+      window.location.replace('/portal/');
+      return;
+    }
+    executarProba(user);
+  });
+
+  repetir?.addEventListener('click', () => {
+    const user = auth.currentUser;
+    if (user) executarProba(user);
+  });
+
+  logout?.addEventListener('click', async () => {
+    await signOut(auth);
+    window.location.href = '/portal/';
+  });
+</script>
+
+<style>
+  .private-layout { display:grid; grid-template-columns:282px minmax(0,1fr); min-height:100vh; background:#fff; }
+  .proba-main { box-sizing:border-box; width:100%; max-width:1000px; padding:3rem clamp(1rem,4vw,4rem); font-family:Aptos,'Segoe UI',Arial,sans-serif; }
+  header span { color:var(--color-principal); font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  h1 { margin:.35rem 0 .5rem; color:var(--color-principal); }
+  header p { max-width:760px; color:#625d59; line-height:1.6; }
+  .panel { margin-top:1.2rem; padding:1rem 1.1rem; border:1px solid #ddd8d3; background:#faf9f7; }
+  dl { display:grid; gap:.5rem; margin:0; }
+  dl div { display:grid; grid-template-columns:220px minmax(0,1fr); gap:1rem; padding:.45rem 0; border-bottom:1px solid #e7e3df; }
+  dt { color:#716a65; }
+  dd { margin:0; color:#342f2c; font-weight:700; }
+  .erro { border-color:#8f3348; background:#fff7f8; }
+  pre { white-space:pre-wrap; word-break:break-word; }
+  button { margin-top:1rem; padding:.65rem .9rem; border:1px solid var(--color-principal); background:var(--color-principal); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+  @media(max-width:900px){ .private-layout{grid-template-columns:1fr}.proba-main{padding:2rem 1rem} }
+  @media(max-width:600px){ dl div{grid-template-columns:1fr;gap:.2rem} }
+</style>
