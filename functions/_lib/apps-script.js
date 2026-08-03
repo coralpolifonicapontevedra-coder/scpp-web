@@ -2,7 +2,7 @@ const URL_RESPALDO_SCPP = 'https://script.google.com/macros/s/AKfycbwKBDO5bvPxlX
 
 const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
 
-const ACCIONS_FOTOS_SO_PRINCIPAL = new Set([
+const ACCIONS_SO_PRINCIPAL = new Set([
   'subirFoto',
   'actualizarRevisionFoto',
   'actualizarPublicacionFoto',
@@ -10,7 +10,8 @@ const ACCIONS_FOTOS_SO_PRINCIPAL = new Set([
   'gardarRutasFotoR2',
   'listarFotosGaleria',
   'listarFotosPublicadas',
-  'listarFotosPendentesR2'
+  'listarFotosPendentesR2',
+  'listarAsistenciasConcertosPortal'
 ]);
 
 export class AppsScriptError extends Error {
@@ -48,7 +49,7 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const expectJson = options.expectJson === true;
   const urlsConfiguradas = urlsAppsScript(env);
   const accion = String(corpo?.accion || '').trim();
-  const urls = ACCIONS_FOTOS_SO_PRINCIPAL.has(accion)
+  const urls = ACCIONS_SO_PRINCIPAL.has(accion)
     ? urlsConfiguradas.slice(0, 1)
     : urlsConfiguradas;
 
