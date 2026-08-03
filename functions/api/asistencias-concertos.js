@@ -39,8 +39,23 @@ export async function onRequest({ request, env }) {
     return json(405, { ok: false, erro: 'Método non permitido' });
   }
 
+  const url = new URL(request.url);
+  const modoProba = url.searchParams.has('proba');
+  const inicio = Date.now();
+
   if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
-    return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
+    return json(500, {
+      ok: false,
+      erro: 'O servizo non está configurado correctamente.',
+      ...(modoProba ? {
+        diagnostico: {
+          fase: 'configuracion',
+          webWriteToken: Boolean(env.WEB_WRITE_TOKEN),
+          firebaseApiKey: Boolean(env.FIREBASE_API_KEY),
+          appsScriptPrincipal: Boolean(env.APPS_SCRIPT_WEBAPP_URL)
+        }
+      } : {})
+    });
   }
 
   let datos;
@@ -55,6 +70,18 @@ export async function onRequest({ request, env }) {
     usuario = await verificarTokenFirebase(datos.idToken, env.FIREBASE_API_KEY);
   } catch (erro) {
     console.error('Erro ao validar Firebase para asistencias:', erro);
+    if (modoProba) {
+      return json(503, {
+        ok: false,
+        erro: 'Fallou a validación da sesión de Firebase.',
+        diagnostico: {
+          fase: 'firebase',
+          tipo: erro instanceof Error ? erro.name : 'Erro descoñecido',
+          mensaxe: erro instanceof Error ? erro.message : String(erro),
+          tempoMs: Date.now() - inicio
+        }
+      });
+    }
   }
 
   if (!usuario) {
@@ -80,7 +107,15 @@ export async function onRequest({ request, env }) {
     if (!resultado?.ok) {
       return json(resultado?.erro === 'Usuario non autorizado' ? 403 : 400, {
         ok: false,
-        erro: resultado?.erro || 'Non foi posible consultar as asistencias.'
+        erro: resultado?.erro || 'Non foi posible consultar as asistencias.',
+        ...(modoProba ? {
+          diagnostico: {
+            fase: 'apps-script-resposta',
+            intento,
+            usouRespaldo,
+            tempoMs: Date.now() - inicio
+          }
+        } : {})
       });
     }
 
@@ -88,23 +123,53 @@ export async function onRequest({ request, env }) {
     if (!porConcerto || typeof porConcerto !== 'object' || Array.isArray(porConcerto)) {
       return json(502, {
         ok: false,
-        erro: 'A resposta de asistencias non ten o formato esperado.'
+        erro: 'A resposta de asistencias non ten o formato esperado.',
+        ...(modoProba ? {
+          diagnostico: {
+            fase: 'formato',
+            clavesResultado: Object.keys(resultado || {}),
+            tempoMs: Date.now() - inicio
+          }
+        } : {})
       });
     }
 
-    return json(200, resultado, {
+    return json(200, {
+      ...resultado,
+      ...(modoProba ? {
+        diagnostico: {
+          fase: 'completada',
+          intento,
+          usouRespaldo,
+          tempoMs: Date.now() - inicio
+        }
+      } : {})
+    }, {
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
       'X-SCPP-AppScript-Attempt': String(intento),
-      'X-SCPP-Concertos-Con-Asistencias': String(Object.keys(porConcerto).length)
+      'X-SCPP-Concertos-Con-Asistencias': String(Object.keys(porConcerto).length),
+      'X-SCPP-Tempo-Ms': String(Date.now() - inicio)
     });
   } catch (erro) {
     console.error('Erro no servizo directo de asistencias:', erro);
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT'
       ? 504
       : 503;
+
     return json(status, {
       ok: false,
-      erro: 'O servizo de asistencias non está dispoñible neste momento.'
+      erro: 'O servizo de asistencias non está dispoñible neste momento.',
+      ...(modoProba ? {
+        diagnostico: {
+          fase: 'chamada-apps-script',
+          codigo: erro instanceof AppsScriptError ? erro.code : 'ERRO_NON_CLASIFICADO',
+          estadoExterno: erro instanceof AppsScriptError ? erro.status : 0,
+          tipo: erro instanceof Error ? erro.name : 'Erro descoñecido',
+          mensaxe: erro instanceof Error ? erro.message : String(erro),
+          appsScriptPrincipalConfigurado: Boolean(env.APPS_SCRIPT_WEBAPP_URL),
+          tempoMs: Date.now() - inicio
+        }
+      } : {})
     });
   }
 }
