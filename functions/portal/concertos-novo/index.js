@@ -10,6 +10,7 @@ export async function onRequestGet({ request, env }) {
 
   const recursos = [
     '<link rel="stylesheet" href="/css/concertos-novo-clasico.css?v=2">',
+    '<link rel="stylesheet" href="/css/concertos-novo-informe.css?v=1">',
     '<script type="module" src="/js/concertos-novo-clasico.js?v=2"></script>'
   ];
 
