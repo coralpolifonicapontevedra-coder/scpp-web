@@ -3,38 +3,44 @@ import BaseLayout from '../../../layouts/Layout.astro';
 import PortalSidebar from '../../../components/PortalSidebar.astro';
 ---
 
-<BaseLayout title="Administración · Persoas" lang="gl">
+<BaseLayout title="Administración de persoas" lang="gl">
   <div class="private-layout">
-    <PortalSidebar active="administracion" logoutId="persoas-admin-logout" />
+    <PortalSidebar active="administracion" logoutId="persoas-v2-logout" />
+
     <main class="people-main">
       <header class="private-page-header">
         <div>
           <span class="section-kicker">Administración</span>
           <h1>Xestión de persoas</h1>
-          <p>Consulta restrinxida dos datos persoais e da ficha escaneada das persoas vinculadas á Sociedade.</p>
+          <p>Consulta restrinxida dos datos persoais e das fichas escaneadas servidas desde R2.</p>
         </div>
-        <div class="account-card" aria-label="Conta e nivel de acceso">
+        <div class="account-card">
           <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
           <span><small>Nivel de acceso</small><strong id="user-level">Comprobando…</strong></span>
         </div>
       </header>
 
-      <section id="loading" class="portal-state">Comprobando permisos e cargando persoas…</section>
-      <section id="error-state" class="portal-state error-state" hidden>
-        <strong>Non foi posible abrir a administración de persoas</strong>
+      <section id="loading" class="state-box">Comprobando permisos e cargando persoas…</section>
+
+      <section id="error-state" class="state-box error-box" hidden>
+        <strong>Non foi posible abrir a administración</strong>
+        <p id="error-stage"></p>
         <p id="error-message"></p>
         <button id="retry-button" type="button">Tentar de novo</button>
       </section>
 
       <section id="people-app" class="people-app" hidden>
-        <label class="person-selector">
-          <span>Seleccionar persoa</span>
-          <select id="person-select">
-            <option value="">Escolle unha persoa…</option>
-          </select>
-        </label>
+        <div class="toolbar">
+          <label>
+            <span>Seleccionar persoa</span>
+            <select id="person-select">
+              <option value="">Escolle unha persoa…</option>
+            </select>
+          </label>
+          <p id="people-count"></p>
+        </div>
 
-        <section id="empty-selection" class="empty-selection">
+        <section id="empty-selection" class="state-box">
           Selecciona unha persoa para consultar os seus datos.
         </section>
 
@@ -47,7 +53,6 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
             </div>
             <button id="open-file" type="button" hidden>Ver ficha escaneada</button>
           </header>
-
           <div id="person-sections" class="person-sections"></div>
         </article>
       </section>
@@ -56,15 +61,17 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 </BaseLayout>
 
 <script>
-  import { auth, closePortalSession, portalRequest, readPortalSession, savePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+  import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
 
   const q = (selector) => document.querySelector(selector);
   const loading = q('#loading');
-  const app = q('#people-app');
   const errorState = q('#error-state');
+  const errorStage = q('#error-stage');
   const errorMessage = q('#error-message');
   const retryButton = q('#retry-button');
+  const app = q('#people-app');
   const select = q('#person-select');
+  const countNode = q('#people-count');
   const emptySelection = q('#empty-selection');
   const card = q('#person-card');
   const nameNode = q('#person-name');
@@ -74,137 +81,245 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   const openFileButton = q('#open-file');
   const emailNode = q('#user-email');
   const levelNode = q('#user-level');
-  const logout = q('#persoas-admin-logout');
+  const logout = q('#persoas-v2-logout');
 
   let persoas = [];
   let selected = null;
   let fileUrl = '';
 
-  const field = (label, value, options = {}) => ({ label, value, ...options });
-  const clean = (value) => value === true ? 'Si' : value === false ? 'Non' : String(value || '').trim();
+  const clean = (value) => value === true
+    ? 'Si'
+    : value === false
+      ? 'Non'
+      : String(value ?? '').trim();
 
-  function showProfile(profile) {
-    if (emailNode instanceof HTMLElement) emailNode.textContent = profile?.email || auth.currentUser?.email || '—';
-    if (levelNode instanceof HTMLElement) levelNode.textContent = profile?.nivel || '—';
+  async function requestV2(action, extra = {}, blob = false) {
+    const user = auth.currentUser;
+    if (!user?.email) {
+      throw Object.assign(new Error('A sesión non está activa.'), { stage: 'AUTH' });
+    }
+
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/persoas-v2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: action, ...extra })
+    });
+
+    if (blob && response.ok) return response.blob();
+
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      const error = new Error(result?.erro || `Erro HTTP ${response.status}`);
+      error.stage = result?.etapa || 'HTTP';
+      error.code = result?.codigo || '';
+      throw error;
+    }
+    return result;
   }
 
-  function section(title, fields, options = {}) {
-    const visibleFields = options.showEmpty ? fields : fields.filter((item) => clean(item.value));
-    if (!visibleFields.length) return null;
-    const box = document.createElement('section');
-    box.className = 'data-section';
-    if (options.className) box.classList.add(options.className);
+  function showError(error) {
+    if (loading instanceof HTMLElement) loading.hidden = true;
+    if (app instanceof HTMLElement) app.hidden = true;
+    if (errorState instanceof HTMLElement) errorState.hidden = false;
+    if (errorStage instanceof HTMLElement) {
+      const stage = error?.stage || 'DESCOÑECIDA';
+      const code = error?.code ? ` · ${error.code}` : '';
+      errorStage.textContent = `Etapa: ${stage}${code}`;
+    }
+    if (errorMessage instanceof HTMLElement) {
+      errorMessage.textContent = error instanceof Error
+        ? error.message
+        : 'Produciuse un erro inesperado.';
+    }
+  }
+
+  function dataSection(title, fields, options = {}) {
+    const visible = options.showEmpty
+      ? fields
+      : fields.filter((item) => clean(item.value));
+
+    if (!visible.length) return null;
+
+    const section = document.createElement('section');
+    section.className = 'data-section';
+    if (options.className) section.classList.add(options.className);
+
     const heading = document.createElement('h3');
     heading.textContent = title;
-    const grid = document.createElement('dl');
-    visibleFields.forEach((item) => {
+    const dl = document.createElement('dl');
+
+    visible.forEach(({ label, value, wide }) => {
       const wrapper = document.createElement('div');
-      if (item.wide) wrapper.className = 'is-wide';
+      if (wide) wrapper.className = 'is-wide';
+
       const dt = document.createElement('dt');
       const dd = document.createElement('dd');
-      dt.textContent = item.label;
-      dd.textContent = clean(item.value) || 'Sen indicar';
+      dt.textContent = label;
+      dd.textContent = clean(value) || 'Sen indicar';
       wrapper.append(dt, dd);
-      grid.append(wrapper);
+      dl.append(wrapper);
     });
-    box.append(heading, grid);
-    return box;
+
+    section.append(heading, dl);
+    return section;
   }
 
   function drawPerson() {
     if (!(select instanceof HTMLSelectElement)) return;
-    selected = persoas.find((item) => item.rowId === select.value) || null;
-    if (emptySelection instanceof HTMLElement) emptySelection.hidden = Boolean(selected);
+
+    selected = persoas.find(
+      (item) => String(item.idPersoa || item.id) === select.value
+    ) || null;
+
+    if (emptySelection instanceof HTMLElement) {
+      emptySelection.hidden = Boolean(selected);
+    }
     if (!(card instanceof HTMLElement)) return;
+
     card.hidden = !selected;
     if (!selected) return;
 
-    if (nameNode instanceof HTMLElement) nameNode.textContent = selected.nomeCompleto || 'Persoa sen nome';
-    if (summaryNode instanceof HTMLElement) summaryNode.textContent = [selected.voz, selected.tipoSocio, selected.cargo].filter(Boolean).join(' · ');
+    if (nameNode instanceof HTMLElement) {
+      nameNode.textContent = selected.nomeCompleto || 'Persoa sen nome';
+    }
+    if (summaryNode instanceof HTMLElement) {
+      summaryNode.textContent = [selected.voz, selected.tipoSocio, selected.cargo]
+        .filter(Boolean)
+        .join(' · ');
+    }
     if (statusNode instanceof HTMLElement) {
       statusNode.textContent = selected.activo ? 'Activa' : 'Baixa';
       statusNode.classList.toggle('is-inactive', !selected.activo);
     }
-    if (openFileButton instanceof HTMLButtonElement) openFileButton.hidden = !selected.ficha;
+    if (openFileButton instanceof HTMLButtonElement) {
+      openFileButton.hidden = selected.fichaDisponibleR2 !== true;
+    }
 
     if (!(sectionsNode instanceof HTMLElement)) return;
     sectionsNode.replaceChildren();
+
     [
-      section('Identificación', [
-        field('Nome', selected.nome), field('Primeiro apelido', selected.primeiroApelido),
-        field('Segundo apelido', selected.segundoApelido), field('NIF', selected.nif),
-        field('Data de nacemento', selected.dataNacemento), field('Identificador', selected.id)
+      dataSection('Identificación', [
+        { label: 'Nome', value: selected.nome },
+        { label: 'Primeiro apelido', value: selected.primeiroApelido },
+        { label: 'Segundo apelido', value: selected.segundoApelido },
+        { label: 'NIF', value: selected.nif },
+        { label: 'Data de nacemento', value: selected.dataNacemento },
+        { label: 'Identificador', value: selected.idPersoa || selected.id }
       ]),
-      section('Contacto e domicilio', [
-        field('Teléfono', selected.telefono), field('Correo electrónico', selected.correo),
-        field('Enderezo', selected.enderezo, { wide: true }), field('Cidade', selected.cidade), field('Código postal', selected.cp)
+      dataSection('Contacto e domicilio', [
+        { label: 'Teléfono', value: selected.telefono },
+        { label: 'Correo electrónico', value: selected.correo },
+        { label: 'Enderezo', value: selected.enderezo, wide: true },
+        { label: 'Cidade', value: selected.cidade },
+        { label: 'Código postal', value: selected.cp }
       ]),
-      section('Datos de emerxencia', [
-        field('Persoa de contacto en caso de emerxencia', selected.contactoEmerxencia, { wide: true }),
-        field('Teléfono de emerxencia', selected.telefonoEmerxencia)
-      ], { showEmpty: true, className: 'emergency-section' }),
-      section('Relación coa Coral', [
-        field('Voz', selected.voz), field('Tipo de socio', selected.tipoSocio), field('Cargo', selected.cargo),
-        field('Data de incorporación', selected.dataIncorporacion), field('Activo', selected.activo), field('Mostrar na web', selected.mostrarWeb)
+      dataSection('Contacto de emerxencia', [
+        {
+          label: 'Persoa de contacto en caso de emerxencia',
+          value: selected.contactoEmerxencia,
+          wide: true
+        },
+        {
+          label: 'Teléfono de emerxencia',
+          value: selected.telefonoEmerxencia
+        }
+      ], {
+        showEmpty: true,
+        className: 'emergency-section'
+      }),
+      dataSection('Relación coa Coral', [
+        { label: 'Voz', value: selected.voz },
+        { label: 'Tipo de socio', value: selected.tipoSocio },
+        { label: 'Cargo', value: selected.cargo },
+        { label: 'Data de incorporación', value: selected.dataIncorporacion },
+        { label: 'Estado da ficha R2', value: selected.fichaR2Estado }
       ]),
-      section('Preferencias e consentimentos', [
-        field('Preferencia de comunicación', selected.preferenciaComunicacion),
-        field('Consentimento de fotografías', selected.consentimentoFoto),
-        field('Mostrar aniversario', selected.mostrarAniversario)
-      ]),
-      section('Información interna', [
-        field('Observacións', selected.observacions, { wide: true }),
-        field('Observacións privadas', selected.observacionsPrivadas, { wide: true }),
-        field('Última actualización', selected.dataActualizacion), field('Actualizado por', selected.actualizadoPor)
+      dataSection('Información interna', [
+        { label: 'Observacións', value: selected.observacions, wide: true },
+        { label: 'Observacións privadas', value: selected.observacionsPrivadas, wide: true }
       ])
     ].filter(Boolean).forEach((node) => sectionsNode.append(node));
-  }
-
-  async function openFile() {
-    if (!selected?.rowId || !(openFileButton instanceof HTMLButtonElement)) return;
-    const previous = openFileButton.textContent;
-    openFileButton.disabled = true;
-    openFileButton.textContent = 'Abrindo…';
-    try {
-      const blob = await portalRequest('/api/persoas', 'obterFichaPersoaAdministracion', { rowId: selected.rowId }, { blob: true });
-      if (fileUrl) URL.revokeObjectURL(fileUrl);
-      fileUrl = URL.createObjectURL(blob);
-      window.open(fileUrl, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Non foi posible abrir a ficha.');
-    } finally {
-      openFileButton.disabled = false;
-      openFileButton.textContent = previous || 'Ver ficha escaneada';
-    }
   }
 
   async function loadPeople() {
     if (loading instanceof HTMLElement) loading.hidden = false;
     if (errorState instanceof HTMLElement) errorState.hidden = true;
     if (app instanceof HTMLElement) app.hidden = true;
+
     try {
-      const result = await portalRequest('/api/persoas', 'listarPersoasAdministracion');
-      const profile = savePortalSession(result.perfil || { email: auth.currentUser?.email, nivel: 'Administración' });
-      showProfile(profile);
-      if (profile.nivel !== 'Administración') throw new Error('Non tes permiso para acceder a esta sección.');
+      const result = await requestV2('listarPersoasAdministracion');
+
+      if (emailNode instanceof HTMLElement) {
+        emailNode.textContent = result.perfil?.email || auth.currentUser?.email || '—';
+      }
+      if (levelNode instanceof HTMLElement) {
+        levelNode.textContent = result.perfil?.nivel || '—';
+      }
+      if (result.perfil?.nivel !== 'Administración') {
+        throw Object.assign(
+          new Error('Non tes permiso para acceder a esta sección.'),
+          { stage: 'PERMISOS' }
+        );
+      }
+
       persoas = Array.isArray(result.persoas) ? result.persoas : [];
+
       if (select instanceof HTMLSelectElement) {
         select.replaceChildren(new Option('Escolle unha persoa…', ''));
-        persoas.forEach((item) => select.add(new Option(item.etiqueta || item.nomeCompleto, item.rowId)));
+        persoas.forEach((item) => {
+          const id = String(item.idPersoa || item.id || '');
+          if (id) select.add(new Option(item.etiqueta || item.nomeCompleto, id));
+        });
+      }
+
+      if (countNode instanceof HTMLElement) {
+        countNode.textContent = `${persoas.length} persoas cargadas`;
       }
       if (loading instanceof HTMLElement) loading.hidden = true;
       if (app instanceof HTMLElement) app.hidden = false;
     } catch (error) {
-      if (loading instanceof HTMLElement) loading.hidden = true;
-      if (errorState instanceof HTMLElement) errorState.hidden = false;
-      if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Produciuse un erro inesperado.';
+      showError(error);
     }
   }
 
-  const cached = readPortalSession();
-  if (cached) showProfile(cached);
+  async function openFile() {
+    const idPersoa = String(selected?.idPersoa || selected?.id || '');
+    if (!idPersoa || !(openFileButton instanceof HTMLButtonElement)) return;
+
+    const previous = openFileButton.textContent;
+    openFileButton.disabled = true;
+    openFileButton.textContent = 'Abrindo…';
+
+    try {
+      const blob = await requestV2(
+        'obterFichaPersoaAdministracion',
+        { idPersoa },
+        true
+      );
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
+      fileUrl = URL.createObjectURL(blob);
+      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      window.alert(
+        `${error?.stage ? `[${error.stage}] ` : ''}${
+          error instanceof Error
+            ? error.message
+            : 'Non foi posible abrir a ficha.'
+        }`
+      );
+    } finally {
+      openFileButton.disabled = false;
+      openFileButton.textContent = previous || 'Ver ficha escaneada';
+    }
+  }
+
   waitForPortalUser().then((user) => {
-    if (!user?.email) { window.location.href = '/portal/'; return; }
+    if (!user?.email) {
+      window.location.href = '/portal/';
+      return;
+    }
     loadPeople();
   });
 
@@ -212,7 +327,9 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   openFileButton?.addEventListener('click', openFile);
   retryButton?.addEventListener('click', loadPeople);
   logout?.addEventListener('click', () => closePortalSession());
-  window.addEventListener('beforeunload', () => { if (fileUrl) URL.revokeObjectURL(fileUrl); });
+  window.addEventListener('beforeunload', () => {
+    if (fileUrl) URL.revokeObjectURL(fileUrl);
+  });
 </script>
 
 <style is:global>
@@ -221,48 +338,42 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   .people-main { flex: 1; min-width: 0; padding: 2.1rem clamp(1.25rem, 3vw, 3.5rem) 4rem; font-family: var(--fuente-minimalista); }
   .private-page-header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; margin-bottom: 1.8rem; }
   .section-kicker { color: var(--color-acento); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-  h1 { margin: .2rem 0 .55rem; color: var(--color-principal); font-family: var(--fuente-minimalista); font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 700; letter-spacing: -.025em; }
-  .private-page-header p { max-width: 760px; margin: 0; color: #625c58; line-height: 1.65; }
+  h1 { margin: .2rem 0 .55rem; color: var(--color-principal); font-size: clamp(2rem, 4vw, 3.5rem); }
+  .private-page-header p { max-width: 760px; margin: 0; color: #625c58; }
   .account-card { display: grid; gap: .7rem; min-width: 250px; padding: 1rem 1.15rem; border: 1px solid #ded8d3; background: #fff; }
   .account-card span { display: grid; gap: .18rem; }
-  .account-card small { color: #77706b; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-  .account-card strong { overflow-wrap: anywhere; color: #342f2c; font-size: .86rem; }
-  .portal-state, .empty-selection { padding: 1.35rem; border: 1px solid #ded8d3; background: #fff; color: #625c58; }
-  .error-state { border-color: #c9a6a6; }
-  .error-state button, #open-file { margin-top: .8rem; padding: .7rem 1rem; border: 0; border-radius: 4px; background: var(--color-principal); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  .account-card small { color: #77706b; font-size: .68rem; font-weight: 700; text-transform: uppercase; }
+  .state-box { padding: 1.35rem; border: 1px solid #ded8d3; background: #fff; color: #625c58; }
+  .error-box { border-color: #ba8f94; }
+  .error-box button, #open-file { padding: .72rem 1rem; border: 0; border-radius: 4px; background: var(--color-principal); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  #error-stage { color: var(--color-principal); font-weight: 800; }
   .people-app { display: grid; gap: 1.25rem; }
-  .person-selector { display: grid; gap: .45rem; max-width: 720px; }
-  .person-selector span { color: #4f4945; font-size: .78rem; font-weight: 800; text-transform: uppercase; }
-  .person-selector select { width: 100%; min-height: 3rem; padding: .65rem .8rem; border: 1px solid #d6cfca; border-radius: 4px; background: #fff; color: #302b28; font: inherit; }
+  .toolbar { display: flex; gap: 1.5rem; align-items: end; justify-content: space-between; }
+  .toolbar label { display: grid; gap: .45rem; width: min(720px, 100%); }
+  .toolbar label span { font-size: .78rem; font-weight: 800; text-transform: uppercase; }
+  .toolbar select { min-height: 3rem; padding: .65rem .8rem; border: 1px solid #d6cfca; background: #fff; font: inherit; }
+  .toolbar p { margin: 0; color: #736c67; font-size: .82rem; }
   .person-card { border: 1px solid #ded8d3; background: #fff; }
-  .person-card-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; padding: 1.35rem 1.5rem; border-bottom: 1px solid #e5dfda; }
-  .person-card-header h2 { margin: .35rem 0 .3rem; color: var(--color-principal); font-family: var(--fuente-minimalista); font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -.02em; }
-  .person-card-header p { margin: 0; color: #6a625d; }
+  .person-card-header { display: flex; justify-content: space-between; gap: 1.5rem; padding: 1.35rem 1.5rem; border-bottom: 1px solid #e5dfda; }
+  .person-card-header h2 { margin: .35rem 0 .3rem; color: var(--color-principal); font-size: clamp(1.5rem, 3vw, 2.25rem); }
+  #open-file { align-self: start; }
   .status-badge { display: inline-flex; padding: .25rem .55rem; border-radius: 999px; background: #e7efe6; color: #35513a; font-size: .72rem; font-weight: 800; }
   .status-badge.is-inactive { background: #eee8e5; color: #775f55; }
-  #open-file { flex: 0 0 auto; margin: 0; }
   .person-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: #e7e1dc; }
   .data-section { padding: 1.3rem 1.5rem; background: #fff; }
-  .data-section h3 { margin: 0 0 1rem; color: #403936; font-size: 1rem; }
+  .data-section h3 { margin: 0 0 1rem; font-size: 1rem; }
   .data-section dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem 1.2rem; margin: 0; }
-  .data-section dl div { min-width: 0; }
-  .data-section dl .is-wide { grid-column: 1 / -1; }
-  .data-section dt { margin-bottom: .18rem; color: #817873; font-size: .68rem; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; }
-  .data-section dd { margin: 0; overflow-wrap: anywhere; color: #302c29; line-height: 1.45; white-space: pre-wrap; }
-  .emergency-section { box-shadow: inset 3px 0 0 var(--color-principal); background: #fffaf8; }
+  .data-section .is-wide { grid-column: 1 / -1; }
+  .data-section dt { color: #817873; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+  .data-section dd { margin: .15rem 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .emergency-section { background: #fffaf8; box-shadow: inset 4px 0 0 var(--color-principal); }
   .emergency-section h3 { color: var(--color-principal); }
+  .emergency-section dd { min-height: 1.4rem; }
+
   @media (max-width: 900px) {
     .private-layout { display: block; }
-    .private-page-header { display: grid; }
+    .private-page-header, .toolbar { display: grid; }
     .account-card { min-width: 0; }
     .person-sections { grid-template-columns: 1fr; }
-  }
-  @media (max-width: 620px) {
-    .people-main { padding: 1.3rem 1rem 3rem; }
-    .person-card-header { display: grid; padding: 1.1rem; }
-    #open-file { width: 100%; }
-    .data-section { padding: 1.1rem; }
-    .data-section dl { grid-template-columns: 1fr; }
-    .data-section dl .is-wide { grid-column: auto; }
   }
 </style>
