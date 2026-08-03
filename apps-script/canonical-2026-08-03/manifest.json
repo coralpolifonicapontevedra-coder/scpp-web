@@ -1,0 +1,20 @@
+{
+  "snapshot_date": "2026-08-03",
+  "purpose": "Copia fiel previa á modularización do proxecto Apps Script SCPP",
+  "files": [
+    {"name":"Codigo.gs","bytes":47191,"sha256":"b9e9eb23491ee5b35bb79f9cf4ebb5c9b8b495a2f5027fca93d2881fb20ba83a","lines":1987},
+    {"name":"persoas-administracion.gs","bytes":16772,"sha256":"c7cdcbf156a2b4b877c64a5ee73c56c93bdaef38a6541d8d8dc633b93c33c4d6","lines":768},
+    {"name":"documentacion-portal.gs","bytes":15580,"sha256":"35378134484ed4146832a3562fb6929004643400d0410ff4a05be13e649f4c23","lines":798},
+    {"name":"fotos-r2.gs","bytes":12403,"sha256":"5808b2907a67cce7a00c1560b84ef9b5f0edbec51a8db1af8b39bb002ae0ebe2","lines":585},
+    {"name":"fotos-portal.gs","bytes":24062,"sha256":"ed0542814cd09178b5fb0ec216cddf8080cc6fd0cad9e48ae12f3a542d806c07","lines":891},
+    {"name":"perfil-portal.gs","bytes":18080,"sha256":"7aa850a9398a56a0a6a55ab332211b41f039560373ec405278a911a8b00d0e8b","lines":900},
+    {"name":"concertos-portal.gs","bytes":8461,"sha256":"c1659928a8c208a510d6b355d483d36c48c4239b0b8a6178a229df4179d65ba2","lines":309,"source":"reconstruído fielmente desde fragmentos pegados na conversa"},
+    {"name":"solicitudes-web.gs","bytes":7152,"sha256":"5449f2e81162079fcd61ed2bcee1d45fb175ebc059186686446a9ad2690bb68c","lines":220,"source":"reconstruído fielmente desde fragmentos pegados na conversa"},
+    {"name":"asistencias-concertos.gs","bytes":2419,"sha256":"62bc3cd0c6f0b361135999b8e29ffd9159c7dcbb0ffde75723aa6e2639f22878","lines":90,"source":"reconstruído fielmente desde fragmentos pegados na conversa"},
+    {"name":"publicacions-web.gs","bytes":3070,"sha256":"be5ceb886dfe21ad5c3fa06d1b1b1b893b607b63e9c0d289b7b9e8bde97e22ad","lines":128,"source":"reconstruído fielmente desde fragmentos pegados na conversa"},
+    {"name":"sincronizar-medios-concertos-github.gs","bytes":6057,"sha256":"481d8a4e377902611f148c72fdc8f3526918b1b244edf85c3b53c27755f88922","lines":214,"source":"reconstruído fielmente desde fragmentos pegados na conversa"},
+    {"name":"tests-e-migracions.gs","bytes":2977,"sha256":"2b378edd078bb44a6e83e061075bf79bec8cc4788e8c017bff06c43a0dd49f8f","lines":142,"source":"reconstruído fielmente desde fragmentos pegados na conversa"}
+  ],
+  "pending_fragment_modules": [],
+  "status": "snapshot completo dos módulos funcionais identificados"
+}
