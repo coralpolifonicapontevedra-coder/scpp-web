@@ -1,56 +1,23 @@
-export async function onRequestGet({ request, env }) {
-  const resposta = await env.ASSETS.fetch(request);
-  const tipo = String(resposta.headers.get('Content-Type') || '');
+const DESTINO_CONCERTOS = '/portal/concertos-novo/';
 
-  if (!resposta.ok || !tipo.includes('text/html')) {
-    return resposta;
-  }
+function redirixir(request) {
+  const url = new URL(request.url);
+  url.pathname = DESTINO_CONCERTOS;
 
-  let html = await resposta.text();
-
-  // Nesta páxina a única chamada a /api/repertorio é a consulta de asistentes.
-  // A substitución simple funciona tamén sobre o HTML/JS compilado por Astro,
-  // independentemente do espazado ou minificación aplicados durante o build.
-  const rutaAntiga = '/api/repertorio';
-  const rutaNova = '/api/asistencias-concertos';
-  const coincidencias = html.split(rutaAntiga).length - 1;
-  html = html.replaceAll(rutaAntiga, rutaNova);
-
-  const melloras = [
-    '<style>#concert-document-name{display:none!important}</style>',
-    '<script type="module" src="/js/concertos-media.js"></script>',
-    '<script type="module" src="/js/concertos-cards.js"></script>'
-  ];
-
-  melloras.forEach((mellora) => {
-    const src = mellora.match(/src="([^"]+)"/)?.[1] || '';
-    const identificador = src || '#concert-document-name{display:none!important}';
-    if (html.includes(identificador)) return;
-    html = html.includes('</body>')
-      ? html.replace('</body>', `${mellora}</body>`)
-      : `${html}${mellora}`;
-  });
-
-  const cabeceiras = new Headers(resposta.headers);
-  cabeceiras.delete('Content-Length');
-  cabeceiras.delete('Content-Encoding');
-  cabeceiras.delete('ETag');
-  cabeceiras.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-  cabeceiras.set('Pragma', 'no-cache');
-  cabeceiras.set('Expires', '0');
-  cabeceiras.set('X-SCPP-Asistencias-Route', coincidencias > 0 ? 'DIRECTA' : 'NON-ATOPADA');
-  cabeceiras.set('X-SCPP-Asistencias-Replacements', String(coincidencias));
-
-  return new Response(html, {
-    status: resposta.status,
-    statusText: resposta.statusText,
-    headers: cabeceiras
-  });
+  return Response.redirect(url.toString(), 308);
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequestGet({ request }) {
+  return redirixir(request);
+}
+
+export async function onRequestHead({ request }) {
+  return redirixir(request);
+}
+
+export async function onRequest({ request }) {
   if (request.method === 'GET' || request.method === 'HEAD') {
-    return onRequestGet({ request, env });
+    return redirixir(request);
   }
 
   return new Response('Método non permitido', {
