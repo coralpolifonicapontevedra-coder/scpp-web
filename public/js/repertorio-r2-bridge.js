@@ -4,6 +4,7 @@
   const previousFetch = window.fetch.bind(window);
   const IDS_BRAIS_RETIRADOS = new Set(['80', '81', '82', '83', '84', '85', '86']);
   const obrasPorId = new Map();
+  let organizando = false;
 
   for (const key of [
     'scpp:repertorio:completo:v2',
@@ -56,6 +57,17 @@
     ].filter(Boolean).join(' '));
   }
 
+  function tipoOrganizacion(obra) {
+    const titulo = normalizar(obra?.nomeObra ?? obra?.NomeObra ?? obra?.titulo);
+    if (titulo.includes('leucoina')) return 'leucoina';
+    if (titulo.includes('misa brevis') || titulo.includes('missa brevis')) return 'misa-brevis';
+
+    const id = idObra(obra);
+    if (id === '78') return 'leucoina';
+    if (id === '79') return 'misa-brevis';
+    return '';
+  }
+
   function grupoLeucoina(audio) {
     const texto = textoAudio(audio);
     const regras = [
@@ -71,7 +83,7 @@
     return regras.find(([patron]) => patron.test(texto))?.[1] || 'Outros audios';
   }
 
-  function grupoMissaBrevis(audio) {
+  function grupoMisaBrevis(audio) {
     const texto = textoAudio(audio);
     const regras = [
       [/benedictus/, 'Benedictus'],
@@ -84,10 +96,39 @@
     return regras.find(([patron]) => patron.test(texto))?.[1] || 'Outros audios';
   }
 
-  function ordeGrupos(id) {
-    return id === '78'
-      ? ['Escena I', 'Escena II', 'Escena III', 'Escena IIIa', 'Escena IIIb', 'Escena IV', 'Escena V', 'Escena VI', 'Outros audios']
-      : ['Kyrie', 'Gloria', 'Credo', 'Sanctus', 'Benedictus', 'Agnus Dei', 'Outros audios'];
+  function nomeVoz(audio) {
+    const voz = String(audio?.voz || '').trim();
+    if (voz) return voz;
+
+    const texto = textoAudio(audio);
+    const regras = [
+      [/soprano/, 'Soprano'],
+      [/contralto|contraalto|alto/, 'Contralto'],
+      [/tenor/, 'Tenor'],
+      [/baixo|bajo|bass/, 'Baixo'],
+      [/tutti|conxunto|completo/, 'Conxunto']
+    ];
+    return regras.find(([patron]) => patron.test(texto))?.[1] || 'Outras voces';
+  }
+
+  const ORDE_ESCENAS = [
+    'Escena I', 'Escena II', 'Escena III', 'Escena IIIa', 'Escena IIIb',
+    'Escena IV', 'Escena V', 'Escena VI', 'Outros audios'
+  ];
+  const ORDE_MISA = ['Kyrie', 'Gloria', 'Credo', 'Sanctus', 'Benedictus', 'Agnus Dei', 'Outros audios'];
+  const ORDE_VOCES = ['Soprano', 'Contralto', 'Tenor', 'Baixo', 'Conxunto', 'Outras voces'];
+
+  function ordenarNomes(nomes, ordePreferida) {
+    return [...nomes].sort((a, b) => {
+      const ia = ordePreferida.indexOf(a);
+      const ib = ordePreferida.indexOf(b);
+      if (ia !== -1 || ib !== -1) {
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      }
+      return a.localeCompare(b, 'gl');
+    });
   }
 
   function engadirEstilos() {
@@ -104,6 +145,15 @@
         background: rgba(123, 36, 54, .07);
         font-size: .95rem;
       }
+      .audio-voice-group { margin: 0 0 .8rem; }
+      .audio-voice-group:last-child { margin-bottom: 0; }
+      .audio-voice-title {
+        margin: 0 0 .45rem;
+        font-size: .82rem;
+        font-weight: 700;
+        letter-spacing: .02em;
+        color: var(--color-primary, #7b2436);
+      }
       .audio-group-list {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -113,44 +163,92 @@
     document.head.append(style);
   }
 
-  function organizarAudios() {
-    if (!location.pathname.startsWith('/portal/repertorio')) return;
-    const id = canonId(new URL(location.href).searchParams.get('id'));
-    if (!['78', '79'].includes(id)) return;
+  function crearSeccion(tituloTexto) {
+    const seccion = document.createElement('section');
+    seccion.className = 'audio-group';
+    const titulo = document.createElement('h4');
+    titulo.className = 'audio-group-title';
+    titulo.textContent = tituloTexto;
+    seccion.append(titulo);
+    return seccion;
+  }
 
+  function organizarMisaBrevis(audios, tarxetas) {
+    const grupos = new Map();
+    audios.forEach((audio, indice) => {
+      const grupo = grupoMisaBrevis(audio);
+      if (!grupos.has(grupo)) grupos.set(grupo, []);
+      grupos.get(grupo).push(tarxetas[indice]);
+    });
+
+    const fragmento = document.createDocumentFragment();
+    ordenarNomes(grupos.keys(), ORDE_MISA).forEach((grupo) => {
+      const seccion = crearSeccion(grupo);
+      const grella = document.createElement('div');
+      grella.className = 'audio-group-list';
+      grupos.get(grupo).forEach((tarxeta) => grella.append(tarxeta));
+      seccion.append(grella);
+      fragmento.append(seccion);
+    });
+    return fragmento;
+  }
+
+  function organizarLeucoina(audios, tarxetas) {
+    const escenas = new Map();
+    audios.forEach((audio, indice) => {
+      const escena = grupoLeucoina(audio);
+      const voz = nomeVoz(audio);
+      if (!escenas.has(escena)) escenas.set(escena, new Map());
+      const voces = escenas.get(escena);
+      if (!voces.has(voz)) voces.set(voz, []);
+      voces.get(voz).push(tarxetas[indice]);
+    });
+
+    const fragmento = document.createDocumentFragment();
+    ordenarNomes(escenas.keys(), ORDE_ESCENAS).forEach((escena) => {
+      const seccion = crearSeccion(escena);
+      const voces = escenas.get(escena);
+      ordenarNomes(voces.keys(), ORDE_VOCES).forEach((voz) => {
+        const bloqueVoz = document.createElement('div');
+        bloqueVoz.className = 'audio-voice-group';
+        const tituloVoz = document.createElement('h5');
+        tituloVoz.className = 'audio-voice-title';
+        tituloVoz.textContent = voz;
+        const grella = document.createElement('div');
+        grella.className = 'audio-group-list';
+        voces.get(voz).forEach((tarxeta) => grella.append(tarxeta));
+        bloqueVoz.append(tituloVoz, grella);
+        seccion.append(bloqueVoz);
+      });
+      fragmento.append(seccion);
+    });
+    return fragmento;
+  }
+
+  function organizarAudios() {
+    if (organizando || !location.pathname.startsWith('/portal/repertorio')) return;
+    const id = canonId(new URL(location.href).searchParams.get('id'));
     const obra = obrasPorId.get(id);
-    const audios = Array.isArray(obra?.audios) ? obra.audios : [];
+    const tipo = tipoOrganizacion(obra);
+    if (!obra || !tipo) return;
+
+    const audios = Array.isArray(obra.audios) ? obra.audios : [];
     const lista = document.querySelector('#audios-list');
     if (!(lista instanceof HTMLElement) || !audios.length) return;
 
     const tarxetas = Array.from(lista.children).filter((elemento) => elemento.classList.contains('audio-card'));
     if (tarxetas.length !== audios.length) return;
 
-    const clasificar = id === '78' ? grupoLeucoina : grupoMissaBrevis;
-    const grupos = new Map();
-    audios.forEach((audio, indice) => {
-      const nomeGrupo = clasificar(audio);
-      if (!grupos.has(nomeGrupo)) grupos.set(nomeGrupo, []);
-      grupos.get(nomeGrupo).push(tarxetas[indice]);
-    });
-
     engadirEstilos();
-    const fragmento = document.createDocumentFragment();
-    ordeGrupos(id).forEach((nomeGrupo) => {
-      const elementos = grupos.get(nomeGrupo);
-      if (!elementos?.length) return;
-      const seccion = document.createElement('section');
-      seccion.className = 'audio-group';
-      const titulo = document.createElement('h4');
-      titulo.className = 'audio-group-title';
-      titulo.textContent = nomeGrupo;
-      const grella = document.createElement('div');
-      grella.className = 'audio-group-list';
-      elementos.forEach((elemento) => grella.append(elemento));
-      seccion.append(titulo, grella);
-      fragmento.append(seccion);
-    });
-    lista.replaceChildren(fragmento);
+    organizando = true;
+    try {
+      const fragmento = tipo === 'leucoina'
+        ? organizarLeucoina(audios, tarxetas)
+        : organizarMisaBrevis(audios, tarxetas);
+      lista.replaceChildren(fragmento);
+    } finally {
+      organizando = false;
+    }
   }
 
   const observer = new MutationObserver(() => queueMicrotask(organizarAudios));
