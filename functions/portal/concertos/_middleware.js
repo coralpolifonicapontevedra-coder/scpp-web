@@ -4,48 +4,53 @@ export async function onRequest(context) {
   if (!contentType.includes('text/html')) return response;
 
   const html = await response.text();
-  const parche = `<script>
-  (() => {
-    const fetchOriginal = window.fetch.bind(window);
-    window.fetch = async (input, init) => {
-      const url = typeof input === 'string'
-        ? input
-        : input instanceof Request
-          ? input.url
-          : String(input || '');
+  const script = `<script>
+(() => {
+  'use strict';
 
-      if (!url.includes('/api/repertorio') || !init || typeof init.body !== 'string') {
-        return fetchOriginal(input, init);
-      }
+  const fetchOriginal = window.fetch.bind(window);
 
-      let corpo;
-      try {
-        corpo = JSON.parse(init.body);
-      } catch {
-        return fetchOriginal(input, init);
-      }
+  window.fetch = async (input, init) => {
+    const url = typeof input === 'string'
+      ? input
+      : input instanceof Request
+        ? input.url
+        : String(input || '');
 
-      if (corpo?.accion !== 'listarAsistenciasConcertosPortal') {
-        return fetchOriginal(input, init);
-      }
+    if (!url.includes('/api/repertorio') || !init || typeof init.body !== 'string') {
+      return fetchOriginal(input, init);
+    }
 
-      return fetchOriginal('/api/asistencias-concertos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: String(corpo.idToken || '') }),
-        cache: 'no-store'
-      });
-    };
-  })();
-  </script>`;
+    let corpo;
+    try {
+      corpo = JSON.parse(init.body);
+    } catch {
+      return fetchOriginal(input, init);
+    }
+
+    if (corpo?.accion !== 'listarAsistenciasConcertosPortal') {
+      return fetchOriginal(input, init);
+    }
+
+    return fetchOriginal('/api/asistencias-concertos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: String(corpo.idToken || '') }),
+      cache: 'no-store'
+    });
+  };
+})();
+</script>`;
 
   const body = html.includes('<head>')
-    ? html.replace('<head>', `<head>${parche}`)
-    : `${parche}${html}`;
+    ? html.replace('<head>', `<head>${script}`)
+    : `${script}${html}`;
 
   const headers = new Headers(response.headers);
   headers.delete('Content-Length');
-  headers.set('Cache-Control', 'no-store');
+  headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  headers.set('Pragma', 'no-cache');
+  headers.set('Expires', '0');
 
   return new Response(body, {
     status: response.status,
