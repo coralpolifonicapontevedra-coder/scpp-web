@@ -8,7 +8,6 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'actualizarPublicacionFoto',
   'obterFotoParaR2',
   'gardarRutasFotoR2',
-  'listarFotosGaleria',
   'listarFotosPublicadas',
   'listarFotosPendentesR2',
   'listarAsistenciasConcertosPortal'
