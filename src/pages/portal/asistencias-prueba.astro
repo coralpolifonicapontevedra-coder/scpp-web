@@ -16,6 +16,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
       <section id="estado" class="panel">Agardando pola sesión…</section>
 
+      <section id="sen-sesion" class="panel aviso" hidden>
+        <h2>Non se detectou unha sesión nesta pestana</h2>
+        <p>Identifícate no Portal e volve abrir esta páxina na mesma xanela do navegador.</p>
+        <a href="/portal/?continuar=/portal/asistencias-prueba/">Ir ao Portal</a>
+      </section>
+
       <section id="resumo" class="panel" hidden>
         <dl>
           <div><dt>Conta</dt><dd id="email">—</dd></div>
@@ -57,6 +63,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
   const estado = document.querySelector('#estado');
+  const senSesion = document.querySelector('#sen-sesion');
   const resumo = document.querySelector('#resumo');
   const datos = document.querySelector('#datos');
   const erro = document.querySelector('#erro');
@@ -70,6 +77,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   async function executarProba(user) {
     if (estado) estado.textContent = 'Consultando as asistencias…';
+    if (senSesion instanceof HTMLElement) senSesion.hidden = true;
     if (resumo instanceof HTMLElement) resumo.hidden = true;
     if (datos instanceof HTMLElement) datos.hidden = true;
     if (erro instanceof HTMLElement) erro.hidden = true;
@@ -135,7 +143,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   onAuthStateChanged(auth, (user) => {
     if (!user?.email) {
-      window.location.replace('/portal/');
+      if (estado) estado.textContent = 'Non se detectou ningunha sesión nesta pestana.';
+      if (senSesion instanceof HTMLElement) senSesion.hidden = false;
       return;
     }
     executarProba(user);
@@ -159,6 +168,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   h1 { margin:.35rem 0 .5rem; color:var(--color-principal); }
   header p { max-width:760px; color:#625d59; line-height:1.6; }
   .panel { margin-top:1.2rem; padding:1rem 1.1rem; border:1px solid #ddd8d3; background:#faf9f7; }
+  .aviso { border-color:#a18331; background:#fffbef; }
+  .aviso a { display:inline-block; margin-top:.5rem; color:var(--color-principal); font-weight:700; }
   dl { display:grid; gap:.5rem; margin:0; }
   dl div { display:grid; grid-template-columns:220px minmax(0,1fr); gap:1rem; padding:.45rem 0; border-bottom:1px solid #e7e3df; }
   dt { color:#716a65; }
