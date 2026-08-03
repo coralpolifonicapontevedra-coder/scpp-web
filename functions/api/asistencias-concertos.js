@@ -3,6 +3,7 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 const CHAVE_CACHE = 'indices/asistencias-concertos.json';
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
 const CACHE_MAXIMA_MS = 24 * 60 * 60 * 1000;
+const MAX_INTENTOS_APPS_SCRIPT = 3;
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -14,6 +15,8 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
     ...extraHeaders
   }
 });
+
+const agardar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function verificarTokenFirebase(idToken, apiKey) {
   const token = String(idToken || '').trim();
@@ -75,24 +78,23 @@ async function lerCacheR2(bucket) {
 async function gardarCacheR2(bucket, resultado) {
   if (!bucket || typeof bucket.put !== 'function' || !resultadoValido(resultado)) return;
 
-  const corpo = JSON.stringify({
-    gardadoEn: Date.now(),
-    resultado
-  });
-
-  await bucket.put(CHAVE_CACHE, corpo, {
-    httpMetadata: {
-      contentType: 'application/json; charset=utf-8',
-      cacheControl: 'private, no-store'
-    },
-    customMetadata: {
-      tipo: 'indice-asistencias-concertos',
-      version: '1'
+  await bucket.put(
+    CHAVE_CACHE,
+    JSON.stringify({ gardadoEn: Date.now(), resultado }),
+    {
+      httpMetadata: {
+        contentType: 'application/json; charset=utf-8',
+        cacheControl: 'private, no-store'
+      },
+      customMetadata: {
+        tipo: 'indice-asistencias-concertos',
+        version: '1'
+      }
     }
-  });
+  );
 }
 
-async function consultarAppsScript(env, usuario) {
+async function consultarAppsScriptUnhaVez(env, usuario) {
   const { resultado, usouRespaldo, intento } = await obterJsonAppsScript(
     env,
     {
@@ -103,8 +105,8 @@ async function consultarAppsScript(env, usuario) {
       cacheBust: Date.now()
     },
     {
-      timeoutMs: 45_000,
-      attemptTimeoutMs: 18_000
+      timeoutMs: 24_000,
+      attemptTimeoutMs: 24_000
     }
   );
 
@@ -121,6 +123,27 @@ async function consultarAppsScript(env, usuario) {
   }
 
   return { resultado, usouRespaldo, intento };
+}
+
+async function consultarAppsScript(env, usuario) {
+  let ultimoErro = null;
+
+  for (let intentoLocal = 1; intentoLocal <= MAX_INTENTOS_APPS_SCRIPT; intentoLocal += 1) {
+    try {
+      const resposta = await consultarAppsScriptUnhaVez(env, usuario);
+      return { ...resposta, intentoLocal };
+    } catch (erro) {
+      ultimoErro = erro;
+      console.warn(`Fallou o intento ${intentoLocal} de asistencias en Apps Script.`, erro);
+
+      const nonRecuperable = Number(erro?.status) === 400 || Number(erro?.status) === 403;
+      if (nonRecuperable || intentoLocal === MAX_INTENTOS_APPS_SCRIPT) break;
+
+      await agardar(500 * intentoLocal);
+    }
+  }
+
+  throw ultimoErro || new Error('Non foi posible consultar as asistencias.');
 }
 
 function respostaAsistencias(resultado, extraHeaders = {}) {
@@ -194,7 +217,7 @@ export async function onRequest(context) {
   const inicio = Date.now();
 
   try {
-    const { resultado, usouRespaldo, intento } = await consultarAppsScript(env, usuario);
+    const { resultado, usouRespaldo, intento, intentoLocal } = await consultarAppsScript(env, usuario);
 
     try {
       await gardarCacheR2(env.R2_PRIVADO, resultado);
@@ -206,7 +229,8 @@ export async function onRequest(context) {
       'X-SCPP-Asistencias-Source': 'APPS-SCRIPT',
       'X-SCPP-Asistencias-Time': String(Date.now() - inicio),
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
-      'X-SCPP-AppScript-Attempt': String(intento)
+      'X-SCPP-AppScript-Attempt': String(intento),
+      'X-SCPP-Asistencias-Retry': String(intentoLocal)
     });
   } catch (erro) {
     console.error('Erro no servizo directo de asistencias:', erro);
