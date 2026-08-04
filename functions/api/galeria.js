@@ -9,6 +9,35 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
   }
 });
 
+function rutaPublica(ruta, version = '') {
+  const limpa = String(ruta || '').trim().replace(/^\/+/, '');
+  if (!limpa) return '';
+  const codificada = limpa
+    .split('/')
+    .filter(Boolean)
+    .map((parte) => encodeURIComponent(parte))
+    .join('/');
+  const sufixo = version ? `?v=${encodeURIComponent(String(version))}` : '';
+  return `/arquivos/publico/${codificada}${sufixo}`;
+}
+
+function normalizarFoto(foto = {}) {
+  const rutaOrixinal = String(
+    foto.rutaR2Publica || foto.rutaR2_Publica || foto.RutaR2_Publica || foto.rutaR2 || foto.RutaR2 || ''
+  ).trim();
+  const rutaMiniatura = String(
+    foto.rutaMiniaturaPublica || foto.rutaMiniatura_Publica || foto.RutaMiniaturaPublica || ''
+  ).trim();
+  const version = String(foto.etagOrixinal || foto.version || foto.xeradoEnMs || '').trim();
+
+  return {
+    ...foto,
+    // A cuadrícula usa a miniatura; o visor recibe sempre a ruta do orixinal.
+    urlPublica: rutaPublica(rutaOrixinal, version) || String(foto.urlPublica || '').trim(),
+    urlMiniaturaPublica: rutaPublica(rutaMiniatura, version) || String(foto.urlMiniaturaPublica || foto.urlPublica || '').trim()
+  };
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') {
     return json(405, { ok: false, erro: 'Método non permitido' }, { 'Cache-Control': 'no-store' });
@@ -43,6 +72,7 @@ export async function onRequest({ request, env }) {
 
   return json(200, {
     ...indice,
+    fotos: indice.fotos.map(normalizarFoto),
     cache: 'R2',
     tempoRespostaMs: Date.now() - inicio
   }, {
