@@ -48,9 +48,9 @@ jobs:
           echo "Configuración R2 presente. Destino: $R2_PUBLIC_BUCKET"
 
       - name: Instalar dependencias
-        run: python -m pip install --disable-pip-version-check boto3 requests
+        run: python -m pip install --disable-pip-version-check boto3 requests pillow
 
-      - name: Xerar e publicar índice
+      - name: Verificar fotos, generar miniaturas y publicar índice
         env:
           SCPP_SITE_URL: https://scpp-web.pages.dev
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -59,4 +59,7 @@ jobs:
           R2_PUBLIC_BUCKET: scpp-publico
           SYNC_ATTEMPTS: '5'
           SYNC_TIMEOUT_SECONDS: '90'
+          THUMB_MAX_WIDTH: '720'
+          THUMB_MAX_HEIGHT: '540'
+          THUMB_QUALITY: '78'
         run: python scripts/sync-galeria-r2.py
