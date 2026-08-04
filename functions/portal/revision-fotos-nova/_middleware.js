@@ -15,7 +15,15 @@ const INXECCION = `
   .published-actions-v2 .save{background:#6d2032;color:#fff;border-color:#6d2032}
   .published-actions-v2 .danger{color:#842323;border-color:#b98f94;background:#fffafa}
   .published-actions-v2 .both{grid-column:1/-1}
-  @media(max-width:700px){.published-actions-v2{grid-template-columns:1fr}.published-actions-v2 .both{grid-column:auto}}
+  .published-actions-v2 .rebuild{grid-column:1/-1;border-color:#9f874e;background:#faf7ee;color:#5a4822}
+  .rebuild-report{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;padding:.7rem;border:1px solid #ddd7d2;background:#faf8f6;font:inherit}
+  .rebuild-report[hidden]{display:none}
+  .rebuild-report div{display:grid;gap:.18rem;padding:.55rem;background:#fff;border:1px solid #e4dfda}
+  .rebuild-report span{font-size:.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#625d59}
+  .rebuild-report strong{font-size:.82rem;color:#403b37}
+  .rebuild-report .wide{grid-column:1/-1}
+  .rebuild-report[data-ok="false"]{border-color:#b98f94;background:#fffafa}
+  @media(max-width:700px){.published-actions-v2,.rebuild-report{grid-template-columns:1fr}.published-actions-v2 .both,.published-actions-v2 .rebuild,.rebuild-report .wide{grid-column:auto}}
   @media(max-width:650px){.review-thumb{flex-basis:96px;grid-template-rows:68px auto}.review-thumb img,.review-thumb .thumb-loading{height:68px}}
 </style>
 <script>
@@ -84,15 +92,38 @@ const INXECCION = `
     }catch(erro){if(sheet instanceof HTMLElement)sheet.textContent='Erro';if(indices instanceof HTMLElement)indices.textContent='Erro';mensaxe(erro instanceof Error?erro.message:'Non se puido completar a retirada.',true)}
   }
 
+  function pintarAuditoria(resultado){
+    const panel=document.querySelector('#rebuild-report');if(!(panel instanceof HTMLElement))return;
+    panel.hidden=false;panel.dataset.ok=resultado.coherente?'true':'false';
+    const pub=resultado.publica||{};const pri=resultado.privada||{};
+    const diferencias=(pub.faltantes?.length||0)+(pub.sobrantes?.length||0)+(pri.faltantes?.length||0)+(pri.sobrantes?.length||0)+(pub.senRuta?.length||0)+(pri.senRuta?.length||0);
+    panel.innerHTML='<div><span>Sheet pública</span><strong>'+String(pub.sheet??0)+'</strong></div><div><span>Índice público</span><strong>'+String(pub.indice??0)+'</strong></div><div><span>Sheet privada</span><strong>'+String(pri.sheet??0)+'</strong></div><div><span>Índice privado</span><strong>'+String(pri.indice??0)+'</strong></div><div class="wide"><span>Resultado</span><strong>'+(resultado.coherente?'Coherente: cero diferencias':'Revisar: '+diferencias+' diferencias detectadas')+'</strong></div>';
+  }
+
+  async function reconstruir(){
+    if(!token){mensaxe('A sesión aínda non está preparada. Agarda un instante e téntao de novo.',true);return}
+    const boton=document.querySelector('#rebuild-photo-indexes');if(boton instanceof HTMLButtonElement)boton.disabled=true;
+    const indices=document.querySelector('#published-index-status');if(indices instanceof HTMLElement)indices.textContent='Reconstruíndo';
+    mensaxe('Lendo a Sheet, reconstruíndo os dous índices e invalidando a caché…',false);
+    try{
+      const resposta=await fetchBase('/api/reconstruir-indices-fotos',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({idToken:token})});
+      const resultado=await resposta.json().catch(()=>null);if(!resposta.ok||!resultado?.ok)throw new Error(resultado?.erro||'Non se puideron reconstruír os índices.');
+      pintarAuditoria(resultado);if(indices instanceof HTMLElement)indices.textContent=resultado.coherente?'Verificados':'Con diferenzas';mensaxe(resultado.mensaxe||'Reconstrución completada.',!resultado.coherente);
+      window.setTimeout(()=>window.location.reload(),resultado.coherente?1800:3500);
+    }catch(erro){if(indices instanceof HTMLElement)indices.textContent='Erro';mensaxe(erro instanceof Error?erro.message:'Non se puideron reconstruír os índices.',true)}finally{if(boton instanceof HTMLButtonElement)boton.disabled=false}
+  }
+
   function instalarAccions(){
     const actions=document.querySelector('.published-actions');if(!(actions instanceof HTMLElement)||document.querySelector('#published-actions-v2'))return false;
     const gardar=document.querySelector('#published-save');const novo=document.createElement('div');novo.id='published-actions-v2';novo.className='published-actions-v2';
-    novo.innerHTML='<button id="published-save-v2" class="save" type="button">Gardar cambios</button><button id="withdraw-public" class="danger" type="button">Retirar da pública</button><button id="withdraw-private" class="danger" type="button">Retirar da privada</button><button id="withdraw-both" class="danger both" type="button">Retirar das dúas galerías</button>';
+    novo.innerHTML='<button id="published-save-v2" class="save" type="button">Gardar cambios</button><button id="withdraw-public" class="danger" type="button">Retirar da pública</button><button id="withdraw-private" class="danger" type="button">Retirar da privada</button><button id="withdraw-both" class="danger both" type="button">Retirar das dúas galerías</button><button id="rebuild-photo-indexes" class="rebuild" type="button">Reconstruír índices e caché</button>';
     actions.replaceWith(novo);
+    const informe=document.createElement('div');informe.id='rebuild-report';informe.className='rebuild-report';informe.hidden=true;novo.insertAdjacentElement('afterend',informe);
     novo.querySelector('#published-save-v2')?.addEventListener('click',()=>{if(gardar instanceof HTMLButtonElement)gardar.click()});
     novo.querySelector('#withdraw-public')?.addEventListener('click',()=>retirar('publica'));
     novo.querySelector('#withdraw-private')?.addEventListener('click',()=>retirar('privada'));
-    novo.querySelector('#withdraw-both')?.addEventListener('click',()=>retirar('ambas'));return true;
+    novo.querySelector('#withdraw-both')?.addEventListener('click',()=>retirar('ambas'));
+    novo.querySelector('#rebuild-photo-indexes')?.addEventListener('click',reconstruir);return true;
   }
 
   function instalar(){instalarMiniaturas();instalarAccions()}
@@ -105,7 +136,7 @@ const INXECCION = `
 export async function onRequest(context){
   const resposta=await context.next();const tipo=String(resposta.headers.get('Content-Type')||'');
   if(!resposta.ok||!tipo.includes('text/html'))return resposta;
-  let html=await resposta.text();if(!html.includes('published-actions-v2'))html=html.includes('</head>')?html.replace('</head>',INXECCION+'</head>'):INXECCION+html;
+  let html=await resposta.text();if(!html.includes('rebuild-photo-indexes'))html=html.includes('</head>')?html.replace('</head>',INXECCION+'</head>'):INXECCION+html;
   const headers=new Headers(resposta.headers);headers.delete('Content-Length');headers.delete('Content-Encoding');headers.delete('ETag');headers.set('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');
   return new Response(html,{status:resposta.status,statusText:resposta.statusText,headers});
 }
