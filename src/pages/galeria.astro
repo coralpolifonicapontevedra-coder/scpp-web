@@ -1,6 +1,5 @@
 ---
 import BaseLayout from '../layouts/Layout.astro';
-
 const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa', 'Histórico', 'Viaxes', 'Outros'];
 ---
 
@@ -15,194 +14,144 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
 
     <nav class="gallery-filters" aria-label="Filtrar fotografías">
       {categorias.map((categoria, index) => (
-        <button class:list={['filter-tag', { active: index === 0 }]} type="button" data-filter={categoria}>
-          {categoria}
-        </button>
+        <button class:list={['filter-tag', { active: index === 0 }]} type="button" data-filter={categoria}>{categoria}</button>
       ))}
     </nav>
 
     <p id="gallery-count" class="gallery-count">Cargando fotografías…</p>
     <p id="gallery-status" class="gallery-status" aria-live="polite"></p>
-
     <section id="gallery-grid" class="gallery-grid" aria-live="polite"></section>
     <p id="gallery-empty" class="gallery-empty" hidden>Non hai fotografías nesta categoría.</p>
   </main>
 
-  <dialog id="gallery-dialog" class="gallery-dialog">
+  <dialog id="gallery-dialog" class="gallery-dialog" aria-labelledby="dialog-title">
     <button id="dialog-close" class="dialog-close" type="button" aria-label="Pechar imaxe">×</button>
+    <button id="dialog-previous" class="dialog-nav dialog-previous" type="button" aria-label="Fotografía anterior">‹</button>
     <figure>
-      <img id="dialog-image" src="" alt="" />
-      <figcaption id="dialog-title"></figcaption>
+      <div class="dialog-image-wrap">
+        <span id="dialog-loading">Cargando fotografía…</span>
+        <img id="dialog-image" alt="" decoding="async" />
+      </div>
+      <figcaption><strong id="dialog-title"></strong><span id="dialog-position"></span></figcaption>
     </figure>
+    <button id="dialog-next" class="dialog-nav dialog-next" type="button" aria-label="Fotografía seguinte">›</button>
   </dialog>
 </BaseLayout>
 
 <script>
   const grid = document.querySelector('#gallery-grid');
-  const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
+  const filterButtons = [...document.querySelectorAll('[data-filter]')];
   const count = document.querySelector('#gallery-count');
   const empty = document.querySelector('#gallery-empty');
   const status = document.querySelector('#gallery-status');
   const dialog = document.querySelector('#gallery-dialog');
   const dialogImage = document.querySelector('#dialog-image');
   const dialogTitle = document.querySelector('#dialog-title');
+  const dialogPosition = document.querySelector('#dialog-position');
+  const dialogLoading = document.querySelector('#dialog-loading');
   const dialogClose = document.querySelector('#dialog-close');
+  const dialogPrevious = document.querySelector('#dialog-previous');
+  const dialogNext = document.querySelector('#dialog-next');
 
+  let fotos = [];
+  let visibles = [];
   let activeFilter = 'Todos';
-  const cards = () => Array.from(document.querySelectorAll('.gallery-card'));
+  let current = 0;
 
-  function escaparHtml(valor) {
-    return String(valor || '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
+  const esc = (value = '') => String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const titleOf = (foto) => String(foto?.titulo || foto?.peFoto || 'Fotografía da SCPP').trim();
+  const originalOf = (foto) => String(foto?.urlPublica || '').trim();
+  const thumbOf = (foto) => String(foto?.urlMiniaturaPublica || foto?.urlPublica || '').trim();
+  const categoryOf = (foto) => String(foto?.categoria || foto?.categoriaPublica || 'Outros').trim() || 'Outros';
+
+  function preload(index) {
+    const url = originalOf(visibles[index]);
+    if (!url) return;
+    const image = new Image();
+    image.src = url;
   }
 
-  function actualizarFiltro() {
-    let visible = 0;
-    cards().forEach((card) => {
-      const show = activeFilter === 'Todos' || card.getAttribute('data-category') === activeFilter;
-      card.toggleAttribute('hidden', !show);
-      if (show) visible += 1;
-    });
-    if (count) count.textContent = `${visible} fotografía${visible === 1 ? '' : 's'}`;
-    if (empty instanceof HTMLElement) empty.hidden = visible > 0;
-  }
-
-  function abrirDialogo(button) {
+  function showViewer(index) {
     if (!(dialog instanceof HTMLDialogElement) || !(dialogImage instanceof HTMLImageElement)) return;
-    const image = button.getAttribute('data-image') || '';
-    const title = button.getAttribute('data-title') || '';
-    dialogImage.src = image;
-    dialogImage.alt = title;
-    if (dialogTitle) dialogTitle.textContent = title;
-    dialog.showModal();
+    const foto = visibles[index];
+    if (!foto) return;
+    current = index;
+    const titulo = titleOf(foto);
+    dialogImage.removeAttribute('src');
+    dialogImage.classList.remove('ready');
+    dialogImage.alt = titulo;
+    if (dialogLoading instanceof HTMLElement) { dialogLoading.hidden = false; dialogLoading.textContent = 'Cargando fotografía…'; }
+    if (dialogTitle instanceof HTMLElement) dialogTitle.textContent = titulo;
+    if (dialogPosition instanceof HTMLElement) dialogPosition.textContent = `${index + 1} de ${visibles.length}`;
+    if (dialogPrevious instanceof HTMLButtonElement) dialogPrevious.disabled = index === 0;
+    if (dialogNext instanceof HTMLButtonElement) dialogNext.disabled = index === visibles.length - 1;
+    dialogImage.onload = () => {
+      dialogImage.classList.add('ready');
+      if (dialogLoading instanceof HTMLElement) dialogLoading.hidden = true;
+      preload(index - 1); preload(index + 1);
+    };
+    dialogImage.onerror = () => { if (dialogLoading instanceof HTMLElement) dialogLoading.textContent = 'Non foi posible abrir a fotografía.'; };
+    dialogImage.src = originalOf(foto);
+    if (!dialog.open) dialog.showModal();
   }
 
-  function urlR2(foto) {
-    const directa = String(foto?.urlPublica || '').trim();
-    if (directa) return directa;
-
-    const ruta = String(
-      foto?.rutaR2Publica ||
-      foto?.rutaR2_Publica ||
-      foto?.RutaR2_Publica ||
-      ''
-    ).trim();
-
-    return ruta
-      ? `/arquivos/publico/${ruta.split('/').map(encodeURIComponent).join('/')}`
-      : '';
-  }
-
-  function crearTarxeta(foto) {
+  function card(foto) {
     const article = document.createElement('article');
-    const categoria = String(foto?.categoria || foto?.categoriaPublica || 'Outros').trim() || 'Outros';
-    const titulo = String(foto?.titulo || 'Fotografía da SCPP').trim();
+    const titulo = titleOf(foto);
+    const categoria = categoryOf(foto);
     const ano = String(foto?.ano || foto?.anoAproximado || '').trim();
-    const ruta = urlR2(foto);
-
     article.className = 'gallery-card';
     article.dataset.category = categoria;
-    article.dataset.idFoto = String(foto?.idFoto || foto?.rowId || '').trim();
-
-    article.innerHTML = `
-      <button class="gallery-image-button" type="button" data-image="${escaparHtml(ruta)}" data-title="${escaparHtml(titulo)}" aria-label="Ampliar ${escaparHtml(titulo)}">
-        <img src="${escaparHtml(ruta)}" alt="${escaparHtml(titulo)}" loading="lazy" decoding="async" />
-        <span class="zoom-hint" aria-hidden="true">Ampliar</span>
-      </button>
-      <div class="gallery-content-box">
-        <div class="gallery-meta">
-          <span class="gallery-category">${escaparHtml(categoria)}</span>
-          ${ano ? `<time>${escaparHtml(ano)}</time>` : ''}
-        </div>
-        <h2>${escaparHtml(titulo)}</h2>
-      </div>`;
-
-    const button = article.querySelector('[data-image]');
-    button?.addEventListener('click', () => abrirDialogo(button));
+    article.innerHTML = `<button class="gallery-image-button" type="button" aria-label="Ampliar ${esc(titulo)}"><span class="image-state">Cargando…</span><img src="${esc(thumbOf(foto))}" alt="${esc(titulo)}" loading="lazy" decoding="async" /></button><div class="gallery-content-box"><div class="gallery-meta"><span class="gallery-category">${esc(categoria)}</span>${ano ? `<time>${esc(ano)}</time>` : ''}</div><h2>${esc(titulo)}</h2></div>`;
+    const image = article.querySelector('img');
+    const imageState = article.querySelector('.image-state');
+    image?.addEventListener('load', () => { article.classList.add('image-ready'); if (imageState instanceof HTMLElement) imageState.hidden = true; });
+    image?.addEventListener('error', () => { article.classList.add('image-error'); if (imageState instanceof HTMLElement) imageState.textContent = 'Imaxe non dispoñible'; });
+    article.querySelector('button')?.addEventListener('click', () => showViewer(visibles.indexOf(foto)));
     return article;
   }
 
-  filterButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      activeFilter = button.getAttribute('data-filter') || 'Todos';
-      filterButtons.forEach((item) => item.classList.toggle('active', item === button));
-      actualizarFiltro();
-    });
+  function applyFilter() {
+    visibles = activeFilter === 'Todos' ? fotos : fotos.filter((foto) => categoryOf(foto) === activeFilter);
+    grid?.replaceChildren(...visibles.map(card));
+    if (count) count.textContent = `${visibles.length} fotografía${visibles.length === 1 ? '' : 's'}`;
+    if (empty instanceof HTMLElement) empty.hidden = visibles.length > 0;
+  }
+
+  filterButtons.forEach((button) => button.addEventListener('click', () => {
+    activeFilter = button.getAttribute('data-filter') || 'Todos';
+    filterButtons.forEach((item) => item.classList.toggle('active', item === button));
+    applyFilter();
+  }));
+
+  dialogClose?.addEventListener('click', () => dialog instanceof HTMLDialogElement && dialog.close());
+  dialogPrevious?.addEventListener('click', () => showViewer(current - 1));
+  dialogNext?.addEventListener('click', () => showViewer(current + 1));
+  dialog?.addEventListener('click', (event) => { if (event.target === dialog && dialog instanceof HTMLDialogElement) dialog.close(); });
+  document.addEventListener('keydown', (event) => {
+    if (!(dialog instanceof HTMLDialogElement) || !dialog.open) return;
+    if (event.key === 'ArrowLeft' && current > 0) showViewer(current - 1);
+    if (event.key === 'ArrowRight' && current < visibles.length - 1) showViewer(current + 1);
   });
 
-  dialogClose?.addEventListener('click', () => {
-    if (dialog instanceof HTMLDialogElement) dialog.close();
-  });
-
-  dialog?.addEventListener('click', (event) => {
-    if (event.target === dialog && dialog instanceof HTMLDialogElement) dialog.close();
-  });
-
-  async function cargarGaleriaR2() {
+  async function loadGallery() {
     try {
-      if (status) status.textContent = 'Actualizando a galería…';
-      const resposta = await fetch(`/api/galeria?t=${Date.now()}`, { cache: 'no-store' });
-      const datos = await resposta.json();
-      if (!resposta.ok || !datos?.ok || !Array.isArray(datos.fotos)) {
-        throw new Error(datos?.erro || 'Erro ao cargar a galería');
-      }
-
-      const fotos = datos.fotos.filter((foto) => Boolean(urlR2(foto)));
-      grid?.replaceChildren(...fotos.map(crearTarxeta));
-      actualizarFiltro();
+      const response = await fetch('/api/galeria', { cache: 'default' });
+      const data = await response.json();
+      if (!response.ok || !data?.ok || !Array.isArray(data.fotos)) throw new Error(data?.erro || 'Erro ao cargar a galería');
+      fotos = data.fotos.filter((foto) => originalOf(foto) && thumbOf(foto));
+      applyFilter();
       if (status) status.textContent = '';
-    } catch (erro) {
-      console.error('Non foi posible cargar a galería:', erro);
+    } catch (error) {
+      console.error(error);
       if (count) count.textContent = '0 fotografías';
       if (status) status.textContent = 'Non foi posible cargar a galería neste momento.';
       if (empty instanceof HTMLElement) empty.hidden = false;
     }
   }
-
-  cargarGaleriaR2();
+  loadGallery();
 </script>
 
 <style is:global>
-  .gallery-page-wrapper { padding-top:4rem; padding-bottom:6rem; }
-  .gallery-header { max-width:820px; margin:0 auto 2.4rem; text-align:center; }
-  .gallery-kicker { color:var(--color-principal); font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
-  .gallery-header h1 { margin:.5rem 0 0; color:var(--color-principal); font-size:clamp(2.15rem,5vw,3rem); }
-  .section-line-center { width:58px; height:2px; margin:1rem auto 1.4rem; background:var(--color-acento); }
-  .gallery-intro { margin:0; color:#625e5a; font-size:1.02rem; line-height:1.65; }
-  .gallery-filters { display:flex; justify-content:center; flex-wrap:wrap; gap:.65rem; margin-bottom:1.3rem; }
-  .filter-tag { padding:.48rem 1rem; border:1px solid #d7d1cd; border-radius:999px; background:#fff; color:#544f4b; font:inherit; font-size:.76rem; font-weight:700; letter-spacing:.045em; text-transform:uppercase; cursor:pointer; transition:background .2s ease,color .2s ease,border-color .2s ease; }
-  .filter-tag:hover,.filter-tag.active { border-color:var(--color-principal); background:var(--color-principal); color:#fff; }
-  .gallery-count { margin:0 0 .35rem; color:#766f69; font-size:.78rem; text-align:right; }
-  .gallery-status { min-height:1.2rem; margin:0 0 1rem; color:#766f69; font-size:.75rem; text-align:right; }
-  .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(245px,1fr)); gap:1.25rem; align-items:start; }
-  .gallery-card { overflow:hidden; border:1px solid #ded9d5; border-radius:4px; background:#fff; transition:transform .2s ease,box-shadow .2s ease; }
-  .gallery-card:hover { transform:translateY(-3px); box-shadow:0 10px 26px rgba(38,28,24,.08); }
-  .gallery-card[hidden] { display:none; }
-  .gallery-image-button { position:relative; display:block; width:100%; height:220px; padding:0; overflow:hidden; border:0; background:#eeeae7; cursor:zoom-in; }
-  .gallery-image-button img { display:block; width:100%; height:100%; object-fit:cover; transition:transform .35s ease; }
-  .gallery-card:hover img { transform:scale(1.025); }
-  .zoom-hint { position:absolute; right:.8rem; bottom:.8rem; padding:.3rem .55rem; border-radius:2px; background:rgba(50,31,34,.78); color:#fff; font-size:.68rem; font-weight:700; opacity:0; transform:translateY(4px); transition:opacity .2s ease,transform .2s ease; }
-  .gallery-image-button:hover .zoom-hint,.gallery-image-button:focus-visible .zoom-hint { opacity:1; transform:translateY(0); }
-  .gallery-content-box { padding:.9rem 1rem 1.05rem; }
-  .gallery-meta { display:flex; justify-content:space-between; gap:1rem; align-items:center; margin-bottom:.45rem; }
-  .gallery-category { color:var(--color-principal); font-size:.65rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
-  .gallery-meta time { color:#8b837d; font-size:.7rem; }
-  .gallery-content-box h2 { margin:0; color:#3b3734; font-size:.94rem; font-weight:650; line-height:1.42; }
-  .gallery-empty { padding:2rem; border:1px solid #ded9d5; color:#716a65; text-align:center; }
-  .gallery-dialog { width:min(94vw,1100px); max-height:92vh; padding:0; overflow:visible; border:0; background:transparent; }
-  .gallery-dialog::backdrop { background:rgba(18,14,13,.88); }
-  .gallery-dialog figure { margin:0; }
-  .gallery-dialog img { display:block; width:100%; max-height:82vh; object-fit:contain; background:#171313; }
-  .gallery-dialog figcaption { padding:.85rem 1rem; background:#fff; color:#3c3734; font-size:.88rem; text-align:center; }
-  .dialog-close { position:absolute; z-index:2; top:-2.6rem; right:0; width:2.2rem; height:2.2rem; border:1px solid rgba(255,255,255,.65); border-radius:50%; background:rgba(0,0,0,.28); color:#fff; font-size:1.5rem; line-height:1; cursor:pointer; }
-  @media(max-width:680px) {
-    .gallery-page-wrapper { padding-top:2.5rem; padding-bottom:4rem; }
-    .gallery-grid { grid-template-columns:1fr; gap:1rem; }
-    .gallery-image-button { height:235px; }
-    .gallery-count,.gallery-status { text-align:center; }
-  }
+  .gallery-page-wrapper{padding-top:4rem;padding-bottom:6rem}.gallery-header{max-width:820px;margin:0 auto 2.4rem;text-align:center}.gallery-kicker{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.gallery-header h1{margin:.5rem 0 0;color:var(--color-principal);font-size:clamp(2.15rem,5vw,3rem)}.section-line-center{width:58px;height:2px;margin:1rem auto 1.4rem;background:var(--color-acento)}.gallery-intro{margin:0;color:#625e5a;font-size:1.02rem;line-height:1.65}.gallery-filters{display:flex;justify-content:center;flex-wrap:wrap;gap:.65rem;margin-bottom:1.3rem}.filter-tag{padding:.48rem 1rem;border:1px solid #d7d1cd;border-radius:999px;background:#fff;color:#544f4b;font:inherit;font-size:.76rem;font-weight:700;letter-spacing:.045em;text-transform:uppercase;cursor:pointer}.filter-tag:hover,.filter-tag.active{border-color:var(--color-principal);background:var(--color-principal);color:#fff}.gallery-count,.gallery-status{margin:0 0 .5rem;color:#766f69;font-size:.78rem;text-align:right}.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.9rem;align-items:start}.gallery-card{min-width:0;overflow:hidden;border:1px solid #ded9d5;border-radius:4px;background:#fff;box-shadow:0 5px 16px rgba(48,37,31,.05)}.gallery-image-button{position:relative;display:block;width:100%;aspect-ratio:4/3;padding:0;overflow:hidden;border:0;background:#eeeae7;cursor:zoom-in}.gallery-image-button img{display:block;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .2s ease,transform .25s ease}.gallery-card.image-ready img{opacity:1}.gallery-image-button:hover img{transform:scale(1.025)}.image-state{position:absolute;inset:0;display:grid;place-items:center;padding:.6rem;color:#766f69;font-size:.72rem}.gallery-card.image-error img{display:none}.gallery-content-box{padding:.65rem .75rem .8rem}.gallery-meta{display:flex;justify-content:space-between;gap:.7rem;margin-bottom:.35rem}.gallery-category{color:var(--color-principal);font-size:.61rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase}.gallery-meta time{color:#8b837d;font-size:.66rem}.gallery-content-box h2{display:-webkit-box;margin:0;overflow:hidden;color:#3b3734;font-size:.8rem;font-weight:650;line-height:1.4;-webkit-box-orient:vertical;-webkit-line-clamp:2}.gallery-empty{padding:2rem;border:1px solid #ded9d5;color:#716a65;text-align:center}.gallery-dialog{width:100%;max-width:none;height:100%;max-height:none;margin:0;padding:0;border:0;background:rgba(18,14,13,.94);color:#fff}.gallery-dialog::backdrop{background:rgba(18,14,13,.94)}.gallery-dialog figure{display:grid;width:min(1200px,calc(100vw - 150px));height:calc(100vh - 30px);margin:auto;grid-template-rows:minmax(0,1fr) auto}.dialog-image-wrap{position:relative;display:grid;min-height:240px;place-items:center}.gallery-dialog img{display:block;max-width:100%;max-height:calc(100vh - 95px);object-fit:contain;opacity:0;transition:opacity .2s}.gallery-dialog img.ready{opacity:1}.gallery-dialog figcaption{display:flex;justify-content:space-between;gap:1rem;padding:.7rem;color:#fff;font-size:.82rem}.dialog-close{position:absolute;z-index:3;top:1rem;right:1rem;width:2.7rem;height:2.7rem;border:0;border-radius:50%;background:rgba(255,255,255,.1);color:#fff;font-size:1.8rem;cursor:pointer}.dialog-nav{position:absolute;z-index:2;top:50%;width:4rem;height:5rem;border:0;background:rgba(255,255,255,.08);color:#fff;font-size:3rem;cursor:pointer;transform:translateY(-50%)}.dialog-previous{left:0}.dialog-next{right:0}.dialog-nav:disabled{opacity:.2;cursor:default}@media(max-width:680px){.gallery-page-wrapper{padding-top:2.5rem;padding-bottom:4rem}.gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}.gallery-count,.gallery-status{text-align:center}.gallery-dialog figure{width:calc(100vw - 24px)}.dialog-nav{top:auto;bottom:3.5rem;width:3rem;height:3rem;border-radius:50%;font-size:2rem;transform:none}.dialog-previous{left:1rem}.dialog-next{right:1rem}}
 </style>
