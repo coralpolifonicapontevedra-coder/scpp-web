@@ -59,10 +59,56 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
   let current = 0;
 
   const esc = (value = '') => String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-  const titleOf = (foto) => String(foto?.titulo || foto?.peFoto || 'Fotografía da SCPP').trim();
+  const titleOf = (foto) => String(foto?.titulo || foto?.Titulo || foto?.peFoto || foto?.PeFoto || 'Fotografía da SCPP').trim();
   const originalOf = (foto) => String(foto?.urlPublica || '').trim();
   const thumbOf = (foto) => String(foto?.urlMiniaturaPublica || foto?.urlPublica || '').trim();
-  const categoryOf = (foto) => String(foto?.categoria || foto?.categoriaPublica || 'Outros').trim() || 'Outros';
+
+  function normalizarTexto(value = '') {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  function categoriaExplicita(foto) {
+    const raw = String(
+      foto?.categoria || foto?.Categoria || foto?.categoriaPublica || foto?.CategoriaPublica ||
+      foto?.tipoGaleria || foto?.TipoGaleria || foto?.seccion || foto?.Seccion || ''
+    ).trim();
+    const value = normalizarTexto(raw);
+    if (!value) return '';
+    if (value.includes('concert')) return 'Concertos';
+    if (value.includes('centen')) return 'Centenario';
+    if (value.includes('distinc') || value.includes('premio') || value.includes('medalla') || value.includes('homenaxe')) return 'Distincións';
+    if (value.includes('prensa') || value.includes('noticia') || value.includes('xornal')) return 'Prensa';
+    if (value.includes('histor')) return 'Histórico';
+    if (value.includes('viax') || value.includes('viaje') || value.includes('excursion')) return 'Viaxes';
+    if (value.includes('outro')) return 'Outros';
+    return '';
+  }
+
+  function categoryOf(foto) {
+    const explicit = categoriaExplicita(foto);
+    if (explicit) return explicit;
+
+    const text = normalizarTexto([
+      foto?.titulo, foto?.Titulo, foto?.peFoto, foto?.PeFoto,
+      foto?.evento, foto?.Evento, foto?.concerto, foto?.Concerto,
+      foto?.lugar, foto?.Lugar, foto?.procedencia, foto?.Procedencia
+    ].filter(Boolean).join(' '));
+
+    const year = Number(String(foto?.ano || foto?.anoAproximado || foto?.AnoAproximado || '').match(/\d{4}/)?.[0] || 0);
+
+    if (/centenario|100 aniversario|cen anos/.test(text)) return 'Centenario';
+    if (/medalla|premio|distinc|homenaxe|condecor|recoñec|reconoc/.test(text)) return 'Distincións';
+    if (/prensa|xornal|periodic|diario|noticia|entrevista|reportaxe|reportaje/.test(text)) return 'Prensa';
+    if (/viax|viaje|excursion|madeira|portugal|francia|italia|vasco|bilbao|santiago|lugo/.test(text)) return 'Viaxes';
+    if (/concerto|concierto|festival|actuacion|actuación|misa|cantata|auditorio|igrexa|iglesia|banda|orfeon|orfeão/.test(text)) return 'Concertos';
+    if ((year && year < 1980) || /histor|arquivo|archivo|antiga|antiguo|fundacion|fundación|director.*iglesias|vilarelle/.test(text)) return 'Histórico';
+    return 'Outros';
+  }
 
   function preload(index) {
     const url = originalOf(visibles[index]);
@@ -99,7 +145,7 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
     const article = document.createElement('article');
     const titulo = titleOf(foto);
     const categoria = categoryOf(foto);
-    const ano = String(foto?.ano || foto?.anoAproximado || '').trim();
+    const ano = String(foto?.ano || foto?.anoAproximado || foto?.AnoAproximado || '').trim();
     article.className = 'gallery-card';
     article.dataset.category = categoria;
     article.innerHTML = `<button class="gallery-image-button" type="button" aria-label="Ampliar ${esc(titulo)}"><span class="image-state">Cargando…</span><img src="${esc(thumbOf(foto))}" alt="${esc(titulo)}" loading="lazy" decoding="async" /></button><div class="gallery-content-box"><div class="gallery-meta"><span class="gallery-category">${esc(categoria)}</span>${ano ? `<time>${esc(ano)}</time>` : ''}</div><h2>${esc(titulo)}</h2></div>`;
