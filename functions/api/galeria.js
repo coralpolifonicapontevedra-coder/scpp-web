@@ -4,7 +4,9 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
   status,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0',
     ...extraHeaders
   }
 });
@@ -47,11 +49,11 @@ function normalizarFoto(foto = {}) {
 
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') {
-    return json(405, { ok: false, erro: 'Método non permitido' }, { 'Cache-Control': 'no-store' });
+    return json(405, { ok: false, erro: 'Método non permitido' });
   }
 
   if (!env.R2_PUBLICO) {
-    return json(500, { ok: false, erro: 'O bucket público R2 non está configurado.' }, { 'Cache-Control': 'no-store' });
+    return json(500, { ok: false, erro: 'O bucket público R2 non está configurado.' });
   }
 
   const inicio = Date.now();
@@ -61,7 +63,6 @@ export async function onRequest({ request, env }) {
       ok: false,
       erro: 'O índice da galería aínda non está dispoñible.'
     }, {
-      'Cache-Control': 'no-store',
       'X-SCPP-Index': 'MISSING'
     });
   }
@@ -72,7 +73,6 @@ export async function onRequest({ request, env }) {
       ok: false,
       erro: 'O índice da galería non é válido.'
     }, {
-      'Cache-Control': 'no-store',
       'X-SCPP-Index': 'INVALID'
     });
   }
@@ -80,11 +80,12 @@ export async function onRequest({ request, env }) {
   return json(200, {
     ...indice,
     fotos: indice.fotos.map(normalizarFoto),
-    cache: 'R2',
+    cache: 'R2-REVALIDADO',
     tempoRespostaMs: Date.now() - inicio
   }, {
     'X-SCPP-Index': 'R2',
-    'X-SCPP-Cache': 'HIT',
+    'X-SCPP-Cache': 'REVALIDATED',
+    'X-SCPP-Index-Version': String(indice.xeradoEnMs || indice.xeradoEn || ''),
     'Server-Timing': `r2;dur=${Date.now() - inicio}`
   });
 }
