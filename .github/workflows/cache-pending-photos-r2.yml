@@ -2,7 +2,11 @@ name: Preparar fotografías pendentes en R2
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
   push:
+    branches:
+      - main
     paths:
       - scripts/cache-pending-photos-r2.py
       - .github/workflows/cache-pending-photos-r2.yml
@@ -35,12 +39,20 @@ jobs:
           python -m pip install \
             boto3==1.40.1 \
             google-api-python-client==2.177.0 \
-            google-auth==2.40.3
+            google-auth==2.40.3 \
+            Pillow==11.3.0
 
-      - name: Preparar fotografías pendentes
+      - name: Preparar índice, orixinais e miniaturas
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: python scripts/cache-pending-photos-r2.py
+
+      - name: Resumo
+        if: always()
+        run: |
+          echo "## Revisión fotográfica" >> "$GITHUB_STEP_SUMMARY"
+          echo "Índice: scpp-privado/indices/revision-fotos-v1.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "Miniaturas: scpp-privado/fotos/traballo-miniaturas/" >> "$GITHUB_STEP_SUMMARY"
