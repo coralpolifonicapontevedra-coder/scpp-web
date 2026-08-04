@@ -4,6 +4,12 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '*/15 * * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/sync-galeria-r2.yml'
+      - 'scripts/sync-galeria-r2.py'
 
 concurrency:
   group: sync-galeria-r2
@@ -24,7 +30,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
+
+      - name: Comprobar configuración
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_PUBLIC_BUCKET: ${{ secrets.R2_PUBLIC_BUCKET }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$R2_ACCOUNT_ID" || { echo 'Falta R2_ACCOUNT_ID'; exit 1; }
+          test -n "$R2_ACCESS_KEY_ID" || { echo 'Falta R2_ACCESS_KEY_ID'; exit 1; }
+          test -n "$R2_SECRET_ACCESS_KEY" || { echo 'Falta R2_SECRET_ACCESS_KEY'; exit 1; }
+          test -n "${R2_PUBLIC_BUCKET:-${R2_BUCKET:-}}" || { echo 'Falta R2_PUBLIC_BUCKET ou R2_BUCKET'; exit 1; }
+          echo 'Configuración R2 presente.'
 
       - name: Instalar dependencias
         run: python -m pip install --disable-pip-version-check boto3 requests
