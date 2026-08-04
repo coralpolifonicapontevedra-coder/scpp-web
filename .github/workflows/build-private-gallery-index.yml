@@ -2,7 +2,11 @@ name: Construír índice da galería privada
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
   push:
+    branches:
+      - main
     paths:
       - "scripts/build-private-gallery-index.py"
       - ".github/workflows/build-private-gallery-index.yml"
@@ -32,12 +36,9 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          python -m pip install \
-            boto3==1.40.1 \
-            google-api-python-client==2.177.0 \
-            google-auth==2.40.3
+          python -m pip install boto3==1.40.1 google-api-python-client==2.177.0 google-auth==2.40.3 Pillow==11.3.0
 
-      - name: Crear e subir índice privado
+      - name: Crear índice e miniaturas privadas
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
