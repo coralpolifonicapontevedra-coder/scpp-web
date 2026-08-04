@@ -21,8 +21,16 @@ function rutaPublica(ruta, version = '') {
   return `/arquivos/publico/${codificada}${sufixo}`;
 }
 
+function rutaOrixinal(ruta, version = '') {
+  const limpa = String(ruta || '').trim().replace(/^\/+/, '');
+  if (!limpa) return '';
+  const parametros = new URLSearchParams({ ruta: limpa });
+  if (version) parametros.set('v', String(version));
+  return `/api/galeria-orixinal?${parametros.toString()}`;
+}
+
 function normalizarFoto(foto = {}) {
-  const rutaOrixinal = String(
+  const rutaOrixinalR2 = String(
     foto.rutaR2Publica || foto.rutaR2_Publica || foto.RutaR2_Publica || foto.rutaR2 || foto.RutaR2 || ''
   ).trim();
   const rutaMiniatura = String(
@@ -32,8 +40,7 @@ function normalizarFoto(foto = {}) {
 
   return {
     ...foto,
-    // A cuadrícula usa a miniatura; o visor recibe sempre a ruta do orixinal.
-    urlPublica: rutaPublica(rutaOrixinal, version) || String(foto.urlPublica || '').trim(),
+    urlPublica: rutaOrixinal(rutaOrixinalR2, version) || String(foto.urlPublica || '').trim(),
     urlMiniaturaPublica: rutaPublica(rutaMiniatura, version) || String(foto.urlMiniaturaPublica || foto.urlPublica || '').trim()
   };
 }
