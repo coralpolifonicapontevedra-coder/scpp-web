@@ -51,3 +51,4 @@ jobs:
         run: |
           echo "## Índice da galería privada" >> "$GITHUB_STEP_SUMMARY"
           echo "Destino: scpp-privado/indices/galeria-privada.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rexeneración forzada tras protexer a galería privada do reconstrutor xeral." >> "$GITHUB_STEP_SUMMARY"
