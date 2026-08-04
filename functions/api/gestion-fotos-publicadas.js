@@ -1,5 +1,8 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 
+const INDEX_PUBLICO = 'indices/galeria-publica-v1.json';
+const INDEX_PRIVADO = 'indices/galeria-privada.json';
+
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -30,7 +33,7 @@ async function comprobarAdministracion(env, usuario) {
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Administración non autorizada');
 }
 
-const idFoto = (foto) => String(foto?.idFoto || foto?.rowId || '').trim();
+const idFoto = (foto) => String(foto?.idFoto || foto?.Id_Foto || foto?.rowId || '').trim();
 
 function normalizar(foto, tipo) {
   return {
@@ -46,7 +49,6 @@ function normalizar(foto, tipo) {
     autor: String(foto?.autor || foto?.autoria || '').trim(),
     procedencia: String(foto?.procedencia || '').trim(),
     destacada: foto?.destacada === true,
-    rutaR2: String(foto?.rutaR2 || foto?.rutaR2Privada || foto?.rutaR2Publica || '').trim(),
     tipo
   };
 }
@@ -77,18 +79,14 @@ async function listar(env, usuario) {
       publicarPublica: false,
       publicarPrivada: false,
       destacadaPublica: false,
-      destacadaPrivada: false,
-      rutaR2Publica: '',
-      rutaR2Privada: ''
+      destacadaPrivada: false
     };
     if (foto.tipo === 'publica') {
       actual.publicarPublica = true;
       actual.destacadaPublica = foto.destacada;
-      actual.rutaR2Publica = foto.rutaR2;
     } else {
       actual.publicarPrivada = true;
       actual.destacadaPrivada = foto.destacada;
-      actual.rutaR2Privada = foto.rutaR2;
     }
     for (const campo of ['titulo','peFoto','observacions','data','anoAproximado','lugar','evento','concerto','autor','procedencia']) {
       if (!actual[campo] && foto[campo]) actual[campo] = foto[campo];
@@ -101,18 +99,61 @@ async function listar(env, usuario) {
   return { ok: true, total: fotos.length, fotos };
 }
 
+async function lerIndice(bucket, clave) {
+  if (!bucket) return null;
+  const obxecto = await bucket.get(clave);
+  if (!obxecto) return null;
+  const indice = await obxecto.json().catch(() => null);
+  return indice && Array.isArray(indice.fotos) ? indice : null;
+}
+
+function rutaPrivada(foto) {
+  return String(
+    foto?.rutaR2Privada || foto?.rutaR2_Privada || foto?.RutaR2_Privada || foto?.rutaR2 || foto?.RutaR2 || ''
+  ).trim();
+}
+
+function rutaPublica(foto) {
+  return String(
+    foto?.rutaR2Publica || foto?.rutaR2_Publica || foto?.RutaR2_Publica || foto?.rutaR2 || foto?.RutaR2 || ''
+  ).trim();
+}
+
+async function resolverImaxe(env, id) {
+  const indicePrivado = await lerIndice(env.R2_PRIVADO, INDEX_PRIVADO);
+  const fotoPrivada = indicePrivado?.fotos?.find((foto) => idFoto(foto) === id);
+  const clavePrivada = rutaPrivada(fotoPrivada);
+  if (clavePrivada) {
+    return { bucket: env.R2_PRIVADO, clave: clavePrivada, ambito: 'privado' };
+  }
+
+  const indicePublico = await lerIndice(env.R2_PUBLICO, INDEX_PUBLICO);
+  const fotoPublica = indicePublico?.fotos?.find((foto) => idFoto(foto) === id);
+  const clavePublica = rutaPublica(fotoPublica);
+  if (clavePublica) {
+    return { bucket: env.R2_PUBLICO, clave: clavePublica, ambito: 'publico' };
+  }
+
+  return null;
+}
+
 async function obterImaxe(env, datos) {
   const id = String(datos.idFoto || '').trim();
-  const publica = datos.publica === true;
-  const ruta = String(publica ? datos.rutaR2Publica : datos.rutaR2Privada).trim();
-  const bucket = publica ? env.R2_PUBLICO : env.R2_PRIVADO;
-  if (!id || !ruta || !bucket) throw new Error('Non se puido determinar a imaxe publicada en R2.');
-  const obxecto = await bucket.get(ruta);
-  if (!obxecto) return json(404, { ok: false, erro: 'O ficheiro non existe en R2.' });
+  if (!id) throw new Error('Falta o identificador da fotografía.');
+
+  const resolta = await resolverImaxe(env, id);
+  if (!resolta) {
+    return json(404, { ok: false, erro: 'A fotografía non figura nos índices oficiais de R2.' });
+  }
+
+  const obxecto = await resolta.bucket.get(resolta.clave);
+  if (!obxecto) return json(404, { ok: false, erro: 'O ficheiro indexado non existe en R2.' });
+
   const headers = new Headers();
   obxecto.writeHttpMetadata(headers);
   headers.set('Cache-Control', 'private, max-age=300');
   headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-SCPP-Photo-Source', `R2-${resolta.ambito.toUpperCase()}`);
   return new Response(obxecto.body, { headers });
 }
 
@@ -120,7 +161,6 @@ async function actualizar(env, usuario, datos) {
   const id = String(datos.idFoto || '').trim();
   if (!id) throw new Error('Falta o identificador da fotografía.');
 
-  // 1. Gardar metadatos sen activar unha nova migración R2.
   const { resultado: metadatos } = await obterJsonAppsScript(env, {
     token: env.WEB_WRITE_TOKEN,
     accion: 'actualizarRevisionFoto',
@@ -139,7 +179,6 @@ async function actualizar(env, usuario, datos) {
   }, { timeoutMs: 45_000, attemptTimeoutMs: 15_000 });
   if (!metadatos?.ok) throw new Error(metadatos?.erro || 'Non se puideron gardar os metadatos.');
 
-  // 2. Restaurar os destinos solicitados conservando as rutas existentes.
   const publicarPublica = datos.publicarPublica === true;
   const publicarPrivada = datos.publicarPrivada === true;
   const { resultado: publicacion } = await obterJsonAppsScript(env, {
@@ -169,7 +208,7 @@ async function actualizar(env, usuario, datos) {
 
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
-  if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN) {
+  if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN || !env.R2_PUBLICO || !env.R2_PRIVADO) {
     return json(500, { ok: false, erro: 'A xestión de fotografías non está configurada.' });
   }
   let datos;
