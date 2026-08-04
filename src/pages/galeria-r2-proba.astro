@@ -1,0 +1,99 @@
+---
+import BaseLayout from '../layouts/Layout.astro';
+---
+
+<BaseLayout title="Proba galería R2" lang="gl">
+  <main class="container gallery-test">
+    <header>
+      <span>Proba de arquitectura</span>
+      <h1>Galería desde índice R2</h1>
+      <p>Esta páxina non consulta Google para abrirse cando o índice xa existe.</p>
+    </header>
+
+    <section class="metrics" aria-live="polite">
+      <div><small>Estado</small><strong id="metric-state">Cargando…</strong></div>
+      <div><small>Índice</small><strong id="metric-cache">—</strong></div>
+      <div><small>API</small><strong id="metric-api">—</strong></div>
+      <div><small>Total</small><strong id="metric-total">—</strong></div>
+    </section>
+
+    <p id="gallery-status" class="status">Solicitando o índice de fotografías…</p>
+    <section id="gallery-grid" class="grid"></section>
+  </main>
+</BaseLayout>
+
+<script>
+  const grid = document.querySelector('#gallery-grid');
+  const status = document.querySelector('#gallery-status');
+  const metricState = document.querySelector('#metric-state');
+  const metricCache = document.querySelector('#metric-cache');
+  const metricApi = document.querySelector('#metric-api');
+  const metricTotal = document.querySelector('#metric-total');
+
+  const escapar = (valor = '') => String(valor ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+  function urlOriginal(foto) {
+    return String(foto?.urlPublica || '').trim();
+  }
+
+  function urlMiniatura(foto) {
+    return String(foto?.urlMiniaturaPublica || foto?.urlPublica || '').trim();
+  }
+
+  function tarxeta(foto) {
+    const article = document.createElement('article');
+    const titulo = String(foto?.titulo || 'Fotografía da SCPP').trim();
+    const miniatura = urlMiniatura(foto);
+    const original = urlOriginal(foto);
+    article.className = 'card';
+    article.innerHTML = `
+      <a href="${escapar(original)}" target="_blank" rel="noopener">
+        <img src="${escapar(miniatura)}" alt="${escapar(titulo)}" loading="lazy" decoding="async" />
+      </a>
+      <h2>${escapar(titulo)}</h2>
+      <small>${foto?.urlMiniaturaPublica ? 'Miniatura R2' : 'Orixinal como respaldo'}</small>
+    `;
+    const image = article.querySelector('img');
+    image?.addEventListener('error', () => {
+      article.classList.add('error');
+      image.alt = `Non foi posible cargar ${titulo}`;
+    });
+    return article;
+  }
+
+  async function cargar() {
+    const inicio = performance.now();
+    try {
+      const resposta = await fetch('/api/galeria-r2-proba', { cache: 'default' });
+      const apiFin = performance.now();
+      const datos = await resposta.json();
+      if (!resposta.ok || !datos?.ok || !Array.isArray(datos.fotos)) {
+        throw new Error(datos?.erro || 'Non foi posible cargar o índice.');
+      }
+
+      grid?.replaceChildren(...datos.fotos.map(tarxeta));
+      const total = Math.round(performance.now() - inicio);
+      if (metricState) metricState.textContent = `${datos.fotos.length} fotos`;
+      if (metricCache) metricCache.textContent = datos.cache || resposta.headers.get('X-SCPP-Cache') || '—';
+      if (metricApi) metricApi.textContent = `${Math.round(apiFin - inicio)} ms`;
+      if (metricTotal) metricTotal.textContent = `${total} ms`;
+      if (status) status.textContent = datos.cache === 'MISS'
+        ? 'Índice creado. Recarga para medir a lectura directa desde R2.'
+        : 'Índice servido directamente desde R2.';
+    } catch (erro) {
+      if (metricState) metricState.textContent = 'Erro';
+      if (status) status.textContent = erro instanceof Error ? erro.message : 'Erro descoñecido';
+    }
+  }
+
+  cargar();
+</script>
+
+<style>
+  .gallery-test{padding-top:3rem;padding-bottom:5rem}.gallery-test header{max-width:760px;margin:0 auto 2rem;text-align:center}.gallery-test header span{color:var(--color-acento);font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.gallery-test h1{margin:.45rem 0;color:var(--color-principal);font-size:clamp(2rem,5vw,3rem)}.gallery-test header p{margin:0;color:#665f5a}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}.metrics div{display:grid;gap:.2rem;padding:.85rem;border:1px solid #ded8d3;background:#fff}.metrics small{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase}.metrics strong{color:var(--color-principal)}.status{padding:.8rem;border-left:3px solid var(--color-acento);background:#faf8f6}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}.card{overflow:hidden;border:1px solid #ddd7d2;background:#fff}.card a{display:block;height:210px;background:#eeeae7}.card img{display:block;width:100%;height:100%;object-fit:cover}.card h2{margin:.8rem .9rem .25rem;font-size:.92rem;line-height:1.35}.card small{display:block;margin:0 .9rem .85rem;color:#766f69}.card.error img{opacity:.2}@media(max-width:700px){.metrics{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}}
+</style>
