@@ -1,12 +1,18 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
-const json = (status, body, cacheControl = 'no-store') => new Response(
+const CACHE_FRESH_MS = 5 * 60 * 1000;
+const CACHE_BROWSER_SECONDS = 60;
+const CACHE_EDGE_SECONDS = 24 * 60 * 60;
+const CACHE_KEY_PATH = '/__scpp-cache/galeria-publica-v1';
+
+const json = (status, body, cacheControl = 'no-store', extraHeaders = {}) => new Response(
   JSON.stringify(body),
   {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': cacheControl
+      'Cache-Control': cacheControl,
+      ...extraHeaders
     }
   }
 );
@@ -61,7 +67,66 @@ function normalizarFoto(foto = {}) {
   };
 }
 
-export async function onRequest({ request, env }) {
+function cacheKey(request) {
+  const url = new URL(request.url);
+  url.pathname = CACHE_KEY_PATH;
+  url.search = '';
+  return new Request(url.toString(), { method: 'GET' });
+}
+
+function respostaGaleria(body, estadoCache, xeradaEn = Date.now()) {
+  return json(
+    200,
+    body,
+    `public, max-age=${CACHE_BROWSER_SECONDS}, s-maxage=${CACHE_EDGE_SECONDS}, stale-while-revalidate=${CACHE_EDGE_SECONDS}`,
+    {
+      'X-SCPP-Cache': estadoCache,
+      'X-SCPP-Generated-At': String(xeradaEn)
+    }
+  );
+}
+
+async function consultarGaleria(env) {
+  const { resultado, usouRespaldo } = await obterJsonAppsScript(
+    env,
+    {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'listarFotosGaleria'
+    },
+    {
+      timeoutMs: 75_000,
+      attemptTimeoutMs: 30_000
+    }
+  );
+
+  if (!resultado?.ok) {
+    throw new Error(resultado?.erro || 'Non foi posible cargar a galería.');
+  }
+
+  const fotos = Array.isArray(resultado.fotos)
+    ? resultado.fotos.map(normalizarFoto)
+    : [];
+
+  return {
+    body: { ...resultado, fotos },
+    usouRespaldo
+  };
+}
+
+async function actualizarCache(cache, key, env) {
+  const { body, usouRespaldo } = await consultarGaleria(env);
+  const xeradaEn = Date.now();
+  const resposta = respostaGaleria(body, 'MISS', xeradaEn);
+  const paraCache = new Response(resposta.body, resposta);
+  paraCache.headers.set('X-SCPP-AppScript', usouRespaldo ? 'FALLBACK' : 'PRIMARY');
+  paraCache.headers.set('X-SCPP-Generated-At', String(xeradaEn));
+  await cache.put(key, paraCache.clone());
+  return paraCache;
+}
+
+export async function onRequest(context) {
+  const { request, env } = context;
+
   if (request.method !== 'GET') {
     return json(405, { ok: false, erro: 'Método non permitido' });
   }
@@ -73,41 +138,33 @@ export async function onRequest({ request, env }) {
     });
   }
 
-  try {
-    const { resultado, usouRespaldo } = await obterJsonAppsScript(
-      env,
-      {
-        token: env.WEB_WRITE_TOKEN,
-        accion: 'listarFotosGaleria',
-        cacheBust: Date.now()
-      },
-      {
-        timeoutMs: 75_000,
-        attemptTimeoutMs: 30_000
-      }
+  const cache = caches.default;
+  const key = cacheKey(request);
+  const gardada = await cache.match(key);
+
+  if (gardada) {
+    const xeradaEn = Number(gardada.headers.get('X-SCPP-Generated-At') || 0);
+    const fresca = xeradaEn > 0 && Date.now() - xeradaEn < CACHE_FRESH_MS;
+    const resposta = new Response(gardada.body, gardada);
+    resposta.headers.set('X-SCPP-Cache', fresca ? 'HIT' : 'STALE');
+    resposta.headers.set(
+      'Cache-Control',
+      `public, max-age=${CACHE_BROWSER_SECONDS}, s-maxage=${CACHE_EDGE_SECONDS}, stale-while-revalidate=${CACHE_EDGE_SECONDS}`
     );
 
-    if (!resultado?.ok) {
-      return json(502, {
-        ok: false,
-        erro: resultado?.erro || 'Non foi posible cargar a galería.'
-      });
+    if (!fresca) {
+      context.waitUntil(
+        actualizarCache(cache, key, env).catch((erro) => {
+          console.error('Non foi posible actualizar a caché da galería:', erro);
+        })
+      );
     }
 
-    const fotos = Array.isArray(resultado.fotos)
-      ? resultado.fotos.map(normalizarFoto)
-      : [];
+    return resposta;
+  }
 
-    return new Response(JSON.stringify({ ...resultado, fotos }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY'
-      }
-    });
+  try {
+    return await actualizarCache(cache, key, env);
   } catch (erro) {
     console.error('Erro ao cargar a galería pública:', erro);
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT'
