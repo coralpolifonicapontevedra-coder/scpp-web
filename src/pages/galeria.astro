@@ -151,8 +151,26 @@ const categorias = ['Todos', 'Concertos', 'Centenario', 'Distincións', 'Prensa'
     article.innerHTML = `<button class="gallery-image-button" type="button" aria-label="Ampliar ${esc(titulo)}"><span class="image-state">Cargando…</span><img src="${esc(thumbOf(foto))}" alt="${esc(titulo)}" loading="lazy" decoding="async" /></button><div class="gallery-content-box"><div class="gallery-meta"><span class="gallery-category">${esc(categoria)}</span>${ano ? `<time>${esc(ano)}</time>` : ''}</div><h2>${esc(titulo)}</h2></div>`;
     const image = article.querySelector('img');
     const imageState = article.querySelector('.image-state');
-    image?.addEventListener('load', () => { article.classList.add('image-ready'); if (imageState instanceof HTMLElement) imageState.hidden = true; });
-    image?.addEventListener('error', () => { article.classList.add('image-error'); if (imageState instanceof HTMLElement) imageState.textContent = 'Imaxe non dispoñible'; });
+    const markReady = () => {
+      article.classList.remove('image-error');
+      article.classList.add('image-ready');
+      if (imageState instanceof HTMLElement) imageState.hidden = true;
+    };
+    const markError = () => {
+      article.classList.remove('image-ready');
+      article.classList.add('image-error');
+      if (imageState instanceof HTMLElement) {
+        imageState.hidden = false;
+        imageState.textContent = 'Imaxe non dispoñible';
+      }
+    };
+    image?.addEventListener('load', markReady);
+    image?.addEventListener('error', markError);
+    // Unha imaxe en caché pode estar completa antes de rexistrar os eventos.
+    // Sen esta comprobación quedaba descargada, pero invisible por opacity: 0.
+    if (image instanceof HTMLImageElement && image.complete) {
+      image.naturalWidth > 0 ? markReady() : markError();
+    }
     article.querySelector('button')?.addEventListener('click', () => showViewer(visibles.indexOf(foto)));
     return article;
   }
