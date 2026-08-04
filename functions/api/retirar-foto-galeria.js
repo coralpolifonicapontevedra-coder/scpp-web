@@ -54,7 +54,9 @@ async function comprobarAdministracion(env, usuario) {
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Administración non autorizada');
 }
 
-const idFoto = (foto) => String(foto?.idFoto || foto?.Id_Foto || foto?.rowId || '').trim();
+const idFoto = (foto) => String(
+  foto?.idFoto || foto?.Id_Foto || foto?.id || foto?.Id || foto?.ID || foto?.rowId || foto?.['Row ID'] || ''
+).trim();
 
 async function lerIndice(bucket, clave) {
   const obxecto = await bucket.get(clave);
