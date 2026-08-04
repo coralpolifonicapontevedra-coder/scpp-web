@@ -4,6 +4,7 @@ const INDEX_PUBLICO = 'indices/galeria-publica-v1.json';
 const INDEX_PRIVADO = 'indices/galeria-privada.json';
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 
+const texto = (valor) => String(valor || '').trim();
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -12,30 +13,6 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
     ...extraHeaders
   }
 });
-
-const texto = (valor) => String(valor || '').trim();
-
-function rutaPrivada(foto) {
-  return texto(foto?.rutaR2Privada || foto?.rutaR2_Privada || foto?.RutaR2_Privada || foto?.rutaR2 || foto?.RutaR2);
-}
-
-function rutaPublica(foto) {
-  return texto(foto?.rutaR2Publica || foto?.rutaR2_Publica || foto?.RutaR2_Publica || foto?.rutaR2 || foto?.RutaR2);
-}
-
-function idDesdeRuta(ruta) {
-  const limpa = texto(ruta).split('?')[0].replace(/\\/g, '/');
-  const nome = limpa.split('/').filter(Boolean).pop() || '';
-  return nome.replace(/\.(jpe?g|png|webp|gif|heic|avif)$/i, '').trim();
-}
-
-function idFoto(foto) {
-  return texto(
-    foto?.idFoto || foto?.Id_Foto || foto?.id || foto?.Id || foto?.ID ||
-    foto?.rowId || foto?.['Row ID'] ||
-    idDesdeRuta(rutaPrivada(foto) || rutaPublica(foto))
-  );
-}
 
 async function verificarTokenFirebase(idToken, apiKey) {
   const resposta = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
@@ -62,7 +39,8 @@ async function administracionCacheada(env, usuario) {
   if (!obxecto) return false;
   const datos = await obxecto.json().catch(() => null);
   const verificadaEn = Date.parse(texto(datos?.verificadaEn));
-  return datos?.administrador === true && Number.isFinite(verificadaEn) && Date.now() - verificadaEn < AUTH_TTL_MS;
+  return datos?.administrador === true && Number.isFinite(verificadaEn) &&
+    Date.now() - verificadaEn < AUTH_TTL_MS;
 }
 
 async function comprobarAdministracion(env, usuario) {
@@ -76,18 +54,63 @@ async function comprobarAdministracion(env, usuario) {
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Administración non autorizada');
 }
 
+function rutaDesdeUrl(valor) {
+  const cadea = texto(valor);
+  if (!cadea) return '';
+  try {
+    const url = new URL(cadea, 'https://scpp.local');
+    const parametro = texto(url.searchParams.get('ruta'));
+    if (parametro) return parametro.replace(/^\/+/, '');
+    const marcador = '/arquivos/publico/';
+    if (url.pathname.includes(marcador)) {
+      return decodeURIComponent(url.pathname.split(marcador, 2)[1] || '').replace(/^\/+/, '');
+    }
+  } catch { /* URL antiga ou relativa non estándar */ }
+  return '';
+}
+
+function rutaPublica(foto) {
+  return texto(
+    foto?.rutaR2Publica || foto?.rutaR2_Publica || foto?.RutaR2_Publica ||
+    foto?.rutaR2 || foto?.RutaR2 || rutaDesdeUrl(foto?.urlPublica || foto?.UrlPublica)
+  );
+}
+
+function rutaPrivada(foto) {
+  return texto(foto?.rutaR2Privada || foto?.rutaR2_Privada || foto?.RutaR2_Privada || foto?.rutaR2 || foto?.RutaR2);
+}
+
+function rutaMiniaturaPublica(foto) {
+  return texto(
+    foto?.rutaMiniaturaPublica || foto?.rutaMiniatura_Publica || foto?.RutaMiniaturaPublica ||
+    rutaDesdeUrl(foto?.urlMiniaturaPublica || foto?.UrlMiniaturaPublica)
+  );
+}
+
 function rutaMiniaturaPrivada(foto) {
   return texto(foto?.rutaMiniaturaPrivada || foto?.rutaMiniatura_Privada || foto?.RutaMiniaturaPrivada);
 }
 
-function rutaMiniaturaPublica(foto) {
-  return texto(foto?.rutaMiniaturaPublica || foto?.rutaMiniatura_Publica || foto?.RutaMiniaturaPublica);
+function idDesdeRuta(ruta) {
+  const nome = texto(ruta).split('/').pop() || '';
+  const senExtension = nome.replace(/\.(jpe?g|png|webp|gif|heic)$/i, '');
+  const uuid = senExtension.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i);
+  return uuid ? uuid[0] : senExtension;
+}
+
+function idFoto(foto, tipo = '') {
+  const directo = texto(
+    foto?.idFoto || foto?.Id_Foto || foto?.id || foto?.Id || foto?.ID ||
+    foto?.rowId || foto?.['Row ID']
+  );
+  if (directo) return directo;
+  return idDesdeRuta(tipo === 'privada' ? rutaPrivada(foto) : rutaPublica(foto));
 }
 
 function normalizar(foto, tipo) {
   const rutaR2 = tipo === 'privada' ? rutaPrivada(foto) : rutaPublica(foto);
   return {
-    idFoto: idFoto(foto),
+    idFoto: idFoto(foto, tipo),
     titulo: texto(foto?.titulo || foto?.Titulo),
     peFoto: texto(foto?.peFoto || foto?.PeFoto),
     observacions: texto(foto?.observacions || foto?.Observacions),
@@ -121,8 +144,8 @@ async function listar(env) {
   ]);
   if (!indicePublico && !indicePrivado) throw new Error('Os índices das galerías non están dispoñibles en R2.');
 
-  const publicas = (indicePublico?.fotos || []).map((foto) => normalizar(foto, 'publica')).filter((foto) => foto.idFoto && foto.rutaR2);
-  const privadas = (indicePrivado?.fotos || []).map((foto) => normalizar(foto, 'privada')).filter((foto) => foto.idFoto && foto.rutaR2);
+  const publicas = (indicePublico?.fotos || []).map((foto) => normalizar(foto, 'publica')).filter((foto) => foto.idFoto);
+  const privadas = (indicePrivado?.fotos || []).map((foto) => normalizar(foto, 'privada')).filter((foto) => foto.idFoto);
   const mapa = new Map();
 
   for (const foto of [...publicas, ...privadas]) {
@@ -173,10 +196,10 @@ async function resolverImaxe(env, id) {
     lerIndice(env.R2_PRIVADO, INDEX_PRIVADO),
     lerIndice(env.R2_PUBLICO, INDEX_PUBLICO)
   ]);
-  const fotoPrivada = indicePrivado?.fotos?.find((foto) => idFoto(foto) === id);
+  const fotoPrivada = indicePrivado?.fotos?.find((foto) => idFoto(foto, 'privada') === id);
   const clavePrivada = rutaPrivada(fotoPrivada);
   if (clavePrivada) return { bucket: env.R2_PRIVADO, clave: clavePrivada, ambito: 'privado' };
-  const fotoPublica = indicePublico?.fotos?.find((foto) => idFoto(foto) === id);
+  const fotoPublica = indicePublico?.fotos?.find((foto) => idFoto(foto, 'publica') === id);
   const clavePublica = rutaPublica(fotoPublica);
   if (clavePublica) return { bucket: env.R2_PUBLICO, clave: clavePublica, ambito: 'publico' };
   return null;
@@ -233,6 +256,7 @@ async function actualizar(env, usuario, datos) {
     destacadaPrivada: publicarPrivada && datos.destacadaPrivada === true
   }, { timeoutMs: 45_000, attemptTimeoutMs: 15_000 });
   if (!publicacion?.ok) throw new Error(publicacion?.erro || 'Non se puido actualizar a publicación.');
+
   return {
     ok: true,
     idFoto: id,
@@ -252,8 +276,10 @@ export async function onRequest({ request, env }) {
   let datos;
   try { datos = await request.json(); }
   catch { return json(400, { ok: false, erro: 'Solicitude non válida' }); }
+
   const usuario = await verificarTokenFirebase(texto(datos.idToken), env.FIREBASE_API_KEY);
   if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
+
   try {
     await comprobarAdministracion(env, usuario);
     const accion = texto(datos.accion || 'listar');
