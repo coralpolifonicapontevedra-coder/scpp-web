@@ -35,5 +35,12 @@ describe('servizo R2 de materiais de concertos', () => {
     expect(axenda).toContain('/media/concertos/');
     expect(axenda).not.toContain("if (tipo === 'cartel') return `/img/concertos/");
   });
+
+  it('deixa o programa dos próximos concertos fóra da columna estreita do cartel', () => {
+    expect(axenda).toContain('<div class="concert-main">');
+    expect(axenda).toContain('.concert-card.has-poster .concert-main { display: grid;');
+    expect(axenda).not.toContain('.concert-card.has-poster { display: grid;');
+    expect(axenda).toContain('.concert-card .programa { max-width: 850px; }');
+  });
 });
 
