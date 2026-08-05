@@ -26,7 +26,9 @@ describe('servizo R2 de materiais de concertos', () => {
   it('usa R2 para programas autenticados antes de Apps Script', () => {
     expect(api).toContain('CONCERT_PROGRAM_BY_ID');
     expect(api).toContain('respostaProgramaR2');
-    expect(api.indexOf('respostaProgramaR2')).toBeLessThan(api.indexOf('obterJsonAppsScript'));
+    expect(api.indexOf('const programaR2 = await respostaProgramaR2')).toBeLessThan(
+      api.indexOf('const { resultado, usouRespaldo } = await obterJsonAppsScript')
+    );
   });
 
   it('publica carteles, trípticos e prensa mediante o endpoint controlado', () => {
