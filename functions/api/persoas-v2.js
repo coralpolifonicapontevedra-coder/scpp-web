@@ -162,7 +162,7 @@ async function gardarCache(request, email, payload) {
         status: 200,
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Cache-Control': `private, max-age=${Math.floor(CACHE_RESPALDO_MS / 1000)}`
+          'Cache-Control': `public, max-age=${Math.floor(CACHE_RESPALDO_MS / 1000)}`
         }
       })
     );
