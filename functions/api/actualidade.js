@@ -1,13 +1,14 @@
 const INDEX_KEY = 'indices/actualidade-v1.json';
 const ORIXE = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec?recurso=publicacions';
-const TTL_MS = 10 * 60 * 1000;
+const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
-const json = (status, body, cache = 'public, max-age=120, s-maxage=300, stale-while-revalidate=3600') =>
+const json = (status, body, cache = 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400') =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': cache,
+      'X-Content-Type-Options': 'nosniff',
       'X-SCPP-Data-Source': body?.fonte || 'UNKNOWN'
     }
   });
@@ -26,33 +27,29 @@ function normalizar(publicacion) {
   };
 }
 
+function respostaValida(datos) {
+  return datos?.ok === true && Array.isArray(datos?.publicacions);
+}
+
 async function lerIndice(env) {
   if (!env.R2_PUBLICO) return null;
   const obxecto = await env.R2_PUBLICO.get(INDEX_KEY);
   if (!obxecto) return null;
   const datos = await obxecto.json().catch(() => null);
-  return datos && Array.isArray(datos.publicacions) ? datos : null;
+  return respostaValida(datos) ? datos : null;
 }
 
-async function gardarIndice(env, publicacions) {
+async function gardarIndice(env, datos) {
   if (!env.R2_PUBLICO) return;
-  const agora = new Date();
-  await env.R2_PUBLICO.put(INDEX_KEY, JSON.stringify({
-    ok: true,
-    publicacions,
-    total: publicacions.length,
-    xeradoEn: agora.toISOString(),
-    xeradoEnMs: agora.getTime(),
-    version: 1
-  }), {
+  await env.R2_PUBLICO.put(INDEX_KEY, JSON.stringify(datos), {
     httpMetadata: {
       contentType: 'application/json; charset=utf-8',
-      cacheControl: 'public, max-age=0, no-cache, must-revalidate'
+      cacheControl: 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400'
     }
   });
 }
 
-async function consultarOrixe() {
+async function cargarDesdeSheet() {
   const resposta = await fetch(ORIXE, {
     method: 'GET',
     redirect: 'follow',
@@ -60,39 +57,52 @@ async function consultarOrixe() {
   });
   if (!resposta.ok) throw new Error(`Apps Script respondeu HTTP ${resposta.status}`);
   const datos = await resposta.json();
-  if (!datos?.ok || !Array.isArray(datos.publicacions)) throw new Error('Formato de publicacións non válido');
-  return datos.publicacions
+  if (!respostaValida(datos)) throw new Error('Formato de publicacións non válido');
+
+  const publicacions = datos.publicacions
     .map(normalizar)
     .filter((item) => item.titulo && item.rutaWeb)
     .sort((a, b) => b.data.localeCompare(a.data));
+
+  return {
+    ok: true,
+    publicacions,
+    total: publicacions.length,
+    xeradoEn: new Date().toISOString(),
+    xeradoEnMs: Date.now(),
+    fonte: 'SHEET',
+    version: 2
+  };
 }
 
-export async function onRequestGet({ env }) {
-  const indice = await lerIndice(env);
-  const idade = indice?.xeradoEnMs ? Date.now() - Number(indice.xeradoEnMs) : Infinity;
+async function refrescar(env) {
+  const actualizado = await cargarDesdeSheet();
+  await gardarIndice(env, actualizado);
+  return actualizado;
+}
 
-  if (indice && idade < TTL_MS) {
-    return json(200, { ...indice, fonte: 'R2-CACHE' });
+export async function onRequestGet({ env, waitUntil }) {
+  const indice = await lerIndice(env).catch(() => null);
+  const idade = indice ? Date.now() - Number(indice.xeradoEnMs || 0) : Infinity;
+
+  if (indice) {
+    if (idade >= MAX_AGE_MS) {
+      const tarefa = refrescar(env).catch((erro) => {
+        console.error('Non se puido refrescar Actualidade en segundo plano:', erro);
+      });
+      if (typeof waitUntil === 'function') waitUntil(tarefa);
+    }
+
+    return json(200, {
+      ...indice,
+      fonte: idade < MAX_AGE_MS ? 'R2-CACHE' : 'R2-STALE-REFRESH'
+    });
   }
 
   try {
-    const publicacions = await consultarOrixe();
-    await gardarIndice(env, publicacions);
-    return json(200, {
-      ok: true,
-      publicacions,
-      total: publicacions.length,
-      xeradoEn: new Date().toISOString(),
-      fonte: 'SHEET-REFRESH'
-    });
+    const actualizado = await refrescar(env);
+    return json(200, actualizado);
   } catch (erro) {
-    if (indice) {
-      return json(200, {
-        ...indice,
-        fonte: 'R2-STALE',
-        aviso: erro instanceof Error ? erro.message : 'Non se puido actualizar o índice.'
-      }, 'public, max-age=60, s-maxage=120, stale-while-revalidate=3600');
-    }
     return json(503, {
       ok: false,
       erro: erro instanceof Error ? erro.message : 'Non se puideron cargar as publicacións.',
