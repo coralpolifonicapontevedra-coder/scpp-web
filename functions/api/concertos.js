@@ -1,4 +1,5 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
+import { CONCERT_PROGRAM_BY_ID } from '../_data/concert-media-r2.js';
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -50,6 +51,26 @@ function respostaFicheiro(resultado) {
   });
 }
 
+async function respostaProgramaR2(env, concertoId) {
+  const entrada = CONCERT_PROGRAM_BY_ID[concertoId];
+  if (!entrada || !env.R2_PRIVADO) return null;
+  try {
+    const obxecto = await env.R2_PRIVADO.get(entrada.r2Key);
+    if (!obxecto) return null;
+    const headers = new Headers();
+    obxecto.writeHttpMetadata(headers);
+    headers.set('Content-Type', entrada.mimeType);
+    headers.set('Content-Disposition', `inline; filename="${entrada.name.replace(/[\r\n"]/g, '')}"`);
+    headers.set('Cache-Control', 'private, max-age=300');
+    headers.set('X-Content-Type-Options', 'nosniff');
+    headers.set('X-SCPP-Storage', 'R2');
+    return new Response(obxecto.body, { status: 200, headers });
+  } catch (erro) {
+    console.warn('Non foi posible abrir o programa do concerto desde R2:', erro);
+    return null;
+  }
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') {
     return json(405, { ok: false, erro: 'Método non permitido' });
@@ -89,6 +110,9 @@ export async function onRequest({ request, env }) {
   if (!concertoId || concertoId.length > 120) {
     return json(400, { ok: false, erro: 'O concerto indicado non é válido' });
   }
+
+  const programaR2 = await respostaProgramaR2(env, concertoId);
+  if (programaR2) return programaR2;
 
   try {
     const { resultado, usouRespaldo } = await obterJsonAppsScript(
