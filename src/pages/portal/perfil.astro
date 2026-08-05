@@ -358,7 +358,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   async function requestProfile(action, extra = {}) {
     const user = auth.currentUser;
     if (!user?.email) throw new Error('A sesión xa non está activa.');
-    const idToken = await user.getIdToken(true);
+    const idToken = await user.getIdToken();
     const response = await fetch('/api/perfil', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -372,7 +372,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   }
 
   async function hasValidAcceptance(user) {
-    const idToken = await user.getIdToken(true);
+    const idToken = await user.getIdToken();
     const response = await fetch('/api/aceptacion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
