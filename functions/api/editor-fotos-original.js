@@ -72,6 +72,17 @@ async function comprobarAdministracion(env, usuario) {
 }
 
 async function resolverRutaActual(env, idFoto) {
+  const rutaCanonica = `fotos/borradores/${idFoto}`;
+  const canonico = await env.R2_PRIVADO.get(rutaCanonica);
+  if (canonico) {
+    return {
+      obxecto: canonico,
+      ruta: rutaCanonica,
+      mimeType: '',
+      fonte: 'R2-DRAFT-CANONICAL'
+    };
+  }
+
   const estadoObj = await env.R2_PRIVADO.get(`fotos/estado-edicion/${idFoto}.json`);
   const estado = estadoObj ? await estadoObj.json().catch(() => null) : null;
   const rutaBorrador = String(estado?.rutaPrivada || '').trim();
@@ -83,7 +94,7 @@ async function resolverRutaActual(env, idFoto) {
         obxecto: borrador,
         ruta: rutaBorrador,
         mimeType: String(estado?.mimeType || '').trim(),
-        fonte: 'R2-DRAFT'
+        fonte: 'R2-DRAFT-POINTER'
       };
     }
   }
@@ -99,7 +110,7 @@ async function resolverRutaActual(env, idFoto) {
     obxecto,
     ruta,
     mimeType: String(indice?.mimeType || '').trim(),
-    fonte: ruta.includes('/editadas/') ? 'R2-WORK-DRAFT' : 'R2-WORK-ORIGINAL'
+    fonte: ruta.includes('/borradores/') || ruta.includes('/editadas/') ? 'R2-WORK-DRAFT' : 'R2-WORK-ORIGINAL'
   };
 }
 
