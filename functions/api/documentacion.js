@@ -188,9 +188,78 @@ function respostaFicheiro(resultado) {
       'Content-Type': String(resultado.mimeType || 'application/pdf'),
       'Content-Disposition': `inline; filename="${nome}"`,
       'Cache-Control': 'private, max-age=300',
-      'X-Content-Type-Options': 'nosniff'
+      'X-Content-Type-Options': 'nosniff',
+      'X-SCPP-Storage': 'DRIVE_APPS_SCRIPT'
     }
   });
+}
+
+function nomeSeguro(valor) {
+  return String(valor || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .pop()
+    .replace(/[\r\n"]/g, '');
+}
+
+function slugR2(valor) {
+  const slug = String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '');
+  return slug || 'arquivo';
+}
+
+function claveR2Documento(documento) {
+  const id = String(documento?.id || '').trim();
+  const nome = nomeSeguro(documento?.ruta);
+  if (!id || !nome) return '';
+  const prefixo = documento?.clase === 'acta'
+    ? 'documentacion/actas'
+    : 'documentacion/documentos';
+  return `${prefixo}/${slugR2(id)}-${slugR2(nome)}`;
+}
+
+function buscarDocumentoAutorizado(payload, datos) {
+  const ruta = String(datos?.ruta || '').trim();
+  const clase = String(datos?.clase || '').trim();
+  if (!ruta || !clase || !Array.isArray(payload?.documentos)) return null;
+  return payload.documentos.find(
+    (item) => String(item?.ruta || '').trim() === ruta
+      && String(item?.clase || '').trim() === clase
+  ) || null;
+}
+
+async function listadoAutorizado(context, usuario, datos) {
+  const cacheada = await lerCachePersistente(context.request, usuario.email);
+  if (cacheada?.payload?.documentos?.length) return cacheada.payload;
+  const { normalizado } = await consultarListado(context.env, usuario, datos);
+  await gardarCachePersistente(context.request, usuario.email, normalizado);
+  return normalizado;
+}
+
+async function respostaR2(env, documento) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  const key = claveR2Documento(documento);
+  if (!key || !key.startsWith('documentacion/')) return null;
+
+  const inicio = Date.now();
+  const object = await env.R2_PRIVADO.get(key);
+  if (!object) return null;
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  const nome = nomeSeguro(documento.ruta) || key.split('/').pop() || 'documento.pdf';
+  headers.set('Content-Type', headers.get('Content-Type') || 'application/pdf');
+  headers.set('Content-Disposition', `inline; filename="${nome}"`);
+  headers.set('Cache-Control', 'private, max-age=3600');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-SCPP-Storage', 'R2');
+  headers.set('Server-Timing', `r2;dur=${Date.now() - inicio}`);
+  if (object.httpEtag) headers.set('ETag', object.httpEtag);
+  return new Response(object.body, { status: 200, headers });
 }
 
 function corpoAppsScript(env, usuario, accion, datos) {
@@ -279,6 +348,23 @@ export async function onRequest(context) {
   const inicio = Date.now();
   try {
     if (accion === 'obterFicheiroDocumentacion') {
+      const payload = await listadoAutorizado(context, usuario, datos);
+      const documento = buscarDocumentoAutorizado(payload, datos);
+      if (!documento) {
+        return json(403, {
+          ok: false,
+          erro: 'Non tes permiso para acceder a este documento.'
+        });
+      }
+
+      try {
+        const respostaDirecta = await respostaR2(env, documento);
+        if (respostaDirecta) return respostaDirecta;
+      } catch (erroR2) {
+        console.warn('Non se puido servir o documento desde R2; úsase o respaldo:', erroR2);
+      }
+
+      // Respaldo temporal: conserva Drive a través de Apps Script durante a transición.
       const { resultado, usouRespaldo } = await obterJsonAppsScript(
         env,
         corpoAppsScript(env, usuario, accion, datos),
@@ -294,6 +380,7 @@ export async function onRequest(context) {
         });
       }
       const resposta = respostaFicheiro(resultado);
+      resposta.headers.set('X-SCPP-R2', 'FALLBACK');
       if (usouRespaldo) resposta.headers.set('X-SCPP-AppScript', 'FALLBACK');
       return resposta;
     }
