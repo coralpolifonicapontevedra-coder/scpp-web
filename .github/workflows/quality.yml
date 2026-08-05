@@ -1,6 +1,7 @@
 name: Comprobar calidade
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -49,3 +50,4 @@ jobs:
 
       - name: Auditar vulnerabilidades altas
         run: npm audit --audit-level=high
+
