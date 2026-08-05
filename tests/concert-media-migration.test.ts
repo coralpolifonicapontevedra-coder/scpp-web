@@ -20,7 +20,7 @@ describe('migración de medios de conciertos', () => {
     expect(script).toContain('ERROR_REMOTE_CONFLICT');
   });
 
-  it('solo clasifica como público un cartel referenciado', () => {
+  it('clasifica como públicos carteles, programas y prensa referenciados', () => {
     expect(script).toContain('if "Cartel" in roles:');
     expect(script).toContain('"public", "concertos/imaxes"');
     expect(script).toContain('"public", "concertos/documentos"');
