@@ -5,6 +5,7 @@
 - Carpeta `Concertos_Files_`: programas, trípticos, prensa y algún cartel heredado.
 - Carpeta `Concertos_Images`: carteles e imágenes, incluidos posibles materiales no vinculados.
 - La hoja pública `Concertos` se usa únicamente para clasificar referencias; no se modifica.
+- Si la hoja indica una carpeta equivocada, se admite la coincidencia por nombre exacto del archivo.
 
 ## Clasificación
 
