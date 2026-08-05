@@ -53,6 +53,7 @@ class Asset:
     relative_path: str
     drive_id: str
     source_size: int
+    source_md5: str
     mime_type: str
     roles: list[str]
     concert_ids: list[str]
@@ -135,7 +136,7 @@ def list_folder(drive, source: SourceFolder):
         while True:
             response = drive.files().list(
                 q=f"'{parent_id}' in parents and trashed = false",
-                fields="nextPageToken,files(id,name,mimeType,size)",
+                fields="nextPageToken,files(id,name,mimeType,size,md5Checksum)",
                 pageSize=1000,
                 pageToken=token,
                 supportsAllDrives=True,
@@ -191,6 +192,7 @@ def inventory(drive, references):
                 relative_path=relative,
                 drive_id=item["id"],
                 source_size=int(item.get("size", 0) or 0),
+                source_md5=str(item.get("md5Checksum", "") or ""),
                 mime_type=item.get("mimeType") or mimetypes.guess_type(relative)[0] or "application/octet-stream",
                 roles=sorted(reference.get("roles", set())),
                 concert_ids=sorted(reference.get("concert_ids", set())),
@@ -227,12 +229,14 @@ def download(drive, asset: Asset, destination: pathlib.Path):
         while not done:
             _, done = downloader.next_chunk()
     digest = hashlib.sha256()
+    md5_digest = hashlib.md5(usedforsecurity=False)
     size = 0
     with destination.open("rb") as handle:
         while chunk := handle.read(8 * 1024 * 1024):
             size += len(chunk)
             digest.update(chunk)
-    return size, digest.hexdigest()
+            md5_digest.update(chunk)
+    return size, digest.hexdigest(), md5_digest.hexdigest()
 
 
 def report_row(asset: Asset):
@@ -245,6 +249,7 @@ def report_row(asset: Asset):
         "r2_key": asset.r2_key,
         "status": "",
         "size": asset.source_size,
+        "source_md5": asset.source_md5,
         "sha256": "",
         "detail": "",
     }
@@ -260,7 +265,7 @@ def run():
     counters = {"ok": 0, "planned": 0, "uploaded": 0, "errors": 0, "pending_review": 0}
     fields = [
         "source_folder", "relative_path", "roles", "concert_ids", "visibility",
-        "r2_key", "status", "size", "sha256", "detail",
+        "r2_key", "status", "size", "source_md5", "sha256", "detail",
     ]
     with REPORT_PATH.open("w", newline="", encoding="utf-8-sig") as report:
         writer = csv.DictWriter(report, fieldnames=fields)
@@ -280,14 +285,21 @@ def run():
                     counters["errors"] += 1
                 continue
             if MODE == "plan":
-                writer.writerow({**row, "status": "PLAN_UPLOAD"})
+                detail = ""
+                if asset.mime_type == "application/pdf" and asset.source_size > 20 * 1024 * 1024:
+                    detail = "PDF_DEMASIADO_GRANDE_REVISAR_ANTES_DE_PUBLICAR"
+                writer.writerow({**row, "status": "PLAN_UPLOAD", "detail": detail})
                 counters["planned"] += 1
                 continue
             with tempfile.TemporaryDirectory(prefix="scpp-concertos-r2-") as tmp:
                 local = pathlib.Path(tmp) / "asset.bin"
-                size, sha256 = download(drive, asset, local)
+                size, sha256, downloaded_md5 = download(drive, asset, local)
                 if asset.source_size and size != asset.source_size:
                     writer.writerow({**row, "status": "ERROR_DOWNLOAD_SIZE", "size": size, "sha256": sha256, "detail": f"Drive indicó {asset.source_size}"})
+                    counters["errors"] += 1
+                    continue
+                if asset.source_md5 and downloaded_md5 != asset.source_md5:
+                    writer.writerow({**row, "status": "ERROR_DOWNLOAD_MD5", "size": size, "sha256": sha256, "detail": f"Drive indicó {asset.source_md5}; descarga produjo {downloaded_md5}"})
                     counters["errors"] += 1
                     continue
                 with local.open("rb") as body:
@@ -301,6 +313,7 @@ def run():
                             "sha256": sha256,
                             "source-drive-id": asset.drive_id,
                             "source-name": asset.relative_path,
+                            "source-md5": asset.source_md5,
                             "asset-type": ",".join(asset.roles) or "pending-review",
                             "visibility": asset.visibility,
                         },
