@@ -21,7 +21,7 @@ const PORTAL_FONT_STYLE = `
   }
 </style>`;
 
-const PHOTO_MANAGER_SCRIPT = `<script src="/js/xestor-fotos-publicacion-v3.js" defer></script><script src="/js/borrador-fotos-pendente.js" defer></script><script src="/js/renovar-borrador-foto.js" defer></script>`;
+const PHOTO_MANAGER_SCRIPT = `<script src="/js/xestor-fotos-publicacion-v3.js?v=20260805-1" defer></script><script src="/js/borrador-fotos-pendente.js?v=20260805-2" defer></script><script src="/js/renovar-borrador-foto.js?v=20260805-3" defer></script>`;
 
 class PortalHeadRewriter {
   constructor(extra = '') { this.extra = extra; }
