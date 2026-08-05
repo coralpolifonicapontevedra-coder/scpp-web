@@ -23,4 +23,27 @@ describe('migración de Documentación y Actas', () => {
     expect(script).toContain('documentacion/documentos');
     expect(script).toContain('documentacion/actas');
   });
+
+  it('propaga los fallos del script aunque la salida pase por tee', () => {
+    expect(workflow).toContain('set -o pipefail');
+  });
+
+  it('comprueba escritura en Sheets antes de tocar R2', () => {
+    const preflight = script.indexOf('verify_sheet_write_access(sheets, tab');
+    const upload = script.indexOf('client.put_object(');
+    expect(preflight).toBeGreaterThan(-1);
+    expect(upload).toBeGreaterThan(preflight);
+  });
+
+  it('reanuda objetos propios verificados y completa la hoja', () => {
+    expect(script).toContain('metadata_from_existing(item, source, remote)');
+    expect(script).toContain('R2_EXISTS_SHEET_UPDATED');
+    expect(script).toContain('source-drive-id');
+    expect(script).toContain('record-id');
+  });
+
+  it('registra la cuenta de servicio sin mostrar su clave', () => {
+    expect(script).toContain('Cuenta de servicio de Google:');
+    expect(script).not.toContain('private_key]');
+  });
 });
