@@ -99,7 +99,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       throw Object.assign(new Error('A sesión non está activa.'), { stage: 'AUTH' });
     }
 
-    const idToken = await user.getIdToken(true);
+    // Firebase renova o token automaticamente cando está preto de caducar.\n    // Evitar `forceRefresh` aforra unha chamada de rede en cada consulta.\n    const idToken = await user.getIdToken();
     const response = await fetch('/api/persoas-v2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
