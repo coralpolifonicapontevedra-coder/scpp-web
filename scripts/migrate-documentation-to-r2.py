@@ -53,10 +53,18 @@ def required(name: str) -> str:
     return value
 
 
+def service_account_info():
+    info = json.loads(required("GOOGLE_SERVICE_ACCOUNT_JSON"))
+    email = str(info.get("client_email", "")).strip()
+    if not email:
+        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON no contiene client_email")
+    return info
+
+
 def credentials():
-    return service_account.Credentials.from_service_account_info(
-        json.loads(required("GOOGLE_SERVICE_ACCOUNT_JSON")), scopes=SCOPES
-    )
+    info = service_account_info()
+    print(f"Cuenta de servicio de Google: {info['client_email']}")
+    return service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
 
 
 def slug(value: str) -> str:
@@ -108,6 +116,18 @@ def ensure_columns(sheets, tab: str, headers: list[str]):
         body={"values": [missing]},
     ).execute()
     return headers + missing
+
+
+def verify_sheet_write_access(sheets, tab: str, headers: list[str]):
+    if not headers:
+        raise RuntimeError(f"La hoja {tab} no tiene cabeceras")
+    # Escritura inocua del mismo valor para comprobar permisos antes de tocar R2.
+    sheets.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{tab}'!A1",
+        valueInputOption="RAW",
+        body={"values": [[headers[0]]]},
+    ).execute()
 
 
 def column_name(number: int) -> str:
@@ -196,6 +216,30 @@ def download(drive, file_id: str, destination: pathlib.Path):
     return len(data), hashlib.sha256(data).hexdigest()
 
 
+def metadata_from_existing(item: Item, source: dict, remote: dict):
+    remote_metadata = remote.get("Metadata", {})
+    source_size = int(source.get("size", 0) or 0)
+    remote_size = int(remote.get("ContentLength", 0) or 0)
+    sha256 = str(remote_metadata.get("sha256", "")).strip()
+    same_origin = (
+        str(remote_metadata.get("source-drive-id", "")).strip() == str(source.get("id", "")).strip()
+        and str(remote_metadata.get("record-id", "")).strip() == item.record_id
+    )
+    if remote_size != source_size or not sha256 or not same_origin:
+        return None
+    updated = remote.get("LastModified")
+    return {
+        "R2Key": item.r2_key,
+        "R2ETag": str(remote.get("ETag", "")).strip('"'),
+        "R2SHA256": sha256,
+        "R2Size": remote_size,
+        "R2MimeType": remote.get("ContentType") or mimetypes.guess_type(item.source_name)[0] or "application/octet-stream",
+        "R2Estado": "SINCRONIZADO",
+        "R2Actualizada": updated.astimezone(timezone.utc).isoformat() if hasattr(updated, "astimezone") else datetime.now(timezone.utc).isoformat(),
+        "R2Erro": "",
+    }
+
+
 def update_sheet(sheets, item: Item, headers: list[str], values: dict):
     headers = ensure_columns(sheets, item.tab, headers)
     start = headers.index(R2_COLUMNS[0]) + 1
@@ -219,6 +263,11 @@ def run():
     docs, doc_headers = items_from_tab(sheets, "Documentación", "documento", "Ficheiro", ["Id_Documento", "Row ID"])
     minutes, minutes_headers = items_from_tab(sheets, "Actas XD e AX", "acta", "Acta", ["Id_Actas", "Row ID"])
     headers_by_tab = {"Documentación": doc_headers, "Actas XD e AX": minutes_headers}
+    if MODE == "upload":
+        # El proceso debe fallar antes de subir nada si Sheets no admite escrituras.
+        for tab in headers_by_tab:
+            verify_sheet_write_access(sheets, tab, headers_by_tab[tab])
+            headers_by_tab[tab] = ensure_columns(sheets, tab, headers_by_tab[tab])
     indexes = {
         "documento": list_folder(drive, DOCUMENTACION_FOLDER_ID),
         "acta": list_folder(drive, ACTAS_FOLDER_ID),
@@ -240,10 +289,16 @@ def run():
             source_size = int(source.get("size", 0) or 0)
             remote = head(client, bucket, item.r2_key)
             if remote:
+                existing_metadata = metadata_from_existing(item, source, remote)
                 remote_sha = str(remote.get("Metadata", {}).get("sha256", ""))
-                if int(remote.get("ContentLength", 0)) == source_size:
-                    writer.writerow({**base, "status": "OK_R2_EXISTS", "size": source_size, "sha256": remote_sha}); counters["ok"] += 1; continue
-                writer.writerow({**base, "status": "ERROR_REMOTE_CONFLICT", "size": remote.get("ContentLength", 0), "sha256": remote_sha, "detail": "R2 contiene un objeto distinto; no se sobrescribe"}); counters["errors"] += 1; continue
+                if not existing_metadata:
+                    writer.writerow({**base, "status": "ERROR_REMOTE_CONFLICT", "size": remote.get("ContentLength", 0), "sha256": remote_sha, "detail": "R2 contiene un objeto sin identidad verificable; no se sobrescribe"}); counters["errors"] += 1; continue
+                if MODE == "upload":
+                    headers_by_tab[item.tab] = update_sheet(
+                        sheets, item, headers_by_tab[item.tab], existing_metadata
+                    )
+                    writer.writerow({**base, "status": "R2_EXISTS_SHEET_UPDATED", "size": source_size, "sha256": remote_sha}); counters["ok"] += 1; continue
+                writer.writerow({**base, "status": "OK_R2_EXISTS", "size": source_size, "sha256": remote_sha}); counters["ok"] += 1; continue
             if MODE == "plan":
                 writer.writerow({**base, "status": "PLAN_UPLOAD", "size": source_size}); counters["planned"] += 1; continue
             with tempfile.TemporaryDirectory(prefix="scpp-documentacion-r2-") as tmp:
