@@ -18,7 +18,9 @@ on:
         type: string
 
 permissions:
+  actions: write
   contents: write
+  pull-requests: write
 
 concurrency:
   group: scpp-r2-migration
@@ -109,19 +111,43 @@ jobs:
           set -euo pipefail
           python scripts/build-r2-index-239.py | tee r2-index.log
 
-      - name: Publicar índice en el repositorio
+      - name: Crear o actualizar el pull request del índice
+        id: repertorio_pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          commit-message: Actualizar índice completo de repertorio R2
+          branch: automation/actualizar-indice-r2
+          base: main
+          delete-branch: true
+          title: "Actualizar índice completo de repertorio R2"
+          body: |
+            Actualización automática generada por la migración conservadora de Drive a R2.
+
+            El cambio queda pendiente de la comprobación `quality` y de revisión antes de incorporarse a `main`.
+          add-paths: |
+            functions/_data/repertorio-r2.js
+
+      - name: Ejecutar controles de calidad del pull request
+        if: >-
+          steps.repertorio_pr.outputs.pull-request-operation == 'created' ||
+          steps.repertorio_pr.outputs.pull-request-operation == 'updated'
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: automation/actualizar-indice-r2
         run: |
           set -euo pipefail
-          if [[ -z "$(git status --porcelain -- functions/_data/repertorio-r2.js)" ]]; then
-            echo "El índice ya estaba actualizado."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add functions/_data/repertorio-r2.js
-          git commit -m "Actualizar índice completo de repertorio R2"
-          git push origin HEAD:main
+          for attempt in 1 2 3 4 5; do
+            if gh workflow run quality.yml --ref "$PR_BRANCH"; then
+              echo "Comprobación quality iniciada para $PR_BRANCH."
+              exit 0
+            fi
+            echo "El workflow todavía no está disponible; reintento $attempt/5."
+            sleep $((attempt * 5))
+          done
+          echo "No se pudo iniciar la comprobación quality."
+          exit 1
 
       - name: Guardar informe y diagnóstico
         if: always()
@@ -134,3 +160,4 @@ jobs:
             r2-index.log
           if-no-files-found: warn
           retention-days: 30
+
