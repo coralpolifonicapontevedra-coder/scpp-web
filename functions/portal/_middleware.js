@@ -21,19 +21,24 @@ const PORTAL_FONT_STYLE = `
   }
 </style>`;
 
+const PHOTO_MANAGER_SCRIPT = `<script src="/js/xestor-fotos-publicacion.js" defer></script>`;
+
 class PortalHeadRewriter {
+  constructor(extra = '') { this.extra = extra; }
   element(element) {
-    element.append(PORTAL_FONT_STYLE, { html: true });
+    element.append(PORTAL_FONT_STYLE + this.extra, { html: true });
   }
 }
 
 export async function onRequest(context) {
   const response = await context.next();
   const contentType = response.headers.get('Content-Type') || '';
-
   if (!contentType.includes('text/html')) return response;
 
+  const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '');
+  const extra = pathname === '/portal/revision-fotos-nova' ? PHOTO_MANAGER_SCRIPT : '';
+
   return new HTMLRewriter()
-    .on('head', new PortalHeadRewriter())
+    .on('head', new PortalHeadRewriter(extra))
     .transform(response);
 }
