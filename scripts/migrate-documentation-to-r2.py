@@ -104,10 +104,47 @@ def sheet_data(sheets, tab: str):
     return headers, values[1:], mapping
 
 
+def ensure_grid_columns(sheets, tab: str, required_columns: int):
+    response = sheets.spreadsheets().get(
+        spreadsheetId=SPREADSHEET_ID,
+        fields="sheets(properties(sheetId,title,gridProperties(columnCount)))",
+    ).execute()
+    properties = next(
+        (
+            entry.get("properties", {})
+            for entry in response.get("sheets", [])
+            if entry.get("properties", {}).get("title") == tab
+        ),
+        None,
+    )
+    if not properties:
+        raise RuntimeError(f"No se encontró la pestaña {tab}")
+    current_columns = int(
+        properties.get("gridProperties", {}).get("columnCount", 0) or 0
+    )
+    if required_columns <= current_columns:
+        return
+    sheets.spreadsheets().batchUpdate(
+        spreadsheetId=SPREADSHEET_ID,
+        body={
+            "requests": [
+                {
+                    "appendDimension": {
+                        "sheetId": properties["sheetId"],
+                        "dimension": "COLUMNS",
+                        "length": required_columns - current_columns,
+                    }
+                }
+            ]
+        },
+    ).execute()
+
+
 def ensure_columns(sheets, tab: str, headers: list[str]):
     missing = [name for name in R2_COLUMNS if name not in headers]
     if MODE != "upload" or not missing:
         return headers
+    ensure_grid_columns(sheets, tab, len(headers) + len(missing))
     start = len(headers) + 1
     sheets.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
