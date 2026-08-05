@@ -133,7 +133,16 @@ export async function onRequest({ request, env }) {
 
     await Promise.allSettled([
       env.R2_PRIVADO.delete('cache/fotos/listar-revision.json'),
-      env.R2_PRIVADO.delete('indices/catalogo-fotos.json')
+      env.R2_PRIVADO.delete('indices/catalogo-fotos.json'),
+      env.R2_PRIVADO.put(`fotos/estado-edicion/${idFoto}.json`, JSON.stringify({
+        idFoto,
+        estado: 'sincronizada',
+        tipo: 'borrador',
+        rutaPrivada: rutaEditada,
+        actualizadoEn: new Date().toISOString()
+      }), {
+        httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'no-store' }
+      })
     ]);
 
     return json(200, {
