@@ -154,15 +154,20 @@ def list_folder(drive, source: SourceFolder):
     return files
 
 
-def target_for(source: SourceFolder, relative_path: str, reference: dict):
+def target_for(relative_path: str, reference: dict, source_md5: str):
     roles = sorted(reference.get("roles", set()))
-    if "Cartel" in roles:
+    concert_ids = reference.get("concert_ids", set())
+    if roles and not concert_ids:
+        visibility, prefix = "public-unlinked-original", "concertos/orixinais"
+    elif "Cartel" in roles:
         visibility, prefix = "public", "concertos/imaxes"
     elif roles:
         visibility, prefix = "public", "concertos/documentos"
     else:
         visibility, prefix = "private-pending-review", "concertos/pendentes"
-    return visibility, f"{prefix}/{source.code}/{slug(relative_path)}"
+    extension = pathlib.PurePosixPath(relative_path).suffix.lower()
+    identity = source_md5 or slug(relative_path)
+    return visibility, f"{prefix}/objetos/{identity}{extension}"
 
 
 def infer_roles_from_name(relative_path: str):
@@ -186,13 +191,14 @@ def inventory(drive, references):
                 inferred_roles = infer_roles_from_name(relative)
                 if inferred_roles:
                     reference = {"roles": inferred_roles, "concert_ids": set()}
-            visibility, key = target_for(source, relative, reference)
+            source_md5 = str(item.get("md5Checksum", "") or "")
+            visibility, key = target_for(relative, reference, source_md5)
             assets.append(Asset(
                 source_folder=source.code,
                 relative_path=relative,
                 drive_id=item["id"],
                 source_size=int(item.get("size", 0) or 0),
-                source_md5=str(item.get("md5Checksum", "") or ""),
+                source_md5=source_md5,
                 mime_type=item.get("mimeType") or mimetypes.guess_type(relative)[0] or "application/octet-stream",
                 roles=sorted(reference.get("roles", set())),
                 concert_ids=sorted(reference.get("concert_ids", set())),
@@ -214,9 +220,14 @@ def head(client, bucket: str, key: str):
 
 def existing_is_owned(remote: dict, asset: Asset):
     metadata = remote.get("Metadata", {})
+    same_content = (
+        metadata.get("source-md5") == asset.source_md5
+        if asset.source_md5
+        else metadata.get("source-drive-id") == asset.drive_id
+    )
     return (
         int(remote.get("ContentLength", 0) or 0) == asset.source_size
-        and metadata.get("source-drive-id") == asset.drive_id
+        and same_content
         and metadata.get("sha256")
     )
 
@@ -278,7 +289,9 @@ def run():
             if remote:
                 remote_sha = str(remote.get("Metadata", {}).get("sha256", ""))
                 if existing_is_owned(remote, asset):
-                    writer.writerow({**row, "status": "OK_R2_EXISTS", "sha256": remote_sha})
+                    same_drive_file = remote.get("Metadata", {}).get("source-drive-id") == asset.drive_id
+                    status = "OK_R2_EXISTS" if same_drive_file else "OK_R2_DUPLICATE_CONTENT"
+                    writer.writerow({**row, "status": status, "sha256": remote_sha})
                     counters["ok"] += 1
                 else:
                     writer.writerow({**row, "status": "ERROR_REMOTE_CONFLICT", "sha256": remote_sha, "detail": "R2 contiene un objeto sin identidad verificable; no se sobrescribe"})

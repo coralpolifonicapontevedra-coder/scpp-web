@@ -42,6 +42,13 @@ describe('migración de medios de conciertos', () => {
     expect(script).toContain('reference = {"roles": inferred_roles, "concert_ids": set()}');
   });
 
+  it('deduplica por contenido y conserva originales no enlazados', () => {
+    expect(script).toContain('concertos/orixinais');
+    expect(script).toContain('identity = source_md5 or slug(relative_path)');
+    expect(script).toContain('OK_R2_DUPLICATE_CONTENT');
+    expect(script).toContain('metadata.get("source-md5") == asset.source_md5');
+  });
+
   it('verifica tamaño, identidad de Drive y SHA-256', () => {
     expect(script).toContain('source-drive-id');
     expect(script).toContain('sha256');
