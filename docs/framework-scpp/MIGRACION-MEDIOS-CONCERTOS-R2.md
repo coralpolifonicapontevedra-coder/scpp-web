@@ -7,6 +7,8 @@
 - La hoja pública `Concertos` se usa únicamente para clasificar referencias; no se modifica.
 - Si la hoja indica una carpeta equivocada, se admite la coincidencia por nombre exacto del archivo.
 - Los archivos no enlazados cuyo nombre identifica inequívocamente `Cartel`, `Triptico` o `Prensa` se conservan como material público; esto cubre carteles compartidos por varios conciertos.
+- Las claves R2 usan la huella MD5 del contenido. Varias copias idénticas comparten un solo objeto, pero todas sus referencias quedan registradas en el informe.
+- Los originales reconocidos por nombre pero no enlazados se guardan bajo `concertos/orixinais/objetos/`; no se ofrecen automáticamente en la página pública.
 
 ## Clasificación
 
