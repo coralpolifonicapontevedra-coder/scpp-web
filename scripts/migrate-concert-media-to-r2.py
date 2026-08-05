@@ -119,6 +119,10 @@ def load_references():
             references[path]["roles"].add(column)
             if concert_id:
                 references[path]["concert_ids"].add(concert_id)
+            basename_key = f"@basename/{path.rsplit('/', 1)[-1].casefold()}"
+            references[basename_key]["roles"].add(column)
+            if concert_id:
+                references[basename_key]["concert_ids"].add(concert_id)
     return references
 
 
@@ -165,7 +169,8 @@ def inventory(drive, references):
     for source in FOLDERS:
         for relative, item in list_folder(drive, source):
             logical_path = clean_path(f"{source.logical_root}/{relative}")
-            reference = references.get(logical_path, {})
+            basename_key = f"@basename/{relative.rsplit('/', 1)[-1].casefold()}"
+            reference = references.get(logical_path) or references.get(basename_key, {})
             visibility, key = target_for(source, relative, reference)
             assets.append(Asset(
                 source_folder=source.code,
