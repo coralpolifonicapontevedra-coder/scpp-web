@@ -113,8 +113,11 @@ export async function onRequest({ request, env }) {
   const headers = new Headers();
   obxecto.writeHttpMetadata(headers);
   headers.set('Content-Type', headers.get('Content-Type') || String(datos?.mimeType || 'image/jpeg'));
-  headers.set('Cache-Control', 'private, max-age=3600');
-  headers.set('ETag', obxecto.httpEtag || `"${idFoto}"`);
-  headers.set('X-SCPP-Photo-Source', 'R2-BINARY');
+  headers.set('Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0');
+  headers.set('Pragma', 'no-cache');
+  headers.set('Expires', '0');
+  headers.set('ETag', obxecto.httpEtag || `"${ruta}"`);
+  headers.set('X-SCPP-Photo-Source', 'R2-WORKING-COPY');
+  headers.set('X-SCPP-Photo-Path', ruta);
   return new Response(obxecto.body, { status: 200, headers });
 }
