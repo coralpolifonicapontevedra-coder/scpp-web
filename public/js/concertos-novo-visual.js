@@ -57,7 +57,7 @@ const valorVisual = (fila, ...nomes) => {
 function cartelPublico(ruta = '') {
   const nome = String(ruta).replaceAll('\\', '/').split('/').filter(Boolean).pop();
   if (!nome) return '';
-  return `/img/concertos/${encodeURIComponent(nome.replace(/\.pdf$/i, '.jpg'))}`;
+  return `/media/concertos/${encodeURIComponent(nome.replace(/\.pdf$/i, '.jpg'))}`;
 }
 
 function prepararDialogo() {

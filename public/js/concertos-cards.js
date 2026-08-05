@@ -67,7 +67,7 @@ if (PATH_CONCERTOS_CARDS.test(window.location.pathname)) {
 
     if (!nome) return '';
     const miniatura = nome.replace(/\.pdf$/i, '.jpg');
-    return `/img/concertos/${encodeURIComponent(miniatura)}`;
+    return `/media/concertos/${encodeURIComponent(miniatura)}`;
   }
 
   function decorarTarxeta(tarxeta) {

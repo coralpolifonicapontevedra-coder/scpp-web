@@ -206,7 +206,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const nome = String(ruta).replaceAll('\\', '/').split('/').filter(Boolean).pop();
     if (!nome) return '';
     const limpo = nome.replace(/\.pdf$/i, '.jpg');
-    return `/img/concertos/${encodeURIComponent(limpo)}`;
+    return `/media/concertos/${encodeURIComponent(limpo)}`;
   };
 
   async function lerCSV(url) {
