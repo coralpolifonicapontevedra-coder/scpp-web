@@ -25,3 +25,10 @@
 - El plan muestra el MD5 de Drive para identificar duplicados sin descargar archivos y señala los PDF mayores de 20 MiB para optimizarlos antes de publicarlos.
 - Drive queda intacto como respaldo.
 
+## Servicio en produción
+
+- `/media/concertos/{nome}` expón unicamente os nomes incluídos no índice verificado; non permite percorrer o bucket.
+- A axenda pública ofrece carteis, trípticos e prensa desde R2.
+- O portal autenticado abre os programas desde R2 e conserva Apps Script/Drive como respaldo.
+- As imaxes estáticas de Pages permanecen temporalmente como respaldo dos carteis.
+- A cabeceira `X-SCPP-Storage` permite comprobar se respondeu `R2` ou `PAGES-FALLBACK`.
