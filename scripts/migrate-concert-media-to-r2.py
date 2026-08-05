@@ -164,6 +164,16 @@ def target_for(source: SourceFolder, relative_path: str, reference: dict):
     return visibility, f"{prefix}/{source.code}/{slug(relative_path)}"
 
 
+def infer_roles_from_name(relative_path: str):
+    name = relative_path.rsplit("/", 1)[-1].casefold()
+    role_names = {"cartel": "Cartel", "triptico": "Triptico", "prensa": "Prensa"}
+    return {
+        canonical
+        for token, canonical in role_names.items()
+        if re.search(rf"(?:^|[._ -]){token}(?:[._ -]|$)", name)
+    }
+
+
 def inventory(drive, references):
     assets = []
     for source in FOLDERS:
@@ -171,6 +181,10 @@ def inventory(drive, references):
             logical_path = clean_path(f"{source.logical_root}/{relative}")
             basename_key = f"@basename/{relative.rsplit('/', 1)[-1].casefold()}"
             reference = references.get(logical_path) or references.get(basename_key, {})
+            if not reference:
+                inferred_roles = infer_roles_from_name(relative)
+                if inferred_roles:
+                    reference = {"roles": inferred_roles, "concert_ids": set()}
             visibility, key = target_for(source, relative, reference)
             assets.append(Asset(
                 source_folder=source.code,
