@@ -291,6 +291,17 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     if (!idPersoa || !(openFileButton instanceof HTMLButtonElement)) return;
 
     const previous = openFileButton.textContent;
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) {
+      window.alert('O navegador bloqueou a nova lapela. Permite as ventás emerxentes para este sitio e téntao de novo.');
+      return;
+    }
+
+    previewWindow.opener = null;
+    previewWindow.document.title = 'Abrindo ficha…';
+    previewWindow.document.body.textContent = 'Descargando a ficha segura desde R2…';
+    previewWindow.document.body.style.cssText = 'margin:0;padding:2rem;font:16px system-ui;color:#24362f;background:#f7f5f1';
+
     openFileButton.disabled = true;
     openFileButton.textContent = 'Abrindo…';
 
@@ -302,8 +313,9 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       );
       if (fileUrl) URL.revokeObjectURL(fileUrl);
       fileUrl = URL.createObjectURL(blob);
-      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+      previewWindow.location.replace(fileUrl);
     } catch (error) {
+      previewWindow.close();
       window.alert(
         `${error?.stage ? `[${error.stage}] ` : ''}${
           error instanceof Error
