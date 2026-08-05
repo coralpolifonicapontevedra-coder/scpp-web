@@ -326,8 +326,12 @@ export async function onRequest(context) {
     const cacheada = await lerCache(request, usuario.email);
     if (cacheada) {
       const idade = Date.now() - cacheada.savedAt;
-      if (idade >= CACHE_FRESCA_MS && typeof context.waitUntil === 'function') {
-        context.waitUntil(actualizarCache(context, corpo, usuario.email));
+      if (typeof context.waitUntil === 'function') {
+        const tarefas = [gardarPerfilR2(env, usuario.email, cacheada.payload)];
+        if (idade >= CACHE_FRESCA_MS) {
+          tarefas.push(actualizarCache(context, corpo, usuario.email));
+        }
+        context.waitUntil(Promise.all(tarefas));
       }
       return json(200, cacheada.payload, {
         'X-SCPP-Cache': idade < CACHE_FRESCA_MS ? 'HIT' : 'STALE-WHILE-REVALIDATE',
