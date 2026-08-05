@@ -85,61 +85,37 @@ export async function onRequest({ request, env }) {
     const rutaOrixinal = texto(indiceAnterior?.rutaOrixinal || rutaAnterior);
     const marca = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
     const rutaEditada = `fotos/editadas/${idFoto}-${marca}.${extension(mimeType)}`;
+    const actualizadoEn = new Date().toISOString();
 
     await env.R2_PRIVADO.put(rutaEditada, bytes, {
       httpMetadata: { contentType: mimeType, cacheControl: 'private, max-age=31536000, immutable' },
-      customMetadata: { idFoto, tipo: 'borrador-edicion', editadaPor: usuario.email, editadaEn: new Date().toISOString() }
+      customMetadata: { idFoto, tipo: 'borrador-edicion', editadaPor: usuario.email, editadaEn: actualizadoEn }
     });
 
-    await env.R2_PRIVADO.put(indiceRuta, JSON.stringify({
-      ...indiceAnterior,
-      idFoto,
-      ruta: rutaEditada,
-      rutaOrixinal,
-      mimeType,
-      estado: 'Pendente',
-      publicarPublica: false,
-      publicarPrivada: false,
-      actualizadoEn: new Date().toISOString()
-    }), {
-      httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'no-store' }
-    });
-
-    const { resultado } = await obterJsonAppsScript(env, {
-      token: env.WEB_WRITE_TOKEN,
-      accion: 'actualizarRevisionFoto',
-      email: usuario.email,
-      uidFirebase: usuario.uid,
-      rowId: idFoto,
-      idFoto,
-      estado: 'Pendente',
-      publicarPublica: false,
-      publicarPrivada: false,
-      destacadaPublica: false,
-      destacadaPrivada: false,
-      titulo: texto(datos.titulo),
-      peFoto: texto(datos.peFoto),
-      observacions: texto(datos.observacions)
-    }, { timeoutMs: 45_000, attemptTimeoutMs: 15_000 });
-
-    if (!resultado?.ok) {
-      if (indiceAnteriorObj) {
-        await env.R2_PRIVADO.put(indiceRuta, JSON.stringify(indiceAnterior), {
-          httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'no-store' }
-        });
-      }
-      throw new Error(resultado?.erro || 'Non se puido manter a fotografía como pendente.');
-    }
-
-    await Promise.allSettled([
-      env.R2_PRIVADO.delete('cache/fotos/listar-revision.json'),
-      env.R2_PRIVADO.delete('indices/catalogo-fotos.json'),
+    await Promise.all([
+      env.R2_PRIVADO.put(indiceRuta, JSON.stringify({
+        ...indiceAnterior,
+        idFoto,
+        ruta: rutaEditada,
+        rutaOrixinal,
+        mimeType,
+        estado: 'Pendente',
+        publicarPublica: false,
+        publicarPrivada: false,
+        tituloBorrador: texto(datos.titulo),
+        peFotoBorrador: texto(datos.peFoto),
+        observacionsBorrador: texto(datos.observacions),
+        actualizadoEn
+      }), {
+        httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'no-store' }
+      }),
       env.R2_PRIVADO.put(`fotos/estado-edicion/${idFoto}.json`, JSON.stringify({
         idFoto,
         estado: 'sincronizada',
         tipo: 'borrador',
         rutaPrivada: rutaEditada,
-        actualizadoEn: new Date().toISOString()
+        sheet: 'sen-cambios',
+        actualizadoEn
       }), {
         httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'no-store' }
       })
@@ -150,7 +126,8 @@ export async function onRequest({ request, env }) {
       idFoto,
       estado: 'Pendente',
       rutaPrivada: rutaEditada,
-      mensaxe: 'Borrador gardado. A fotografía conserva a edición e continúa pendente de revisión.'
+      sheet: 'sen-cambios',
+      mensaxe: 'Borrador gardado en R2. A fotografía conserva a edición e continúa pendente de revisión.'
     });
   } catch (erro) {
     console.error('Erro ao gardar borrador fotográfico:', erro);
