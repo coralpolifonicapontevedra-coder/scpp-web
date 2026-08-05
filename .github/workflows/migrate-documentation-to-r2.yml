@@ -1,0 +1,77 @@
+name: Migrar Documentación y Actas a R2
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan revisa; upload sube, verifica y actualiza las hojas"
+        required: true
+        default: plan
+        type: choice
+        options: [plan, upload]
+      confirmation:
+        description: "Para upload escribe exactamente MIGRAR_DOCUMENTACION"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-r2-documentacion-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: r2-migration
+    steps:
+      - name: Validar confirmación
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.mode }}" == "upload" && "${{ inputs.confirmation }}" != "MIGRAR_DOCUMENTACION" ]]; then
+            echo "Para subir escribe MIGRAR_DOCUMENTACION exactamente."
+            exit 1
+          fi
+
+      - name: Descargar repositorio
+        uses: actions/checkout@v5
+
+      - name: Preparar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install boto3==1.40.1 google-api-python-client==2.177.0 google-auth==2.40.3
+
+      - name: Ejecutar migración conservadora
+        env:
+          MIGRATION_MODE: ${{ inputs.mode }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          REPORT_PATH: documentacion-r2-migration.csv
+        run: python scripts/migrate-documentation-to-r2.py 2>&1 | tee documentacion-r2-migration.log
+
+      - name: Mostrar informe
+        if: always()
+        run: cat documentacion-r2-migration.csv 2>/dev/null || true
+
+      - name: Guardar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentacion-r2-${{ inputs.mode }}-${{ github.run_number }}
+          path: |
+            documentacion-r2-migration.csv
+            documentacion-r2-migration.log
+          if-no-files-found: error
+          retention-days: 90
