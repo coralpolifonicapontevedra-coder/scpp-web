@@ -71,6 +71,38 @@ async function comprobarAdministracion(env, usuario) {
   return true;
 }
 
+async function resolverRutaActual(env, idFoto) {
+  const estadoObj = await env.R2_PRIVADO.get(`fotos/estado-edicion/${idFoto}.json`);
+  const estado = estadoObj ? await estadoObj.json().catch(() => null) : null;
+  const rutaBorrador = String(estado?.rutaPrivada || '').trim();
+
+  if (rutaBorrador && (estado?.tipo === 'borrador' || estado?.estado === 'sincronizada')) {
+    const borrador = await env.R2_PRIVADO.get(rutaBorrador);
+    if (borrador) {
+      return {
+        obxecto: borrador,
+        ruta: rutaBorrador,
+        mimeType: String(estado?.mimeType || '').trim(),
+        fonte: 'R2-DRAFT'
+      };
+    }
+  }
+
+  const indiceObj = await env.R2_PRIVADO.get(`fotos/traballo/${idFoto}.json`);
+  if (!indiceObj) return null;
+  const indice = await indiceObj.json().catch(() => null);
+  const ruta = String(indice?.ruta || '').trim();
+  if (!ruta) return null;
+  const obxecto = await env.R2_PRIVADO.get(ruta);
+  if (!obxecto) return null;
+  return {
+    obxecto,
+    ruta,
+    mimeType: String(indice?.mimeType || '').trim(),
+    fonte: ruta.includes('/editadas/') ? 'R2-WORK-DRAFT' : 'R2-WORK-ORIGINAL'
+  };
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') {
     return json(405, { ok: false, erro: 'Método non permitido' });
@@ -95,29 +127,19 @@ export async function onRequest({ request, env }) {
     return json(403, { ok: false, erro: 'Administración non autorizada.' });
   }
 
-  const indice = await env.R2_PRIVADO.get(`fotos/traballo/${idFoto}.json`);
-  if (!indice) {
-    return json(404, { ok: false, erro: 'A fotografía aínda non está preparada en R2.' });
-  }
-  const datos = await indice.json().catch(() => null);
-  const ruta = String(datos?.ruta || '').trim();
-  if (!ruta) {
-    return json(404, { ok: false, erro: 'A ruta privada da fotografía non é válida.' });
-  }
-
-  const obxecto = await env.R2_PRIVADO.get(ruta);
-  if (!obxecto) {
+  const actual = await resolverRutaActual(env, idFoto);
+  if (!actual) {
     return json(404, { ok: false, erro: 'A fotografía non está dispoñible en R2.' });
   }
 
   const headers = new Headers();
-  obxecto.writeHttpMetadata(headers);
-  headers.set('Content-Type', headers.get('Content-Type') || String(datos?.mimeType || 'image/jpeg'));
+  actual.obxecto.writeHttpMetadata(headers);
+  headers.set('Content-Type', headers.get('Content-Type') || actual.mimeType || 'image/jpeg');
   headers.set('Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0');
   headers.set('Pragma', 'no-cache');
   headers.set('Expires', '0');
-  headers.set('ETag', obxecto.httpEtag || `"${ruta}"`);
-  headers.set('X-SCPP-Photo-Source', 'R2-WORKING-COPY');
-  headers.set('X-SCPP-Photo-Path', ruta);
-  return new Response(obxecto.body, { status: 200, headers });
+  headers.set('ETag', actual.obxecto.httpEtag || `"${idFoto}-${Date.now()}"`);
+  headers.set('X-SCPP-Photo-Source', actual.fonte);
+  headers.set('X-SCPP-Photo-Path', actual.ruta);
+  return new Response(actual.obxecto.body, { status: 200, headers });
 }
