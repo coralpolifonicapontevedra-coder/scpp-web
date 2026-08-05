@@ -417,9 +417,12 @@ export async function onRequest(context) {
     const cacheada = await lerCache(request, user.email);
     if (cacheada) {
       const idade = Date.now() - cacheada.savedAt;
-      if (idade >= CACHE_FRESCA_MS) {
-        const tarefa = actualizarCache(context, user);
-        if (typeof context.waitUntil === 'function') context.waitUntil(tarefa);
+      if (typeof context.waitUntil === 'function') {
+        const tarefas = [gardarCacheR2(env, user.email, cacheada.payload)];
+        if (idade >= CACHE_FRESCA_MS) {
+          tarefas.push(actualizarCache(context, user));
+        }
+        context.waitUntil(Promise.all(tarefas));
       }
 
       return json(200, cacheada.payload, {
