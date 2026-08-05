@@ -1,0 +1,91 @@
+name: Auditar sistema de archivos
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-files-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: r2-migration
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v5
+
+      - name: Preparar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            boto3==1.40.1 \
+            google-api-python-client==2.177.0 \
+            google-auth==2.40.3
+
+      - name: Comprobar secretos sin mostrarlos
+        shell: bash
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          for name in GOOGLE_SERVICE_ACCOUNT_JSON R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+            [[ -n "${!name:-}" ]] || { echo "Falta el secreto $name"; exit 1; }
+          done
+          python - <<'PY'
+          import json, os
+          data = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT_JSON'])
+          print('Cuenta técnica de lectura: ' + (data.get('client_email') or 'NO IDENTIFICADA'))
+          PY
+
+      - name: Ejecutar auditoría global de solo lectura
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          FILES_AUDIT_CSV: files-audit.csv
+          FILES_AUDIT_JSON: files-audit.json
+          FILES_AUDIT_MD: files-audit.md
+        run: python scripts/audit-file-systems.py 2>&1 | tee files-audit.log
+
+      - name: Publicar resumen
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f files-audit.md ]]; then
+            cat files-audit.md
+            cat files-audit.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "La auditoría no generó resumen." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Guardar informes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: files-audit-${{ github.run_number }}
+          path: |
+            files-audit.csv
+            files-audit.json
+            files-audit.md
+            files-audit.log
+          if-no-files-found: error
+          retention-days: 90
