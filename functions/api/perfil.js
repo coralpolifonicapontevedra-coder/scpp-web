@@ -2,39 +2,155 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const TIPOS_FOTO = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_FOTO_BYTES = 2 * 1024 * 1024;
+const CACHE_FRESCA_MS = 10 * 60 * 1000;
+const CACHE_RESPALDO_MS = 24 * 60 * 60 * 1000;
+const CACHE_TOKEN_MS = 10 * 60 * 1000;
+const TIMEOUT_FIREBASE_MS = 8_000;
+const cacheTokens = new Map();
+const cachePerfis = new Map();
 
-const json = (status, body) => new Response(JSON.stringify(body), {
+const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   status,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+    ...extra
   }
 });
 
+async function fetchConLimite(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function limparMap(cache, maximo) {
+  const agora = Date.now();
+  for (const [clave, entrada] of cache.entries()) {
+    if (!entrada || agora - Number(entrada.savedAt || 0) > CACHE_RESPALDO_MS) {
+      cache.delete(clave);
+    }
+  }
+  while (cache.size > maximo) cache.delete(cache.keys().next().value);
+}
+
 async function verificarTokenFirebase(idToken, apiKey) {
-  const resposta = await fetch(
+  const token = String(idToken || '').trim();
+  if (!token) return null;
+
+  const cacheado = cacheTokens.get(token);
+  if (cacheado && cacheado.expira > Date.now()) return cacheado.usuario;
+
+  const resposta = await fetchConLimite(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
-    }
+      body: JSON.stringify({ idToken: token })
+    },
+    TIMEOUT_FIREBASE_MS
   );
 
   if (!resposta.ok) return null;
-  const usuario = (await resposta.json())?.users?.[0];
-  if (!usuario?.email || usuario.emailVerified !== true) return null;
+  const usuarioFirebase = (await resposta.json())?.users?.[0];
+  if (!usuarioFirebase?.email || usuarioFirebase.emailVerified !== true) return null;
 
-  return {
-    uid: String(usuario.localId || ''),
-    email: String(usuario.email).trim().toLowerCase()
+  const usuario = {
+    uid: String(usuarioFirebase.localId || ''),
+    email: String(usuarioFirebase.email).trim().toLowerCase()
   };
+  cacheTokens.set(token, {
+    usuario,
+    expira: Date.now() + CACHE_TOKEN_MS,
+    savedAt: Date.now()
+  });
+  limparMap(cacheTokens, 100);
+  return usuario;
 }
 
 const texto = (valor, maximo = 5000) =>
   String(valor == null ? '' : valor).trim().slice(0, maximo);
 
-export async function onRequest({ request, env }) {
+function cacheRequest(request, email) {
+  const url = new URL(request.url);
+  url.pathname = '/api/_cache/perfil';
+  url.search = `usuario=${encodeURIComponent(email)}&version=1`;
+  return new Request(url.toString(), { method: 'GET' });
+}
+
+async function lerCache(request, email) {
+  const memoria = cachePerfis.get(email);
+  if (memoria && Date.now() - memoria.savedAt <= CACHE_RESPALDO_MS) return memoria;
+
+  const cacheApi = globalThis.caches?.default;
+  if (!cacheApi) return null;
+
+  try {
+    const response = await cacheApi.match(cacheRequest(request, email));
+    if (!response) return null;
+    const entrada = await response.json();
+    if (!entrada?.payload?.ok || !entrada.payload.perfil) return null;
+    if (Date.now() - Number(entrada.savedAt || 0) > CACHE_RESPALDO_MS) return null;
+    cachePerfis.set(email, entrada);
+    limparMap(cachePerfis, 100);
+    return entrada;
+  } catch (error) {
+    console.warn('Non se puido ler a cache do perfil:', error);
+    return null;
+  }
+}
+
+async function gardarCache(request, email, payload) {
+  if (!payload?.ok || !payload.perfil) return;
+
+  const entrada = { savedAt: Date.now(), payload };
+  cachePerfis.set(email, entrada);
+  limparMap(cachePerfis, 100);
+
+  const cacheApi = globalThis.caches?.default;
+  if (!cacheApi) return;
+
+  try {
+    await cacheApi.put(
+      cacheRequest(request, email),
+      new Response(JSON.stringify(entrada), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': `private, max-age=${Math.floor(CACHE_RESPALDO_MS / 1000)}`
+        }
+      })
+    );
+  } catch (error) {
+    console.warn('Non se puido gardar a cache do perfil:', error);
+  }
+}
+
+async function consultarPerfil(env, corpo) {
+  return obterJsonAppsScript(env, corpo, {
+    timeoutMs: 15_000,
+    attemptTimeoutMs: 7_000
+  });
+}
+
+async function actualizarCache(context, corpo, email) {
+  try {
+    const { resultado } = await consultarPerfil(context.env, corpo);
+    if (resultado?.ok) await gardarCache(context.request, email, resultado);
+  } catch (error) {
+    console.warn('Non se puido actualizar a cache do perfil:', error);
+  }
+}
+
+export async function onRequest(context) {
+  const { request, env } = context;
+  const inicioTotal = Date.now();
+
   if (request.method !== 'POST') {
     return json(405, { ok: false, erro: 'Método non permitido' });
   }
@@ -51,12 +167,14 @@ export async function onRequest({ request, env }) {
   }
 
   const idToken = texto(datos.idToken, 10000);
+  const inicioFirebase = Date.now();
   let usuario;
   try {
-    usuario = idToken && await verificarTokenFirebase(idToken, env.FIREBASE_API_KEY);
+    usuario = await verificarTokenFirebase(idToken, env.FIREBASE_API_KEY);
   } catch (erro) {
     console.error('Erro ao validar Firebase:', erro);
   }
+  const duracionFirebase = Date.now() - inicioFirebase;
 
   if (!usuario) {
     return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
@@ -105,15 +223,31 @@ export async function onRequest({ request, env }) {
     });
   }
 
-  try {
-    const { resultado, usouRespaldo } = await obterJsonAppsScript(
-      env,
-      corpo,
-      {
-        timeoutMs: accion === 'actualizarPerfil' ? 60_000 : 30_000,
-        attemptTimeoutMs: accion === 'actualizarPerfil' ? 20_000 : 10_000
+  if (accion === 'obterPerfil') {
+    const cacheada = await lerCache(request, usuario.email);
+    if (cacheada) {
+      const idade = Date.now() - cacheada.savedAt;
+      if (idade >= CACHE_FRESCA_MS) {
+        const tarefa = actualizarCache(context, corpo, usuario.email);
+        if (typeof context.waitUntil === 'function') context.waitUntil(tarefa);
       }
-    );
+      return json(200, cacheada.payload, {
+        'X-SCPP-Cache': idade < CACHE_FRESCA_MS ? 'HIT' : 'STALE-WHILE-REVALIDATE',
+        'X-SCPP-Data-Age': String(Math.max(0, Math.floor(idade / 1000))),
+        'Server-Timing': `firebase;dur=${duracionFirebase}, cache;dur=0, total;dur=${Date.now() - inicioTotal}`
+      });
+    }
+  }
+
+  const inicioAppsScript = Date.now();
+  try {
+    const { resultado, usouRespaldo } = accion === 'obterPerfil'
+      ? await consultarPerfil(env, corpo)
+      : await obterJsonAppsScript(env, corpo, {
+          timeoutMs: 60_000,
+          attemptTimeoutMs: 20_000
+        });
+    const duracionAppsScript = Date.now() - inicioAppsScript;
 
     if (!resultado?.ok) {
       const estado = resultado?.erro === 'Usuario non autorizado' ? 403 : 400;
@@ -123,16 +257,24 @@ export async function onRequest({ request, env }) {
       });
     }
 
-    return new Response(JSON.stringify(resultado), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'no-store',
-        'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY'
-      }
+    await gardarCache(request, usuario.email, resultado);
+
+    return json(200, resultado, {
+      'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
+      'X-SCPP-Cache': 'MISS',
+      'Server-Timing': `firebase;dur=${duracionFirebase}, apps-script;dur=${duracionAppsScript}, total;dur=${Date.now() - inicioTotal}`
     });
   } catch (erro) {
     console.error('Erro no servizo de perfil:', erro);
+    const cacheEmerxencia = await lerCache(request, usuario.email);
+    if (accion === 'obterPerfil' && cacheEmerxencia?.payload?.perfil) {
+      return json(200, cacheEmerxencia.payload, {
+        'X-SCPP-Cache': 'EMERGENCY',
+        'X-SCPP-Warning': 'apps-script-unavailable',
+        'Server-Timing': `firebase;dur=${duracionFirebase}, total;dur=${Date.now() - inicioTotal}`
+      });
+    }
+
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
     return json(status, {
       ok: false,
