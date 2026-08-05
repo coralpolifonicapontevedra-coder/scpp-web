@@ -39,11 +39,17 @@ function normalizarFoto(foto = {}) {
     foto.rutaMiniaturaPublica || foto.rutaMiniatura_Publica || foto.RutaMiniaturaPublica || ''
   ).trim();
   const version = String(foto.etagOrixinal || foto.version || foto.xeradoEnMs || '').trim();
+  const urlOrixinal = rutaOrixinal(rutaOrixinalR2, version) || String(foto.urlPublica || '').trim();
+  const urlMiniaturaDirecta = rutaPublica(rutaMiniatura, version) || String(foto.urlMiniaturaPublica || '').trim();
 
   return {
     ...foto,
-    urlPublica: rutaOrixinal(rutaOrixinalR2, version) || String(foto.urlPublica || '').trim(),
-    urlMiniaturaPublica: rutaPublica(rutaMiniatura, version) || String(foto.urlMiniaturaPublica || foto.urlPublica || '').trim()
+    urlPublica: urlOrixinal,
+    // A ruta directa de miniaturas queda como dato de diagnóstico, pero a grella
+    // usa a mesma ruta fiable que xa funciona ao ampliar. Evita respostas antigas
+    // ou incompletas de /arquivos/publico, especialmente en móbil e sen Ctrl+F5.
+    urlMiniaturaDirecta,
+    urlMiniaturaPublica: urlOrixinal || urlMiniaturaDirecta
   };
 }
 
