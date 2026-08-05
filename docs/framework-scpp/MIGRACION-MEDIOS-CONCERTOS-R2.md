@@ -6,6 +6,7 @@
 - Carpeta `Concertos_Images`: carteles e imágenes, incluidos posibles materiales no vinculados.
 - La hoja pública `Concertos` se usa únicamente para clasificar referencias; no se modifica.
 - Si la hoja indica una carpeta equivocada, se admite la coincidencia por nombre exacto del archivo.
+- Los archivos no enlazados cuyo nombre identifica inequívocamente `Cartel`, `Triptico` o `Prensa` se conservan como material público; esto cubre carteles compartidos por varios conciertos.
 
 ## Clasificación
 
