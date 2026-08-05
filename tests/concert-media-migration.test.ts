@@ -46,6 +46,9 @@ describe('migración de medios de conciertos', () => {
     expect(script).toContain('source-drive-id');
     expect(script).toContain('sha256');
     expect(script).toContain('UPLOADED_VERIFIED');
+    expect(script).toContain('md5Checksum');
+    expect(script).toContain('ERROR_DOWNLOAD_MD5');
+    expect(script).toContain('PDF_DEMASIADO_GRANDE_REVISAR_ANTES_DE_PUBLICAR');
   });
 });
 
