@@ -200,19 +200,21 @@ import BaseLayout from '../layouts/Layout.astro';
   const renderConcerto = (concerto, etiqueta = 'Próximo concerto') => {
     const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
     return `<article class="concert-card ${concerto.destacadoWeb ? 'is-featured' : ''} ${concerto.cartel ? 'has-poster' : ''}">
-      <div class="concert-content">
-        <span class="concert-tag">${escapar(etiqueta)}</span>
-        <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
-        <h3>${escapar(concerto.nome)}</h3>
-        <div class="concert-meta">
-          ${concerto.hora ? `<span><strong>Hora</strong> ${escapar(horaLocal(concerto.hora))}</span>` : ''}
-          ${localizacion ? `<span><strong>Lugar</strong> ${escapar(localizacion)}</span>` : ''}
+      <div class="concert-main">
+        <div class="concert-content">
+          <span class="concert-tag">${escapar(etiqueta)}</span>
+          <time datetime="${escapar(dataISO(concerto.data))}">${dataLocal(concerto.data)}</time>
+          <h3>${escapar(concerto.nome)}</h3>
+          <div class="concert-meta">
+            ${concerto.hora ? `<span><strong>Hora</strong> ${escapar(horaLocal(concerto.hora))}</span>` : ''}
+            ${localizacion ? `<span><strong>Lugar</strong> ${escapar(localizacion)}</span>` : ''}
+          </div>
+          ${concerto.caracteristicas ? `<p class="description">${escapar(concerto.caracteristicas)}</p>` : ''}
         </div>
-        ${concerto.caracteristicas ? `<p class="description">${escapar(concerto.caracteristicas)}</p>` : ''}
-        ${renderPrograma(concerto.programa)}
-        ${renderDocumentos(concerto)}
+        ${renderCartel(concerto)}
       </div>
-      ${renderCartel(concerto)}
+      ${renderPrograma(concerto.programa)}
+      ${renderDocumentos(concerto)}
     </article>`;
   };
 
@@ -352,7 +354,7 @@ import BaseLayout from '../layouts/Layout.astro';
   .section-heading h2 { margin: .25rem 0 0; color: var(--color-principal); font-size: clamp(1.5rem, 3vw, 2rem); }
   .concert-list, .historical-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; align-items: stretch; }
   .concert-card { display: block; height: 100%; padding: clamp(1.5rem, 3vw, 2rem); background: var(--color-gris); border: 1px solid rgba(106,27,41,.1); border-radius: 8px; box-shadow: 0 12px 30px rgba(64,43,30,.06); }
-  .concert-card.has-poster { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; }
+  .concert-main { display: block; }\n  .concert-card.has-poster .concert-main { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: start; }
   .concert-card.is-featured { border-left: 4px solid var(--color-acento); }
   .concert-tag { display: inline-block; margin-bottom: 1rem; color: var(--color-principal); font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
   .concert-content time, .historical-item time { display: block; color: var(--color-acento); font-size: .92rem; font-weight: 650; text-transform: capitalize; }
@@ -364,7 +366,7 @@ import BaseLayout from '../layouts/Layout.astro';
   .poster-thumb { display: block; width: 150px; max-width: 150px; margin: 0; padding: 0; border: 0; background: transparent; cursor: zoom-in; text-align: center; }
   .poster-thumb img { display: block; width: 150px; max-width: 150px; height: auto; max-height: 210px; object-fit: contain; background: #fff; border: 1px solid rgba(0,0,0,.1); border-radius: 3px; }
   .poster-thumb span { display: block; margin-top: .45rem; color: var(--color-principal); font-size: .72rem; font-weight: 700; }
-  .programa { margin-top: 1.6rem; border-top: 1px solid rgba(0,0,0,.1); padding-top: 1rem; }
+  .concert-card .programa { max-width: 850px; }\n  .programa { margin-top: 1.6rem; border-top: 1px solid rgba(0,0,0,.1); padding-top: 1rem; }
   .programa summary { cursor: pointer; color: var(--color-principal); font-weight: 700; }
   .programa ol { margin: 1.25rem 0 .25rem; padding-left: 1.4rem; }
   .programa li { margin-bottom: .9rem; padding-left: .35rem; }
@@ -395,7 +397,7 @@ import BaseLayout from '../layouts/Layout.astro';
   }
   @media (max-width: 650px) {
     .agenda-page { padding-inline: 1rem; }
-    .concert-card { grid-template-columns: 1fr; }
+    .concert-main, .concert-card.has-poster .concert-main { grid-template-columns: 1fr; }
     .poster-thumb, .poster-thumb img,
     .historical-main .poster-thumb, .historical-main .poster-thumb img { width: 150px; max-width: 150px; }
     .historical-main { grid-template-columns: 1fr; }
