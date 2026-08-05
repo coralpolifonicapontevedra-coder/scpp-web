@@ -21,7 +21,12 @@ const PORTAL_FONT_STYLE = `
   }
 </style>`;
 
-const PHOTO_MANAGER_SCRIPT = `<script src="/js/xestor-fotos-publicacion-v3.js?v=20260805-1" defer></script><script src="/js/borrador-fotos-pendente.js?v=20260805-2" defer></script><script src="/js/renovar-borrador-foto.js?v=20260805-3" defer></script>`;
+const PHOTO_MANAGER_SCRIPT = [
+  '<script src="/js/xestor-fotos-publicacion.js?v=20260805-4" defer></script>',
+  '<script src="/js/xestor-fotos-metadatos.js?v=20260805-4" defer></script>',
+  '<script src="/js/borrador-fotos-pendente.js?v=20260805-4" defer></script>',
+  '<script src="/js/renovar-borrador-foto.js?v=20260805-4" defer></script>'
+].join('');
 
 class PortalHeadRewriter {
   constructor(extra = '') { this.extra = extra; }
@@ -36,7 +41,7 @@ export async function onRequest(context) {
   if (!contentType.includes('text/html')) return response;
 
   const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '');
-  const extra = pathname === '/portal/revision-fotos-nova' ? PHOTO_MANAGER_SCRIPT : '';
+  const extra = pathname === '/portal/revision-fotos' ? PHOTO_MANAGER_SCRIPT : '';
 
   return new HTMLRewriter()
     .on('head', new PortalHeadRewriter(extra))
