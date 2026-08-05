@@ -23,12 +23,11 @@ async function comprobarAdmin(env,u){
 }
 async function listarRevision(env,u){
   const {resultado}=await obterJsonAppsScript(env,{token:env.WEB_WRITE_TOKEN,accion:'listarFotosRevision',email:u.email,uidFirebase:u.uid},{timeoutMs:50000,attemptTimeoutMs:18000});
-  if(!resultado?.ok||!Array.isArray(resultado.fotos))return [];
-  return resultado.fotos;
+  return resultado?.ok&&Array.isArray(resultado.fotos)?resultado.fotos:[];
 }
 async function ler(bucket,clave){const o=await bucket.get(clave);if(!o)return {ok:true,fotos:[],total:0};const d=await o.json().catch(()=>null);if(!d||!Array.isArray(d.fotos))throw new Error(`Índice non válido: ${clave}`);return d}
 async function gardar(bucket,clave,indice,publico=false){await bucket.put(clave,JSON.stringify(indice),{httpMetadata:{contentType:'application/json; charset=utf-8',cacheControl:publico?'public, max-age=0, no-cache, must-revalidate':'private, max-age=0, no-cache, must-revalidate'}})}
-function preparar(indice,fotos,orixe){const agora=new Date();return {...indice,ok:true,fotos,total:fotos.length,xeradoEn:agora.toISOString(),xeradoEnMs:agora.getTime(),actualizadoDesde:orixe,version:'5'}}
+function preparar(indice,fotos,orixe){const agora=new Date();return {...indice,ok:true,fotos,total:fotos.length,xeradoEn:agora.toISOString(),xeradoEnMs:agora.getTime(),actualizadoDesde:orixe,version:'6'}}
 function mapa(...listas){const m=new Map();for(const lista of listas)for(const f of lista||[]){const id=idFoto(f);if(id)m.set(id,{...(m.get(id)||{}),...f,idFoto:id})}return m}
 function ruta(f,tipo){return texto(tipo==='publica'?(f?.rutaR2Publica||f?.rutaR2):(f?.rutaR2Privada||f?.rutaR2))}
 function estadoRevision(f){return texto(f?.estadoRevision||f?.EstadoRevision||f?.estado||f?.Estado).toLowerCase()}
@@ -41,7 +40,14 @@ function fichaEstado(f,pub,pri){
   else if(!rev||rev.includes('pend')||rev.includes('revision')||rev.includes('revisión'))estadoXestion='pendente';
   return {...f,idFoto:id,publicarPublica:publica,publicarPrivada:privada,estadoPublicacion,estadoXestion,estadoRevision:rev};
 }
-async function sincronizarSheet(env,u,id,publica,privada){const {resultado}=await obterJsonAppsScript(env,{token:env.WEB_WRITE_TOKEN,accion:'actualizarPublicacionFoto',email:u.email,uidFirebase:u.uid,rowId:id,idFoto:id,publicarPublica:publica,publicarPrivada:privada,destacadaPublica:false,destacadaPrivada:false},{timeoutMs:60000,attemptTimeoutMs:20000});if(!resultado?.ok)throw new Error(resultado?.erro||'Non se puido actualizar a Sheet')}
+async function gardarMetadatosSheet(env,u,id,datos){
+  const {resultado}=await obterJsonAppsScript(env,{token:env.WEB_WRITE_TOKEN,accion:'actualizarRevisionFoto',email:u.email,uidFirebase:u.uid,rowId:id,idFoto:id,estado:'Aprobada',publicarPublica:false,publicarPrivada:false,destacadaPublica:false,destacadaPrivada:false,titulo:texto(datos.titulo),peFoto:texto(datos.peFoto),observacions:texto(datos.observacions)},{timeoutMs:60000,attemptTimeoutMs:20000});
+  if(!resultado?.ok)throw new Error(resultado?.erro||'Non se puideron gardar os datos da fotografía');
+}
+async function sincronizarPublicacionSheet(env,u,id,publica,privada){
+  const {resultado}=await obterJsonAppsScript(env,{token:env.WEB_WRITE_TOKEN,accion:'actualizarPublicacionFoto',email:u.email,uidFirebase:u.uid,rowId:id,idFoto:id,publicarPublica:publica,publicarPrivada:privada,destacadaPublica:false,destacadaPrivada:false},{timeoutMs:60000,attemptTimeoutMs:20000});
+  if(!resultado?.ok)throw new Error(resultado?.erro||'Non se puido actualizar a publicación na Sheet');
+}
 
 export async function onRequest({request,env}){
   if(request.method!=='POST')return json(405,{ok:false,erro:'Método non permitido'});
@@ -61,21 +67,31 @@ export async function onRequest({request,env}){
     }
     const id=texto(datos.idFoto);if(!id||!mp.has(id))return json(404,{ok:false,erro:'Fotografía non localizada no catálogo'});
     const publica=datos.publicarPublica===true,privada=datos.publicarPrivada===true;const base=mp.get(id);const op=crypto.randomUUID();
-    const fotoPub={...base,idFoto:id,rutaR2Publica:ruta(base,'publica')||ruta(base,'privada'),publicarPublica:true};
-    const fotoPri={...base,idFoto:id,rutaR2Privada:ruta(base,'privada')||ruta(base,'publica'),publicarPrivada:true};
+    const metadatos={titulo:texto(datos.titulo??base.titulo),peFoto:texto(datos.peFoto??base.peFoto),observacions:texto(datos.observacions??base.observacions)};
+    const baseNova={...base,...metadatos,idFoto:id,estadoRevision:'aprobada',estado:'Aprobada'};
+    const fotoPub={...baseNova,rutaR2Publica:ruta(baseNova,'publica')||ruta(baseNova,'privada'),publicarPublica:true,publicarPrivada:privada};
+    const fotoPri={...baseNova,rutaR2Privada:ruta(baseNova,'privada')||ruta(baseNova,'publica'),publicarPrivada:true,publicarPublica:publica};
     if(publica&&!fotoPub.rutaR2Publica)throw new Error('A fotografía non ten ruta R2 recuperable para a galería pública');
     if(privada&&!fotoPri.rutaR2Privada)throw new Error('A fotografía non ten ruta R2 recuperable para a galería privada');
     const pubFotos=pub0.fotos.filter(f=>idFoto(f)!==id);if(publica)pubFotos.push(fotoPub);
     const priFotos=pri0.fotos.filter(f=>idFoto(f)!==id);if(privada)priFotos.push(fotoPri);
-    const pub1=preparar(pub0,pubFotos,'XESTOR-PUBLICACION-'+op),pri1=preparar(pri0,priFotos,'XESTOR-PUBLICACION-'+op);
+    const pub1=preparar(pub0,pubFotos,'XESTOR-FOTOS-'+op),pri1=preparar(pri0,priFotos,'XESTOR-FOTOS-'+op);
     await Promise.all([gardar(env.R2_PUBLICO,INDEX_PUBLICO,pub1,true),gardar(env.R2_PRIVADO,INDEX_PRIVADO,pri1,false)]);
-    try{await sincronizarSheet(env,u,id,publica,privada)}catch(e){await Promise.allSettled([gardar(env.R2_PUBLICO,INDEX_PUBLICO,pub0,true),gardar(env.R2_PRIVADO,INDEX_PRIVADO,pri0,false)]);throw e}
+    try{
+      await gardarMetadatosSheet(env,u,id,metadatos);
+      await sincronizarPublicacionSheet(env,u,id,publica,privada);
+    }catch(e){
+      await Promise.allSettled([gardar(env.R2_PUBLICO,INDEX_PUBLICO,pub0,true),gardar(env.R2_PRIVADO,INDEX_PRIVADO,pri0,false)]);
+      throw e;
+    }
     const estadoPublicacion=publica&&privada?'ambas':publica?'publica':privada?'privada':'ningunha';
-    const estadoXestion=publica||privada?'publicada':fichaEstado(base,new Set(),new Set()).estadoXestion;
-    const catMap=mapa(cat0.fotos,[{...base,idFoto:id,publicarPublica:publica,publicarPrivada:privada,estadoPublicacion,estadoXestion}]);
-    await Promise.all([gardar(env.R2_PRIVADO,CATALOGO,preparar(cat0,[...catMap.values()],'XESTOR-PUBLICACION-'+op)),env.R2_PRIVADO.delete(CACHE_REVISION)]);
+    const estadoXestion=publica||privada?'publicada':'nonpublicada';
+    const catMap=mapa(cat0.fotos,[{...baseNova,publicarPublica:publica,publicarPrivada:privada,estadoPublicacion,estadoXestion}]);
+    await Promise.all([gardar(env.R2_PRIVADO,CATALOGO,preparar(cat0,[...catMap.values()],'XESTOR-FOTOS-'+op)),env.R2_PRIVADO.delete(CACHE_REVISION)]);
     const [pv,rv]=await Promise.all([ler(env.R2_PUBLICO,INDEX_PUBLICO),ler(env.R2_PRIVADO,INDEX_PRIVADO)]);
-    if(pv.fotos.some(f=>idFoto(f)===id)!==publica||rv.fotos.some(f=>idFoto(f)===id)!==privada)throw new Error('A verificación final non coincide co estado solicitado');
-    return json(200,{ok:true,idFoto:id,publicarPublica:publica,publicarPrivada:privada,estadoPublicacion,estadoXestion,mensaxe:'Estado actualizado e verificado en Sheet, R2 e caché.'});
-  }catch(e){console.error('Erro no xestor de publicación fotográfica',e);return json(503,{ok:false,erro:e instanceof Error?e.message:'Non se puido completar a operación'})}
+    const pubVerificada=pv.fotos.find(f=>idFoto(f)===id),priVerificada=rv.fotos.find(f=>idFoto(f)===id);
+    if(Boolean(pubVerificada)!==publica||Boolean(priVerificada)!==privada)throw new Error('A verificación final non coincide co estado solicitado');
+    if((pubVerificada&&texto(pubVerificada.titulo)!==metadatos.titulo)||(priVerificada&&texto(priVerificada.titulo)!==metadatos.titulo))throw new Error('A publicación actualizouse, pero a verificación dos metadatos non coincide');
+    return json(200,{ok:true,idFoto:id,...metadatos,publicarPublica:publica,publicarPrivada:privada,estadoPublicacion,estadoXestion,mensaxe:'Datos e publicación actualizados e verificados en Sheet, R2 e caché.'});
+  }catch(e){console.error('Erro no xestor fotográfico',e);return json(503,{ok:false,erro:e instanceof Error?e.message:'Non se puido completar a operación'})}
 }
