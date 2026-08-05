@@ -1,5 +1,7 @@
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
-const CACHE_RESPALDO_MS = 24 * 60 * 60 * 1000;
+const CACHE_RESPALDO_MS = 30 * 24 * 60 * 60 * 1000;
+const ADMIN_R2_PREFIX = 'persoas/cache/administracion/';
+const PERFIS_R2_KEY = 'persoas/cache/perfis.json';
 const CACHE_TOKEN_MS = 10 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8000;
 const TIMEOUT_APPS_SCRIPT_MS = 15000;
@@ -171,6 +173,76 @@ async function gardarCache(request, email, payload) {
   }
 }
 
+async function identificadorCache(valor) {
+  const bytes = new TextEncoder().encode(String(valor || '').trim().toLowerCase());
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function gardarCacheR2(env, email, payload) {
+  if (
+    !payload?.ok ||
+    !Array.isArray(payload.persoas) ||
+    !env.R2_PRIVADO ||
+    typeof env.R2_PRIVADO.put !== 'function'
+  ) {
+    return;
+  }
+
+  try {
+    const savedAt = Date.now();
+    const id = await identificadorCache(email);
+    await Promise.all([
+      env.R2_PRIVADO.put(
+        `${ADMIN_R2_PREFIX}${id}.json`,
+        JSON.stringify({ savedAt, administrador: email, payload }),
+        {
+          httpMetadata: {
+            contentType: 'application/json; charset=utf-8',
+            cacheControl: 'private, no-store'
+          }
+        }
+      ),
+      env.R2_PRIVADO.put(
+        PERFIS_R2_KEY,
+        JSON.stringify({ savedAt, persoas: payload.persoas }),
+        {
+          httpMetadata: {
+            contentType: 'application/json; charset=utf-8',
+            cacheControl: 'private, no-store'
+          }
+        }
+      )
+    ]);
+  } catch (error) {
+    console.warn('Non se puido gardar o respaldo de Persoas v2 en R2:', error);
+  }
+}
+
+async function lerCacheR2(env, email) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+
+  try {
+    const id = await identificadorCache(email);
+    const object = await env.R2_PRIVADO.get(`${ADMIN_R2_PREFIX}${id}.json`);
+    if (!object) return null;
+    const entrada = await object.json();
+    if (
+      entrada?.administrador !== email ||
+      !entrada?.payload?.ok ||
+      entrada.payload.perfil?.nivel !== 'Administración' ||
+      !Array.isArray(entrada.payload.persoas) ||
+      Date.now() - Number(entrada.savedAt || 0) > CACHE_RESPALDO_MS
+    ) {
+      return null;
+    }
+    return entrada;
+  } catch (error) {
+    console.warn('Non se puido ler o respaldo de Persoas v2 desde R2:', error);
+    return null;
+  }
+}
+
 function corpoAppsScript(env, user, action, idPersoa = '') {
   return {
     token: env.WEB_WRITE_TOKEN,
@@ -205,7 +277,10 @@ async function consultarListado(env, user) {
 async function actualizarCache(context, user) {
   try {
     const payload = await consultarListado(context.env, user);
-    await gardarCache(context.request, user.email, payload);
+    await Promise.all([
+      gardarCache(context.request, user.email, payload),
+      gardarCacheR2(context.env, user.email, payload)
+    ]);
   } catch (error) {
     console.warn('Non se puido actualizar Persoas v2 en segundo plano:', error);
   }
@@ -355,11 +430,28 @@ export async function onRequest(context) {
       });
     }
 
+    const respaldoR2 = await lerCacheR2(env, user.email);
+    if (respaldoR2?.payload?.persoas) {
+      await gardarCache(request, user.email, respaldoR2.payload);
+      if (typeof context.waitUntil === 'function') {
+        context.waitUntil(actualizarCache(context, user));
+      }
+      return json(200, respaldoR2.payload, {
+        'X-SCPP-Persoas-Version': 'v2',
+        'X-SCPP-Cache': 'R2',
+        'X-SCPP-Data-Age': String(Math.max(0, Math.floor((Date.now() - respaldoR2.savedAt) / 1000))),
+        'Server-Timing': `firebase;dur=${duracionFirebase}, r2;dur=0, total;dur=${Date.now() - inicioTotal}`
+      });
+    }
+
     const inicioAppsScript = Date.now();
     try {
       const payload = await consultarListado(env, user);
       const duracionAppsScript = Date.now() - inicioAppsScript;
-      await gardarCache(request, user.email, payload);
+      await Promise.all([
+        gardarCache(request, user.email, payload),
+        gardarCacheR2(env, user.email, payload)
+      ]);
 
       return json(200, payload, {
         'X-SCPP-Persoas-Version': 'v2',
@@ -398,7 +490,7 @@ export async function onRequest(context) {
   // O listado xa foi autorizado para este administrador e inclúe a clave R2.
   // Servimos directamente desde R2; se non hai cache válida mantemos Apps Script
   // como respaldo para non romper accesos directos nin datos aínda non cacheados.
-  const cacheada = await lerCache(request, user.email);
+  const cacheada = await lerCache(request, user.email) || await lerCacheR2(env, user.email);
   const fichaCacheada = fichaDesdeCache(cacheada, idPersoa);
   if (fichaCacheada) {
     return servirFicha(env, fichaCacheada, 0, 'CACHE');

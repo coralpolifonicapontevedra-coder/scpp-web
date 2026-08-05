@@ -3,7 +3,9 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 const TIPOS_FOTO = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_FOTO_BYTES = 2 * 1024 * 1024;
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
-const CACHE_RESPALDO_MS = 24 * 60 * 60 * 1000;
+const CACHE_RESPALDO_MS = 30 * 24 * 60 * 60 * 1000;
+const PERFIS_R2_KEY = 'persoas/cache/perfis.json';
+const PERFIL_R2_PREFIX = 'persoas/cache/perfis/';
 const CACHE_TOKEN_MS = 10 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
 const cacheTokens = new Map();
@@ -131,6 +133,98 @@ async function gardarCache(request, email, payload) {
   }
 }
 
+async function identificadorCache(valor) {
+  const bytes = new TextEncoder().encode(String(valor || '').trim().toLowerCase());
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function perfilDesdePersoa(persoa) {
+  if (!persoa || typeof persoa !== 'object') return null;
+  return {
+    ...persoa,
+    nomeCompleto: persoa.nomeCompleto || [persoa.nome, persoa.primeiroApelido, persoa.segundoApelido].filter(Boolean).join(' '),
+    dataIncorporacionSCPP: persoa.dataIncorporacionSCPP || persoa.dataIncorporacion || '',
+    correoElectronico: persoa.correoElectronico || persoa.correo || persoa.email || ''
+  };
+}
+
+function correoPersoa(persoa) {
+  return String(
+    persoa?.correoElectronico || persoa?.correo || persoa?.email || ''
+  ).trim().toLowerCase();
+}
+
+async function lerJsonR2(env, key) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  const object = await env.R2_PRIVADO.get(key);
+  if (!object) return null;
+  try {
+    return await object.json();
+  } catch (error) {
+    console.warn(`Non se puido ler ${key} desde R2:`, error);
+    return null;
+  }
+}
+
+async function lerPerfilR2(env, email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  try {
+    const id = await identificadorCache(normalizedEmail);
+    const individual = await lerJsonR2(env, `${PERFIL_R2_PREFIX}${id}.json`);
+    if (
+      individual?.payload?.ok &&
+      individual.payload.perfil &&
+      Date.now() - Number(individual.savedAt || 0) <= CACHE_RESPALDO_MS
+    ) {
+      return individual;
+    }
+
+    const indice = await lerJsonR2(env, PERFIS_R2_KEY);
+    if (
+      !Array.isArray(indice?.persoas) ||
+      Date.now() - Number(indice.savedAt || 0) > CACHE_RESPALDO_MS
+    ) {
+      return null;
+    }
+    const persoa = indice.persoas.find((item) => correoPersoa(item) === normalizedEmail);
+    const perfil = perfilDesdePersoa(persoa);
+    return perfil ? { savedAt: Number(indice.savedAt || Date.now()), payload: { ok: true, perfil } } : null;
+  } catch (error) {
+    console.warn('Non se puido ler o respaldo do perfil desde R2:', error);
+    return null;
+  }
+}
+
+async function gardarPerfilR2(env, email, payload) {
+  if (
+    !payload?.ok ||
+    !payload.perfil ||
+    !env.R2_PRIVADO ||
+    typeof env.R2_PRIVADO.put !== 'function'
+  ) {
+    return;
+  }
+
+  try {
+    const id = await identificadorCache(email);
+    await env.R2_PRIVADO.put(
+      `${PERFIL_R2_PREFIX}${id}.json`,
+      JSON.stringify({ savedAt: Date.now(), payload }),
+      {
+        httpMetadata: {
+          contentType: 'application/json; charset=utf-8',
+          cacheControl: 'private, no-store'
+        }
+      }
+    );
+  } catch (error) {
+    console.warn('Non se puido gardar o respaldo do perfil en R2:', error);
+  }
+}
+
 async function consultarPerfil(env, corpo) {
   return obterJsonAppsScript(env, corpo, {
     timeoutMs: 15_000,
@@ -141,7 +235,12 @@ async function consultarPerfil(env, corpo) {
 async function actualizarCache(context, corpo, email) {
   try {
     const { resultado } = await consultarPerfil(context.env, corpo);
-    if (resultado?.ok) await gardarCache(context.request, email, resultado);
+    if (resultado?.ok) {
+      await Promise.all([
+        gardarCache(context.request, email, resultado),
+        gardarPerfilR2(context.env, email, resultado)
+      ]);
+    }
   } catch (error) {
     console.warn('Non se puido actualizar a cache do perfil:', error);
   }
@@ -227,14 +326,26 @@ export async function onRequest(context) {
     const cacheada = await lerCache(request, usuario.email);
     if (cacheada) {
       const idade = Date.now() - cacheada.savedAt;
-      if (idade >= CACHE_FRESCA_MS) {
-        const tarefa = actualizarCache(context, corpo, usuario.email);
-        if (typeof context.waitUntil === 'function') context.waitUntil(tarefa);
+      if (idade >= CACHE_FRESCA_MS && typeof context.waitUntil === 'function') {
+        context.waitUntil(actualizarCache(context, corpo, usuario.email));
       }
       return json(200, cacheada.payload, {
         'X-SCPP-Cache': idade < CACHE_FRESCA_MS ? 'HIT' : 'STALE-WHILE-REVALIDATE',
         'X-SCPP-Data-Age': String(Math.max(0, Math.floor(idade / 1000))),
         'Server-Timing': `firebase;dur=${duracionFirebase}, cache;dur=0, total;dur=${Date.now() - inicioTotal}`
+      });
+    }
+
+    const respaldoR2 = await lerPerfilR2(env, usuario.email);
+    if (respaldoR2?.payload?.perfil) {
+      await gardarCache(request, usuario.email, respaldoR2.payload);
+      if (typeof context.waitUntil === 'function') {
+        context.waitUntil(actualizarCache(context, corpo, usuario.email));
+      }
+      return json(200, respaldoR2.payload, {
+        'X-SCPP-Cache': 'R2',
+        'X-SCPP-Data-Age': String(Math.max(0, Math.floor((Date.now() - respaldoR2.savedAt) / 1000))),
+        'Server-Timing': `firebase;dur=${duracionFirebase}, r2;dur=0, total;dur=${Date.now() - inicioTotal}`
       });
     }
   }
@@ -257,7 +368,10 @@ export async function onRequest(context) {
       });
     }
 
-    await gardarCache(request, usuario.email, resultado);
+    await Promise.all([
+      gardarCache(request, usuario.email, resultado),
+      gardarPerfilR2(env, usuario.email, resultado)
+    ]);
 
     return json(200, resultado, {
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
