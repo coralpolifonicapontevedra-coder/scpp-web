@@ -20,5 +20,6 @@
 - `upload` exige `MIGRAR_CONCERTOS`.
 - Los objetos existentes solo se aceptan si conservan el mismo ID de Drive y tamaño.
 - Cada subida se verifica por tamaño y SHA-256.
+- El plan muestra el MD5 de Drive para identificar duplicados sin descargar archivos y señala los PDF mayores de 20 MiB para optimizarlos antes de publicarlos.
 - Drive queda intacto como respaldo.
 
