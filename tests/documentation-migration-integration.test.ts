@@ -35,6 +35,16 @@ describe('migración de Documentación y Actas', () => {
     expect(upload).toBeGreaterThan(preflight);
   });
 
+  it('amplía la cuadrícula antes de escribir columnas fuera del límite', () => {
+    expect(script).toContain('def ensure_grid_columns(');
+    expect(script).toContain('"appendDimension"');
+    expect(script).toContain('"dimension": "COLUMNS"');
+    const expand = script.indexOf('ensure_grid_columns(sheets, tab');
+    const headers = script.indexOf('range=f"\'{tab}\'!{column_name(start)}1"');
+    expect(expand).toBeGreaterThan(-1);
+    expect(headers).toBeGreaterThan(expand);
+  });
+
   it('reanuda objetos propios verificados y completa la hoja', () => {
     expect(script).toContain('metadata_from_existing(item, source, remote)');
     expect(script).toContain('R2_EXISTS_SHEET_UPDATED');
