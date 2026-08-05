@@ -50,12 +50,6 @@ function decodificar(base64) {
   return bytes;
 }
 
-function extension(mime) {
-  if (mime === 'image/png') return 'png';
-  if (mime === 'image/webp') return 'webp';
-  return 'jpg';
-}
-
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
   if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN || !env.R2_PRIVADO) {
@@ -78,25 +72,30 @@ export async function onRequest({ request, env }) {
     const bytes = decodificar(datos.base64);
     if (!bytes.byteLength || bytes.byteLength > MAX_BYTES) throw new Error('A edición supera o máximo de 12 MB.');
 
+    const actualizadoEn = new Date().toISOString();
+    const rutaCanonica = `fotos/borradores/${idFoto}`;
     const indiceRuta = `fotos/traballo/${idFoto}.json`;
     const indiceAnteriorObj = await env.R2_PRIVADO.get(indiceRuta);
     const indiceAnterior = indiceAnteriorObj ? await indiceAnteriorObj.json().catch(() => ({})) : {};
     const rutaAnterior = texto(indiceAnterior?.ruta);
     const rutaOrixinal = texto(indiceAnterior?.rutaOrixinal || rutaAnterior);
-    const marca = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
-    const rutaEditada = `fotos/editadas/${idFoto}-${marca}.${extension(mimeType)}`;
-    const actualizadoEn = new Date().toISOString();
 
-    await env.R2_PRIVADO.put(rutaEditada, bytes, {
-      httpMetadata: { contentType: mimeType, cacheControl: 'private, max-age=31536000, immutable' },
-      customMetadata: { idFoto, tipo: 'borrador-edicion', editadaPor: usuario.email, editadaEn: actualizadoEn }
+    await env.R2_PRIVADO.put(rutaCanonica, bytes, {
+      httpMetadata: { contentType: mimeType, cacheControl: 'private, no-store, max-age=0' },
+      customMetadata: {
+        idFoto,
+        tipo: 'borrador-canonico',
+        editadaPor: usuario.email,
+        editadaEn: actualizadoEn
+      }
     });
 
     await Promise.all([
       env.R2_PRIVADO.put(indiceRuta, JSON.stringify({
         ...indiceAnterior,
         idFoto,
-        ruta: rutaEditada,
+        ruta: rutaCanonica,
+        rutaBorrador: rutaCanonica,
         rutaOrixinal,
         mimeType,
         estado: 'Pendente',
@@ -113,7 +112,8 @@ export async function onRequest({ request, env }) {
         idFoto,
         estado: 'sincronizada',
         tipo: 'borrador',
-        rutaPrivada: rutaEditada,
+        rutaPrivada: rutaCanonica,
+        mimeType,
         sheet: 'sen-cambios',
         actualizadoEn
       }), {
@@ -121,13 +121,19 @@ export async function onRequest({ request, env }) {
       })
     ]);
 
+    const comprobacion = await env.R2_PRIVADO.get(rutaCanonica);
+    if (!comprobacion || comprobacion.size !== bytes.byteLength) {
+      throw new Error('O borrador non superou a verificación final en R2.');
+    }
+
     return json(200, {
       ok: true,
       idFoto,
       estado: 'Pendente',
-      rutaPrivada: rutaEditada,
+      rutaPrivada: rutaCanonica,
+      bytes: bytes.byteLength,
       sheet: 'sen-cambios',
-      mensaxe: 'Borrador gardado en R2. A fotografía conserva a edición e continúa pendente de revisión.'
+      mensaxe: 'Borrador gardado e verificado en R2. A fotografía continúa pendente de revisión.'
     });
   } catch (erro) {
     console.error('Erro ao gardar borrador fotográfico:', erro);
