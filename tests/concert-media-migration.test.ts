@@ -31,10 +31,24 @@ describe('migración de medios de conciertos', () => {
     expect(script).toContain('pending_review');
   });
 
+  it('tolera una carpeta mal indicada cuando el nombre del archivo coincide', () => {
+    expect(script).toContain('@basename/');
+    expect(script).toContain("references.get(logical_path) or references.get(basename_key, {})");
+  });
+
+  it('reconoce como públicos los carteles compartidos identificados por nombre', () => {
+    expect(script).toContain('infer_roles_from_name');
+    expect(script).toContain('"cartel": "Cartel"');
+    expect(script).toContain('reference = {"roles": inferred_roles, "concert_ids": set()}');
+  });
+
   it('verifica tamaño, identidad de Drive y SHA-256', () => {
     expect(script).toContain('source-drive-id');
     expect(script).toContain('sha256');
     expect(script).toContain('UPLOADED_VERIFIED');
+    expect(script).toContain('md5Checksum');
+    expect(script).toContain('ERROR_DOWNLOAD_MD5');
+    expect(script).toContain('PDF_DEMASIADO_GRANDE_REVISAR_ANTES_DE_PUBLICAR');
   });
 });
 

@@ -5,6 +5,8 @@
 - Carpeta `Concertos_Files_`: programas, trípticos, prensa y algún cartel heredado.
 - Carpeta `Concertos_Images`: carteles e imágenes, incluidos posibles materiales no vinculados.
 - La hoja pública `Concertos` se usa únicamente para clasificar referencias; no se modifica.
+- Si la hoja indica una carpeta equivocada, se admite la coincidencia por nombre exacto del archivo.
+- Los archivos no enlazados cuyo nombre identifica inequívocamente `Cartel`, `Triptico` o `Prensa` se conservan como material público; esto cubre carteles compartidos por varios conciertos.
 
 ## Clasificación
 
@@ -18,5 +20,6 @@
 - `upload` exige `MIGRAR_CONCERTOS`.
 - Los objetos existentes solo se aceptan si conservan el mismo ID de Drive y tamaño.
 - Cada subida se verifica por tamaño y SHA-256.
+- El plan muestra el MD5 de Drive para identificar duplicados sin descargar archivos y señala los PDF mayores de 20 MiB para optimizarlos antes de publicarlos.
 - Drive queda intacto como respaldo.
 
