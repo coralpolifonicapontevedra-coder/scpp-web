@@ -2,6 +2,7 @@ import { obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const INDEX_PUBLICO = 'indices/galeria-publica-v1.json';
 const INDEX_PRIVADO = 'indices/galeria-privada.json';
+const CACHE_LISTA_REVISION = 'cache/fotos/listar-revision.json';
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
@@ -66,19 +67,27 @@ async function lerIndice(bucket, clave) {
   return indice;
 }
 
-async function gardarIndice(bucket, clave, indice) {
+function prepararIndice(indice, fotos, operacionId) {
   const agora = new Date();
-  await bucket.put(clave, JSON.stringify({
+  return {
     ...indice,
     ok: true,
-    total: indice.fotos.length,
+    fotos,
+    total: fotos.length,
     xeradoEn: agora.toISOString(),
     xeradoEnMs: agora.getTime(),
-    actualizadoDesde: 'XESTION-FOTOS'
-  }), {
+    actualizadoDesde: 'XESTION-FOTOS',
+    operacionId
+  };
+}
+
+async function gardarIndice(bucket, clave, indice, publico) {
+  await bucket.put(clave, JSON.stringify(indice), {
     httpMetadata: {
       contentType: 'application/json; charset=utf-8',
-      cacheControl: 'no-cache, max-age=0'
+      cacheControl: publico
+        ? 'public, max-age=0, no-cache, must-revalidate'
+        : 'private, max-age=0, no-cache, must-revalidate'
     }
   });
 }
@@ -95,12 +104,16 @@ async function sincronizarSheet(env, usuario, id, publicarPublica, publicarPriva
     publicarPrivada,
     destacadaPublica: false,
     destacadaPrivada: false
-  }, { timeoutMs: 45_000, attemptTimeoutMs: 15_000 });
+  }, { timeoutMs: 60_000, attemptTimeoutMs: 20_000 });
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Non se puido actualizar a folla Fotos.');
+  return resultado;
 }
 
-export async function onRequest(context) {
-  const { request, env } = context;
+function presente(indice, id) {
+  return (indice.fotos || []).some((foto) => idFoto(foto) === id);
+}
+
+export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
   if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN || !env.R2_PUBLICO || !env.R2_PRIVADO) {
     return json(500, { ok: false, erro: 'O servizo non está configurado.' });
@@ -122,44 +135,84 @@ export async function onRequest(context) {
   try {
     await comprobarAdministracion(env, usuario);
 
-    const [indicePublico, indicePrivado] = await Promise.all([
+    const [indicePublicoAnterior, indicePrivadoAnterior] = await Promise.all([
       lerIndice(env.R2_PUBLICO, INDEX_PUBLICO),
       lerIndice(env.R2_PRIVADO, INDEX_PRIVADO)
     ]);
 
-    const estabaPublica = indicePublico.fotos.some((foto) => idFoto(foto) === id);
-    const estabaPrivada = indicePrivado.fotos.some((foto) => idFoto(foto) === id);
+    const estabaPublica = presente(indicePublicoAnterior, id);
+    const estabaPrivada = presente(indicePrivadoAnterior, id);
     const retirarPublica = ambito === 'publica' || ambito === 'ambas';
     const retirarPrivada = ambito === 'privada' || ambito === 'ambas';
     const publicarPublica = estabaPublica && !retirarPublica;
     const publicarPrivada = estabaPrivada && !retirarPrivada;
+    const operacionId = crypto.randomUUID();
 
-    const gardados = [];
+    const indicePublicoNovo = prepararIndice(
+      indicePublicoAnterior,
+      retirarPublica
+        ? indicePublicoAnterior.fotos.filter((foto) => idFoto(foto) !== id)
+        : indicePublicoAnterior.fotos,
+      operacionId
+    );
+    const indicePrivadoNovo = prepararIndice(
+      indicePrivadoAnterior,
+      retirarPrivada
+        ? indicePrivadoAnterior.fotos.filter((foto) => idFoto(foto) !== id)
+        : indicePrivadoAnterior.fotos,
+      operacionId
+    );
+
+    const escrituras = [];
     if (retirarPublica && estabaPublica) {
-      indicePublico.fotos = indicePublico.fotos.filter((foto) => idFoto(foto) !== id);
-      gardados.push(gardarIndice(env.R2_PUBLICO, INDEX_PUBLICO, indicePublico));
+      escrituras.push(gardarIndice(env.R2_PUBLICO, INDEX_PUBLICO, indicePublicoNovo, true));
     }
     if (retirarPrivada && estabaPrivada) {
-      indicePrivado.fotos = indicePrivado.fotos.filter((foto) => idFoto(foto) !== id);
-      gardados.push(gardarIndice(env.R2_PRIVADO, INDEX_PRIVADO, indicePrivado));
+      escrituras.push(gardarIndice(env.R2_PRIVADO, INDEX_PRIVADO, indicePrivadoNovo, false));
     }
-    await Promise.all(gardados);
+    await Promise.all(escrituras);
 
-    const sincronizacion = sincronizarSheet(env, usuario, id, publicarPublica, publicarPrivada)
-      .catch((erro) => console.error('A retirada quedou en R2, pero fallou a sincronización da Sheet:', erro));
-    if (context.waitUntil) context.waitUntil(sincronizacion);
+    try {
+      await sincronizarSheet(env, usuario, id, publicarPublica, publicarPrivada);
+    } catch (erroSheet) {
+      const restauracions = [];
+      if (retirarPublica && estabaPublica) {
+        restauracions.push(gardarIndice(env.R2_PUBLICO, INDEX_PUBLICO, indicePublicoAnterior, true));
+      }
+      if (retirarPrivada && estabaPrivada) {
+        restauracions.push(gardarIndice(env.R2_PRIVADO, INDEX_PRIVADO, indicePrivadoAnterior, false));
+      }
+      await Promise.allSettled(restauracions);
+      throw erroSheet;
+    }
+
+    await env.R2_PRIVADO.delete(CACHE_LISTA_REVISION);
+
+    const [indicePublicoVerificado, indicePrivadoVerificado] = await Promise.all([
+      lerIndice(env.R2_PUBLICO, INDEX_PUBLICO),
+      lerIndice(env.R2_PRIVADO, INDEX_PRIVADO)
+    ]);
+
+    const verificacionPublica = presente(indicePublicoVerificado, id) === publicarPublica;
+    const verificacionPrivada = presente(indicePrivadoVerificado, id) === publicarPrivada;
+    if (!verificacionPublica || !verificacionPrivada) {
+      throw new Error('A operación foi gardada, pero a verificación final dos índices non coincide. Reconstrúe os índices antes de continuar.');
+    }
 
     return json(200, {
       ok: true,
       idFoto: id,
+      operacionId,
       publicarPublica,
       publicarPrivada,
       retiradaPublica: retirarPublica && estabaPublica,
       retiradaPrivada: retirarPrivada && estabaPrivada,
-      sheet: 'sincronizando',
+      sheet: 'actualizada',
+      indices: 'actualizados-e-verificados',
+      cacheRevision: 'invalidada',
       mensaxe: ambito === 'ambas'
-        ? 'Fotografía retirada das dúas galerías. A Sheet está sincronizando.'
-        : `Fotografía retirada da galería ${ambito}. A Sheet está sincronizando.`
+        ? 'Fotografía retirada das dúas galerías. Sheet, índices e caché quedaron actualizados e verificados.'
+        : `Fotografía retirada da galería ${ambito}. Sheet, índices e caché quedaron actualizados e verificados.`
     });
   } catch (erro) {
     console.error('Erro ao retirar fotografía dunha galería:', erro);
