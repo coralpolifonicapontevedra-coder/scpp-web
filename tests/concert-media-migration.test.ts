@@ -31,6 +31,11 @@ describe('migración de medios de conciertos', () => {
     expect(script).toContain('pending_review');
   });
 
+  it('tolera una carpeta mal indicada cuando el nombre del archivo coincide', () => {
+    expect(script).toContain('@basename/');
+    expect(script).toContain("references.get(logical_path) or references.get(basename_key, {})");
+  });
+
   it('verifica tamaño, identidad de Drive y SHA-256', () => {
     expect(script).toContain('source-drive-id');
     expect(script).toContain('sha256');
