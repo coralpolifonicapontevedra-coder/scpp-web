@@ -36,6 +36,12 @@ describe('migración de medios de conciertos', () => {
     expect(script).toContain("references.get(logical_path) or references.get(basename_key, {})");
   });
 
+  it('reconoce como públicos los carteles compartidos identificados por nombre', () => {
+    expect(script).toContain('infer_roles_from_name');
+    expect(script).toContain('"cartel": "Cartel"');
+    expect(script).toContain('reference = {"roles": inferred_roles, "concert_ids": set()}');
+  });
+
   it('verifica tamaño, identidad de Drive y SHA-256', () => {
     expect(script).toContain('source-drive-id');
     expect(script).toContain('sha256');
