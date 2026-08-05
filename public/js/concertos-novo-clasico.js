@@ -3,7 +3,7 @@ const normalizarClasico=(v='')=>String(v).normalize('NFD').replace(/[\u0300-\u03
 function parseCSVClasico(texto){const filas=[];let fila=[],campo='',comillas=false;for(let i=0;i<texto.length;i+=1){const c=texto[i],s=texto[i+1];if(c==='"'&&comillas&&s==='"'){campo+='"';i+=1}else if(c==='"')comillas=!comillas;else if(c===','&&!comillas){fila.push(campo);campo=''}else if((c==='\n'||c==='\r')&&!comillas){if(c==='\r'&&s==='\n')i+=1;fila.push(campo);if(fila.some(x=>String(x).trim()))filas.push(fila);fila=[];campo=''}else campo+=c}if(campo||fila.length){fila.push(campo);filas.push(fila)}const cab=(filas.shift()||[]).map(normalizarClasico);return filas.map(valores=>Object.fromEntries(cab.map((h,i)=>[h,String(valores[i]||'').trim()])))}
 const valorClasico=(fila,...nomes)=>{for(const nome of nomes){const v=fila[normalizarClasico(nome)];if(v!==undefined&&v!=='')return v}return''};
 const escaparClasico=(v='')=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-function cartelClasico(ruta=''){const nome=String(ruta).replaceAll('\\','/').split('/').filter(Boolean).pop();return nome?`/img/concertos/${encodeURIComponent(nome.replace(/\.pdf$/i,'.jpg'))}`:''}
+function cartelClasico(ruta=''){const nome=String(ruta).replaceAll('\\','/').split('/').filter(Boolean).pop();return nome?`/media/concertos/${encodeURIComponent(nome.replace(/\.pdf$/i,'.jpg'))}`:''}
 let datosClasicos=new Map();
 let urlTemporal='';
 function lerTexto(tarxeta,selector){return String(tarxeta.querySelector(selector)?.textContent||'').trim()}
