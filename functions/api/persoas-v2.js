@@ -217,7 +217,39 @@ function claveR2Valida(value) {
   return key.startsWith('persoas/fichas/') ? key : '';
 }
 
-async function servirFicha(env, result, duracionAppsScript) {
+function fichaDesdeCache(cacheada, idPersoa) {
+  const payload = cacheada?.payload;
+  if (payload?.perfil?.nivel !== 'Administración' || !Array.isArray(payload.persoas)) {
+    return null;
+  }
+
+  const referencia = String(idPersoa || '').trim();
+  const persoa = payload.persoas.find((item) => [
+    item?.idPersoa,
+    item?.id,
+    item?.rowId
+  ].some((value) => String(value || '').trim() === referencia));
+
+  if (
+    !persoa ||
+    persoa.fichaDisponibleR2 !== true ||
+    String(persoa.fichaR2Estado || '').trim() !== 'SINCRONIZADO'
+  ) {
+    return null;
+  }
+
+  const r2Key = claveR2Valida(persoa.fichaR2Key);
+  if (!r2Key) return null;
+
+  return {
+    ok: true,
+    idPersoa: String(persoa.idPersoa || persoa.id || ''),
+    r2Key,
+    nomeFicheiro: r2Key.split('/').pop() || 'ficha.pdf'
+  };
+}
+
+async function servirFicha(env, result, duracionAppsScript, autorizacion = 'APPS_SCRIPT') {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') {
     return json(503, {
       ok: false,
@@ -257,7 +289,11 @@ async function servirFicha(env, result, duracionAppsScript) {
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('X-SCPP-Storage', 'R2');
   headers.set('X-SCPP-Persoas-Version', 'v2');
-  headers.set('Server-Timing', `apps-script;dur=${duracionAppsScript}, r2;dur=${duracionR2}`);
+  headers.set('X-SCPP-Authorization', autorizacion);
+  const autorizacionTiming = autorizacion === 'CACHE'
+    ? 'authorization-cache;dur=0'
+    : `apps-script;dur=${duracionAppsScript}`;
+  headers.set('Server-Timing', `${autorizacionTiming}, r2;dur=${duracionR2}`);
   if (object.httpEtag) headers.set('ETag', object.httpEtag);
   return new Response(object.body, { status: 200, headers });
 }
@@ -357,6 +393,15 @@ export async function onRequest(context) {
   const idPersoa = String(data.idPersoa || data.id || '').trim();
   if (!idPersoa) {
     return json(400, { ok: false, etapa: 'REQUEST', erro: 'Non se indicou a persoa.' });
+  }
+
+  // O listado xa foi autorizado para este administrador e inclúe a clave R2.
+  // Servimos directamente desde R2; se non hai cache válida mantemos Apps Script
+  // como respaldo para non romper accesos directos nin datos aínda non cacheados.
+  const cacheada = await lerCache(request, user.email);
+  const fichaCacheada = fichaDesdeCache(cacheada, idPersoa);
+  if (fichaCacheada) {
+    return servirFicha(env, fichaCacheada, 0, 'CACHE');
   }
 
   const inicioAppsScript = Date.now();
