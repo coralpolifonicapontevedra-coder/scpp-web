@@ -1,0 +1,170 @@
+---
+import BaseLayout from '../layouts/Layout.astro';
+---
+
+<BaseLayout title="Histórico de concertos" lang="gl">
+  <main class="history-page container">
+    <header class="history-hero">
+      <p class="eyebrow">Arquivo histórico</p>
+      <h1>Un século de concertos</h1>
+      <div class="section-line-center"></div>
+      <p>Explora por ano a actividade concertística da Sociedade Coral Polifónica de Pontevedra desde 1925.</p>
+      <div id="history-summary" class="history-summary" aria-live="polite">Cargando o arquivo…</div>
+    </header>
+
+    <section class="history-browser" aria-labelledby="browser-title">
+      <div class="history-toolbar">
+        <div>
+          <p class="eyebrow">Consulta</p>
+          <h2 id="browser-title">Concertos por ano</h2>
+        </div>
+        <label class="history-search">
+          <span class="sr-only">Buscar no histórico</span>
+          <input id="history-search" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
+        </label>
+      </div>
+      <div id="history-years" class="history-years"></div>
+      <p id="history-empty" class="history-state" hidden>Non hai concertos que coincidan coa busca.</p>
+      <p id="history-error" class="history-state error" hidden>Non foi posible cargar o histórico. Téntao de novo nuns instantes.</p>
+    </section>
+  </main>
+</BaseLayout>
+
+<script>
+  const endpoint = '/api/concertos-historico';
+  const years = document.querySelector('#history-years');
+  const summary = document.querySelector('#history-summary');
+  const search = document.querySelector('#history-search');
+  const empty = document.querySelector('#history-empty');
+  const errorState = document.querySelector('#history-error');
+  let concertos = [];
+
+  const normalizar = (value = '') => String(value)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+  const escapar = (value = '') => String(value)
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+
+  const formatarData = (concerto) => {
+    if (concerto.dataTextoHistorica) return concerto.dataTextoHistorica;
+    if (!concerto.data) return 'Data non documentada';
+    const date = new Date(concerto.data + 'T12:00:00');
+    return Number.isNaN(date.getTime())
+      ? concerto.data
+      : new Intl.DateTimeFormat('gl-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+  };
+
+  function debuxar() {
+    if (!(years instanceof HTMLElement)) return;
+    const query = normalizar(search instanceof HTMLInputElement ? search.value : '');
+    const filtered = concertos.filter((concerto) => !query || normalizar([
+      concerto.ano, concerto.numeroConcerto, concerto.data, concerto.dataTextoHistorica,
+      concerto.nome, concerto.cidade, concerto.lugar, concerto.descricion
+    ].join(' ')).includes(query));
+
+    const grouped = new Map();
+    filtered.forEach((concerto) => {
+      const year = concerto.ano || 'Sen data';
+      if (!grouped.has(year)) grouped.set(year, []);
+      grouped.get(year).push(concerto);
+    });
+    const orderedYears = Array.from(grouped.keys()).sort((a, b) => {
+      if (a === 'Sen data') return 1;
+      if (b === 'Sen data') return -1;
+      return Number(b) - Number(a);
+    });
+
+    years.innerHTML = orderedYears.map((year) => {
+      const items = grouped.get(year).sort((a, b) => (Number(a.ordeHistorica) || 0) - (Number(b.ordeHistorica) || 0));
+      return `<details class="year-card">
+        <summary>
+          <span class="year">${escapar(year)}</span>
+          <span class="year-count"><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span>
+          <span class="open-label">Abrir <span aria-hidden="true">+</span></span>
+        </summary>
+        <ol class="concert-list">
+          ${items.map((concert) => {
+            const location = [concert.lugar, concert.cidade].filter(Boolean).join(' · ');
+            return `<li>
+              <span class="concert-number">N.º ${escapar(concert.numeroConcerto)}</span>
+              <div>
+                <time>${escapar(formatarData(concert))}</time>
+                <h3>${escapar(concert.nome || 'Concerto histórico')}</h3>
+                ${location ? `<p class="location">${escapar(location)}</p>` : ''}
+                ${concert.descricion ? `<p class="description">${escapar(concert.descricion)}</p>` : ''}
+              </div>
+            </li>`;
+          }).join('')}
+        </ol>
+      </details>`;
+    }).join('');
+
+    if (summary instanceof HTMLElement) summary.textContent = `${filtered.length} concertos documentados · ${orderedYears.length} anos`;
+    if (empty instanceof HTMLElement) empty.hidden = filtered.length > 0;
+  }
+
+  async function cargar() {
+    try {
+      const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      if (!data?.ok || !Array.isArray(data.concertos)) throw new Error('Índice non válido');
+      concertos = data.concertos;
+      debuxar();
+    } catch {
+      if (summary instanceof HTMLElement) summary.textContent = 'Arquivo temporalmente non dispoñible';
+      if (errorState instanceof HTMLElement) errorState.hidden = false;
+    }
+  }
+
+  search?.addEventListener('input', debuxar);
+  cargar();
+</script>
+
+<style>
+  .history-page { padding-block:clamp(3rem,7vw,6rem); }
+  .history-hero { max-width:850px; margin:0 auto clamp(3rem,6vw,5rem); text-align:center; }
+  .eyebrow { margin:0 0 .4rem; color:var(--color-acento); font-size:.74rem; font-weight:800; letter-spacing:.15em; text-transform:uppercase; }
+  .history-hero h1 { margin:.25rem 0; color:var(--color-principal); font-size:clamp(2.2rem,5vw,4rem); }
+  .history-hero > p:not(.eyebrow) { max-width:680px; margin:1.1rem auto 0; color:#625c57; line-height:1.7; }
+  .section-line-center { width:70px; height:2px; margin:1rem auto; background:var(--color-acento); }
+  .history-summary { display:inline-block; margin-top:1.5rem; padding:.65rem 1rem; color:var(--color-principal); background:#f4f0e8; font-size:.82rem; font-weight:700; }
+  .history-browser { max-width:1120px; margin:auto; }
+  .history-toolbar { display:flex; justify-content:space-between; align-items:end; gap:1.5rem; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid #ded8d1; }
+  .history-toolbar h2 { margin:.1rem 0 0; color:var(--color-principal); font-size:clamp(1.45rem,3vw,2rem); }
+  .history-search { width:min(100%,430px); }
+  .history-search input { box-sizing:border-box; width:100%; min-height:46px; padding:.7rem .9rem; border:1px solid #cfc7bf; background:#fff; color:#302b27; font:inherit; }
+  .history-search input:focus { outline:2px solid var(--color-acento); outline-offset:2px; }
+  .history-years { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:.85rem; align-items:start; }
+  .year-card { border:1px solid #d8d1c9; background:#fff; box-shadow:0 8px 22px rgba(54,42,36,.04); }
+  .year-card[open] { grid-column:1/-1; }
+  .year-card summary { display:grid; grid-template-columns:72px 1fr auto; align-items:center; gap:.8rem; min-height:82px; padding:.65rem 1rem; list-style:none; cursor:pointer; }
+  .year-card summary::-webkit-details-marker { display:none; }
+  .year-card summary:hover { background:#faf8f4; }
+  .year { color:var(--color-principal); font-family:Georgia,serif; font-size:1.35rem; font-weight:700; }
+  .year-count { color:#69625c; font-size:.76rem; }
+  .year-count strong { color:#2e2925; font-size:1.05rem; }
+  .open-label { color:var(--color-acento); font-size:.7rem; font-weight:800; text-transform:uppercase; }
+  .year-card[open] .open-label span { display:inline-block; transform:rotate(45deg); }
+  .concert-list { margin:0; padding:0; border-top:1px solid #e5dfd9; list-style:none; }
+  .concert-list li { display:grid; grid-template-columns:minmax(75px,115px) 1fr; gap:1rem; padding:1.1rem; border-bottom:1px solid #eee9e4; }
+  .concert-list li:last-child { border-bottom:0; }
+  .concert-number { color:var(--color-acento); font-size:.72rem; font-weight:800; }
+  .concert-list time,.location { color:#6d655f; font-size:.76rem; }
+  .concert-list h3 { margin:.15rem 0; color:#302a27; font-size:1rem; }
+  .concert-list p { margin:.18rem 0 0; }
+  .description { max-width:850px; color:#514b46; font-size:.82rem; line-height:1.55; }
+  .history-state { padding:1.4rem; background:#f5f2ed; text-align:center; }
+  .history-state.error { color:#7a2525; }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  [hidden] { display:none !important; }
+  @media (max-width:680px) {
+    .history-page { padding-inline:1rem; }
+    .history-toolbar { align-items:stretch; flex-direction:column; }
+    .history-search { width:100%; }
+    .year-card summary { grid-template-columns:64px 1fr; }
+    .open-label { display:none; }
+    .concert-list li { grid-template-columns:1fr; gap:.35rem; }
+  }
+</style>

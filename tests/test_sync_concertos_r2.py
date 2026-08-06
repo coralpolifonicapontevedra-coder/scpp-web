@@ -58,6 +58,7 @@ class SyncConcertosR2Tests(unittest.TestCase):
         built = MODULE.build_concerts(concerts, programs, repertoire)
         public = MODULE.index_payload(built, public_only=True)
         private = MODULE.index_payload(built, public_only=False)
+        history = MODULE.history_payload(built)
 
         self.assertEqual(public["total"], 1)
         self.assertEqual(public["concertos"][0]["id"], "1")
@@ -65,6 +66,26 @@ class SyncConcertosR2Tests(unittest.TestCase):
         self.assertEqual(private["total"], 2)
         self.assertEqual(private["totalHistorico"], 2)
         self.assertEqual(private["ordeHistoricaMax"], 2)
+        self.assertEqual(history["total"], 2)
+        self.assertEqual(history["totalAnos"], 2)
+        self.assertEqual(history["concertos"][0]["ano"], "1925")
+        self.assertEqual(
+            set(history["concertos"][0]),
+            {
+                "id",
+                "numeroConcerto",
+                "ordeHistorica",
+                "data",
+                "dataTextoHistorica",
+                "ano",
+                "nome",
+                "cidade",
+                "lugar",
+                "descricion",
+            },
+        )
+        self.assertNotIn("programa", history["concertos"][0])
+        self.assertNotIn("mostrarWeb", history["concertos"][0])
 
     def test_rejects_non_consecutive_historical_order(self):
         concerts = [

@@ -2,6 +2,49 @@
   'use strict';
 
   const fetchAnterior = window.fetch.bind(window);
+  const CACHE_KEY = 'scpp:repertorio:completo:v5';
+  const CACHE_FRESH_MS = 15 * 60 * 1000;
+  const CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
+
+  function lerCache(permitirAntiga = false) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      const idade = Date.now() - Number(cached?.gardadoEn || 0);
+      if (
+        !cached?.body ||
+        idade < 0 ||
+        idade > (permitirAntiga ? CACHE_STALE_MS : CACHE_FRESH_MS)
+      ) return null;
+      const parsed = JSON.parse(cached.body);
+      return parsed?.ok === true && Array.isArray(parsed?.obras) ? cached : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function gardarCache(body) {
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed?.ok !== true || !Array.isArray(parsed?.obras)) return;
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        gardadoEn: Date.now(),
+        body
+      }));
+    } catch {
+      // A navegación continúa aínda que o almacenamento local non estea dispoñible.
+    }
+  }
+
+  function respostaCache(cached, estado) {
+    return new Response(cached.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'private, no-store',
+        'X-SCPP-Repertorio': estado
+      }
+    });
+  }
 
   function parseBody(init) {
     if (!init || typeof init.body !== 'string') return null;
@@ -28,6 +71,7 @@
       }
 
       xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) gardarCache(xhr.responseText);
         const responseHeaders = new Headers();
         const raw = xhr.getAllResponseHeaders();
         raw.trim().split(/[\r\n]+/).filter(Boolean).forEach((line) => {
@@ -41,8 +85,13 @@
           headers: responseHeaders
         }));
       };
-      xhr.onerror = () => reject(new TypeError('Non foi posible conectar co servizo de repertorio.'));
-      xhr.ontimeout = () => reject(new TypeError('O servizo de repertorio tardou demasiado en responder.'));
+      const recuperarOuRexeitar = (mensaxe) => {
+        const cached = lerCache(true);
+        if (cached) resolve(respostaCache(cached, 'STALE-LOCAL-CACHE'));
+        else reject(new TypeError(mensaxe));
+      };
+      xhr.onerror = () => recuperarOuRexeitar('Non foi posible conectar co servizo de repertorio.');
+      xhr.ontimeout = () => recuperarOuRexeitar('O servizo de repertorio tardou demasiado en responder.');
       xhr.timeout = 65000;
       xhr.send(typeof init?.body === 'string' ? init.body : null);
     });
@@ -61,6 +110,11 @@
       url.includes('/api/repertorio') &&
       body?.accion === 'listarRepertorioPortal'
     ) {
+      const cached = lerCache(false);
+      if (cached) {
+        solicitarApiDirecta(url, init).catch(() => {});
+        return Promise.resolve(respostaCache(cached, 'LOCAL-CACHE'));
+      }
       return solicitarApiDirecta(url, init);
     }
 

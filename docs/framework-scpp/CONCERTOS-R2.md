@@ -15,18 +15,22 @@ formada non interrompe a web.
    tamén admite execución manual.
 3. O script descarga as tres fontes, relaciona o programa de cada concerto e
    comproba a súa coherencia antes de escribir nada.
-4. Cloudflare Pages Function serve o índice público desde
-   `/api/concertos-indice`.
-5. `src/pages/axenda.astro` le unicamente ese endpoint.
+4. Cloudflare Pages Functions serven a axenda desde `/api/concertos-indice`
+   e o arquivo público desde `/api/concertos-historico`.
+5. `src/pages/axenda.astro` le o índice reducido da axenda e
+   `src/pages/historico-concertos.astro` le a vista histórica saneada.
 
 ## Índices
 
 | Ámbito | Bucket e clave | Contido |
 | --- | --- | --- |
-| Público | `scpp-publico/indices/concertos-v1.json` | Só filas con `Mostrar_Web=TRUE` |
-| Privado | `scpp-privado/indices/concertos-privado-v1.json` | Todas as filas e a numeración histórica |
+| Axenda pública | `scpp-publico/indices/concertos-v1.json` | Só filas con `Mostrar_Web=TRUE` |
+| Histórico público | `scpp-publico/indices/concertos-historico-v1.json` | Número, orde, data, nome, lugar, cidade e descrición |
+| Privado | `scpp-privado/indices/concertos-privado-v1.json` | Todas as filas, programa e numeración histórica |
 
-O índice privado non dispón de endpoint público. Os documentos e audios dos
+O índice histórico público é unha proxección deliberadamente mínima: non inclúe
+programas, rutas de documentos, bandeiras internas nin asistencia. O índice
+privado non dispón de endpoint público. Os documentos e audios dos
 concertos conservan as súas rutas R2 actuais; esta sincronización só crea
 índices JSON.
 
@@ -66,9 +70,18 @@ Para unha actualización urxente, executar manualmente **Sincronizar concertos
 con R2** en GitHub Actions. A actualización normal pode tardar ata 15 minutos
 máis a caché de cinco minutos do endpoint público.
 
+As páxinas privadas conservan a consulta directa á folla para as funcións de
+xestión. A grella principal só amosa as filas con `Mostrar_Web=TRUE`; o
+arquivo completo aparece nunha vista histórica independente e non crea centos
+de tarxetas na vista inicial.
+
 Unha resposta correcta de `/api/concertos-indice` inclúe:
 
 - `ok: true`;
 - `cache: "R2"`;
 - cabeceira `X-SCPP-Concertos-Index: R2`;
 - `xeradoEn` e `xeradoEnMs` para identificar a versión.
+
+
+O endpoint `/api/concertos-historico` aplica a mesma política de caché e
+identifícase coa cabeceira `X-SCPP-Concertos-Historico: R2`.

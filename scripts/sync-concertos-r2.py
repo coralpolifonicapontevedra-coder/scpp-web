@@ -45,6 +45,7 @@ REPERTORIO_URL = os.getenv(
 PUBLIC_BUCKET = os.getenv("R2_PUBLIC_BUCKET", "scpp-publico").strip()
 PRIVATE_BUCKET = os.getenv("R2_PRIVATE_BUCKET", "scpp-privado").strip()
 PUBLIC_INDEX_KEY = "indices/concertos-v1.json"
+PUBLIC_HISTORY_INDEX_KEY = "indices/concertos-historico-v1.json"
 PRIVATE_INDEX_KEY = "indices/concertos-privado-v1.json"
 ATTEMPTS = int(os.getenv("SYNC_ATTEMPTS", "5"))
 TIMEOUT_SECONDS = int(os.getenv("SYNC_TIMEOUT_SECONDS", "90"))
@@ -312,6 +313,53 @@ def index_payload(concerts: list[dict[str, Any]], public_only: bool) -> dict[str
     }
 
 
+def historical_year(concert: dict[str, Any]) -> str:
+    for value in (concert["data"], concert["dataTextoHistorica"]):
+        match = re.search(r"\b(?:18|19|20)\d{2}\b", text(value))
+        if match:
+            return match.group(0)
+    return ""
+
+
+def history_payload(concerts: list[dict[str, Any]]) -> dict[str, Any]:
+    """Constrúe unha vista pública mínima, sen programas nin campos internos."""
+    selected = [
+        {
+            "id": concert["id"],
+            "numeroConcerto": concert["numeroConcerto"],
+            "ordeHistorica": concert["ordeHistorica"],
+            "data": concert["data"],
+            "dataTextoHistorica": concert["dataTextoHistorica"],
+            "ano": historical_year(concert),
+            "nome": concert["nome"],
+            "cidade": concert["cidade"],
+            "lugar": concert["lugar"],
+            "descricion": concert["caracteristicas"],
+        }
+        for concert in concerts
+        if concert["numeroConcerto"]
+    ]
+    selected.sort(
+        key=lambda concert: (
+            concert["ordeHistorica"] or 999999,
+            concert["data"] or "9999-99-99",
+            concert["id"],
+        )
+    )
+    now = datetime.now(timezone.utc)
+    years = {concert["ano"] for concert in selected if concert["ano"]}
+    return {
+        "ok": True,
+        "version": 1,
+        "xeradoEn": now.isoformat(),
+        "xeradoEnMs": int(now.timestamp() * 1000),
+        "orixe": "GITHUB_ACTIONS_SHEETS_R2",
+        "total": len(selected),
+        "totalAnos": len(years),
+        "concertos": selected,
+    }
+
+
 def r2_client():
     import boto3
     from botocore.config import Config
@@ -389,6 +437,7 @@ def run() -> int:
     concerts = build_concerts(concert_rows, program_rows, repertoire_rows)
 
     public_payload = index_payload(concerts, public_only=True)
+    history = history_payload(concerts)
     private_payload = index_payload(concerts, public_only=False)
     client = r2_client()
 
@@ -406,6 +455,13 @@ def run() -> int:
         public_payload,
         "public, max-age=300",
     )
+    history_changed = publish_index(
+        client,
+        PUBLIC_BUCKET,
+        PUBLIC_HISTORY_INDEX_KEY,
+        history,
+        "public, max-age=300",
+    )
     print(
         json.dumps(
             {
@@ -413,8 +469,11 @@ def run() -> int:
                 "historicos": private_payload["totalHistorico"],
                 "ordeMaxima": private_payload["ordeHistoricaMax"],
                 "publicos": public_payload["total"],
+                "historicoPublico": history["total"],
+                "anosHistoricos": history["totalAnos"],
                 "indicePrivadoActualizado": private_changed,
                 "indicePublicoActualizado": public_changed,
+                "indiceHistoricoActualizado": history_changed,
             },
             ensure_ascii=False,
         )
