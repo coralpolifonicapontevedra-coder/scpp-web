@@ -60,6 +60,16 @@ import rosetonImg from "../assets/roseton.jpg";
       </div>
     </div>
   </section>
+
+  <section class="history-cta container" aria-labelledby="history-cta-title">
+    <div>
+      <p>Arquivo histórico</p>
+      <h2 id="history-cta-title">Concertos desde 1925</h2>
+      <span>Unha consulta sinxela, ordenada por anos, coa memoria documentada da Coral.</span>
+    </div>
+    <a href="/historico-concertos/">Explorar o histórico <span aria-hidden="true">→</span></a>
+  </section>
+
   <section class="listen-section container" aria-labelledby="listen-title">
     <div class="listen-card">
       <div class="listen-copy">
@@ -353,6 +363,45 @@ import rosetonImg from "../assets/roseton.jpg";
     border-color: var(--color-principal);
   }
 
+  .history-cta {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:2rem;
+    margin-bottom:5rem;
+    padding:clamp(1.5rem,4vw,2.5rem);
+    color:var(--color-blanco);
+    background:var(--color-principal);
+    border-left:4px solid var(--color-acento);
+  }
+  .history-cta p {
+    margin:0 0 .25rem;
+    color:#e7cf8e;
+    font-size:.72rem;
+    font-weight:800;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  .history-cta h2 {
+    margin:0 0 .45rem;
+    font-size:clamp(1.5rem,3vw,2rem);
+  }
+  .history-cta span { color:rgba(255,255,255,.78); line-height:1.55; }
+  .history-cta a {
+    flex:0 0 auto;
+    padding:.85rem 1rem;
+    color:var(--color-principal);
+    background:var(--color-blanco);
+    font-size:.8rem;
+    font-weight:800;
+    text-decoration:none;
+  }
+  .history-cta a span { margin-left:.35rem; color:var(--color-principal); }
+  .history-cta a:hover { background:#f2ead5; }
+  @media (max-width:700px) {
+    .history-cta { align-items:stretch; flex-direction:column; }
+    .history-cta a { text-align:center; }
+  }
   .listen-section {
     padding-bottom: 5rem;
   }
