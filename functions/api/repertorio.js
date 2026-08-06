@@ -3,7 +3,8 @@ import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 import { REPERTORIO_CATALOGO } from '../_data/repertorio-catalogo.js';
 
 const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
-const CACHE_REPERTORIO_VERSION = '2026-08-06-r2-catalogo-persistente-1';
+const CACHE_REPERTORIO_VERSION = '2026-08-06-r2-catalogo-persistente-2';
+const REPERTORIO_R2_CATALOGO_KEY = 'repertorio/cache/catalogo.json';
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
@@ -191,6 +192,34 @@ function catalogoPersistente() {
   });
 }
 
+async function lerCatalogoR2(env) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  try {
+    const obxecto = await env.R2_PRIVADO.get(REPERTORIO_R2_CATALOGO_KEY);
+    if (!obxecto) return null;
+    const resultado = JSON.parse(await obxecto.text());
+    return resultado?.ok && Array.isArray(resultado.obras)
+      ? incorporarIndiceCompleto(resultado)
+      : null;
+  } catch (erro) {
+    console.warn('Non se puido ler o catálogo de Repertorio desde R2:', erro);
+    return null;
+  }
+}
+
+async function gardarCatalogoR2(env, resultado) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
+  try {
+    await env.R2_PRIVADO.put(
+      REPERTORIO_R2_CATALOGO_KEY,
+      JSON.stringify(resultado),
+      { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } }
+    );
+  } catch (erro) {
+    console.warn('Non se puido gardar o catálogo de Repertorio en R2:', erro);
+  }
+}
+
 function incorporarIndiceCompleto(resultado) {
   if (!resultado || typeof resultado !== 'object') return resultado;
   const obras = Array.isArray(resultado.obras)
@@ -304,14 +333,29 @@ export async function onRequest({ request, env }) {
   }
 
   if (accion === 'listarRepertorioPortal') {
+    const respaldoR2 = await lerCatalogoR2(env);
+    if (respaldoR2) {
+      await gardarCachePersistente(request, accion, respaldoR2, CACHE_REPERTORIO_MS);
+      return json(200, respaldoR2, {
+        'X-SCPP-Cache': 'R2',
+        'X-SCPP-Storage': 'R2-CATALOG',
+        'X-SCPP-R2-Audios': String(respaldoR2?.indiceR2?.audios || 0),
+        'X-SCPP-R2-Partituras': String(respaldoR2?.indiceR2?.partituras || 0),
+        'Server-Timing': 'r2-catalog;dur=1'
+      });
+    }
+
     const persistente = catalogoPersistente();
-    await gardarCachePersistente(request, accion, persistente, CACHE_REPERTORIO_MS);
+    await Promise.all([
+      gardarCachePersistente(request, accion, persistente, CACHE_REPERTORIO_MS),
+      gardarCatalogoR2(env, persistente)
+    ]);
     return json(200, persistente, {
-      'X-SCPP-Cache': 'PERSISTENT-CATALOG',
+      'X-SCPP-Cache': 'EMBEDDED-SEED',
       'X-SCPP-Storage': 'R2-INDEX',
       'X-SCPP-R2-Audios': String(persistente?.indiceR2?.audios || 0),
       'X-SCPP-R2-Partituras': String(persistente?.indiceR2?.partituras || 0),
-      'Server-Timing': 'persistent-catalog;dur=1'
+      'Server-Timing': 'embedded-catalog;dur=1'
     });
   }
 
