@@ -6,6 +6,12 @@
   const obrasPorId = new Map();
   let organizando = false;
 
+  for (const key of [
+    'scpp:repertorio:completo:v2',
+    'scpp:repertorio:completo:v3',
+    'scpp:repertorio:completo:v4'
+  ]) localStorage.removeItem(key);
+
   function canonId(valor) {
     const texto = String(valor ?? '').trim();
     if (!texto) return '';
