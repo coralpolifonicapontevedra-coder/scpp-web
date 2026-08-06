@@ -8,7 +8,7 @@ const route = readFileSync(resolve(root, 'functions/portal/concertos/index.js'),
 const privatePage = readFileSync(resolve(root, 'src/pages/portal/concertos-novo.astro'), 'utf8');
 const publicPage = readFileSync(resolve(root, 'src/pages/historico-concertos.astro'), 'utf8');
 const homePage = readFileSync(resolve(root, 'src/pages/index.astro'), 'utf8');
-const historyPage = readFileSync(resolve(root, 'src/pages/historia.astro'), 'utf8');
+const publicHero = readFileSync(resolve(root, 'src/components/PublicPageHero.astro'), 'utf8');
 
 describe('histórico de concertos activo', () => {
   it('proba a implementación que realmente serve a ruta oficial', () => {
@@ -49,7 +49,8 @@ describe('histórico de concertos activo', () => {
   it('integra o acceso público sen destacar o histórico na portada', () => {
     expect(homePage).not.toContain('class="history-cta');
     expect(homePage).toContain('<a href="/historia/">Un século de historia</a>');
-    expect(historyPage).toContain('class="concert-history-link" href="/historico-concertos/"');
-    expect(historyPage).toContain('Histórico de concertos');
+    expect(publicHero).toContain('class="public-page-hero__history-link" href="/historico-concertos/"');
+    expect(publicHero).toContain('Histórico de concertos');
+    expect(publicHero).toContain('{eHistoria && (');
   });
 });
