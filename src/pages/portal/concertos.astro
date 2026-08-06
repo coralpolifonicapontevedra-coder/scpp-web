@@ -31,6 +31,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         <div class="view-switch" aria-label="Vista de concertos">
           <button type="button" class="is-active" data-view="concertos">Concertos</button>
           <button type="button" data-view="asistencia">Informe de asistencia</button>
+          <button type="button" data-view="historico">Histórico</button>
         </div>
 
         <div id="concerts-view">
@@ -62,6 +63,23 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           </header>
           <div id="report-content" class="report-content"></div>
           <p id="report-empty" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
+        </section>
+
+        <section id="history-report" class="history-report" hidden>
+          <header class="report-heading">
+            <div>
+              <span>Arquivo da Coral</span>
+              <h2>Histórico de concertos</h2>
+              <p>Consulta por ano os concertos celebrados desde 1925. Só se amosan os datos dispoñibles.</p>
+            </div>
+            <strong id="history-summary"></strong>
+          </header>
+          <label class="history-search search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
+            <input id="history-search" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
+          </label>
+          <div id="history-years" class="history-years"></div>
+          <p id="history-empty" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
         </section>
       </section>
     </main>
@@ -136,8 +154,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const reportContent = document.querySelector('#report-content');
   const reportSummary = document.querySelector('#report-summary');
   const reportEmpty = document.querySelector('#report-empty');
+  const historyReport = document.querySelector('#history-report');
+  const historySummary = document.querySelector('#history-summary');
+  const historyYears = document.querySelector('#history-years');
+  const historySearch = document.querySelector('#history-search');
+  const historyEmpty = document.querySelector('#history-empty');
 
   let concertos = [];
+  let todosConcertos = [];
   let filtroActivo = 'todos';
 
   const normalizar = (valor = '') => String(valor)
@@ -179,6 +203,16 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     }
     return '';
   };
+
+  const verdadeiro = (valorCampo = '') => ['true', '1', 'si', 'sí', 'yes', 'x'].includes(normalizar(valorCampo));
+
+  const anoHistorico = (concerto) => {
+    const anoData = String(concerto.data || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
+    const anoTexto = String(concerto.dataTextoHistorica || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
+    return anoData || anoTexto || 'Sen data';
+  };
+
+  const dataHistorica = (concerto) => concerto.dataTextoHistorica || concerto.data || 'Data non documentada';
 
   const dataISO = (data) => {
     const p = String(data).split(/[\/-]/).map(Number);
@@ -274,7 +308,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (!(reportContent instanceof HTMLElement)) return;
 
     const persoas = new Map();
-    concertos.forEach((concerto) => {
+    todosConcertos.forEach((concerto) => {
       (concerto.asistentes || []).forEach((asistente) => {
         const nome = String(asistente.nome || '').trim();
         const voz = String(asistente.voz || 'Sen voz indicada').trim();
@@ -383,6 +417,63 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     dialog.showModal();
   }
 
+  function debuxarHistorico() {
+    if (!(historyYears instanceof HTMLElement)) return;
+    const consulta = normalizar(historySearch instanceof HTMLInputElement ? historySearch.value : '');
+    const candidatos = todosConcertos.filter((concerto) => {
+      if (!concerto.numeroConcerto) return false;
+      const texto = normalizar([
+        anoHistorico(concerto), concerto.numeroConcerto, concerto.dataTextoHistorica,
+        concerto.data, concerto.nome, concerto.lugar, concerto.cidade, concerto.caracteristicas
+      ].join(' '));
+      return !consulta || texto.includes(consulta);
+    });
+
+    const porAno = new Map();
+    candidatos.forEach((concerto) => {
+      const ano = anoHistorico(concerto);
+      if (!porAno.has(ano)) porAno.set(ano, []);
+      porAno.get(ano).push(concerto);
+    });
+    const anos = Array.from(porAno.keys()).sort((a, b) => {
+      if (a === 'Sen data') return 1;
+      if (b === 'Sen data') return -1;
+      return Number(b) - Number(a);
+    });
+
+    historyYears.innerHTML = anos.map((ano) => {
+      const items = porAno.get(ano).sort((a, b) =>
+        (Number(b.ordeHistorica) || 0) - (Number(a.ordeHistorica) || 0)
+      );
+      return `<details class="history-year">
+        <summary>
+          <span class="history-year-number">${escapar(ano)}</span>
+          <span><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span>
+          <span class="history-open">Consultar</span>
+        </summary>
+        <ol class="history-list">
+          ${items.map((concerto) => {
+            const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
+            return `<li>
+              <div class="history-number">N.º ${escapar(concerto.numeroConcerto)}</div>
+              <div class="history-copy">
+                <time>${escapar(dataHistorica(concerto))}</time>
+                <strong>${escapar(concerto.nome || 'Concerto histórico')}</strong>
+                ${localizacion ? `<span>${escapar(localizacion)}</span>` : ''}
+                ${concerto.caracteristicas ? `<p>${escapar(concerto.caracteristicas)}</p>` : ''}
+              </div>
+            </li>`;
+          }).join('')}
+        </ol>
+      </details>`;
+    }).join('');
+
+    if (historySummary instanceof HTMLElement) {
+      historySummary.textContent = `${candidatos.length} concertos · ${anos.length} anos`;
+    }
+    if (historyEmpty instanceof HTMLElement) historyEmpty.hidden = candidatos.length > 0;
+  }
+
   async function cargar() {
     if (loading instanceof HTMLElement) loading.hidden = false;
     if (app instanceof HTMLElement) app.hidden = true;
@@ -399,7 +490,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         nome: valor(fila, 'NomeObra', 'Nome', 'Obra'),
         autor: valor(fila, 'Compositor', 'Autor')
       }]));
-      concertos = concertosRaw.map((fila) => {
+      todosConcertos = concertosRaw.map((fila) => {
         const id = valor(fila, 'Id', 'Row ID');
         const programa = programasRaw.filter((p) => valor(p, 'Id_Conciertos', 'Id_Concertos') === id)
           .map((p) => {
@@ -422,15 +513,24 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           cartel: valor(fila, 'Cartel'),
           hora: valor(fila, 'Hora'),
           estado: normalizar(valor(fila, 'Estado')) || 'confirmado',
+          mostrarWeb: verdadeiro(valor(fila, 'Mostrar_Web')),
+          numeroConcerto: valor(fila, 'NumeroConcerto'),
+          ordeHistorica: Number(valor(fila, 'OrdeHistorica')) || 0,
+          dataTextoHistorica: valor(fila, 'DataTextoHistorica'),
           programa,
           asistentes: Array.isArray(asistenciasPorConcerto[id])
             ? asistenciasPorConcerto[id]
             : []
         };
-      }).filter((c) => c.id && c.data && c.nome)
+      }).filter((c) => c.id && (c.data || c.dataTextoHistorica || c.numeroConcerto))
+        .sort((a, b) => (b.ordeHistorica || 0) - (a.ordeHistorica || 0)
+          || dataISO(b.data).localeCompare(dataISO(a.data)));
+      concertos = todosConcertos
+        .filter((concerto) => concerto.mostrarWeb && concerto.data && concerto.nome)
         .sort((a, b) => dataISO(b.data).localeCompare(dataISO(a.data)));
       debuxarTarxetas();
       debuxarInforme();
+      debuxarHistorico();
       if (app instanceof HTMLElement) app.hidden = false;
       const requested = new URLSearchParams(window.location.search).get('id');
       const concerto = requested && concertos.find((c) => c.id === requested);
@@ -457,10 +557,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   viewSwitch?.addEventListener('click', (event) => {
     const target = event.target;
     if (!(target instanceof HTMLButtonElement) || !target.dataset.view) return;
-    const informe = target.dataset.view === 'asistencia';
+    const vista = target.dataset.view;
     viewSwitch.querySelectorAll('button').forEach((button) => button.classList.toggle('is-active', button === target));
-    if (concertsView instanceof HTMLElement) concertsView.hidden = informe;
-    if (attendanceReport instanceof HTMLElement) attendanceReport.hidden = !informe;
+    if (concertsView instanceof HTMLElement) concertsView.hidden = vista !== 'concertos';
+    if (attendanceReport instanceof HTMLElement) attendanceReport.hidden = vista !== 'asistencia';
+    if (historyReport instanceof HTMLElement) historyReport.hidden = vista !== 'historico';
   });
 
   grid?.addEventListener('click', (event) => {
@@ -478,6 +579,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     debuxarTarxetas();
   });
   search?.addEventListener('input', debuxarTarxetas);
+  historySearch?.addEventListener('input', debuxarHistorico);
   retryButton?.addEventListener('click', cargar);
   dialogClose?.addEventListener('click', () => dialog instanceof HTMLDialogElement && dialog.close());
   dialog?.addEventListener('click', (event) => {
@@ -505,7 +607,28 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .view-switch button { min-height:2.5rem; padding:.55rem 1rem; border:0; border-right:1px solid #d5d0cb; background:#fff; color:#5f5955; font:inherit; font-size:.78rem; cursor:pointer; }
   .view-switch button:last-child { border-right:0; }
   .view-switch button.is-active { background:var(--color-principal); color:#fff; }
-  #concerts-view[hidden],.attendance-report[hidden] { display:none; }
+  #concerts-view[hidden],.attendance-report[hidden],.history-report[hidden] { display:none; }
+  .history-report { display:grid; gap:1rem; }
+  .history-search { width:min(100%,540px); box-sizing:border-box; }
+  .history-years { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:.75rem; align-items:start; }
+  .history-year { border:1px solid #d8d2cc; background:#fff; }
+  .history-year[open] { grid-column:1/-1; }
+  .history-year summary { display:grid; grid-template-columns:72px 1fr auto; gap:1rem; align-items:center; min-height:74px; padding:.65rem 1rem; list-style:none; cursor:pointer; }
+  .history-year summary::-webkit-details-marker { display:none; }
+  .history-year summary:hover { background:#faf8f4; }
+  .history-year-number { color:var(--color-principal); font-family:Georgia,serif; font-size:1.35rem; font-weight:700; }
+  .history-year summary > span:nth-child(2) { color:#69625e; font-size:.76rem; }
+  .history-year summary > span:nth-child(2) strong { color:#2f2926; font-size:1rem; }
+  .history-open { color:#9a7624; font-size:.72rem; font-weight:700; }
+  .history-list { display:grid; gap:0; margin:0; padding:0; border-top:1px solid #e5e0db; list-style:none; }
+  .history-list li { display:grid; grid-template-columns:minmax(70px,110px) 1fr; gap:1rem; padding:1rem; border-bottom:1px solid #eeeae6; }
+  .history-list li:last-child { border-bottom:0; }
+  .history-number { color:#9a7624; font-size:.72rem; font-weight:800; letter-spacing:.04em; }
+  .history-copy { display:grid; gap:.18rem; min-width:0; }
+  .history-copy time,.history-copy span { color:#6c6560; font-size:.74rem; }
+  .history-copy strong { color:#302a27; font-size:.9rem; }
+  .history-copy p { margin:.28rem 0 0; color:#57514d; font-size:.78rem; line-height:1.5; }
+
   .concert-toolbar { display:grid; grid-template-columns:minmax(270px,430px) auto 1fr; gap:1rem; align-items:center; margin-bottom:1.2rem; }
   .search-box { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:.55rem; padding:.65rem .75rem; border:1px solid #d5d0cb; background:#fff; }
   .search-box svg { width:18px; height:18px; fill:none; stroke:#766f6a; stroke-width:1.7; }
