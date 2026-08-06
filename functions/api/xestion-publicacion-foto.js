@@ -57,7 +57,12 @@ export async function onRequest({request,env}){
   try{
     await comprobarAdmin(env,u);
     const accion=texto(datos.accion||'listar');
-    const [pub0,pri0,cat0,revision]=await Promise.all([ler(env.R2_PUBLICO,INDEX_PUBLICO),ler(env.R2_PRIVADO,INDEX_PRIVADO),ler(env.R2_PRIVADO,CATALOGO),accion==='listar'?listarRevision(env,u):Promise.resolve([])]);
+    const [pub0,pri0,cat0]=await Promise.all([ler(env.R2_PUBLICO,INDEX_PUBLICO),ler(env.R2_PRIVADO,INDEX_PRIVADO),ler(env.R2_PRIVADO,CATALOGO)]);
+    // O catálogo e os índices R2 son a fonte rápida e duradeira desta vista.
+    // Só recorremos a Apps Script para reconstruílos se R2 está totalmente
+    // baleiro; chamar sempre ao servizo externo bloqueaba a pantalla ata 50 s.
+    const tenCatalogoR2=cat0.fotos.length>0||pub0.fotos.length>0||pri0.fotos.length>0;
+    const revision=accion==='listar'&&!tenCatalogoR2?await listarRevision(env,u):[];
     const mp=mapa(cat0.fotos,pub0.fotos,pri0.fotos,revision);const idsPub=new Set(pub0.fotos.map(idFoto));const idsPri=new Set(pri0.fotos.map(idFoto));
     if(accion==='listar'){
       const fotos=[...mp.values()].map(f=>fichaEstado(f,idsPub,idsPri)).sort((a,b)=>texto(a.titulo||a.peFoto||a.idFoto).localeCompare(texto(b.titulo||b.peFoto||b.idFoto),'gl'));
