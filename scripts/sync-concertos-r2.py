@@ -55,7 +55,6 @@ REQUIRED_CONCERT_HEADERS = {
     "nome",
     "cidade",
     "lugar",
-    "caracteristicas",
     "cartel",
     "triptico",
     "prensa",
