@@ -292,7 +292,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
               <header><strong>${escapar(p.nome)}</strong><span>${p.concertos.length}</span></header>
               <ul>${p.concertos.map((c) => `<li><button type="button" data-report-id="${escapar(c.id)}"><time>${escapar(c.data)}</time><span>${escapar(c.nome)}</span></button></li>`).join('')}</ul>
             </article>`).join('')}</div>
-          </section>`;
+          </details>`;
         }).join('')}</div>
       </section>`;
     }).join('');
@@ -384,11 +384,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     anosHistorico.innerHTML = periodos.map((periodo) => {
       const items = porPeriodo.get(periodo).sort((a,b) => (Number(a.ordeHistorica)||0) - (Number(b.ordeHistorica)||0));
       const etiqueta = periodo === 'Sen data' ? periodo : etiquetaPeriodo(periodo);
-      return `<section class="history-period">
-        <header class="history-period-heading">
-          <h3>${escapar(etiqueta)}</h3>
-          <span><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span>
-        </header>
+      return `<details class="history-period" name="periodos-historicos-privados">
+        <summary class="history-period-heading">
+          <span class="history-period-title"><small>Período histórico</small><strong>${escapar(etiqueta)}</strong></span>
+          <span class="history-period-count"><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span>
+          <span class="history-period-toggle">Ver concertos <b aria-hidden="true">+</b></span>
+        </summary>
         <div class="history-table-wrap">
           <table class="history-table">
             <thead><tr><th>Nº</th><th>Data</th><th>Localidade</th><th>Lugar</th><th>Descrición</th></tr></thead>
@@ -549,12 +550,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .history-actions a{min-height:42px;box-sizing:border-box;padding:.68rem .9rem;border:1px solid var(--color-principal);background:#fff;color:var(--color-principal);font-size:.76rem;font-weight:800;text-decoration:none}
   .history-actions a:hover{background:var(--color-principal);color:#fff}
   .history-search{width:min(100%,540px);box-sizing:border-box}
-  .history-years{display:grid;gap:1.25rem}
-  .history-period{border:1px solid #d8d2cc;background:#fff}
-  .history-period-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.85rem 1rem;border-bottom:1px solid #d8d2cc;background:#f6f1e8}
-  .history-period-heading h3{margin:0;color:var(--color-principal);font-family:Georgia,serif;font-size:1.35rem}
-  .history-period-heading span{color:#69625e;font-size:.76rem}.history-period-heading strong{color:#2f2926;font-size:1rem}
-  .history-table-wrap{width:100%;overflow-x:auto}
+  .history-years{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.85rem;align-items:start}
+  .history-period{min-width:0;border:1px solid #d8d2cc;background:#fff}
+  .history-period[open]{grid-column:1/-1;border-color:#a18331;box-shadow:0 12px 30px rgba(54,42,36,.07)}
+  .history-period-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.65rem 1rem;min-height:112px;padding:.9rem 1rem;list-style:none;cursor:pointer;transition:background .18s}.history-period-heading::-webkit-details-marker{display:none}.history-period-heading:hover{background:#faf8f4}
+  .history-period-title{display:grid;gap:.12rem;min-width:0}.history-period-title small{color:#9a7624;font-size:.6rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.history-period-title>strong{color:var(--color-principal);font-family:Georgia,serif;font-size:1.35rem}
+  .history-period-count{align-self:start;color:#69625e;font-size:.7rem;text-align:right}.history-period-count strong{color:#2f2926;font-size:.95rem}
+  .history-period-toggle{display:flex;grid-column:1/-1;justify-content:space-between;align-items:center;gap:.7rem;padding-top:.5rem;border-top:1px solid #ece6df;color:var(--color-principal);font-size:.65rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase}.history-period-toggle b{color:#9a7624;font-size:1.1rem;line-height:1;transition:transform .18s}.history-period[open] .history-period-toggle b{transform:rotate(45deg)}
+  .history-table-wrap{width:100%;overflow-x:auto;border-top:1px solid #d8d2cc}
   .history-table{width:100%;border-collapse:collapse;table-layout:fixed}
   .history-table th,.history-table td{padding:.78rem .9rem;border-bottom:1px solid #eeeae6;text-align:left;vertical-align:top;line-height:1.5;overflow-wrap:anywhere}
   .history-table th{background:#fbfaf8;color:var(--color-principal);font-size:.68rem;letter-spacing:.04em;text-transform:uppercase}
