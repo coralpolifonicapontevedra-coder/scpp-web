@@ -7,6 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const route = readFileSync(resolve(root, 'functions/portal/concertos/index.js'), 'utf8');
 const privatePage = readFileSync(resolve(root, 'src/pages/portal/concertos-novo.astro'), 'utf8');
 const publicPage = readFileSync(resolve(root, 'src/pages/historico-concertos.astro'), 'utf8');
+const publicStyles = readFileSync(resolve(root, 'src/styles/historico-concertos-global.css'), 'utf8');
 const homePage = readFileSync(resolve(root, 'src/pages/index.astro'), 'utf8');
 const publicHero = readFileSync(resolve(root, 'src/components/PublicPageHero.astro'), 'utf8');
 
@@ -34,6 +35,15 @@ describe('histórico de concertos activo', () => {
     expect(publicPage).toContain('class="period-toggle"');
   });
 
+  it('aplica viñetas alternas e unha táboa coidada', () => {
+    expect(publicStyles).toContain('.period-block:nth-child(odd):not([open])');
+    expect(publicStyles).toContain('linear-gradient(135deg,#681426,#861b38)');
+    expect(publicStyles).toContain('.period-block[open]');
+    expect(publicStyles).toContain('grid-column:1/-1');
+    expect(publicStyles).toContain('.history-table');
+    expect(publicStyles).toContain('table-layout:fixed');
+  });
+
   it('presenta os campos separados e evita repetir o número do concerto', () => {
     for (const page of [privatePage, publicPage]) {
       expect(page).toContain('<th>Nº</th><th>Data</th><th>Localidade</th><th>Lugar</th><th>Descrición</th>');
@@ -44,10 +54,11 @@ describe('histórico de concertos activo', () => {
     }
   });
 
-  it('publica a descarga documental desde as dúas áreas', () => {
-    const download = '/documentos/historico-concertos-scpp-1925-2026.docx';
-    expect(privatePage).toContain(download);
-    expect(publicPage).toContain(download);
+  it('publica o PDF oficial para consulta e descarga', () => {
+    const pdf = '/documentos/Concertos_SCPP_1925_2026.pdf';
+    expect(publicPage).toContain(pdf);
+    expect(publicPage).toContain('Consultar documento');
+    expect(publicPage).toContain('Descargar documento');
   });
 
   it('integra o acceso público sen destacar o histórico na portada', () => {
