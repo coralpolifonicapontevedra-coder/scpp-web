@@ -58,6 +58,7 @@ jobs:
         run: |
           echo "## Índices de concertos" >> "$GITHUB_STEP_SUMMARY"
           echo "- Público: scpp-publico/indices/concertos-v1.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Histórico público: scpp-publico/indices/concertos-historico-v1.json" >> "$GITHUB_STEP_SUMMARY"
           echo "- Privado: scpp-privado/indices/concertos-privado-v1.json" >> "$GITHUB_STEP_SUMMARY"
           echo "- Os índices anteriores consérvanse se Google ou a validación fallan." >> "$GITHUB_STEP_SUMMARY"
           tail -n 20 concertos-r2.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
