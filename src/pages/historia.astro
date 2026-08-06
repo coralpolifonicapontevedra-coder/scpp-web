@@ -329,11 +329,12 @@ const legado = [
     <header class="historia-hero">
       <div class="hero-content">
         <p class="eyebrow">Arquivo histórico · Desde 1925</p>
-        <h1>Un século de música,<br />arte e memoria</h1>
+        <h1>Un século de música,<br />arte, memoria e compromiso colectivo</h1>
         <p class="hero-lead">
           A historia da Sociedade Coral Polifónica de Pontevedra é a dunha comunidade
           que fixo da música unha forma de cultura, encontro e permanencia.
         </p>
+        <a class="concert-history-link" href="/historico-concertos/">Histórico de concertos <span aria-hidden="true">→</span></a>
         <a class="hero-link" href="#arquivo">Explorar o arquivo <span aria-hidden="true">↓</span></a>
       </div>
     </header>
@@ -638,6 +639,23 @@ const legado = [
     font-size: 1.08rem;
     line-height: 1.7;
     text-shadow: 0 2px 14px rgba(0, 0, 0, 0.42);
+  }
+
+  .concert-history-link {
+    display: block;
+    width: max-content;
+    margin: 1rem auto 0;
+    color: #fff;
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-decoration-color: #e1ca7b;
+    text-underline-offset: 4px;
+  }
+
+  .concert-history-link span {
+    display: inline-block;
+    margin-left: 0.35rem;
+    color: #e1ca7b;
   }
 
   .hero-link {
