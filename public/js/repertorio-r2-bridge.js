@@ -162,8 +162,18 @@
         grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
         gap: .75rem;
       }
+      .audios-list[data-audio-organization="leucoina"] .audio-scene-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+        gap: .65rem;
+        align-items: start;
+      }
+      .audios-list[data-audio-organization="leucoina"] .audio-voice-group {
+        min-width: 0;
+        margin: 0;
+      }
       .audios-list[data-audio-organization="leucoina"] .audio-group-list {
-        grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+        grid-template-columns: 1fr;
         gap: .5rem;
       }
       .audios-list[data-audio-organization="leucoina"] .audio-card {
@@ -182,7 +192,7 @@
         font-size: .68rem !important;
       }
       @media (max-width: 680px) {
-        .audios-list[data-audio-organization="leucoina"] .audio-group-list {
+        .audios-list[data-audio-organization="leucoina"] .audio-scene-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
@@ -234,6 +244,8 @@
     const fragmento = document.createDocumentFragment();
     ordenarNomes(escenas.keys(), ORDE_ESCENAS).forEach((escena) => {
       const seccion = crearSeccion(escena);
+      const grellaEscena = document.createElement('div');
+      grellaEscena.className = 'audio-scene-grid';
       const voces = escenas.get(escena);
       ordenarNomes(voces.keys(), ORDE_VOCES).forEach((voz) => {
         const bloqueVoz = document.createElement('div');
@@ -245,8 +257,9 @@
         grella.className = 'audio-group-list';
         voces.get(voz).forEach((tarxeta) => grella.append(tarxeta));
         bloqueVoz.append(tituloVoz, grella);
-        seccion.append(bloqueVoz);
+        grellaEscena.append(bloqueVoz);
       });
+      seccion.append(grellaEscena);
       fragmento.append(seccion);
     });
     return fragmento;
