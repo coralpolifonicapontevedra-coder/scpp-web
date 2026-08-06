@@ -1,8 +1,9 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
+import { REPERTORIO_CATALOGO } from '../_data/repertorio-catalogo.js';
 
 const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
-const CACHE_REPERTORIO_VERSION = '2026-08-02-r2-index-completo-1';
+const CACHE_REPERTORIO_VERSION = '2026-08-06-r2-catalogo-persistente-1';
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
@@ -178,6 +179,18 @@ function copiarRecursos(recursos) {
   }));
 }
 
+function catalogoPersistente() {
+  return incorporarIndiceCompleto({
+    ok: true,
+    obras: REPERTORIO_CATALOGO.map((obra) => ({
+      ...obra,
+      partituras: [],
+      audios: [],
+      concertos: Array.isArray(obra.concertos) ? obra.concertos : []
+    }))
+  });
+}
+
 function incorporarIndiceCompleto(resultado) {
   if (!resultado || typeof resultado !== 'object') return resultado;
   const obras = Array.isArray(resultado.obras)
@@ -288,6 +301,18 @@ export async function onRequest({ request, env }) {
         'Server-Timing': 'apps-script;dur=0'
       });
     }
+  }
+
+  if (accion === 'listarRepertorioPortal') {
+    const persistente = catalogoPersistente();
+    await gardarCachePersistente(request, accion, persistente, CACHE_REPERTORIO_MS);
+    return json(200, persistente, {
+      'X-SCPP-Cache': 'PERSISTENT-CATALOG',
+      'X-SCPP-Storage': 'R2-INDEX',
+      'X-SCPP-R2-Audios': String(persistente?.indiceR2?.audios || 0),
+      'X-SCPP-R2-Partituras': String(persistente?.indiceR2?.partituras || 0),
+      'Server-Timing': 'persistent-catalog;dur=1'
+    });
   }
 
   const timeoutMs = accion === 'listarRepertorioPortal'
