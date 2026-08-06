@@ -88,6 +88,21 @@
     return parseCSV(await response.text());
   }
 
+  async function readR2Index(init) {
+    const originalBody = parseBody(init);
+    if (!originalBody?.idToken) return null;
+    const response = await originalFetch('/api/repertorio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken: originalBody.idToken,
+        accion: 'listarIndiceRepertorioR2'
+      })
+    });
+    const result = await response.json().catch(() => null);
+    return response.ok && result?.ok && result.recursos ? result.recursos : null;
+  }
+
   function dateISO(value = '') {
     const parts = String(value).split(/[\/-]/).map(Number);
     if (parts.length !== 3 || parts.some(Number.isNaN)) return String(value);
@@ -130,15 +145,20 @@
     return map;
   }
 
-  async function buildFastWorks() {
+  async function buildFastWorks(init) {
     if (fastWorksPromise) return fastWorksPromise;
 
     fastWorksPromise = (async () => {
-      const [repertoireRows, programRows, concertRows] = await Promise.all([
+      const [repertoireRows, programRows, concertRows, r2Index] = await Promise.all([
         readCSV(URL_REPERTORIO),
         readCSV(URL_PROGRAMAS),
-        readCSV(URL_CONCERTOS)
+        readCSV(URL_CONCERTOS),
+        readR2Index(init).catch(() => null)
       ]);
+
+      const resourcesByWork = new Map(
+        Object.entries(r2Index || {}).map(([id, resources]) => [canonWorkId(id), resources])
+      );
 
       const concertMap = new Map();
       for (const row of concertRows) {
@@ -178,6 +198,9 @@
           const id = canonWorkId(valor(row, 'Id', 'Row ID'));
           const name = valor(row, 'NomeObra', 'Nome', 'Obra', 'Título', 'Titulo');
           const scorePath = valor(row, 'Partitura');
+          const resources = resourcesByWork.get(id);
+          const r2Scores = Array.isArray(resources?.partituras) ? resources.partituras : [];
+          const r2Audios = Array.isArray(resources?.audios) ? resources.audios : [];
           return {
             id,
             nomeObra: name,
@@ -185,8 +208,8 @@
             compositor: valor(row, 'Compositor', 'Autor'),
             datas: valor(row, 'Nac/fall', 'Datas'),
             comentarios: valor(row, 'Comentarios', 'Observacións', 'Observacions'),
-            partituras: scorePath ? [{ nome: name, ruta: scorePath }] : [],
-            audios: audioMap.get(id) || [],
+            partituras: r2Scores.length ? r2Scores : (scorePath ? [{ nome: name, ruta: scorePath }] : []),
+            audios: r2Audios.length ? r2Audios : (audioMap.get(id) || []),
             concertos: concertsByWork.get(id) || []
           };
         })
@@ -347,7 +370,7 @@
       const background = backgroundFullRequest(input, init);
 
       try {
-        const works = await buildFastWorks();
+        const works = await buildFastWorks(init);
         if (!cached) markAudioLoading();
 
         const quickFull = await Promise.race([
