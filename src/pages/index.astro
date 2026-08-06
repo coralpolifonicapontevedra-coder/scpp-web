@@ -30,7 +30,7 @@ import rosetonImg from "../assets/roseton.jpg";
 
   <section class="intro-section">
     <div class="container intro-content">
-      <h2>Un Século de Canto</h2>
+      <h2><a href="/historia/">Un século de historia</a></h2>
       <p>
         Unha das agrupacións corais máis antigas de Galicia e institución de
         referencia. Mantemos vivo o compromiso coa difusión do noso patrimonio a
@@ -59,15 +59,6 @@ import rosetonImg from "../assets/roseton.jpg";
         <a href="/axenda" class="btn-agenda-link">Ver a axenda completa</a>
       </div>
     </div>
-  </section>
-
-  <section class="history-cta container" aria-labelledby="history-cta-title">
-    <div>
-      <p>Arquivo histórico</p>
-      <h2 id="history-cta-title">Concertos desde 1925</h2>
-      <span>Unha consulta sinxela, ordenada por anos, coa memoria documentada da Coral.</span>
-    </div>
-    <a href="/historico-concertos/">Explorar o histórico <span aria-hidden="true">→</span></a>
   </section>
 
   <section class="listen-section container" aria-labelledby="listen-title">
@@ -337,6 +328,15 @@ import rosetonImg from "../assets/roseton.jpg";
     margin-bottom: 1.2rem;
     color: var(--color-principal);
   }
+  .intro-content h2 a {
+    color: inherit;
+    text-decoration-color: var(--color-acento);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+  }
+  .intro-content h2 a:hover {
+    color: var(--color-acento);
+  }
   .intro-content p {
     font-size: 1.15rem;
     color: var(--color-texto);
@@ -363,45 +363,6 @@ import rosetonImg from "../assets/roseton.jpg";
     border-color: var(--color-principal);
   }
 
-  .history-cta {
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:2rem;
-    margin-bottom:5rem;
-    padding:clamp(1.5rem,4vw,2.5rem);
-    color:var(--color-blanco);
-    background:var(--color-principal);
-    border-left:4px solid var(--color-acento);
-  }
-  .history-cta p {
-    margin:0 0 .25rem;
-    color:#e7cf8e;
-    font-size:.72rem;
-    font-weight:800;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-  }
-  .history-cta h2 {
-    margin:0 0 .45rem;
-    font-size:clamp(1.5rem,3vw,2rem);
-  }
-  .history-cta span { color:rgba(255,255,255,.78); line-height:1.55; }
-  .history-cta a {
-    flex:0 0 auto;
-    padding:.85rem 1rem;
-    color:var(--color-principal);
-    background:var(--color-blanco);
-    font-size:.8rem;
-    font-weight:800;
-    text-decoration:none;
-  }
-  .history-cta a span { margin-left:.35rem; color:var(--color-principal); }
-  .history-cta a:hover { background:#f2ead5; }
-  @media (max-width:700px) {
-    .history-cta { align-items:stretch; flex-direction:column; }
-    .history-cta a { text-align:center; }
-  }
   .listen-section {
     padding-bottom: 5rem;
   }
