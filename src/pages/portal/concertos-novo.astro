@@ -66,10 +66,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             <div>
               <span>Arquivo da Coral</span>
               <h2>Histórico de concertos</h2>
-              <p>Consulta por ano os concertos documentados desde 1925. Só se amosan os campos dispoñibles.</p>
+              <p>Consulta por décadas os concertos documentados desde 1925, cunha lectura directa e sen pasos intermedios.</p>
             </div>
             <strong id="resumo-historico"></strong>
           </header>
+          <div class="history-actions">
+            <a href="/historico-concertos/">Ver histórico completo</a>
+            <a href="/documentos/historico-concertos-scpp-1925-2026.docx" download>Descargar histórico (.docx)</a>
+          </div>
           <label class="history-search search-box">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
             <input id="busca-historico" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
@@ -339,6 +343,18 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     dialogo.showModal();
   }
 
+  const inicioPeriodo = (ano) => 1925 + Math.floor((Number(ano) - 1925) / 10) * 10;
+  const etiquetaPeriodo = (inicio) => `${inicio}–${Math.min(inicio + 9, 2026)}`;
+  const nomeXenerico = (concerto) => {
+    const nome = normalizar(concerto.nome).replaceAll(' ', '');
+    const numero = normalizar(concerto.numeroConcerto).replaceAll(' ', '');
+    return nome === `concerto nº ${numero}`.replaceAll(' ', '')
+      || nome === `concerto n.º ${numero}`.replaceAll(' ', '')
+      || nome === `concerto numero ${numero}`.replaceAll(' ', '');
+  };
+  const descricionHistorica = (concerto) =>
+    concerto.caracteristicas || (nomeXenerico(concerto) ? '' : concerto.nome) || 'Sen descrición documentada';
+
   function pintarHistorico() {
     if (!(anosHistorico instanceof HTMLElement)) return;
     const q = normalizar(buscaHistorico instanceof HTMLInputElement ? buscaHistorico.value : '');
@@ -352,39 +368,42 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         concerto.cidade, concerto.caracteristicas
       ].join(' ')).includes(q);
     });
-    const porAno = new Map();
+    const porPeriodo = new Map();
     listaxe.forEach((concerto) => {
       const ano = anoHistorico(concerto);
-      if (!porAno.has(ano)) porAno.set(ano, []);
-      porAno.get(ano).push(concerto);
+      const periodo = ano === 'Sen data' ? ano : inicioPeriodo(ano);
+      if (!porPeriodo.has(periodo)) porPeriodo.set(periodo, []);
+      porPeriodo.get(periodo).push(concerto);
     });
-    const anos = [...porAno.keys()].sort((a,b) => {
+    const periodos = [...porPeriodo.keys()].sort((a,b) => {
       if (a === 'Sen data') return 1;
       if (b === 'Sen data') return -1;
-      return Number(b) - Number(a);
+      return Number(a) - Number(b);
     });
 
-    anosHistorico.innerHTML = anos.map((ano) => {
-      const items = porAno.get(ano).sort((a,b) => (Number(b.ordeHistorica)||0) - (Number(a.ordeHistorica)||0));
-      return `<details class="history-year">
-        <summary><span class="history-year-number">${escapar(ano)}</span><span><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span><span class="history-open">Consultar</span></summary>
-        <ol class="history-list">${items.map((concerto) => {
-          const localizacion = [concerto.lugar,concerto.cidade].filter(Boolean).join(' · ');
-          return `<li>
-            <button type="button" data-history-id="${escapar(concerto.id)}">
-              <span class="history-number">N.º ${escapar(concerto.numeroConcerto)}</span>
-              <span class="history-copy">
-                <time>${escapar(concerto.dataTextoHistorica || concerto.data || 'Data non documentada')}</time>
-                <strong>${escapar(concerto.nome || 'Concerto histórico')}</strong>
-                ${localizacion ? `<span>${escapar(localizacion)}</span>` : ''}
-                ${concerto.caracteristicas ? `<small>${escapar(concerto.caracteristicas)}</small>` : ''}
-              </span>
-            </button>
-          </li>`;
-        }).join('')}</ol>
-      </details>`;
+    anosHistorico.innerHTML = periodos.map((periodo) => {
+      const items = porPeriodo.get(periodo).sort((a,b) => (Number(a.ordeHistorica)||0) - (Number(b.ordeHistorica)||0));
+      const etiqueta = periodo === 'Sen data' ? periodo : etiquetaPeriodo(periodo);
+      return `<section class="history-period">
+        <header class="history-period-heading">
+          <h3>${escapar(etiqueta)}</h3>
+          <span><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span>
+        </header>
+        <div class="history-table-wrap">
+          <table class="history-table">
+            <thead><tr><th>Nº</th><th>Data</th><th>Localidade</th><th>Lugar</th><th>Descrición</th></tr></thead>
+            <tbody>${items.map((concerto) => `<tr>
+              <td data-label="Nº">${escapar(concerto.numeroConcerto || '—')}</td>
+              <td data-label="Data">${escapar(concerto.dataTextoHistorica || concerto.data || 'Data non documentada')}</td>
+              <td data-label="Localidade">${escapar(concerto.cidade || '—')}</td>
+              <td data-label="Lugar">${escapar(concerto.lugar || '—')}</td>
+              <td data-label="Descrición">${escapar(descricionHistorica(concerto))}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </section>`;
     }).join('');
-    if (resumoHistorico) resumoHistorico.textContent = `${listaxe.length} concerto${listaxe.length === 1 ? '' : 's'} · ${anos.length} ${anos.length === 1 ? 'ano' : 'anos'}`;
+    if (resumoHistorico) resumoHistorico.textContent = `${listaxe.length} concerto${listaxe.length === 1 ? '' : 's'} · ${periodos.length} ${periodos.length === 1 ? 'período' : 'períodos'}`;
     if (historicoBaleiro instanceof HTMLElement) historicoBaleiro.hidden = listaxe.length > 0;
   }
 
@@ -508,12 +527,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     botonInforme?.classList.remove('is-active');
   });
   buscaHistorico?.addEventListener('input', pintarHistorico);
-  anosHistorico?.addEventListener('click', (e) => {
-    const target = e.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest('[data-history-id]');
-    if (button) abrirConcerto(button.getAttribute('data-history-id') || '');
-  });
   document.querySelector('#pechar')?.addEventListener('click', () => dialogo instanceof HTMLDialogElement && dialogo.close());
   dialogo?.addEventListener('click', (e) => { if (e.target === dialogo && dialogo instanceof HTMLDialogElement) dialogo.close(); });
   logout?.addEventListener('click', async () => { await signOut(auth); window.location.href='/portal/'; });
@@ -532,14 +545,25 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .view-switch{display:flex;width:max-content;margin-bottom:1.2rem;border:1px solid #d5d0cb}.view-switch button{min-height:2.5rem;padding:.55rem 1rem;border:0;border-right:1px solid #d5d0cb;background:#fff;color:#5f5955;font:inherit;font-size:.78rem;cursor:pointer}.view-switch button:last-child{border-right:0}.view-switch button.is-active{background:var(--color-principal);color:#fff}
   #vista-concertos[hidden],#vista-informe[hidden],#vista-historico[hidden],#app[hidden],.no-results[hidden],.program-empty[hidden]{display:none}
   .history-report{display:grid;gap:1rem}
+  .history-actions{display:flex;flex-wrap:wrap;gap:.65rem}
+  .history-actions a{min-height:42px;box-sizing:border-box;padding:.68rem .9rem;border:1px solid var(--color-principal);background:#fff;color:var(--color-principal);font-size:.76rem;font-weight:800;text-decoration:none}
+  .history-actions a:hover{background:var(--color-principal);color:#fff}
   .history-search{width:min(100%,540px);box-sizing:border-box}
-  .history-years{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem;align-items:start}
-  .history-year{border:1px solid #d8d2cc;background:#fff}.history-year[open]{grid-column:1/-1}
-  .history-year summary{display:grid;grid-template-columns:72px 1fr auto;gap:1rem;align-items:center;min-height:74px;padding:.65rem 1rem;list-style:none;cursor:pointer}.history-year summary::-webkit-details-marker{display:none}.history-year summary:hover{background:#faf8f4}
-  .history-year-number{color:var(--color-principal);font-family:Georgia,serif;font-size:1.35rem;font-weight:700}.history-year summary>span:nth-child(2){color:#69625e;font-size:.76rem}.history-year summary>span:nth-child(2) strong{color:#2f2926;font-size:1rem}.history-open{color:#9a7624;font-size:.72rem;font-weight:700}
-  .history-list{display:grid;gap:0;margin:0;padding:0;border-top:1px solid #e5e0db;list-style:none}.history-list li{margin:0;border-bottom:1px solid #eeeae6}.history-list li:last-child{border-bottom:0}
-  .history-list button{display:grid;grid-template-columns:minmax(70px,110px) 1fr;gap:1rem;width:100%;padding:1rem;border:0;background:#fff;text-align:left;cursor:pointer}.history-list button:hover{background:#faf8f4}
-  .history-number{color:#9a7624;font-size:.72rem;font-weight:800;letter-spacing:.04em}.history-copy{display:grid;gap:.18rem;min-width:0}.history-copy time,.history-copy>span{color:#6c6560;font-size:.74rem}.history-copy strong{color:#302a27;font-size:.9rem}.history-copy small{margin-top:.28rem;color:#57514d;font-size:.78rem;line-height:1.5}
+  .history-years{display:grid;gap:1.25rem}
+  .history-period{border:1px solid #d8d2cc;background:#fff}
+  .history-period-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.85rem 1rem;border-bottom:1px solid #d8d2cc;background:#f6f1e8}
+  .history-period-heading h3{margin:0;color:var(--color-principal);font-family:Georgia,serif;font-size:1.35rem}
+  .history-period-heading span{color:#69625e;font-size:.76rem}.history-period-heading strong{color:#2f2926;font-size:1rem}
+  .history-table-wrap{width:100%;overflow-x:auto}
+  .history-table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .history-table th,.history-table td{padding:.78rem .9rem;border-bottom:1px solid #eeeae6;text-align:left;vertical-align:top;line-height:1.5;overflow-wrap:anywhere}
+  .history-table th{background:#fbfaf8;color:var(--color-principal);font-size:.68rem;letter-spacing:.04em;text-transform:uppercase}
+  .history-table td{color:#57514d;font-size:.76rem}
+  .history-table th:nth-child(1),.history-table td:nth-child(1){width:7%;color:#9a7624;font-weight:800}
+  .history-table th:nth-child(2),.history-table td:nth-child(2){width:17%}
+  .history-table th:nth-child(3),.history-table td:nth-child(3){width:15%}
+  .history-table th:nth-child(4),.history-table td:nth-child(4){width:22%}
+  .history-table tr:last-child td{border-bottom:0}
 
   .concert-toolbar{display:grid;grid-template-columns:minmax(270px,430px) auto 1fr;gap:1rem;align-items:center;margin-bottom:.45rem}
   .search-box{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #d5d0cb;background:#fff}.search-box svg{width:18px;height:18px;fill:none;stroke:#766f6a;stroke-width:1.7}.search-box input{min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:.8rem}
@@ -556,5 +580,5 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .report-heading{display:flex;justify-content:space-between;gap:2rem;align-items:end;padding:1.2rem 0;border-top:1px solid #d8d2cc;border-bottom:1px solid #d8d2cc}.report-heading span{color:var(--color-principal);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.report-heading h2{margin:.28rem 0;color:#2f2b29;font-size:1.55rem}.report-heading p{margin:0;color:#6d6762;font-size:.82rem}.report-heading>strong{color:var(--color-principal);font-size:.8rem;white-space:nowrap}.report-content{display:grid;gap:1.4rem;margin-top:1.4rem}.attendance-tier{border:1px solid #d8d2cc}.attendance-tier>header{display:flex;justify-content:space-between;align-items:baseline;padding:.75rem 1rem;background:#f2ecec}.attendance-tier>header strong{color:var(--color-principal);font-size:1rem}.attendance-tier>header span{color:#6d6762;font-size:.72rem}.report-voices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.report-voice{min-width:0;border-right:1px solid #e0dcd8;border-bottom:1px solid #e0dcd8}.report-voice h3{display:flex;justify-content:space-between;margin:0;padding:.65rem .85rem;border-bottom:1px solid #e0dcd8;color:var(--color-principal);font-size:.78rem}.report-voice h3 span{color:#a18331}.person-report{padding:.75rem .85rem}.person-report+.person-report{border-top:1px solid #ece9e6}.person-report>header{display:flex;justify-content:space-between;gap:.6rem;align-items:baseline}.person-report>header strong{color:#34302d;font-size:.82rem;font-weight:600}.person-report>header span{color:var(--color-principal);font-size:.68rem;font-weight:800}.person-report ul{display:grid;gap:.18rem;margin:.45rem 0 0;padding:0;list-style:none}.person-report button{display:grid;grid-template-columns:76px minmax(0,1fr);gap:.5rem;width:100%;padding:0;border:0;background:transparent;color:#68625e;font:inherit;font-size:.68rem;line-height:1.35;text-align:left;cursor:pointer}.person-report button:hover span{color:var(--color-principal);text-decoration:underline;text-underline-offset:2px}.person-report time{margin:0;color:var(--color-principal);font-size:.68rem;font-weight:700;text-transform:none}
   @media(max-width:1100px){.concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start}}
   @media(max-width:900px){.private-layout{grid-template-columns:1fr}.concertos-main{padding:1.7rem 1rem 3rem}}
-  @media(max-width:680px){.private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-square{aspect-ratio:auto;min-height:280px}.program-list{grid-template-columns:1fr}.attendees-groups,.report-voices{grid-template-columns:1fr}.report-heading{align-items:start;flex-direction:column}.view-switch{width:100%}.view-switch button{flex:1}.concert-dialog{padding:1.35rem}}
+  @media(max-width:680px){.private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-square{aspect-ratio:auto;min-height:280px}.program-list{grid-template-columns:1fr}.attendees-groups,.report-voices{grid-template-columns:1fr}.report-heading{align-items:start;flex-direction:column}.view-switch{width:100%}.view-switch button{flex:1}.history-actions{align-items:stretch;flex-direction:column}.history-actions a{text-align:center}.history-table,.history-table tbody,.history-table tr,.history-table td{display:block;width:100%;box-sizing:border-box}.history-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}.history-table tr{display:grid;gap:.55rem;padding:1rem;border-bottom:1px solid #ded8d1}.history-table tr:last-child{border-bottom:0}.history-table td,.history-table td:nth-child(n){display:grid;grid-template-columns:92px minmax(0,1fr);gap:.75rem;width:100%;padding:0;border:0}.history-table td::before{content:attr(data-label);color:var(--color-principal);font-size:.66rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.concert-dialog{padding:1.35rem}}
 </style>
