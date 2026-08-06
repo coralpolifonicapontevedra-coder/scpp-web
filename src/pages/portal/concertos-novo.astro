@@ -384,7 +384,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         }).join('')}</ol>
       </details>`;
     }).join('');
-    if (resumoHistorico) resumoHistorico.textContent = `${listaxe.length} concertos · ${anos.length} anos`;
+    if (resumoHistorico) resumoHistorico.textContent = `${listaxe.length} concerto${listaxe.length === 1 ? '' : 's'} · ${anos.length} ${anos.length === 1 ? 'ano' : 'anos'}`;
     if (historicoBaleiro instanceof HTMLElement) historicoBaleiro.hidden = listaxe.length > 0;
   }
 

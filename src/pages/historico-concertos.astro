@@ -104,7 +104,7 @@ import BaseLayout from '../layouts/Layout.astro';
       </details>`;
     }).join('');
 
-    if (summary instanceof HTMLElement) summary.textContent = `${filtered.length} concertos documentados · ${orderedYears.length} anos`;
+    if (summary instanceof HTMLElement) summary.textContent = `${filtered.length} concerto${filtered.length === 1 ? '' : 's'} documentado${filtered.length === 1 ? '' : 's'} · ${orderedYears.length} ${orderedYears.length === 1 ? 'ano' : 'anos'}`;
     if (empty instanceof HTMLElement) empty.hidden = filtered.length > 0;
   }
 
