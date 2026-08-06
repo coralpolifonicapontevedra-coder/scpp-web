@@ -53,9 +53,7 @@ import BaseLayout from '../layouts/Layout.astro';
 </BaseLayout>
 
 <script>
-  const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
-  const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
-  const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
+  const URL_CONCERTOS = '/api/concertos-indice';
 
   const normalizar = (valor = '') => String(valor)
     .normalize('NFD')
@@ -75,56 +73,6 @@ import BaseLayout from '../layouts/Layout.astro';
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
-
-  const verdadeiro = (valor = '') =>
-    ['true', 'si', 'sí', 'yes', '1', 'verdadeiro'].includes(normalizar(valor));
-
-  function parseCSV(texto) {
-    const filas = [];
-    let fila = [];
-    let campo = '';
-    let entreComillas = false;
-
-    for (let i = 0; i < texto.length; i++) {
-      const c = texto[i];
-      const seguinte = texto[i + 1];
-      if (c === '"' && entreComillas && seguinte === '"') {
-        campo += '"';
-        i++;
-      } else if (c === '"') {
-        entreComillas = !entreComillas;
-      } else if (c === ',' && !entreComillas) {
-        fila.push(campo);
-        campo = '';
-      } else if ((c === '\n' || c === '\r') && !entreComillas) {
-        if (c === '\r' && seguinte === '\n') i++;
-        fila.push(campo);
-        if (fila.some((valor) => valor.trim() !== '')) filas.push(fila);
-        fila = [];
-        campo = '';
-      } else {
-        campo += c;
-      }
-    }
-
-    if (campo || fila.length) {
-      fila.push(campo);
-      filas.push(fila);
-    }
-
-    const cabeceiras = (filas.shift() || []).map(normalizar);
-    return filas.map((valores) =>
-      Object.fromEntries(cabeceiras.map((cab, i) => [cab, (valores[i] || '').trim()])),
-    );
-  }
-
-  const valor = (fila, ...nomes) => {
-    for (const nome of nomes) {
-      const atopado = fila[normalizar(nome)];
-      if (atopado !== undefined && atopado !== '') return atopado;
-    }
-    return '';
-  };
 
   const dataISO = (data) => {
     const partes = String(data).split(/[\/-]/).map(Number);
@@ -153,12 +101,6 @@ import BaseLayout from '../layouts/Layout.astro';
     if (!nomeFicheiro) return '';
     return `/media/concertos/${encodeURIComponent(nomeFicheiro)}`;
   };
-
-  async function lerCSV(url) {
-    const resposta = await fetch(url, { cache: 'no-store' });
-    if (!resposta.ok) throw new Error(`Erro ${resposta.status}`);
-    return parseCSV(await resposta.text());
-  }
 
   const renderPrograma = (programa) => {
     if (!programa.length) return '';
@@ -259,52 +201,19 @@ import BaseLayout from '../layouts/Layout.astro';
     const senResultados = document.querySelector('#sen-resultados');
 
     try {
-      const [concertosRaw, programasRaw, repertorioRaw] = await Promise.all([
-        lerCSV(URL_CONCERTOS), lerCSV(URL_PROGRAMAS), lerCSV(URL_REPERTORIO),
-      ]);
+      const resposta = await fetch(URL_CONCERTOS, { cache: 'no-store' });
+      const indice = await resposta.json().catch(() => null);
+      if (!resposta.ok || indice?.ok !== true || !Array.isArray(indice?.concertos)) {
+        throw new Error(indice?.erro || `Erro ${resposta.status}`);
+      }
 
-      const obras = new Map(repertorioRaw.map((fila) => [
-        valor(fila, 'Id', 'Row ID'),
-        {
-          nome: valor(fila, 'Nome', 'NomeObra', 'Obra', 'Título', 'Titulo'),
-          autor: valor(fila, 'Autor', 'Compositor'),
-        },
-      ]));
-
-      const concertos = concertosRaw.map((fila) => {
-        const id = valor(fila, 'Id', 'Row ID');
-        const programa = programasRaw
-          .filter((item) => valor(item, 'Id_Conciertos', 'Id_Concertos') === id)
-          .map((item) => {
-            const idObra = valor(item, 'Id_Obras');
-            const obra = obras.get(idObra) || {};
-            return {
-              orde: Number(valor(item, 'Orde')) || 999,
-              obra: obra.nome || idObra,
-              autor: obra.autor || '',
-              notas: valor(item, 'Notas'),
-              solista: valor(item, 'Solista'),
-            };
-          })
-          .sort((a, b) => a.orde - b.orde);
-
-        return {
-          id,
-          data: valor(fila, 'Data'),
-          nome: valor(fila, 'Nome'),
-          cidade: valor(fila, 'Cidade'),
-          lugar: valor(fila, 'Lugar'),
-          caracteristicas: valor(fila, 'Características', 'Caracteristicas'),
-          cartel: valor(fila, 'Cartel'),
-          triptico: valor(fila, 'Triptico', 'Tríptico'),
-          prensa: valor(fila, 'Prensa'),
-          hora: valor(fila, 'Hora'),
-          mostrarWeb: verdadeiro(valor(fila, 'Mostrar_Web')),
-          destacadoWeb: verdadeiro(valor(fila, 'Destacado_Web')),
-          estado: normalizar(valor(fila, 'Estado')),
-          programa,
-        };
-      }).filter((c) => c.mostrarWeb && c.id && c.data && c.nome);
+      const concertos = indice.concertos
+        .filter((concerto) => concerto?.id && concerto?.data && concerto?.nome)
+        .map((concerto) => ({
+          ...concerto,
+          estado: normalizar(concerto.estado),
+          programa: Array.isArray(concerto.programa) ? concerto.programa : [],
+        }));
 
       const confirmados = concertos
         .filter((c) => c.estado === 'confirmado')

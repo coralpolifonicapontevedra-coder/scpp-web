@@ -1,0 +1,61 @@
+name: Sincronizar concertos con R2
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/sync-concertos-r2.yml'
+      - 'scripts/sync-concertos-r2.py'
+      - 'tests/test_sync_concertos_r2.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-concertos-r2
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: r2-migration
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: python -m pip install --disable-pip-version-check boto3==1.40.1 requests==2.32.4
+
+      - name: Probar o normalizador de concertos
+        run: python -m unittest tests/test_sync_concertos_r2.py
+
+      - name: Construír, verificar e publicar os índices
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_PUBLIC_BUCKET: scpp-publico
+          R2_PRIVATE_BUCKET: scpp-privado
+          SYNC_ATTEMPTS: '5'
+          SYNC_TIMEOUT_SECONDS: '90'
+        run: python scripts/sync-concertos-r2.py | tee concertos-r2.log
+
+      - name: Resumo
+        if: always()
+        run: |
+          echo "## Índices de concertos" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Público: scpp-publico/indices/concertos-v1.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Privado: scpp-privado/indices/concertos-privado-v1.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Os índices anteriores consérvanse se Google ou a validación fallan." >> "$GITHUB_STEP_SUMMARY"
+          tail -n 20 concertos-r2.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
