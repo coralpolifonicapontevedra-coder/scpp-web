@@ -108,6 +108,11 @@ const eHistoria = ruta === '/historia';
       <p class="public-page-hero__eyebrow">{datos.eyebrow}</p>
       <h1 id="public-page-title">{datos.title}</h1>
       {datos.lead && <p class="public-page-hero__lead">{datos.lead}</p>}
+      {eHistoria && (
+        <a class="public-page-hero__history-link" href="/historico-concertos/">
+          Histórico de concertos <span aria-hidden="true">→</span>
+        </a>
+      )}
     </div>
   </header>
 )}
@@ -168,7 +173,24 @@ const eHistoria = ruta === '/historia';
     line-height: 1.55;
   }
 
+  .public-page-hero__history-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin-top: .7rem;
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 700;
+    text-decoration-color: #dfc273;
+    text-underline-offset: 4px;
+  }
+
+  .public-page-hero__history-link span {
+    color: #dfc273;
+  }
+
   /*
+
    * Os encabezados históricos das páxinas quedan ocultos porque a cabeceira
    * común anterior é a única fonte visual do título público.
    */

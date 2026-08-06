@@ -100,11 +100,12 @@ import BaseLayout from '../layouts/Layout.astro';
     years.innerHTML = periodos.map((periodo) => {
       const items = grouped.get(periodo).sort((a, b) => (Number(a.ordeHistorica) || 0) - (Number(b.ordeHistorica) || 0));
       const etiqueta = periodo === 'Sen data' ? periodo : etiquetaPeriodo(periodo);
-      return `<section class="period-block">
-        <header class="period-heading">
-          <h3>${escapar(etiqueta)}</h3>
-          <span><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span>
-        </header>
+      return `<details class="period-block" name="periodos-historicos">
+        <summary class="period-heading">
+          <span class="period-title"><small>Período histórico</small><strong>${escapar(etiqueta)}</strong></span>
+          <span class="period-count"><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span>
+          <span class="period-toggle">Ver concertos <b aria-hidden="true">+</b></span>
+        </summary>
         <div class="history-table-wrap">
           <table class="history-table">
             <thead><tr><th>Nº</th><th>Data</th><th>Localidade</th><th>Lugar</th><th>Descrición</th></tr></thead>
@@ -117,7 +118,7 @@ import BaseLayout from '../layouts/Layout.astro';
             </tr>`).join('')}</tbody>
           </table>
         </div>
-      </section>`;
+      </details>`;
     }).join('');
 
     if (summary instanceof HTMLElement) summary.textContent = `${filtered.length} concerto${filtered.length === 1 ? '' : 's'} documentado${filtered.length === 1 ? '' : 's'} · ${periodos.length} ${periodos.length === 1 ? 'período' : 'períodos'}`;
@@ -164,13 +165,24 @@ import BaseLayout from '../layouts/Layout.astro';
   .history-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:.75rem; margin-top:1rem; }
   .history-actions a,.history-actions button { min-height:44px; padding:.72rem 1rem; border:1px solid var(--color-principal); background:#fff; color:var(--color-principal); font:inherit; font-size:.78rem; font-weight:800; text-decoration:none; cursor:pointer; }
   .history-actions a:hover,.history-actions button:hover { background:var(--color-principal); color:#fff; }
-  .history-years { display:grid; gap:1.4rem; }
-  .period-block { border:1px solid #d8d1c9; background:#fff; box-shadow:0 8px 22px rgba(54,42,36,.04); }
-  .period-heading { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.9rem 1rem; background:#f6f1e8; border-bottom:1px solid #d8d1c9; }
-  .period-heading h3 { margin:0; color:var(--color-principal); font-family:Georgia,serif; font-size:1.35rem; }
-  .period-heading span { color:#69625c; font-size:.78rem; }
-  .period-heading strong { color:#2e2925; font-size:1rem; }
-  .history-table-wrap { width:100%; overflow-x:auto; }
+  .history-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:.75rem; margin-top:1rem; }
+  .history-actions a,.history-actions button { min-height:44px; padding:.72rem 1rem; border:1px solid var(--color-principal); background:#fff; color:var(--color-principal); font:inherit; font-size:.78rem; font-weight:800; text-decoration:none; cursor:pointer; }
+  .history-actions a:hover,.history-actions button:hover { background:var(--color-principal); color:#fff; }
+  .history-years { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.9rem; align-items:start; }
+  .period-block { min-width:0; border:1px solid #d8d1c9; background:#fff; box-shadow:0 8px 22px rgba(54,42,36,.04); }
+  .period-block[open] { grid-column:1/-1; border-color:#b9974f; box-shadow:0 14px 34px rgba(54,42,36,.08); }
+  .period-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:.65rem 1rem; min-height:118px; padding:1rem 1.05rem; list-style:none; cursor:pointer; transition:background .18s,border-color .18s; }
+  .period-heading::-webkit-details-marker { display:none; }
+  .period-heading:hover { background:#faf7f1; }
+  .period-title { display:grid; gap:.15rem; min-width:0; }
+  .period-title small { color:#967328; font-size:.62rem; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }
+  .period-title>strong { color:var(--color-principal); font-family:Georgia,serif; font-size:1.4rem; }
+  .period-count { align-self:start; color:#69625c; font-size:.72rem; text-align:right; }
+  .period-count strong { color:#2e2925; font-size:.95rem; }
+  .period-toggle { display:flex; grid-column:1/-1; justify-content:space-between; align-items:center; gap:.75rem; padding-top:.55rem; border-top:1px solid #ece5dc; color:var(--color-principal); font-size:.68rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; }
+  .period-toggle b { color:#a37e2e; font-size:1.15rem; line-height:1; transition:transform .18s; }
+  .period-block[open] .period-toggle b { transform:rotate(45deg); }
+  .history-table-wrap { width:100%; overflow-x:auto; border-top:1px solid #d8d1c9; }
   .history-table { width:100%; border-collapse:collapse; table-layout:fixed; }
   .history-table th,.history-table td { padding:.8rem 1rem; border-bottom:1px solid #eee9e4; text-align:left; vertical-align:top; line-height:1.5; overflow-wrap:anywhere; }
   .history-table th { color:var(--color-principal); background:#fbfaf8; font-size:.72rem; letter-spacing:.04em; text-transform:uppercase; }
