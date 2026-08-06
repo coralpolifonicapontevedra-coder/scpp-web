@@ -258,8 +258,15 @@ export async function onRequest({ request, env }) {
   if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
   const accion = String(datos.accion || 'listarRepertorioPortal').trim();
-  if (!['listarRepertorioPortal', 'listarAsistenciasConcertosPortal', 'obterFicheiroRepertorio'].includes(accion)) {
+  if (!['listarRepertorioPortal', 'listarIndiceRepertorioR2', 'listarAsistenciasConcertosPortal', 'obterFicheiroRepertorio'].includes(accion)) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
+  }
+
+  if (accion === 'listarIndiceRepertorioR2') {
+    return json(200, { ok: true, recursos: REPERTORIO_R2 }, {
+      'X-SCPP-Repertorio': 'R2-INDEX',
+      'Server-Timing': 'r2-index;dur=1'
+    });
   }
 
   if (accion === 'obterFicheiroRepertorio') {
