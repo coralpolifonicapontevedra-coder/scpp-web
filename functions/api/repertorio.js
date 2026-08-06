@@ -3,7 +3,7 @@ import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 import { REPERTORIO_CATALOGO } from '../_data/repertorio-catalogo.js';
 
 const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
-const CACHE_REPERTORIO_VERSION = '2026-08-06-r2-catalogo-persistente-2';
+const CACHE_REPERTORIO_VERSION = '2026-08-06-r2-catalogo-persistente-3';
 const REPERTORIO_R2_CATALOGO_KEY = 'repertorio/cache/catalogo.json';
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
@@ -236,7 +236,8 @@ function incorporarIndiceCompleto(resultado) {
 
   for (const obra of obras) {
     const id = idObra(obra);
-    const recursos = id ? REPERTORIO_R2[id] : null;
+    const idRecursos = id === '34' && !REPERTORIO_R2[id] ? '86' : id;
+    const recursos = idRecursos ? REPERTORIO_R2[idRecursos] : null;
     if (!recursos) continue;
 
     obra.audios = copiarRecursos(recursos.audios || []);
