@@ -25,10 +25,13 @@ describe('histórico de concertos activo', () => {
 
   it('ofrece o arquivo completo por décadas nas dúas áreas', () => {
     expect(privatePage).toContain('function pintarHistorico()');
-    expect(privatePage).toContain('class="history-period"');
+    expect(privatePage).toContain('<details class="history-period"');
+    expect(privatePage).toContain('name="periodos-historicos-privados"');
     expect(publicPage).toContain("const endpoint = '/api/concertos-historico'");
     expect(publicPage).toContain('const exactYear = /^\\d{4}$/.test(query)');
-    expect(publicPage).toContain('class="period-block"');
+    expect(publicPage).toContain('<details class="period-block"');
+    expect(publicPage).toContain('name="periodos-historicos"');
+    expect(publicPage).toContain('class="period-toggle"');
   });
 
   it('presenta os campos separados e evita repetir o número do concerto', () => {
@@ -36,6 +39,7 @@ describe('histórico de concertos activo', () => {
       expect(page).toContain('<th>Nº</th><th>Data</th><th>Localidade</th><th>Lugar</th><th>Descrición</th>');
       expect(page).toContain('data-label="Nº"');
       expect(page).toContain('nomeXenerico');
+      expect(page).toContain('<table class="history-table">');
       expect(page).not.toContain('data-history-id');
     }
   });
