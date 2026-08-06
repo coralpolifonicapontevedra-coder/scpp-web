@@ -58,10 +58,14 @@ import BaseLayout from '../layouts/Layout.astro';
   function debuxar() {
     if (!(years instanceof HTMLElement)) return;
     const query = normalizar(search instanceof HTMLInputElement ? search.value : '');
-    const filtered = concertos.filter((concerto) => !query || normalizar([
+    const exactYear = /^\d{4}$/.test(query);
+    const filtered = concertos.filter((concerto) => {
+      if (exactYear) return String(concerto.ano || '') === query;
+      return !query || normalizar([
       concerto.ano, concerto.numeroConcerto, concerto.data, concerto.dataTextoHistorica,
       concerto.nome, concerto.cidade, concerto.lugar, concerto.descricion
-    ].join(' ')).includes(query));
+    ].join(' ')).includes(query);
+    });
 
     const grouped = new Map();
     filtered.forEach((concerto) => {
