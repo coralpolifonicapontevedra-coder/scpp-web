@@ -21,10 +21,26 @@ describe('histórico de concertos activo', () => {
     expect(privatePage).toContain('todosConcertos.forEach((c) => (c.asistentes');
   });
 
-  it('ofrece o arquivo completo por anos nas dúas áreas', () => {
+  it('ofrece o arquivo completo por décadas nas dúas áreas', () => {
     expect(privatePage).toContain('function pintarHistorico()');
-    expect(privatePage).toContain('numeroConcerto');
+    expect(privatePage).toContain('class="history-period"');
     expect(publicPage).toContain("const endpoint = '/api/concertos-historico'");
     expect(publicPage).toContain('const exactYear = /^\\d{4}$/.test(query)');
+    expect(publicPage).toContain('class="period-block"');
+  });
+
+  it('presenta os campos separados e evita repetir o número do concerto', () => {
+    for (const page of [privatePage, publicPage]) {
+      expect(page).toContain('<th>Nº</th><th>Data</th><th>Localidade</th><th>Lugar</th><th>Descrición</th>');
+      expect(page).toContain('data-label="Nº"');
+      expect(page).toContain('nomeXenerico');
+      expect(page).not.toContain('data-history-id');
+    }
+  });
+
+  it('publica a descarga documental desde as dúas áreas', () => {
+    const download = '/documentos/historico-concertos-scpp-1925-2026.docx';
+    expect(privatePage).toContain(download);
+    expect(publicPage).toContain(download);
   });
 });
