@@ -154,10 +154,37 @@
         letter-spacing: .02em;
         color: var(--color-primary, #7b2436);
       }
+      .audios-list.is-organized {
+        display: block !important;
+      }
       .audio-group-list {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
         gap: .75rem;
+      }
+      .audios-list[data-audio-organization="leucoina"] .audio-group-list {
+        grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+        gap: .5rem;
+      }
+      .audios-list[data-audio-organization="leucoina"] .audio-card {
+        min-height: 104px !important;
+        padding: .65rem !important;
+        gap: .5rem !important;
+      }
+      .audios-list[data-audio-organization="leucoina"] .audio-heading strong {
+        font-size: .78rem !important;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+      .audios-list[data-audio-organization="leucoina"] .audio-play {
+        min-height: 2rem !important;
+        padding: .38rem .55rem !important;
+        font-size: .68rem !important;
+      }
+      @media (max-width: 680px) {
+        .audios-list[data-audio-organization="leucoina"] .audio-group-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
       }
     `;
     document.head.append(style);
@@ -230,16 +257,23 @@
     const id = canonId(new URL(location.href).searchParams.get('id'));
     const obra = obrasPorId.get(id);
     const tipo = tipoOrganizacion(obra);
-    if (!obra || !tipo) return;
+    const lista = document.querySelector('#audios-list');
+    if (!(lista instanceof HTMLElement)) return;
+    if (!obra || !tipo) {
+      lista.classList.remove('is-organized');
+      delete lista.dataset.audioOrganization;
+      return;
+    }
 
     const audios = Array.isArray(obra.audios) ? obra.audios : [];
-    const lista = document.querySelector('#audios-list');
-    if (!(lista instanceof HTMLElement) || !audios.length) return;
+    if (!audios.length) return;
 
     const tarxetas = Array.from(lista.children).filter((elemento) => elemento.classList.contains('audio-card'));
     if (tarxetas.length !== audios.length) return;
 
     engadirEstilos();
+    lista.classList.add('is-organized');
+    lista.dataset.audioOrganization = tipo;
     organizando = true;
     try {
       const fragmento = tipo === 'leucoina'
