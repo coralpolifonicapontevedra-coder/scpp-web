@@ -130,6 +130,11 @@ def row_value(row: dict[str, str], *names: str) -> str:
     return ""
 
 
+def decode_csv(content: bytes) -> str:
+    """Google publica UTF-8, pero text/csv sen charset confunde a requests."""
+    return content.decode("utf-8-sig")
+
+
 def parse_csv(content: str, label: str) -> tuple[list[dict[str, str]], set[str]]:
     reader = csv.DictReader(io.StringIO(content.lstrip("\ufeff")))
     if not reader.fieldnames:
@@ -165,7 +170,7 @@ def fetch_csv(url: str, label: str) -> tuple[list[dict[str, str]], set[str]]:
                 timeout=TIMEOUT_SECONDS,
             )
             response.raise_for_status()
-            rows, headers = parse_csv(response.text, label)
+            rows, headers = parse_csv(decode_csv(response.content), label)
             print(f"{label}: {len(rows)} filas no intento {attempt}")
             return rows, headers
         except Exception as exc:  # noqa: BLE001

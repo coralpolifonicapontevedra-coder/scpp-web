@@ -15,6 +15,13 @@ def normalized(**values):
 
 
 class SyncConcertosR2Tests(unittest.TestCase):
+    def test_decodes_google_csv_as_utf8(self):
+        raw = "Nome,Cidade\nConcerto nº 727,Afundación\n".encode("utf-8")
+        decoded = MODULE.decode_csv(raw)
+        self.assertIn("nº 727", decoded)
+        self.assertIn("Afundación", decoded)
+        self.assertNotIn("AfundaciÃ³n", decoded)
+
     def test_iso_date_accepts_sheet_and_iso_formats(self):
         self.assertEqual(MODULE.iso_date("9/4/1925"), "1925-04-09")
         self.assertEqual(MODULE.iso_date("2026-05-15"), "2026-05-15")
