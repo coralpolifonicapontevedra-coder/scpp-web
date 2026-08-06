@@ -26,6 +26,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         <div class="view-switch" aria-label="Vista de concertos">
           <button id="ver-concertos" type="button" class="is-active">Concertos</button>
           <button id="ver-informe" type="button">Informe de asistencia</button>
+          <button id="ver-historico" type="button">Histórico</button>
         </div>
 
         <div id="vista-concertos">
@@ -58,6 +59,23 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           </header>
           <div id="informe" class="report-content"></div>
           <p id="informe-baleiro" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
+        </section>
+
+        <section id="vista-historico" class="history-report" hidden>
+          <header class="report-heading">
+            <div>
+              <span>Arquivo da Coral</span>
+              <h2>Histórico de concertos</h2>
+              <p>Consulta por ano os concertos documentados desde 1925. Só se amosan os campos dispoñibles.</p>
+            </div>
+            <strong id="resumo-historico"></strong>
+          </header>
+          <label class="history-search search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
+            <input id="busca-historico" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
+          </label>
+          <div id="anos-historico" class="history-years"></div>
+          <p id="historico-baleiro" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
         </section>
       </section>
     </main>
@@ -126,8 +144,15 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const logout = document.querySelector('#concertos-novo-logout');
   const botonConcertos = document.querySelector('#ver-concertos');
   const botonInforme = document.querySelector('#ver-informe');
+  const botonHistorico = document.querySelector('#ver-historico');
+  const vistaHistorico = document.querySelector('#vista-historico');
+  const anosHistorico = document.querySelector('#anos-historico');
+  const resumoHistorico = document.querySelector('#resumo-historico');
+  const buscaHistorico = document.querySelector('#busca-historico');
+  const historicoBaleiro = document.querySelector('#historico-baleiro');
 
   let concertos = [];
+  let todosConcertos = [];
   let filtroActivo = 'todos';
 
   const normalizar = (v = '') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -159,6 +184,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       if (v !== undefined && v !== '') return v;
     }
     return '';
+  };
+
+  const verdadeiro = (v = '') => ['true','1','si','sí','yes','x'].includes(normalizar(v));
+  const anoHistorico = (concerto) => {
+    const data = String(concerto.data || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
+    const texto = String(concerto.dataTextoHistorica || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
+    return data || texto || 'Sen data';
   };
 
   const dataISO = (data = '') => {
@@ -220,7 +252,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (!(informe instanceof HTMLElement)) return;
 
     const persoas = new Map();
-    concertos.forEach((c) => (c.asistentes || []).forEach((p) => {
+    todosConcertos.forEach((c) => (c.asistentes || []).forEach((p) => {
       const nome = String(p.nome || '').trim();
       const voz = String(p.voz || 'Sen voz indicada').trim();
       if (!nome) return;
@@ -267,7 +299,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   }
 
   function abrirConcerto(id) {
-    const c = concertos.find((x) => x.id === id);
+    const c = todosConcertos.find((x) => x.id === id);
     if (!c || !(dialogo instanceof HTMLDialogElement)) return;
     const set = (s,v) => { const e = dialogo.querySelector(s); if (e) e.textContent = String(v || ''); };
 
@@ -307,11 +339,60 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     dialogo.showModal();
   }
 
+  function pintarHistorico() {
+    if (!(anosHistorico instanceof HTMLElement)) return;
+    const q = normalizar(buscaHistorico instanceof HTMLInputElement ? buscaHistorico.value : '');
+    const consultaAno = /^\d{4}$/.test(q);
+    const listaxe = todosConcertos.filter((concerto) => {
+      if (!concerto.numeroConcerto) return false;
+      if (consultaAno) return anoHistorico(concerto) === q;
+      return !q || normalizar([
+        anoHistorico(concerto), concerto.numeroConcerto, concerto.data,
+        concerto.dataTextoHistorica, concerto.nome, concerto.lugar,
+        concerto.cidade, concerto.caracteristicas
+      ].join(' ')).includes(q);
+    });
+    const porAno = new Map();
+    listaxe.forEach((concerto) => {
+      const ano = anoHistorico(concerto);
+      if (!porAno.has(ano)) porAno.set(ano, []);
+      porAno.get(ano).push(concerto);
+    });
+    const anos = [...porAno.keys()].sort((a,b) => {
+      if (a === 'Sen data') return 1;
+      if (b === 'Sen data') return -1;
+      return Number(b) - Number(a);
+    });
+
+    anosHistorico.innerHTML = anos.map((ano) => {
+      const items = porAno.get(ano).sort((a,b) => (Number(b.ordeHistorica)||0) - (Number(a.ordeHistorica)||0));
+      return `<details class="history-year">
+        <summary><span class="history-year-number">${escapar(ano)}</span><span><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span><span class="history-open">Consultar</span></summary>
+        <ol class="history-list">${items.map((concerto) => {
+          const localizacion = [concerto.lugar,concerto.cidade].filter(Boolean).join(' · ');
+          return `<li>
+            <button type="button" data-history-id="${escapar(concerto.id)}">
+              <span class="history-number">N.º ${escapar(concerto.numeroConcerto)}</span>
+              <span class="history-copy">
+                <time>${escapar(concerto.dataTextoHistorica || concerto.data || 'Data non documentada')}</time>
+                <strong>${escapar(concerto.nome || 'Concerto histórico')}</strong>
+                ${localizacion ? `<span>${escapar(localizacion)}</span>` : ''}
+                ${concerto.caracteristicas ? `<small>${escapar(concerto.caracteristicas)}</small>` : ''}
+              </span>
+            </button>
+          </li>`;
+        }).join('')}</ol>
+      </details>`;
+    }).join('');
+    if (resumoHistorico) resumoHistorico.textContent = `${listaxe.length} concertos · ${anos.length} anos`;
+    if (historicoBaleiro instanceof HTMLElement) historicoBaleiro.hidden = listaxe.length > 0;
+  }
+
   async function cargarConcertos() {
     const [cRows,pRows,rRows] = await Promise.all([lerCSV(URL_CONCERTOS),lerCSV(URL_PROGRAMAS),lerCSV(URL_REPERTORIO)]);
     const obras = new Map(rRows.map((r) => [valor(r,'Id','Row ID'), { nome:valor(r,'NomeObra','Nome','Obra'), autor:valor(r,'Compositor','Autor') }]));
 
-    concertos = cRows.map((r) => {
+    todosConcertos = cRows.map((r) => {
       const id = valor(r,'Id','Row ID');
       const programa = pRows.filter((p) => valor(p,'Id_Conciertos','Id_Concertos') === id).map((p) => {
         const obraId = valor(p,'Id_Obras');
@@ -326,13 +407,21 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         cidade:valor(r,'Cidade'),
         lugar:valor(r,'Lugar'),
         estado:normalizar(valor(r,'Estado')) || 'confirmado',
+        mostrarWeb:verdadeiro(valor(r,'Mostrar_Web')),
+        numeroConcerto:valor(r,'NumeroConcerto'),
+        ordeHistorica:Number(valor(r,'OrdeHistorica')) || 0,
+        dataTextoHistorica:valor(r,'DataTextoHistorica'),
+        caracteristicas:valor(r,'Características','Caracteristicas'),
         programa,
         asistentes:[]
       };
-    }).filter((c) => c.id && c.nome)
+    }).filter((c) => c.id && (c.nome || c.numeroConcerto))
+      .sort((a,b) => (b.ordeHistorica || 0) - (a.ordeHistorica || 0) || dataISO(b.data).localeCompare(dataISO(a.data)));
+    concertos = todosConcertos.filter((c) => c.mostrarWeb && c.nome && c.data)
       .sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data)));
 
     pintarConcertos();
+    pintarHistorico();
     if (app instanceof HTMLElement) app.hidden = false;
     if (estado instanceof HTMLElement) estado.hidden = true;
   }
@@ -350,9 +439,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       const datos = await r.json();
       if (!r.ok || !datos?.ok) throw new Error(datos?.erro || `HTTP ${r.status}`);
       const porConcerto = datos.asistenciasPorConcerto || {};
-      concertos = concertos.map((c) => ({ ...c, asistentes:Array.isArray(porConcerto[c.id]) ? porConcerto[c.id] : [] }));
+      todosConcertos = todosConcertos.map((c) => ({ ...c, asistentes:Array.isArray(porConcerto[c.id]) ? porConcerto[c.id] : [] }));
+      concertos = todosConcertos.filter((c) => c.mostrarWeb && c.nome && c.data)
+        .sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data)));
       pintarConcertos();
       pintarInforme();
+      pintarHistorico();
       if (estadoAsistencias) estadoAsistencias.textContent = `Asistentes cargados en ${Math.round(performance.now()-inicio)} ms`;
     } catch (e) {
       if (estadoAsistencias) estadoAsistencias.textContent = `Erro ao cargar asistentes: ${e instanceof Error ? e.message : e}`;
@@ -394,14 +486,33 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   botonConcertos?.addEventListener('click', () => {
     if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = false;
     if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = true;
+    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = true;
     botonConcertos.classList.add('is-active');
     botonInforme?.classList.remove('is-active');
+    botonHistorico?.classList.remove('is-active');
   });
   botonInforme?.addEventListener('click', () => {
     if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = true;
     if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = false;
+    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = true;
     botonInforme.classList.add('is-active');
     botonConcertos?.classList.remove('is-active');
+    botonHistorico?.classList.remove('is-active');
+  });
+  botonHistorico?.addEventListener('click', () => {
+    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = true;
+    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = true;
+    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = false;
+    botonHistorico.classList.add('is-active');
+    botonConcertos?.classList.remove('is-active');
+    botonInforme?.classList.remove('is-active');
+  });
+  buscaHistorico?.addEventListener('input', pintarHistorico);
+  anosHistorico?.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('[data-history-id]');
+    if (button) abrirConcerto(button.getAttribute('data-history-id') || '');
   });
   document.querySelector('#pechar')?.addEventListener('click', () => dialogo instanceof HTMLDialogElement && dialogo.close());
   dialogo?.addEventListener('click', (e) => { if (e.target === dialogo && dialogo instanceof HTMLDialogElement) dialogo.close(); });
@@ -419,7 +530,17 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .account-card small{color:#6f6965;font-size:.7rem}.account-card strong{max-width:210px;overflow:hidden;color:var(--color-principal);font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}
   .portal-state{padding:1rem 1.1rem;border:1px solid #ddd9d5;border-radius:4px;background:#faf9f7;color:#5d5956}
   .view-switch{display:flex;width:max-content;margin-bottom:1.2rem;border:1px solid #d5d0cb}.view-switch button{min-height:2.5rem;padding:.55rem 1rem;border:0;border-right:1px solid #d5d0cb;background:#fff;color:#5f5955;font:inherit;font-size:.78rem;cursor:pointer}.view-switch button:last-child{border-right:0}.view-switch button.is-active{background:var(--color-principal);color:#fff}
-  #vista-concertos[hidden],#vista-informe[hidden],#app[hidden],.no-results[hidden],.program-empty[hidden]{display:none}
+  #vista-concertos[hidden],#vista-informe[hidden],#vista-historico[hidden],#app[hidden],.no-results[hidden],.program-empty[hidden]{display:none}
+  .history-report{display:grid;gap:1rem}
+  .history-search{width:min(100%,540px);box-sizing:border-box}
+  .history-years{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem;align-items:start}
+  .history-year{border:1px solid #d8d2cc;background:#fff}.history-year[open]{grid-column:1/-1}
+  .history-year summary{display:grid;grid-template-columns:72px 1fr auto;gap:1rem;align-items:center;min-height:74px;padding:.65rem 1rem;list-style:none;cursor:pointer}.history-year summary::-webkit-details-marker{display:none}.history-year summary:hover{background:#faf8f4}
+  .history-year-number{color:var(--color-principal);font-family:Georgia,serif;font-size:1.35rem;font-weight:700}.history-year summary>span:nth-child(2){color:#69625e;font-size:.76rem}.history-year summary>span:nth-child(2) strong{color:#2f2926;font-size:1rem}.history-open{color:#9a7624;font-size:.72rem;font-weight:700}
+  .history-list{display:grid;gap:0;margin:0;padding:0;border-top:1px solid #e5e0db;list-style:none}.history-list li{margin:0;border-bottom:1px solid #eeeae6}.history-list li:last-child{border-bottom:0}
+  .history-list button{display:grid;grid-template-columns:minmax(70px,110px) 1fr;gap:1rem;width:100%;padding:1rem;border:0;background:#fff;text-align:left;cursor:pointer}.history-list button:hover{background:#faf8f4}
+  .history-number{color:#9a7624;font-size:.72rem;font-weight:800;letter-spacing:.04em}.history-copy{display:grid;gap:.18rem;min-width:0}.history-copy time,.history-copy>span{color:#6c6560;font-size:.74rem}.history-copy strong{color:#302a27;font-size:.9rem}.history-copy small{margin-top:.28rem;color:#57514d;font-size:.78rem;line-height:1.5}
+
   .concert-toolbar{display:grid;grid-template-columns:minmax(270px,430px) auto 1fr;gap:1rem;align-items:center;margin-bottom:.45rem}
   .search-box{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #d5d0cb;background:#fff}.search-box svg{width:18px;height:18px;fill:none;stroke:#766f6a;stroke-width:1.7}.search-box input{min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:.8rem}
   .filters{display:flex;border:1px solid #d5d0cb}.filters button{min-height:2.55rem;padding:.55rem .85rem;border:0;border-right:1px solid #d5d0cb;background:#fff;color:#5f5955;font:inherit;font-size:.76rem;cursor:pointer}.filters button:last-child{border-right:0}.filters button.is-active{background:var(--color-principal);color:#fff}
