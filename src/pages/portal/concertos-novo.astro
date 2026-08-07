@@ -119,7 +119,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   type CSVRow = Record<string, string>;
   type ObraCatalogo = { nome: string; autor: string };
-  type ProgramaItem = { obra: string; autor: string; orde: number };
+  type ProgramaItem = { id: string; obra: string; autor: string; orde: number };
   type Asistente = { nome: string; voz: string };
   type Concerto = {
     id: string;
@@ -344,7 +344,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     set('#detalle', [c.lugar,c.cidade].filter(Boolean).join(' · '));
 
     const programa = dialogo.querySelector('#programa');
-    if (programa) programa.innerHTML = c.programa.map((p,index) => `<li><span class="program-order">${String(index+1).padStart(2,'0')}</span><span><strong>${escapar(p.obra)}</strong>${p.autor ? `<small>${escapar(p.autor)}</small>` : ''}</span></li>`).join('');
+    if (programa) programa.innerHTML = c.programa.map((p,index) => `<li><span class="program-order">${String(index+1).padStart(2,'0')}</span><span>${p.id ? `<a class="program-work" href="/portal/repertorio/?id=${encodeURIComponent(p.id)}" aria-label="Abrir ${escapar(p.obra)} no repertorio"><strong>${escapar(p.obra)}</strong>${p.autor ? `<small>${escapar(p.autor)}</small>` : ''}</a>` : `<strong>${escapar(p.obra)}</strong>${p.autor ? `<small>${escapar(p.autor)}</small>` : ''}`}</span></li>`).join('');
     set('#contador-programa', c.programa.length ? `${c.programa.length} obras` : '');
     const programaBaleiro = dialogo.querySelector('#programa-baleiro');
     if (programaBaleiro instanceof HTMLElement) programaBaleiro.hidden = c.programa.length > 0;
@@ -424,26 +424,25 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     });
 
     const activoExiste = periodosUI.some((p) => p.periodo === periodoHistoricoActivo);
-    if (!activoExiste) {
-      const ultimo = periodosUI[periodosUI.length - 1];
-      periodoHistoricoActivo = ultimo ? ultimo.periodo : null;
-    }
-    const activo = periodosUI.find((p) => p.periodo === periodoHistoricoActivo) || periodosUI[periodosUI.length - 1];
+    if (!activoExiste) periodoHistoricoActivo = null;
+    const activo = periodosUI.find((p) => p.periodo === periodoHistoricoActivo) || null;
 
-    if (!activo) {
-      anosHistorico.innerHTML = '';
-    } else {
-      anosHistorico.innerHTML = `<div class="history-decade-grid" role="list" aria-label="Décadas do histórico">
-        ${periodosUI.map((p) => `<button type="button" role="listitem" class="history-decade ${p.periodo === activo.periodo ? 'is-active' : ''}" data-periodo="${escapar(p.clave)}" aria-pressed="${p.periodo === activo.periodo ? 'true' : 'false'}">
+    anosHistorico.innerHTML = `<div class="history-decade-grid" role="list" aria-label="Décadas do histórico">
+        ${periodosUI.map((p) => {
+          const isActive = Boolean(activo && p.periodo === activo.periodo);
+          return `<button type="button" role="listitem" class="history-decade ${isActive ? 'is-active' : ''}" data-periodo="${escapar(p.clave)}" aria-pressed="${isActive ? 'true' : 'false'}">
           <span class="history-decade-vineta" aria-hidden="true"></span>
           <div class="history-decade-copy">
             <small>Período histórico</small>
             <strong>${escapar(p.periodo === 'Sen data' ? p.etiqueta : `Década de ${p.etiqueta}`)}</strong>
           </div>
           <span class="history-decade-badge"><strong>${p.items.length}</strong><small>concerto${p.items.length === 1 ? '' : 's'}</small></span>
-        </button>`).join('')}
-      </div>
-      <section class="history-period-panel" aria-live="polite">
+        </button>`;
+        }).join('')}
+      </div>`;
+
+    if (activo) {
+      anosHistorico.innerHTML += `<section class="history-period-panel" aria-live="polite">
         <header class="history-period-panel-header">
           <p>Período seleccionado</p>
           <strong>${escapar(activo.etiqueta)}</strong>
@@ -463,6 +462,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           </table>
         </div>
       </section>`;
+    } else if (periodosUI.length > 0) {
+      anosHistorico.innerHTML += '<p class="history-selection-empty">Selecciona unha viñeta para abrir a táboa dese período.</p>';
     }
 
     const tarxetasHistorico = [...anosHistorico.querySelectorAll<HTMLButtonElement>('.history-decade[data-periodo]')];
@@ -488,7 +489,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       const programa = pRows.filter((p) => valor(p,'Id_Conciertos','Id_Concertos') === id).map((p): ProgramaItem => {
         const obraId = valor(p,'Id_Obras');
         const obra = obras.get(obraId);
-        return { obra:obra?.nome || obraId, autor:obra?.autor || '', orde:Number(valor(p,'Orde')) || 999 };
+        return { id: obraId, obra:obra?.nome || obraId, autor:obra?.autor || '', orde:Number(valor(p,'Orde')) || 999 };
       }).sort((a,b) => a.orde-b.orde);
 
       return {
@@ -639,10 +640,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .history-period-panel-header p{margin:0;color:#9a7624;font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   .history-period-panel-header strong{color:var(--color-principal);font-family:Georgia,serif;font-size:1.25rem}
   .history-period-panel-header span{color:#615a56;font-size:.74rem;text-align:right}
+  .history-selection-empty{margin:0;padding:.85rem .95rem;border:1px dashed #d8d2cc;background:#fffaf3;color:#655e59;font-size:.78rem}
   .history-table-wrap{width:100%;overflow-x:auto;border-top:1px solid #d8d2cc;background:#fff;-webkit-overflow-scrolling:touch}
-  .history-table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .history-table{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #ddd5cf}
   .history-table caption{padding:.8rem .9rem;border-bottom:1px solid #ece6df;background:#faf7f0;color:#7a5e1f;font-size:.67rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;text-align:left}
-  .history-table th,.history-table td{padding:.78rem .9rem;border-bottom:1px solid #eeeae6;text-align:left;vertical-align:top;line-height:1.5;overflow-wrap:anywhere}
+  .history-table th,.history-table td{padding:.78rem .9rem;border:1px solid #e7e1db;text-align:left;vertical-align:top;line-height:1.5;overflow-wrap:anywhere}
   .history-table th{background:#f5efe4;color:var(--color-principal);font-size:.68rem;letter-spacing:.04em;text-transform:uppercase}
   .history-table td{color:#57514d;font-size:.76rem}
   .history-table tbody tr:nth-child(even){background:#fcfbf9}
@@ -651,7 +653,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .history-table th:nth-child(2),.history-table td:nth-child(2){width:17%}
   .history-table th:nth-child(3),.history-table td:nth-child(3){width:15%}
   .history-table th:nth-child(4),.history-table td:nth-child(4){width:22%}
-  .history-table tr:last-child td{border-bottom:0}
 
   .concert-toolbar{display:grid;grid-template-columns:minmax(270px,430px) auto 1fr;gap:1rem;align-items:center;margin-bottom:.45rem}
   .search-box{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #d5d0cb;background:#fff}.search-box svg{width:18px;height:18px;fill:none;stroke:#766f6a;stroke-width:1.7}.search-box input{min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:.8rem}
@@ -663,7 +664,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .no-results{padding:1.5rem;border:1px solid #ddd9d5;color:#77716c;text-align:center}
   .concert-dialog{width:min(900px,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:2rem;overflow:auto;border:0;border-top:5px solid var(--color-principal);background:#fff;color:#393532;font-family:inherit;box-shadow:0 30px 80px rgba(0,0,0,.28)}.concert-dialog::backdrop{background:rgba(31,28,26,.7)}.dialog-close{position:absolute;top:.65rem;right:.8rem;width:2rem;height:2rem;border:0;background:transparent;color:var(--color-principal);font:inherit;font-size:1.7rem;cursor:pointer}
   .detail-state{color:var(--color-principal);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.concert-dialog time{display:block;margin:.8rem 0 .3rem;color:#a18331;font-size:.84rem;font-weight:800;text-transform:capitalize}.concert-dialog h2{margin:.25rem 0 .65rem;color:#2f2b29;font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.15}.detail-location{margin:0;color:var(--color-principal);font-weight:700}
-  .program-section{margin-top:1.8rem;padding-top:1.3rem;border-top:1px solid #d8d2cc}.program-section>header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.8rem}.program-section>header span{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.program-section>header strong{color:#77716c;font-size:.72rem}.program-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;padding:0;border-top:1px solid #e0dcd8;border-left:1px solid #e0dcd8;list-style:none}.program-list li{display:grid;grid-template-columns:2.1rem minmax(0,1fr);gap:.6rem;min-height:72px;padding:.8rem;border-right:1px solid #e0dcd8;border-bottom:1px solid #e0dcd8}.program-order{color:#a18331;font-size:.68rem;font-weight:800}.program-list li>span:last-child{display:grid;align-content:start;gap:.18rem}.program-list strong{color:#34302d;font-size:.82rem;line-height:1.35}.program-list small{color:#716b66;font-size:.68rem;line-height:1.35}.program-empty{margin:0;color:#77716c;font-size:.8rem}
+  .program-section{margin-top:1.8rem;padding-top:1.3rem;border-top:1px solid #d8d2cc}.program-section>header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.8rem}.program-section>header span{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.program-section>header strong{color:#77716c;font-size:.72rem}.program-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;padding:0;border-top:1px solid #e0dcd8;border-left:1px solid #e0dcd8;list-style:none}.program-list li{display:grid;grid-template-columns:2.1rem minmax(0,1fr);gap:.6rem;min-height:72px;padding:.8rem;border-right:1px solid #e0dcd8;border-bottom:1px solid #e0dcd8}.program-order{color:#a18331;font-size:.68rem;font-weight:800}.program-list li>span:last-child{display:grid;align-content:start;gap:.18rem}.program-list strong{color:#34302d;font-size:.82rem;line-height:1.35}.program-list small{color:#716b66;font-size:.68rem;line-height:1.35}.program-work{display:grid;gap:.18rem;color:inherit;text-decoration:none}.program-work:hover strong,.program-work:focus-visible strong{color:var(--color-principal);text-decoration:underline;text-underline-offset:2px}.program-empty{margin:0;color:#77716c;font-size:.8rem}
   .attendees-section{margin-top:1.1rem;border-top:1px solid #d8d2cc}.attendees-section summary{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.attendees-section summary strong{color:#77716c;font-size:.72rem;letter-spacing:0;text-transform:none}.attendees-groups{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding-bottom:.5rem}.voice-group{border:1px solid #e0dcd8;background:#fafafa}.voice-group h3{display:flex;justify-content:space-between;gap:.5rem;margin:0;padding:.65rem .75rem;border-bottom:1px solid #e0dcd8;color:var(--color-principal);font-size:.76rem}.voice-group h3 span{color:#a18331}.voice-group ul{margin:0;padding:.55rem .75rem .7rem;list-style:none}.voice-group li{padding:.22rem 0;color:#5f5a56;font-size:.7rem;line-height:1.35}.attendees-empty{margin:0 0 .5rem;color:#77716c;font-size:.78rem}
   .report-heading{display:flex;justify-content:space-between;gap:2rem;align-items:end;padding:1.2rem 0;border-top:1px solid #d8d2cc;border-bottom:1px solid #d8d2cc}.report-heading span{color:var(--color-principal);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.report-heading h2{margin:.28rem 0;color:#2f2b29;font-size:1.55rem}.report-heading p{margin:0;color:#6d6762;font-size:.82rem}.report-heading>strong{color:var(--color-principal);font-size:.8rem;white-space:nowrap}.report-content{display:grid;gap:1.4rem;margin-top:1.4rem}.attendance-tier{border:1px solid #d8d2cc}.attendance-tier>header{display:flex;justify-content:space-between;align-items:baseline;padding:.75rem 1rem;background:#f2ecec}.attendance-tier>header strong{color:var(--color-principal);font-size:1rem}.attendance-tier>header span{color:#6d6762;font-size:.72rem}.report-voices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.report-voice{min-width:0;border-right:1px solid #e0dcd8;border-bottom:1px solid #e0dcd8}.report-voice h3{display:flex;justify-content:space-between;margin:0;padding:.65rem .85rem;border-bottom:1px solid #e0dcd8;color:var(--color-principal);font-size:.78rem}.report-voice h3 span{color:#a18331}.person-report{padding:.75rem .85rem}.person-report+.person-report{border-top:1px solid #ece9e6}.person-report>header{display:flex;justify-content:space-between;gap:.6rem;align-items:baseline}.person-report>header strong{color:#34302d;font-size:.82rem;font-weight:600}.person-report>header span{color:var(--color-principal);font-size:.68rem;font-weight:800}.person-report ul{display:grid;gap:.18rem;margin:.45rem 0 0;padding:0;list-style:none}.person-report button{display:grid;grid-template-columns:76px minmax(0,1fr);gap:.5rem;width:100%;padding:0;border:0;background:transparent;color:#68625e;font:inherit;font-size:.68rem;line-height:1.35;text-align:left;cursor:pointer}.person-report button:hover span{color:var(--color-principal);text-decoration:underline;text-underline-offset:2px}.person-report time{margin:0;color:var(--color-principal);font-size:.68rem;font-weight:700;text-transform:none}
   @media(max-width:1100px){.concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start}}
