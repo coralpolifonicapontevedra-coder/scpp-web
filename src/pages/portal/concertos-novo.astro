@@ -61,7 +61,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           <p id="informe-baleiro" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
         </section>
 
-        <!-- VISTA DE HISTÓRICO CON ESTILOS MAQUETADOS -->
+        <!-- VISTA DE HISTÓRICO CON CONTENEDORES ESTILIZADOS -->
         <section id="vista-historico" class="history-report" hidden>
           <header class="report-heading">
             <div>
@@ -79,7 +79,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
             <input id="busca-historico" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
           </label>
-          <div id="anos-historico" class="history-years-vertical"></div>
+          <div id="anos-historico" class="history-years-wrapper"></div>
           <p id="historico-baleiro" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
         </section>
       </section>
@@ -382,24 +382,24 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       return Number(a) - Number(b);
     });
 
-    const abertos = q.length > 0 ? 'open' : '';
+    const abertos = q.length > 0;
 
     anosHistorico.innerHTML = periodos.map((periodo) => {
       const items = porPeriodo.get(periodo).sort((a,b) => (Number(a.ordeHistorica)||0) - (Number(b.ordeHistorica)||0));
       const etiqueta = periodo === 'Sen data' ? periodo : `Década de ${etiquetaPeriodo(periodo)}`;
-      return `<details class="history-period-card" ${abertos}>
-        <summary class="history-period-header">
-          <div class="history-period-info">
-            <span class="history-kicker">Período histórico</span>
-            <strong class="history-title">${escapar(etiqueta)}</strong>
+      return `<article class="decada-box ${abertos ? 'is-open' : ''}">
+        <button type="button" class="decada-header">
+          <div class="decada-title-wrap">
+            <span class="decada-kicker">Período histórico</span>
+            <strong class="decada-title">${escapar(etiqueta)}</strong>
           </div>
-          <div class="history-period-meta">
-            <span class="history-badge">${items.length} concertos</span>
-            <span class="history-arrow" aria-hidden="true">→</span>
+          <div class="decada-meta">
+            <span class="decada-badge">${items.length} concertos</span>
+            <span class="decada-icon">▶</span>
           </div>
-        </summary>
-        <div class="history-table-container">
-          <table class="history-table-clean">
+        </button>
+        <div class="decada-content" ${abertos ? '' : 'hidden'}>
+          <table class="decada-table">
             <thead>
               <tr>
                 <th style="width: 8%;">Nº</th>
@@ -418,8 +418,9 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             </tr>`).join('')}</tbody>
           </table>
         </div>
-      </details>`;
+      </article>`;
     }).join('');
+
     if (resumoHistorico) resumoHistorico.textContent = `${listaxe.length} concerto${listaxe.length === 1 ? '' : 's'} · ${periodos.length} ${periodos.length === 1 ? 'período' : 'períodos'}`;
     if (historicoBaleiro instanceof HTMLElement) historicoBaleiro.hidden = listaxe.length > 0;
   }
@@ -544,6 +545,27 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     botonInforme?.classList.remove('is-active');
   });
   buscaHistorico?.addEventListener('input', pintarHistorico);
+
+  // MANEJADOR DE APERTURA DE DÉCADAS
+  anosHistorico?.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const header = target.closest('.decada-header');
+    if (!header) return;
+    const box = header.closest('.decada-box');
+    const content = box?.querySelector('.decada-content');
+    if (!box || !(content instanceof HTMLElement)) return;
+
+    const isOpen = box.classList.contains('is-open');
+    if (isOpen) {
+      box.classList.remove('is-open');
+      content.hidden = true;
+    } else {
+      box.classList.add('is-open');
+      content.hidden = false;
+    }
+  });
+
   document.querySelector('#pechar')?.addEventListener('click', () => dialogo instanceof HTMLDialogElement && dialogo.close());
   dialogo?.addEventListener('click', (e) => { if (e.target === dialogo && dialogo instanceof HTMLDialogElement) dialogo.close(); });
   logout?.addEventListener('click', async () => { await signOut(auth); window.location.href='/portal/'; });
@@ -568,45 +590,45 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .history-actions a:hover{background:var(--color-principal);color:#fff}
   .history-search{width:min(100%,540px);box-sizing:border-box}
 
-  /* REINICIO Y ESTILOS DE DÉCADAS TARJETA DE NAVEGADOR */
-  .history-years-vertical { display: flex; flex-direction: column; gap: 0.85rem; width: 100%; }
+  /* NUEVA ESTRUCTURA MAQUETADA PARA DÉCADAS */
+  .history-years-wrapper { display: flex; flex-direction: column; gap: 0.85rem; width: 100%; }
   
-  .history-period-card { border: 1px solid #d8d2cc; background: #fff; margin: 0; transition: border-color 0.2s, box-shadow 0.2s; }
-  .history-period-card[open] { border-color: #a18331; box-shadow: 0 12px 30px rgba(54, 42, 36, 0.07); }
+  .decada-box { border: 1px solid #d8d2cc; background: #fff; border-radius: 0; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+  .decada-box.is-open { border-color: #a18331; box-shadow: 0 10px 25px rgba(54, 42, 36, 0.08); }
   
-  .history-period-header {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    min-height: 80px;
-    padding: 1rem 1.2rem;
+  .decada-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    min-height: 76px;
+    padding: 0.9rem 1.2rem;
+    border: 0;
     background: #fff;
+    text-align: left;
     cursor: pointer;
-    user-select: none;
-    list-style: none !important;
+    transition: background 0.18s;
   }
-  .history-period-header::-webkit-details-marker,
-  .history-period-header::marker { display: none !important; }
-  .history-period-header:hover { background: #faf8f4; }
+  .decada-header:hover { background: #faf8f4; }
   
-  .history-period-info { display: flex; flex-direction: column; gap: 0.2rem; }
-  .history-kicker { color: #9a7624; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-  .history-title { color: var(--color-principal); font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; }
+  .decada-title-wrap { display: flex; flex-direction: column; gap: 0.2rem; }
+  .decada-kicker { color: #9a7624; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .decada-title { color: var(--color-principal); font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; }
   
-  .history-period-meta { display: flex; align-items: center; gap: 1rem; }
-  .history-badge { color: #2f2926; font-size: 0.76rem; font-weight: 700; }
-  .history-arrow { color: var(--color-principal); font-size: 1.2rem; transition: transform 0.2s ease; display: inline-block; }
-  .history-period-card[open] .history-arrow { transform: rotate(90deg); }
+  .decada-meta { display: flex; align-items: center; gap: 1rem; }
+  .decada-badge { color: #2f2926; font-size: 0.76rem; font-weight: 700; }
+  .decada-icon { color: var(--color-principal); font-size: 0.75rem; transition: transform 0.2s ease; }
+  .decada-box.is-open .decada-icon { transform: rotate(90deg); }
   
-  .history-table-container { width: 100%; overflow-x: auto; border-top: 1px solid #d8d2cc; background: #fff; }
-  .history-table-clean { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem; }
-  .history-table-clean thead tr { background: #fbfaf8; border-bottom: 1px solid #eeeae6; }
-  .history-table-clean th { padding: 0.78rem 0.9rem; color: var(--color-principal); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
-  .history-table-clean td { padding: 0.78rem 0.9rem; border-bottom: 1px solid #eeeae6; vertical-align: top; color: #57514d; line-height: 1.5; }
-  .history-table-clean tr:last-child td { border-bottom: 0; }
-  .history-table-clean .col-num { color: #9a7624; font-weight: 800; }
-  .history-table-clean .col-date { white-space: nowrap; }
-  .history-table-clean .col-desc { color: #57514d; }
+  .decada-content { width: 100%; overflow-x: auto; border-top: 1px solid #d8d2cc; background: #fff; }
+  .decada-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem; }
+  .decada-table thead tr { background: #fbfaf8; border-bottom: 1px solid #eeeae6; }
+  .decada-table th { padding: 0.78rem 0.9rem; color: var(--color-principal); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+  .decada-table td { padding: 0.78rem 0.9rem; border-bottom: 1px solid #eeeae6; vertical-align: top; color: #57514d; line-height: 1.5; }
+  .decada-table tr:last-child td { border-bottom: 0; }
+  .decada-table .col-num { color: #9a7624; font-weight: 800; }
+  .decada-table .col-date { white-space: nowrap; }
+  .decada-table .col-desc { color: #57514d; }
 
   .concert-toolbar{display:grid;grid-template-columns:minmax(270px,430px) auto 1fr;gap:1rem;align-items:center;margin-bottom:.45rem}
   .search-box{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #d5d0cb;background:#fff}.search-box svg{width:18px;height:18px;fill:none;stroke:#766f6a;stroke-width:1.7}.search-box input{min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:.8rem}
@@ -626,10 +648,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   @media(max-width:900px){.private-layout{grid-template-columns:1fr}.concertos-main{padding:1.7rem 1rem 3rem}}
   @media(max-width:680px){
     .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-square{aspect-ratio:auto;min-height:280px}.program-list{grid-template-columns:1fr}.attendees-groups,.report-voices{grid-template-columns:1fr}.report-heading{align-items:start;flex-direction:column}.view-switch{width:100%}.view-switch button{flex:1}.history-actions{align-items:stretch;flex-direction:column}.history-actions a{text-align:center}
-    .history-table-clean, .history-table-clean tbody, .history-table-clean tr, .history-table-clean td { display: block; width: 100%; box-sizing: border-box; }
-    .history-table-clean thead { display: none; }
-    .history-table-clean tr { padding: 0.8rem; border-bottom: 1px solid #f0ebe3; }
-    .history-table-clean td { display: grid; grid-template-columns: 90px 1fr; gap: 0.5rem; padding: 0.3rem 0; border: 0; }
-    .history-table-clean td::before { content: attr(data-label); font-size: 0.68rem; font-weight: 800; color: var(--color-principal); text-transform: uppercase; }
+    .decada-table, .decada-table tbody, .decada-table tr, .decada-table td { display: block; width: 100%; box-sizing: border-box; }
+    .decada-table thead { display: none; }
+    .decada-table tr { padding: 0.8rem; border-bottom: 1px solid #eeeae6; }
+    .decada-table td { display: grid; grid-template-columns: 90px 1fr; gap: 0.5rem; padding: 0.3rem 0; border: 0; }
+    .decada-table td::before { content: attr(data-label); font-size: 0.68rem; font-weight: 800; color: var(--color-principal); text-transform: uppercase; }
   }
 </style>
