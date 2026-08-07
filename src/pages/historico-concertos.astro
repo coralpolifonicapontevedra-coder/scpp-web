@@ -12,7 +12,7 @@ import BaseLayout from '../layouts/Layout.astro';
       <div id="history-summary" class="history-summary" aria-live="polite">Cargando o arquivo…</div>
       <div class="history-actions">
         <button id="show-all-history" type="button">Ver todo o histórico</button>
-        <a href="/documentos/historico-concertos-scpp-1925-2026.pdf" download="historico-concertos-scpp-1925-2026.pdf">Descargar histórico (.pdf)</a>
+        <a href="/documentos/concertos_scpp_1925_2026.pdf" download="concertos_scpp_1925_2026.pdf">Descargar histórico (.pdf)</a>
       </div>
     </header>
 
@@ -28,7 +28,8 @@ import BaseLayout from '../layouts/Layout.astro';
         </label>
       </div>
       
-      <div id="history-years" class="history-years-list"></div>
+      <!-- Contenedor vertical forzado -->
+      <div id="history-years" style="display: flex; flex-direction: column; gap: 1.25rem; width: 100%;"></div>
       
       <p id="history-empty" class="history-state" hidden>Non hai concertos que coincidan coa busca.</p>
       <p id="history-error" class="history-state error" hidden>Non foi posible cargar o histórico. Téntao de novo nuns instantes.</p>
@@ -105,35 +106,35 @@ import BaseLayout from '../layouts/Layout.astro';
       const items = grouped.get(periodo).sort((a, b) => (Number(a.ordeHistorica) || 0) - (Number(b.ordeHistorica) || 0));
       const etiqueta = periodo === 'Sen data' ? periodo : `Década de ${etiquetaPeriodo(periodo)}`;
       
-      return `<details class="vineta-card" ${isOpen}>
-        <summary class="vineta-header">
-          <div class="vineta-title-wrap">
-            <span class="vineta-kicker">Período histórico</span>
-            <strong class="vineta-title">${escapar(etiqueta)}</strong>
+      return `<details class="card-decada" ${isOpen} style="width: 100%; background: #ffffff; border: 1px solid #e2ddd7; border-radius: 6px; overflow: hidden; margin-bottom: 0.5rem;">
+        <summary style="display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.4rem; background: #faf8f5; cursor: pointer; user-select: none; list-style: none;">
+          <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+            <span style="font-size: 0.65rem; font-weight: 800; color: #a3821a; text-transform: uppercase; letter-spacing: 0.08em;">Período histórico</span>
+            <strong style="font-family: Georgia, serif; font-size: 1.25rem; color: #5c1926;">${escapar(etiqueta)}</strong>
           </div>
-          <div class="vineta-actions">
-            <span class="vineta-badge">${items.length} concertos</span>
-            <span class="vineta-icon">▼</span>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: #555; background: #eae4d9; padding: 0.25rem 0.75rem; border-radius: 12px;">${items.length} concertos</span>
+            <span style="font-size: 0.8rem; color: #5c1926;">▼</span>
           </div>
         </summary>
-        <div class="tabla-container">
-          <table class="tabla-clean">
+        <div style="width: 100%; overflow-x: auto; border-top: 1px solid #e2ddd7; background: #fff;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
             <thead>
-              <tr>
-                <th style="width: 8%;">Nº</th>
-                <th style="width: 18%;">Data</th>
-                <th style="width: 18%;">Localidade</th>
-                <th style="width: 24%;">Lugar</th>
-                <th style="width: 32%;">Descrición</th>
+              <tr style="background: #fcfbf9; border-bottom: 2px solid #e2ddd7;">
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 8%;">Nº</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%;">Data</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%;">Localidade</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 24%;">Lugar</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 32%;">Descrición</th>
               </tr>
             </thead>
             <tbody>
-              ${items.map((concerto) => `<tr>
-                <td data-label="Nº" class="td-num">${escapar(concerto.numeroConcerto || '—')}</td>
-                <td data-label="Data" class="td-data">${escapar(formatarData(concerto))}</td>
-                <td data-label="Localidade">${escapar(concerto.cidade || '—')}</td>
-                <td data-label="Lugar"><strong>${escapar(concerto.lugar || '—')}</strong></td>
-                <td data-label="Descrición">${escapar(descricionConcerto(concerto))}</td>
+              ${items.map((concerto) => `<tr style="border-bottom: 1px solid #f0ebe3;">
+                <td data-label="Nº" style="padding: 0.8rem 1rem; color: #a3821a; font-weight: 800; vertical-align: top;">${escapar(concerto.numeroConcerto || '—')}</td>
+                <td data-label="Data" style="padding: 0.8rem 1rem; font-weight: 600; white-space: nowrap; vertical-align: top;">${escapar(formatarData(concerto))}</td>
+                <td data-label="Localidade" style="padding: 0.8rem 1rem; vertical-align: top;">${escapar(concerto.cidade || '—')}</td>
+                <td data-label="Lugar" style="padding: 0.8rem 1rem; vertical-align: top;"><strong>${escapar(concerto.lugar || '—')}</strong></td>
+                <td data-label="Descrición" style="padding: 0.8rem 1rem; vertical-align: top; color: #444;">${escapar(descricionConcerto(concerto))}</td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -186,137 +187,7 @@ import BaseLayout from '../layouts/Layout.astro';
   .history-actions a, .history-actions button { padding: .75rem 1.25rem; border: 1px solid #5c1926; background: #fff; color: #5c1926; font-weight: 700; font-size: .8rem; text-decoration: none; cursor: pointer; border-radius: 4px; transition: all .2s; }
   .history-actions a:hover, .history-actions button:hover { background: #5c1926; color: #fff; }
 
-  /* Lista de viñetas verticales limpias */
-  .history-years-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    width: 100%;
-  }
-
-  /* Tarjeta de viñeta individual */
-  .vineta-card {
-    background: #ffffff;
-    border: 1px solid #e2ddd7;
-    border-radius: 6px;
-    overflow: hidden;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-
-  .vineta-card:hover {
-    border-color: #a3821a;
-  }
-
-  .vineta-card[open] {
-    border-color: #5c1926;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
-  }
-
-  /* Cabecera del desplegable */
-  .vineta-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.1rem 1.4rem;
-    background: #faf8f5;
-    cursor: pointer;
-    user-select: none;
-    list-style: none;
-  }
-
-  .vineta-header::-webkit-details-marker { display: none; }
-
-  .vineta-title-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-
-  .vineta-kicker {
-    font-size: 0.65rem;
-    font-weight: 800;
-    color: #a3821a;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-
-  .vineta-title {
-    font-family: Georgia, serif;
-    font-size: 1.2rem;
-    color: #5c1926;
-  }
-
-  .vineta-actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .vineta-badge {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: #555;
-    background: #eae4d9;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-  }
-
-  .vineta-icon {
-    font-size: 0.75rem;
-    color: #5c1926;
-    transition: transform 0.2s ease;
-  }
-
-  .vineta-card[open] .vineta-icon {
-    transform: rotate(180deg);
-  }
-
-  /* Contenedor de la Tabla */
-  .tabla-container {
-    width: 100%;
-    overflow-x: auto;
-    border-top: 1px solid #e2ddd7;
-    background: #fff;
-  }
-
-  .tabla-clean {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    font-size: 0.88rem;
-  }
-
-  .tabla-clean th,
-  .tabla-clean td {
-    padding: 0.8rem 1rem;
-    border-bottom: 1px solid #f0ebe3;
-    vertical-align: top;
-    line-height: 1.45;
-  }
-
-  .tabla-clean th {
-    background: #fcfbf9;
-    color: #5c1926;
-    font-size: 0.72rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 2px solid #e2ddd7;
-  }
-
-  .tabla-clean tr:hover {
-    background-color: #fcfaf7;
-  }
-
-  .td-num {
-    color: #a3821a;
-    font-weight: 800;
-  }
-
-  .td-data {
-    font-weight: 600;
-    white-space: nowrap;
-  }
+  summary::-webkit-details-marker { display: none !important; }
 
   .history-state { padding: 1.4rem; background: #f5f2ed; text-align: center; border-radius: 4px; }
   .history-state.error { color: #7a2525; }
@@ -326,10 +197,5 @@ import BaseLayout from '../layouts/Layout.astro';
   @media (max-width: 680px) {
     .history-toolbar { flex-direction: column; align-items: stretch; }
     .history-search { width: 100%; }
-    .tabla-clean, .tabla-clean tbody, .tabla-clean tr, .tabla-clean td { display: block; width: 100%; }
-    .tabla-clean thead { display: none; }
-    .tabla-clean tr { padding: 1rem; border-bottom: 1px solid #e2ddd7; }
-    .tabla-clean td { display: grid; grid-template-columns: 100px 1fr; gap: .5rem; padding: .25rem 0; border: 0; }
-    .tabla-clean td::before { content: attr(data-label); color: #5c1926; font-size: .7rem; font-weight: 800; text-transform: uppercase; }
   }
 </style>
