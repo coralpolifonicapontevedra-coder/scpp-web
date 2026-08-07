@@ -61,7 +61,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           <p id="informe-baleiro" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
         </section>
 
-        <!-- VISTA DE HISTÓRICO ACTUALIZADA -->
+        <!-- VISTA DE HISTÓRICO CON ESTILOS MAQUETADOS -->
         <section id="vista-historico" class="history-report" hidden>
           <header class="report-heading">
             <div>
@@ -79,7 +79,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
             <input id="busca-historico" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
           </label>
-          <div id="anos-historico" class="history-years-container"></div>
+          <div id="anos-historico" class="history-years-vertical"></div>
           <p id="historico-baleiro" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
         </section>
       </section>
@@ -390,12 +390,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       return `<details class="history-period-card" ${abertos}>
         <summary class="history-period-header">
           <div class="history-period-info">
-            <small>Período histórico</small>
-            <strong>${escapar(etiqueta)}</strong>
+            <span class="history-kicker">Período histórico</span>
+            <strong class="history-title">${escapar(etiqueta)}</strong>
           </div>
           <div class="history-period-meta">
-            <span class="history-period-badge">${items.length} concertos</span>
-            <span class="history-period-arrow">▼</span>
+            <span class="history-badge">${items.length} concertos</span>
+            <span class="history-arrow" aria-hidden="true">→</span>
           </div>
         </summary>
         <div class="history-table-container">
@@ -568,29 +568,45 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .history-actions a:hover{background:var(--color-principal);color:#fff}
   .history-search{width:min(100%,540px);box-sizing:border-box}
 
-  /* NUEVOS ESTILOS PARA LAS DÉCADAS Y LAS TABLAS */
-  .history-years-container { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; }
-  .history-period-card { border: 1px solid #e2ddd7; border-radius: 6px; background: #fff; overflow: hidden; }
-  .history-period-header { display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.4rem; background: #faf8f5; cursor: pointer; user-select: none; list-style: none; }
-  .history-period-header::-webkit-details-marker { display: none; }
-  .history-period-header:hover { background: #f3efe8; }
-  .history-period-info { display: flex; flex-direction: column; gap: 0.2rem; }
-  .history-period-info small { font-size: 0.65rem; font-weight: 800; color: #a3821a; text-transform: uppercase; letter-spacing: 0.08em; }
-  .history-period-info strong { font-family: Georgia, serif; font-size: 1.25rem; color: #5c1926; }
-  .history-period-meta { display: flex; align-items: center; gap: 1rem; }
-  .history-period-badge { font-size: 0.78rem; font-weight: 700; color: #555; background: #eae4d9; padding: 0.25rem 0.75rem; border-radius: 12px; }
-  .history-period-arrow { font-size: 0.8rem; color: #5c1926; transition: transform 0.2s; }
-  .history-period-card[open] .history-period-arrow { transform: rotate(180deg); }
+  /* REINICIO Y ESTILOS DE DÉCADAS TARJETA DE NAVEGADOR */
+  .history-years-vertical { display: flex; flex-direction: column; gap: 0.85rem; width: 100%; }
   
-  .history-table-container { width: 100%; overflow-x: auto; border-top: 1px solid #e2ddd7; background: #fff; }
-  .history-table-clean { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
-  .history-table-clean thead tr { background: #fcfbf9; border-bottom: 2px solid #e2ddd7; }
-  .history-table-clean th { padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
-  .history-table-clean td { padding: 0.8rem 1rem; border-bottom: 1px solid #f0ebe3; vertical-align: top; color: #444; }
+  .history-period-card { border: 1px solid #d8d2cc; background: #fff; margin: 0; transition: border-color 0.2s, box-shadow 0.2s; }
+  .history-period-card[open] { border-color: #a18331; box-shadow: 0 12px 30px rgba(54, 42, 36, 0.07); }
+  
+  .history-period-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    min-height: 80px;
+    padding: 1rem 1.2rem;
+    background: #fff;
+    cursor: pointer;
+    user-select: none;
+    list-style: none !important;
+  }
+  .history-period-header::-webkit-details-marker,
+  .history-period-header::marker { display: none !important; }
+  .history-period-header:hover { background: #faf8f4; }
+  
+  .history-period-info { display: flex; flex-direction: column; gap: 0.2rem; }
+  .history-kicker { color: #9a7624; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .history-title { color: var(--color-principal); font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; }
+  
+  .history-period-meta { display: flex; align-items: center; gap: 1rem; }
+  .history-badge { color: #2f2926; font-size: 0.76rem; font-weight: 700; }
+  .history-arrow { color: var(--color-principal); font-size: 1.2rem; transition: transform 0.2s ease; display: inline-block; }
+  .history-period-card[open] .history-arrow { transform: rotate(90deg); }
+  
+  .history-table-container { width: 100%; overflow-x: auto; border-top: 1px solid #d8d2cc; background: #fff; }
+  .history-table-clean { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem; }
+  .history-table-clean thead tr { background: #fbfaf8; border-bottom: 1px solid #eeeae6; }
+  .history-table-clean th { padding: 0.78rem 0.9rem; color: var(--color-principal); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+  .history-table-clean td { padding: 0.78rem 0.9rem; border-bottom: 1px solid #eeeae6; vertical-align: top; color: #57514d; line-height: 1.5; }
   .history-table-clean tr:last-child td { border-bottom: 0; }
-  .history-table-clean .col-num { color: #a3821a; font-weight: 800; }
-  .history-table-clean .col-date { font-weight: 600; white-space: nowrap; }
-  .history-table-clean .col-desc { color: #444; }
+  .history-table-clean .col-num { color: #9a7624; font-weight: 800; }
+  .history-table-clean .col-date { white-space: nowrap; }
+  .history-table-clean .col-desc { color: #57514d; }
 
   .concert-toolbar{display:grid;grid-template-columns:minmax(270px,430px) auto 1fr;gap:1rem;align-items:center;margin-bottom:.45rem}
   .search-box{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #d5d0cb;background:#fff}.search-box svg{width:18px;height:18px;fill:none;stroke:#766f6a;stroke-width:1.7}.search-box input{min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:.8rem}
@@ -614,6 +630,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     .history-table-clean thead { display: none; }
     .history-table-clean tr { padding: 0.8rem; border-bottom: 1px solid #f0ebe3; }
     .history-table-clean td { display: grid; grid-template-columns: 90px 1fr; gap: 0.5rem; padding: 0.3rem 0; border: 0; }
-    .history-table-clean td::before { content: attr(data-label); font-size: 0.68rem; font-weight: 800; color: #5c1926; text-transform: uppercase; }
+    .history-table-clean td::before { content: attr(data-label); font-size: 0.68rem; font-weight: 800; color: var(--color-principal); text-transform: uppercase; }
   }
 </style>
