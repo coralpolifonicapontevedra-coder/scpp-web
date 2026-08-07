@@ -4,621 +4,858 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 ---
 
 <BaseLayout title="Concertos" lang="gl">
-  <div class="private-layout">
-    <PortalSidebar active="concertos" logoutId="concertos-novo-logout" />
+  <div class="private-layout">
+    <PortalSidebar active="concertos" logoutId="concertos-novo-logout" />
 
-    <main class="concertos-main">
-      <header class="private-page-header">
-        <div>
-          <span class="section-kicker">Portal do Coralista</span>
-          <h1>Concertos</h1>
-          <p>Consulta as próximas actuacións e o arquivo de concertos da Coral, cos seus programas e información práctica.</p>
-        </div>
-        <div class="account-card" aria-label="Conta identificada">
-          <small>Conta identificada</small>
-          <strong id="user-email">—</strong>
-        </div>
-      </header>
+    <main class="concertos-main">
+      <header class="private-page-header">
+        <div>
+          <span class="section-kicker">Portal do Coralista</span>
+          <h1>Concertos</h1>
+          <p>Consulta as próximas actuacións e o arquivo de concertos da Coral, cos seus programas e información práctica.</p>
+        </div>
+        <div class="account-card" aria-label="Conta identificada">
+          <small>Conta identificada</small>
+          <strong id="user-email">—</strong>
+        </div>
+      </header>
 
-      <section id="estado" class="portal-state">Cargando os concertos…</section>
+      <section id="estado" class="portal-state">Cargando os concertos…</section>
 
-      <section id="app" class="concertos-app" hidden>
-        <div class="view-switch" aria-label="Vista de concertos">
-          <button id="ver-concertos" type="button" class="is-active">Concertos</button>
-          <button id="ver-informe" type="button">Informe de asistencia</button>
-          <button id="ver-historico" type="button">Histórico</button>
-        </div>
+      <section id="app" class="concertos-app" hidden>
+        <div class="view-switch" aria-label="Vista de concertos">
+          <button id="ver-concertos" type="button" class="is-active">Concertos</button>
+          <button id="ver-informe" type="button">Informe de asistencia</button>
+          <button id="ver-historico" type="button">Histórico</button>
+        </div>
 
-        <div id="vista-concertos">
-          <div class="concert-toolbar">
-            <label class="search-box">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
-              <input id="busca" type="search" placeholder="Buscar concerto, cidade ou lugar" autocomplete="off" />
-            </label>
-            <div class="filters" aria-label="Filtrar concertos">
-              <button type="button" class="is-active" data-filter="todos">Todos</button>
-              <button type="button" data-filter="proximos">Próximos</button>
-              <button type="button" data-filter="arquivo">Arquivo</button>
-            </div>
-            <p class="concert-count"><strong id="concert-count">0</strong> concertos</p>
-          </div>
+        <div id="vista-concertos">
+          <div class="concert-toolbar">
+            <label class="search-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
+              <input id="busca" type="search" placeholder="Buscar concerto, cidade ou lugar" autocomplete="off" />
+            </label>
+            <div class="filters" aria-label="Filtrar concertos">
+              <button type="button" class="is-active" data-filter="todos">Todos</button>
+              <button type="button" data-filter="proximos">Próximos</button>
+              <button type="button" data-filter="arquivo">Arquivo</button>
+            </div>
+            <p class="concert-count"><strong id="concert-count">0</strong> concertos</p>
+          </div>
 
-          <p id="estado-asistencias" class="attendance-status">Asistentes: cargando…</p>
-          <div id="grid" class="concert-grid"></div>
-          <p id="sen-resultados" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
-        </div>
+          <p id="estado-asistencias" class="attendance-status">Asistentes: cargando…</p>
+          <div id="grid" class="concert-grid"></div>
+          <p id="sen-resultados" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
+        </div>
 
-        <section id="vista-informe" class="attendance-report" hidden>
-          <header class="report-heading">
-            <div>
-              <span>Participación da Coral</span>
-              <h2>Informe de asistencia</h2>
-              <p>Agrupado por número de concertos e, dentro de cada grupo, por corda e orde alfabética.</p>
-            </div>
-            <strong id="resumo-informe"></strong>
-          </header>
-          <div id="informe" class="report-content"></div>
-          <p id="informe-baleiro" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
-        </section>
+        <section id="vista-informe" class="attendance-report" hidden>
+          <header class="report-heading">
+            <div>
+              <span>Participación da Coral</span>
+              <h2>Informe de asistencia</h2>
+              <p>Agrupado por número de concertos e, dentro de cada grupo, por corda e orde alfabética.</p>
+            </div>
+            <strong id="resumo-informe"></strong>
+          </header>
+          <div id="informe" class="report-content"></div>
+          <p id="informe-baleiro" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
+        </section>
 
-        <!-- VISTA DE HISTÓRICO CON TIPOGRAFÍA APTOS UNIFICADA -->
-        <section id="vista-historico" class="history-report" hidden>
-          <header class="report-heading">
-            <div>
-              <span>Arquivo da Coral</span>
-              <h2>Histórico de concertos</h2>
-              <p>Consulta por décadas os concertos documentados desde 1925, cunha lectura directa e sen pasos intermedios.</p>
-            </div>
-            <strong id="resumo-historico"></strong>
-          </header>
-          <div class="history-actions">
-            <a href="/historico-concertos/">Ver histórico completo</a>
-            <a href="/documentos/Concertos_SCPP_1925_2026.pdf" download="Concertos_SCPP_1925_2026.pdf">Descargar histórico (.pdf)</a>
-          </div>
-          <label class="history-search search-box">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
-            <input id="busca-historico" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
-          </label>
-          <div id="anos-historico" class="historico-container"></div>
-          <p id="historico-baleiro" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
-        </section>
-      </section>
-    </main>
-  </div>
+        <!-- VISTA DE HISTÓRICO CON TIPOGRAFÍA APTOS UNIFICADA -->
+        <section id="vista-historico" class="history-report" hidden>
+          <header class="report-heading">
+            <div>
+              <span>Arquivo da Coral</span>
+              <h2>Histórico de concertos</h2>
+              <p>Consulta por décadas os concertos documentados desde 1925, cunha lectura directa e sen pasos intermedios.</p>
+            </div>
+            <strong id="resumo-historico"></strong>
+          </header>
+          <div class="history-actions">
+            <a href="/historico-concertos/">Ver histórico completo</a>
+            <a href="/documentos/Concertos_SCPP_1925_2026.pdf" download="Concertos_SCPP_1925_2026.pdf">Descargar histórico (.pdf)</a>
+          </div>
+          <label class="history-search search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
+            <input id="busca-historico" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
+          </label>
+          <div id="anos-historico" class="historico-container"></div>
+          <p id="historico-baleiro" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
+        </section>
+      </section>
+    </main>
+  </div>
 
-  <dialog id="dialogo" class="concert-dialog" aria-labelledby="titulo">
-    <button id="pechar" type="button" class="dialog-close" aria-label="Pechar">×</button>
-    <div class="detail-grid">
-      <div>
-        <span id="estado-concerto" class="detail-state"></span>
-        <time id="data-concerto"></time>
-        <h2 id="titulo"></h2>
-        <p id="detalle" class="detail-location"></p>
-      </div>
-    </div>
+  <dialog id="dialogo" class="concert-dialog" aria-labelledby="titulo">
+    <button id="pechar" type="button" class="dialog-close" aria-label="Pechar">×</button>
+    <div class="detail-grid">
+      <div>
+        <span id="estado-concerto" class="detail-state"></span>
+        <time id="data-concerto"></time>
+        <h2 id="titulo"></h2>
+        <p id="detalle" class="detail-location"></p>
+      </div>
+    </div>
 
-    <section class="program-section">
-      <header>
-        <span>Programa</span>
-        <strong id="contador-programa"></strong>
-      </header>
-      <ol id="programa" class="program-list"></ol>
-      <p id="programa-baleiro" class="program-empty" hidden>O programa deste concerto aínda non está incorporado.</p>
-    </section>
+    <section class="program-section">
+      <header>
+        <span>Programa</span>
+        <strong id="contador-programa"></strong>
+      </header>
+      <ol id="programa" class="program-list"></ol>
+      <p id="programa-baleiro" class="program-empty" hidden>O programa deste concerto aínda non está incorporado.</p>
+    </section>
 
-    <details class="attendees-section" open>
-      <summary><span>Asistentes</span><strong id="contador-asistentes"></strong></summary>
-      <div id="grupos-asistentes" class="attendees-groups"></div>
-      <p id="sen-asistentes" class="attendees-empty" hidden>Non hai asistentes rexistrados para este concerto.</p>
-    </details>
-  </dialog>
+    <details class="attendees-section" open>
+      <summary><span>Asistentes</span><strong id="contador-asistentes"></strong></summary>
+      <div id="grupos-asistentes" class="attendees-groups"></div>
+      <p id="sen-asistentes" class="attendees-empty" hidden>Non hai asistentes rexistrados para este concerto.</p>
+    </details>
+  </dialog>
 </BaseLayout>
 
 <script>
-  import { getApp, getApps, initializeApp } from 'firebase/app';
-  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 
-  const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
-  const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
-  const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
+  const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
+  const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
+  const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
 
-  const firebaseConfig = {
-    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
-    authDomain: 'scpp-portal-privado.firebaseapp.com',
-    projectId: 'scpp-portal-privado',
-    storageBucket: 'scpp-portal-privado.firebasestorage.app',
-    messagingSenderId: '506857659587',
-    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
-  };
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
 
-  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
-  const estado = document.querySelector('#estado');
-  const app = document.querySelector('#app');
-  const grid = document.querySelector('#grid');
-  const busca = document.querySelector('#busca');
-  const filtros = document.querySelector('.filters');
-  const contador = document.querySelector('#concert-count');
-  const senResultados = document.querySelector('#sen-resultados');
-  const estadoAsistencias = document.querySelector('#estado-asistencias');
-  const dialogo = document.querySelector('#dialogo');
-  const vistaConcertos = document.querySelector('#vista-concertos');
-  const vistaInforme = document.querySelector('#vista-informe');
-  const informe = document.querySelector('#informe');
-  const resumoInforme = document.querySelector('#resumo-informe');
-  const informeBaleiro = document.querySelector('#informe-baleiro');
-  const logout = document.querySelector('#concertos-novo-logout');
-  const botonConcertos = document.querySelector('#ver-concertos');
-  const botonInforme = document.querySelector('#ver-informe');
-  const botonHistorico = document.querySelector('#ver-historico');
-  const vistaHistorico = document.querySelector('#vista-historico');
-  const anosHistorico = document.querySelector('#anos-historico');
-  const resumoHistorico = document.querySelector('#resumo-historico');
-  const buscaHistorico = document.querySelector('#busca-historico');
-  const historicoBaleiro = document.querySelector('#historico-baleiro');
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const estado = document.querySelector('#estado');
+  const app = document.querySelector('#app');
+  const grid = document.querySelector('#grid');
+  const busca = document.querySelector('#busca');
+  const filtros = document.querySelector('.filters');
+  const contador = document.querySelector('#concert-count');
+  const senResultados = document.querySelector('#sen-resultados');
+  const estadoAsistencias = document.querySelector('#estado-asistencias');
+  const dialogo = document.querySelector('#dialogo');
+  const vistaConcertos = document.querySelector('#vista-concertos');
+  const vistaInforme = document.querySelector('#vista-informe');
+  const informe = document.querySelector('#informe');
+  const resumoInforme = document.querySelector('#resumo-informe');
+  const informeBaleiro = document.querySelector('#informe-baleiro');
+  const logout = document.querySelector('#concertos-novo-logout');
+  const botonConcertos = document.querySelector('#ver-concertos');
+  const botonInforme = document.querySelector('#ver-informe');
+  const botonHistorico = document.querySelector('#ver-historico');
+  const vistaHistorico = document.querySelector('#vista-historico');
+  const anosHistorico = document.querySelector('#anos-historico');
+  const resumoHistorico = document.querySelector('#resumo-historico');
+  const buscaHistorico = document.querySelector('#busca-historico');
+  const historicoBaleiro = document.querySelector('#historico-baleiro');
 
-  let concertos = [];
-  let todosConcertos = [];
-  let filtroActivo = 'todos';
+  let concertos = [];
+  let todosConcertos = [];
+  let filtroActivo = 'todos';
 
-  const normalizar = (v = '') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-  const escapar = (v = '') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const normalizar = (v = '') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const escapar = (v = '') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 
-  function parseCSV(texto) {
-    const filas = [];
-    let fila = [], campo = '', comillas = false;
-    for (let i = 0; i < texto.length; i += 1) {
-      const c = texto[i], s = texto[i + 1];
-      if (c === '"' && comillas && s === '"') { campo += '"'; i += 1; }
-      else if (c === '"') comillas = !comillas;
-      else if (c === ',' && !comillas) { fila.push(campo); campo = ''; }
-      else if ((c === '\n' || c === '\r') && !comillas) {
-        if (c === '\r' && s === '\n') i += 1;
-        fila.push(campo);
-        if (fila.some((x) => x.trim())) filas.push(fila);
-        fila = []; campo = '';
-      } else campo += c;
-    }
-    if (campo || fila.length) { fila.push(campo); filas.push(fila); }
-    const cab = (filas.shift() || []).map(normalizar);
-    return filas.map((valores) => Object.fromEntries(cab.map((h, i) => [h, String(valores[i] || '').trim()])));
-  }
+  function parseCSV(texto) {
+    const filas = [];
+    let fila = [], campo = '', comillas = false;
+    for (let i = 0; i < texto.length; i += 1) {
+      const c = texto[i], s = texto[i + 1];
+      if (c === '"' && comillas && s === '"') { campo += '"'; i += 1; }
+      else if (c === '"') comillas = !comillas;
+      else if (c === ',' && !comillas) { fila.push(campo); campo = ''; }
+      else if ((c === '\n' || c === '\r') && !comillas) {
+        if (c === '\r' && s === '\n') i += 1;
+        fila.push(campo);
+        if (fila.some((x) => x.trim())) filas.push(fila);
+        fila = []; campo = '';
+      } else campo += c;
+    }
+    if (campo || fila.length) { fila.push(campo); filas.push(fila); }
+    const cab = (filas.shift() || []).map(normalizar);
+    return filas.map((valores) => Object.fromEntries(cab.map((h, i) => [h, String(valores[i] || '').trim()])));
+  }
 
-  const valor = (fila, ...nomes) => {
-    for (const nome of nomes) {
-      const v = fila[normalizar(nome)];
-      if (v !== undefined && v !== '') return v;
-    }
-    return '';
-  };
+  const valor = (fila, ...nomes) => {
+    for (const nome of nomes) {
+      const v = fila[normalizar(nome)];
+      if (v !== undefined && v !== '') return v;
+    }
+    return '';
+  };
 
-  const verdadeiro = (v = '') => ['true','1','si','sí','yes','x'].includes(normalizar(v));
-  const anoHistorico = (concerto) => {
-    const data = String(concerto.data || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
-    const texto = String(concerto.dataTextoHistorica || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
-    return data || texto || 'Sen data';
-  };
+  const verdadeiro = (v = '') => ['true','1','si','sí','yes','x'].includes(normalizar(v));
+  const anoHistorico = (concerto) => {
+    const data = String(concerto.data || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
+    const texto = String(concerto.dataTextoHistorica || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
+    return data || texto || 'Sen data';
+  };
 
-  const dataISO = (data = '') => {
-    const p = String(data).split(/[\/-]/).map(Number);
-    if (p.length !== 3 || p.some(Number.isNaN)) return String(data);
-    return p[0] > 31
-      ? `${p[0]}-${String(p[1]).padStart(2,'0')}-${String(p[2]).padStart(2,'0')}`
-      : `${p[2]}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;
-  };
+  const dataISO = (data = '') => {
+    const p = String(data).split(/[\/-]/).map(Number);
+    if (p.length !== 3 || p.some(Number.isNaN)) return String(data);
+    return p[0] > 31
+      ? `${p[0]}-${String(p[1]).padStart(2,'0')}-${String(p[2]).padStart(2,'0')}`
+      : `${p[2]}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;
+  };
 
-  const partesData = (data) => {
-    const d = new Date(`${dataISO(data)}T12:00:00`);
-    if (Number.isNaN(d.getTime())) return { dia: data, mes: '', ano: '' };
-    const meses = ['XAN','FEB','MAR','ABR','MAI','XUÑ','XUL','AGO','SET','OUT','NOV','DEC'];
-    return { dia: String(d.getDate()).padStart(2,'0'), mes: meses[d.getMonth()], ano: String(d.getFullYear()) };
-  };
+  const partesData = (data) => {
+    const d = new Date(`${dataISO(data)}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return { dia: data, mes: '', ano: '' };
+    const meses = ['XAN','FEB','MAR','ABR','MAI','XUÑ','XUL','AGO','SET','OUT','NOV','DEC'];
+    return { dia: String(d.getDate()).padStart(2,'0'), mes: meses[d.getMonth()], ano: String(d.getFullYear()) };
+  };
 
-  const dataLonga = (data) => {
-    const d = new Date(`${dataISO(data)}T12:00:00`);
-    return Number.isNaN(d.getTime()) ? data : new Intl.DateTimeFormat('gl-ES', { day:'numeric', month:'long', year:'numeric' }).format(d);
-  };
+  const dataLonga = (data) => {
+    const d = new Date(`${dataISO(data)}T12:00:00`);
+    return Number.isNaN(d.getTime()) ? data : new Intl.DateTimeFormat('gl-ES', { day:'numeric', month:'long', year:'numeric' }).format(d);
+  };
 
-  async function lerCSV(url) {
-    const r = await fetch(url, { cache: 'no-store' });
-    if (!r.ok) throw new Error(`Erro ao ler datos (${r.status})`);
-    return parseCSV(await r.text());
-  }
+  async function lerCSV(url) {
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error(`Erro ao ler datos (${r.status})`);
+    return parseCSV(await r.text());
+  }
 
-  function etiquetaEstado(c) {
-    return c.estado === 'realizado' ? 'Arquivo' : 'Próximo concerto';
-  }
+  function etiquetaEstado(c) {
+    return c.estado === 'realizado' ? 'Arquivo' : 'Próximo concerto';
+  }
 
-  function pintarConcertos() {
-    if (!(grid instanceof HTMLElement)) return;
-    const q = normalizar(busca instanceof HTMLInputElement ? busca.value : '');
-    const listaxe = concertos.filter((c) => {
-      const coincideBusca = normalizar(`${c.nome} ${c.cidade} ${c.lugar} ${c.data}`).includes(q);
-      const coincideFiltro = filtroActivo === 'todos'
-        || (filtroActivo === 'proximos' && c.estado !== 'realizado')
-        || (filtroActivo === 'arquivo' && c.estado === 'realizado');
-      return coincideBusca && coincideFiltro;
-    });
+  function pintarConcertos() {
+    if (!(grid instanceof HTMLElement)) return;
+    const q = normalizar(busca instanceof HTMLInputElement ? busca.value : '');
+    const listaxe = concertos.filter((c) => {
+      const coincideBusca = normalizar(`${c.nome} ${c.cidade} ${c.lugar} ${c.data}`).includes(q);
+      const coincideFiltro = filtroActivo === 'todos'
+        || (filtroActivo === 'proximos' && c.estado !== 'realizado')
+        || (filtroActivo === 'arquivo' && c.estado === 'realizado');
+      return coincideBusca && coincideFiltro;
+    });
 
-    if (contador) contador.textContent = String(listaxe.length);
-    if (senResultados instanceof HTMLElement) senResultados.hidden = listaxe.length > 0;
+    if (contador) contador.textContent = String(listaxe.length);
+    if (senResultados instanceof HTMLElement) senResultados.hidden = listaxe.length > 0;
 
-    grid.innerHTML = listaxe.map((c) => {
-      const data = partesData(c.data);
-      return `<button type="button" class="concert-square ${c.estado === 'realizado' ? 'is-past' : ''}" data-id="${escapar(c.id)}">
-        <span class="square-top"><span class="square-state">${escapar(etiquetaEstado(c))}</span><span class="square-year">${escapar(data.ano)}</span></span>
-        <span class="square-date"><strong>${escapar(data.dia)}</strong><span>${escapar(data.mes)}</span></span>
-        <span class="square-copy"><strong>${escapar(c.nome)}</strong><span>${escapar([c.lugar,c.cidade].filter(Boolean).join(' · '))}</span></span>
-        <span class="square-bottom"><span>${c.programa.length} obra${c.programa.length === 1 ? '' : 's'}</span><span>${(c.asistentes || []).length} asistentes</span></span>
-      </button>`;
-    }).join('');
-  }
+    grid.innerHTML = listaxe.map((c) => {
+      const data = partesData(c.data);
+      return `<button type="button" class="concert-square ${c.estado === 'realizado' ? 'is-past' : ''}" data-id="${escapar(c.id)}">
+        <span class="square-top"><span class="square-state">${escapar(etiquetaEstado(c))}</span><span class="square-year">${escapar(data.ano)}</span></span>
+        <span class="square-date"><strong>${escapar(data.dia)}</strong><span>${escapar(data.mes)}</span></span>
+        <span class="square-copy"><strong>${escapar(c.nome)}</strong><span>${escapar([c.lugar,c.cidade].filter(Boolean).join(' · '))}</span></span>
+        <span class="square-bottom"><span>${c.programa.length} obra${c.programa.length === 1 ? '' : 's'}</span><span>${(c.asistentes || []).length} asistentes</span></span>
+      </button>`;
+    }).join('');
+  }
 
-  function pintarInforme() {
-    if (!(informe instanceof HTMLElement)) return;
+  function pintarInforme() {
+    if (!(informe instanceof HTMLElement)) return;
 
-    const persoas = new Map();
-    todosConcertos.forEach((c) => (c.asistentes || []).forEach((p) => {
-      const nome = String(p.nome || '').trim();
-      const voz = String(p.voz || 'Sen voz indicada').trim();
-      if (!nome) return;
-      const clave = `${voz}|${nome}`;
-      if (!persoas.has(clave)) persoas.set(clave, { nome, voz, concertos: [] });
-      const persoa = persoas.get(clave);
-      if (!persoa.concertos.some((item) => item.id === c.id)) {
-        persoa.concertos.push({ id: c.id, data: c.data, nome: c.nome });
-      }
-    }));
+    const persoas = new Map();
+    todosConcertos.forEach((c) => (c.asistentes || []).forEach((p) => {
+      const nome = String(p.nome || '').trim();
+      const voz = String(p.voz || 'Sen voz indicada').trim();
+      if (!nome) return;
+      const clave = `${voz}|${nome}`;
+      if (!persoas.has(clave)) persoas.set(clave, { nome, voz, concertos: [] });
+      const persoa = persoas.get(clave);
+      if (!persoa.concertos.some((item) => item.id === c.id)) {
+        persoa.concertos.push({ id: c.id, data: c.data, nome: c.nome });
+      }
+    }));
 
-    const listaxe = [...persoas.values()];
-    listaxe.forEach((p) => p.concertos.sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data))));
+    const listaxe = [...persoas.values()];
+    listaxe.forEach((p) => p.concertos.sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data))));
 
-    const totais = [...new Set(listaxe.map((p) => p.concertos.length))].sort((a,b) => b-a);
-    const ordeVoces = ['Soprano','Contralto','Tenor','Baixo'];
+    const totais = [...new Set(listaxe.map((p) => p.concertos.length))].sort((a,b) => b-a);
+    const ordeVoces = ['Soprano','Contralto','Tenor','Baixo'];
 
-    informe.innerHTML = totais.map((total) => {
-      const grupo = listaxe.filter((p) => p.concertos.length === total);
-      const voces = [...new Set(grupo.map((p) => p.voz))].sort((a,b) => {
-        const ia = ordeVoces.indexOf(a), ib = ordeVoces.indexOf(b);
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b,'gl');
-      });
+    informe.innerHTML = totais.map((total) => {
+      const grupo = listaxe.filter((p) => p.concertos.length === total);
+      const voces = [...new Set(grupo.map((p) => p.voz))].sort((a,b) => {
+        const ia = ordeVoces.indexOf(a), ib = ordeVoces.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b,'gl');
+      });
 
-      return `<section class="attendance-tier">
-        <header><strong>${total} concerto${total === 1 ? '' : 's'}</strong><span>${grupo.length} persoa${grupo.length === 1 ? '' : 's'}</span></header>
-        <div class="report-voices">${voces.map((voz) => {
-          const persoasVoz = grupo.filter((p) => p.voz === voz)
-            .sort((a,b) => a.nome.localeCompare(b.nome,'gl',{ sensitivity:'base' }));
-          return `<section class="report-voice">
-            <h3>${escapar(voz)} <span>${persoasVoz.length}</span></h3>
-            <div>${persoasVoz.map((p) => `<article class="person-report">
-              <header><strong>${escapar(p.nome)}</strong><span>${p.concertos.length}</span></header>
-              <ul>${p.concertos.map((c) => `<li><button type="button" data-report-id="${escapar(c.id)}"><time>${escapar(c.data)}</time><span>${escapar(c.nome)}</span></button></li>`).join('')}</ul>
-            </article>`).join('')}</div>
-          </section>`;
-        }).join('')}</div>
-      </section>`;
-    }).join('');
+      return `<section class="attendance-tier">
+        <header><strong>${total} concerto${total === 1 ? '' : 's'}</strong><span>${grupo.length} persoa${grupo.length === 1 ? '' : 's'}</span></header>
+        <div class="report-voices">${voces.map((voz) => {
+          const persoasVoz = grupo.filter((p) => p.voz === voz)
+            .sort((a,b) => a.nome.localeCompare(b.nome,'gl',{ sensitivity:'base' }));
+          return `<section class="report-voice">
+            <h3>${escapar(voz)} <span>${persoasVoz.length}</span></h3>
+            <div>${persoasVoz.map((p) => `<article class="person-report">
+              <header><strong>${escapar(p.nome)}</strong><span>${p.concertos.length}</span></header>
+              <ul>${p.concertos.map((c) => `<li><button type="button" data-report-id="${escapar(c.id)}"><time>${escapar(c.data)}</time><span>${escapar(c.nome)}</span></button></li>`).join('')}</ul>
+            </article>`).join('')}</div>
+          </section>`;
+        }).join('')}</div>
+      </section>`;
+    }).join('');
 
-    const totalAsistencias = listaxe.reduce((suma,p) => suma + p.concertos.length, 0);
-    if (resumoInforme) resumoInforme.textContent = `${listaxe.length} persoas · ${totalAsistencias} asistencias`;
-    if (informeBaleiro instanceof HTMLElement) informeBaleiro.hidden = listaxe.length > 0;
-  }
+    const totalAsistencias = listaxe.reduce((suma,p) => suma + p.concertos.length, 0);
+    if (resumoInforme) resumoInforme.textContent = `${listaxe.length} persoas · ${totalAsistencias} asistencias`;
+    if (informeBaleiro instanceof HTMLElement) informeBaleiro.hidden = listaxe.length > 0;
+  }
 
-  function abrirConcerto(id) {
-    const c = todosConcertos.find((x) => x.id === id);
-    if (!c || !(dialogo instanceof HTMLDialogElement)) return;
-    const set = (s,v) => { const e = dialogo.querySelector(s); if (e) e.textContent = String(v || ''); };
+  function abrirConcerto(id) {
+    const c = todosConcertos.find((x) => x.id === id);
+    if (!c || !(dialogo instanceof HTMLDialogElement)) return;
+    const set = (s,v) => { const e = dialogo.querySelector(s); if (e) e.textContent = String(v || ''); };
 
-    set('#estado-concerto', etiquetaEstado(c));
-    const time = dialogo.querySelector('#data-concerto');
-    if (time instanceof HTMLTimeElement) { time.textContent = dataLonga(c.data); time.dateTime = dataISO(c.data); }
-    set('#titulo', c.nome);
-    set('#detalle', [c.lugar,c.cidade].filter(Boolean).join(' · '));
+    set('#estado-concerto', etiquetaEstado(c));
+    const time = dialogo.querySelector('#data-concerto');
+    if (time instanceof HTMLTimeElement) { time.textContent = dataLonga(c.data); time.dateTime = dataISO(c.data); }
+    set('#titulo', c.nome);
+    set('#detalle', [c.lugar,c.cidade].filter(Boolean).join(' · '));
 
-    const programa = dialogo.querySelector('#programa');
-    if (programa) programa.innerHTML = c.programa.map((p,index) => `<li><span class="program-order">${String(index+1).padStart(2,'0')}</span><span><strong>${escapar(p.obra)}</strong>${p.autor ? `<small>${escapar(p.autor)}</small>` : ''}</span></li>`).join('');
-    set('#contador-programa', c.programa.length ? `${c.programa.length} obras` : '');
-    const programaBaleiro = dialogo.querySelector('#programa-baleiro');
-    if (programaBaleiro instanceof HTMLElement) programaBaleiro.hidden = c.programa.length > 0;
+    const programa = dialogo.querySelector('#programa');
+    if (programa) programa.innerHTML = c.programa.map((p,index) => `<li><span class="program-order">${String(index+1).padStart(2,'0')}</span><span><strong>${escapar(p.obra)}</strong>${p.autor ? `<small>${escapar(p.autor)}</small>` : ''}</span></li>`).join('');
+    set('#contador-programa', c.programa.length ? `${c.programa.length} obras` : '');
+    const programaBaleiro = dialogo.querySelector('#programa-baleiro');
+    if (programaBaleiro instanceof HTMLElement) programaBaleiro.hidden = c.programa.length > 0;
 
-    const asistentes = c.asistentes || [];
-    set('#contador-asistentes', `${asistentes.length} persoas`);
-    const grupos = dialogo.querySelector('#grupos-asistentes');
-    if (grupos) {
-      const porVoz = asistentes.reduce((acc,p) => {
-        const voz = p.voz || 'Sen voz indicada';
-        (acc[voz] ||= []).push(p.nome);
-        return acc;
-      }, {});
-      const ordeVoces = ['Soprano','Contralto','Tenor','Baixo'];
-      const voces = Object.keys(porVoz).sort((a,b) => {
-        const ia = ordeVoces.indexOf(a), ib = ordeVoces.indexOf(b);
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b,'gl');
-      });
-      grupos.innerHTML = voces.map((voz) => {
-        const nomes = porVoz[voz].sort((a,b) => a.localeCompare(b,'gl',{ sensitivity:'base' }));
-        return `<section class="voice-group"><h3>${escapar(voz)} <span>${nomes.length}</span></h3><ul>${nomes.map((n) => `<li>${escapar(n)}</li>`).join('')}</ul></section>`;
-      }).join('');
-    }
-    const sen = dialogo.querySelector('#sen-asistentes');
-    if (sen instanceof HTMLElement) sen.hidden = asistentes.length > 0;
-    dialogo.showModal();
-  }
+    const asistentes = c.asistentes || [];
+    set('#contador-asistentes', `${asistentes.length} persoas`);
+    const grupos = dialogo.querySelector('#grupos-asistentes');
+    if (grupos) {
+      const porVoz = asistentes.reduce((acc,p) => {
+        const voz = p.voz || 'Sen voz indicada';
+        (acc[voz] ||= []).push(p.nome);
+        return acc;
+      }, {});
+      const ordeVoces = ['Soprano','Contralto','Tenor','Baixo'];
+      const voces = Object.keys(porVoz).sort((a,b) => {
+        const ia = ordeVoces.indexOf(a), ib = ordeVoces.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b,'gl');
+      });
+      grupos.innerHTML = voces.map((voz) => {
+        const nomes = porVoz[voz].sort((a,b) => a.localeCompare(b,'gl',{ sensitivity:'base' }));
+        return `<section class="voice-group"><h3>${escapar(voz)} <span>${nomes.length}</span></h3><ul>${nomes.map((n) => `<li>${escapar(n)}</li>`).join('')}</ul></section>`;
+      }).join('');
+    }
+    const sen = dialogo.querySelector('#sen-asistentes');
+    if (sen instanceof HTMLElement) sen.hidden = asistentes.length > 0;
+    dialogo.showModal();
+  }
 
-  const inicioPeriodo = (ano) => 1925 + Math.floor((Number(ano) - 1925) / 10) * 10;
-  const etiquetaPeriodo = (inicio) => `${inicio}–${Math.min(inicio + 9, 2026)}`;
-  const nomeXenerico = (concerto) => {
-    const nome = normalizar(concerto.nome).replaceAll(' ', '');
-    const numero = normalizar(concerto.numeroConcerto).replaceAll(' ', '');
-    return nome === `concerto nº ${numero}`.replaceAll(' ', '')
-      || nome === `concerto n.º ${numero}`.replaceAll(' ', '')
-      || nome === `concerto numero ${numero}`.replaceAll(' ', '');
-  };
-  const descricionHistorica = (concerto) =>
-    concerto.caracteristicas || (nomeXenerico(concerto) ? '' : concerto.nome) || 'Sen descrición documentada';
+  const inicioPeriodo = (ano) => 1925 + Math.floor((Number(ano) - 1925) / 10) * 10;
+  const etiquetaPeriodo = (inicio) => `${inicio}–${Math.min(inicio + 9, 2026)}`;
+  const nomeXenerico = (concerto) => {
+    const nome = normalizar(concerto.nome).replaceAll(' ', '');
+    const numero = normalizar(concerto.numeroConcerto).replaceAll(' ', '');
+    return nome === `concerto nº ${numero}`.replaceAll(' ', '')
+      || nome === `concerto n.º ${numero}`.replaceAll(' ', '')
+      || nome === `concerto numero ${numero}`.replaceAll(' ', '');
+  };
+  const descricionHistorica = (concerto) =>
+    concerto.caracteristicas || (nomeXenerico(concerto) ? '' : concerto.nome) || 'Sen descrición documentada';
 
-  function pintarHistorico() {
-    if (!(anosHistorico instanceof HTMLElement)) return;
-    const q = normalizar(buscaHistorico instanceof HTMLInputElement ? buscaHistorico.value : '');
-    const consultaAno = /^\d{4}$/.test(q);
-    const listaxe = todosConcertos.filter((concerto) => {
-      if (!concerto.numeroConcerto) return false;
-      if (consultaAno) return anoHistorico(concerto) === q;
-      return !q || normalizar([
-        anoHistorico(concerto), concerto.numeroConcerto, concerto.data,
-        concerto.dataTextoHistorica, concerto.nome, concerto.lugar,
-        concerto.cidade, concerto.caracteristicas
-      ].join(' ')).includes(q);
-    });
-    const porPeriodo = new Map();
-    listaxe.forEach((concerto) => {
-      const ano = anoHistorico(concerto);
-      const periodo = ano === 'Sen data' ? ano : inicioPeriodo(ano);
-      if (!porPeriodo.has(periodo)) porPeriodo.set(periodo, []);
-      porPeriodo.get(periodo).push(concerto);
-    });
-    const periodos = [...porPeriodo.keys()].sort((a,b) => {
-      if (a === 'Sen data') return 1;
-      if (b === 'Sen data') return -1;
-      return Number(a) - Number(b);
-    });
+  function pintarHistorico() {
+    if (!(anosHistorico instanceof HTMLElement)) return;
+    const q = normalizar(buscaHistorico instanceof HTMLInputElement ? buscaHistorico.value : '');
+    const consultaAno = /^\d{4}$/.test(q);
+    const listaxe = todosConcertos.filter((concerto) => {
+      if (!concerto.numeroConcerto) return false;
+      if (consultaAno) return anoHistorico(concerto) === q;
+      return !q || normalizar([
+        anoHistorico(concerto), concerto.numeroConcerto, concerto.data,
+        concerto.dataTextoHistorica, concerto.nome, concerto.lugar,
+        concerto.cidade, concerto.caracteristicas
+      ].join(' ')).includes(q);
+    });
+    const porPeriodo = new Map();
+    listaxe.forEach((concerto) => {
+      const ano = anoHistorico(concerto);
+      const periodo = ano === 'Sen data' ? ano : inicioPeriodo(ano);
+      if (!porPeriodo.has(periodo)) porPeriodo.set(periodo, []);
+      porPeriodo.get(periodo).push(concerto);
+    });
+    const periodos = [...porPeriodo.keys()].sort((a,b) => {
+      if (a === 'Sen data') return 1;
+      if (b === 'Sen data') return -1;
+      return Number(a) - Number(b);
+    });
 
-    const abertos = q.length > 0;
+    const abertos = q.length > 0;
 
-    anosHistorico.innerHTML = periodos.map((periodo) => {
-      const items = porPeriodo.get(periodo).sort((a,b) => (Number(a.ordeHistorica)||0) - (Number(b.ordeHistorica)||0));
-      const etiqueta = periodo === 'Sen data' ? periodo : `Década de ${etiquetaPeriodo(periodo)}`;
-      return `<details class="historico-decada" ${abertos ? 'open' : ''}>
+    anosHistorico.innerHTML = periodos.map((periodo) => {
+      const items = porPeriodo.get(periodo).sort((a,b) => (Number(a.ordeHistorica)||0) - (Number(b.ordeHistorica)||0));
+      const etiqueta = periodo === 'Sen data' ? periodo : `Década de ${etiquetaPeriodo(periodo)}`;
+      return `<details class="historico-decada" ${abertos ? 'open' : ''}>
         <summary class="historico-summary">
-          <div class="historico-summary-info">
-            <span class="historico-kicker">Período histórico</span>
-            <strong class="historico-title">${escapar(etiqueta)}</strong>
-            <span class="historico-count">${items.length} concertos</span>
+          <div class="historico-summary-main">
+            <span class="historico-icon" aria-hidden="true"></span>
+            <div class="historico-summary-info">
+              <span class="historico-kicker">Período histórico</span>
+              <strong class="historico-title">${escapar(etiqueta)}</strong>
+            </div>
+          </div>
+
+          <div class="historico-summary-side">
+            <span class="historico-count">
+              ${items.length}
+              <small>${items.length === 1 ? 'concerto' : 'concertos'}</small>
+            </span>
+            <span class="historico-toggle" aria-hidden="true"></span>
           </div>
         </summary>
-        <div class="historico-table-wrapper">
-          <table class="historico-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">Nº</th>
-                <th style="width: 110px;">Data</th>
-                <th style="width: 140px;">Localidade</th>
-                <th style="width: 220px;">Lugar</th>
-                <th>Descrición</th>
-              </tr>
-            </thead>
-            <tbody>${items.map((concerto) => `<tr>
-              <td class="col-num">${escapar(concerto.numeroConcerto || '—')}</td>
-              <td class="col-date">${escapar(concerto.dataTextoHistorica || concerto.data || 'Data non documentada')}</td>
-              <td>${escapar(concerto.cidade || '—')}</td>
-              <td><strong>${escapar(concerto.lugar || '—')}</strong></td>
-              <td class="col-desc">${escapar(descricionHistorica(concerto))}</td>
-            </tr>`).join('')}</tbody>
-          </table>
+
+        <div class="historico-content">
+          <div class="historico-table-wrapper">
+            <table class="historico-table">
+              <thead>
+                <tr>
+                  <th class="th-num">Nº</th>
+                  <th class="th-data">Data</th>
+                  <th class="th-localidade">Localidade</th>
+                  <th class="th-lugar">Lugar</th>
+                  <th class="th-descricion">Descrición</th>
+                </tr>
+              </thead>
+              <tbody>${items.map((concerto) => `<tr>
+                <td class="col-num">${escapar(concerto.numeroConcerto || '—')}</td>
+                <td class="col-date">${escapar(concerto.dataTextoHistorica || concerto.data || 'Data non documentada')}</td>
+                <td class="col-localidade">${escapar(concerto.cidade || '—')}</td>
+                <td class="col-lugar"><strong>${escapar(concerto.lugar || '—')}</strong></td>
+                <td class="col-desc">${escapar(descricionHistorica(concerto))}</td>
+              </tr>`).join('')}</tbody>
+            </table>
+          </div>
         </div>
       </details>`;
-    }).join('');
+    }).join('');
 
-    if (resumoHistorico) resumoHistorico.textContent = `${listaxe.length} concerto${listaxe.length === 1 ? '' : 's'} · ${periodos.length} ${periodos.length === 1 ? 'período' : 'períodos'}`;
-    if (historicoBaleiro instanceof HTMLElement) historicoBaleiro.hidden = listaxe.length > 0;
-  }
+    if (resumoHistorico) resumoHistorico.textContent = `${listaxe.length} concerto${listaxe.length === 1 ? '' : 's'} · ${periodos.length} ${periodos.length === 1 ? 'período' : 'períodos'}`;
+    if (historicoBaleiro instanceof HTMLElement) historicoBaleiro.hidden = listaxe.length > 0;
+  }
 
-  async function cargarConcertos() {
-    const [cRows,pRows,rRows] = await Promise.all([lerCSV(URL_CONCERTOS),lerCSV(URL_PROGRAMAS),lerCSV(URL_REPERTORIO)]);
-    const obras = new Map(rRows.map((r) => [valor(r,'Id','Row ID'), { nome:valor(r,'NomeObra','Nome','Obra'), autor:valor(r,'Compositor','Autor') }]));
+  async function cargarConcertos() {
+    const [cRows,pRows,rRows] = await Promise.all([lerCSV(URL_CONCERTOS),lerCSV(URL_PROGRAMAS),lerCSV(URL_REPERTORIO)]);
+    const obras = new Map(rRows.map((r) => [valor(r,'Id','Row ID'), { nome:valor(r,'NomeObra','Nome','Obra'), autor:valor(r,'Compositor','Autor') }]));
 
-    todosConcertos = cRows.map((r) => {
-      const id = valor(r,'Id','Row ID');
-      const programa = pRows.filter((p) => valor(p,'Id_Conciertos','Id_Concertos') === id).map((p) => {
-        const obraId = valor(p,'Id_Obras');
-        const obra = obras.get(obraId) || {};
-        return { obra:obra.nome || obraId, autor:obra.autor || '', orde:Number(valor(p,'Orde')) || 999 };
-      }).sort((a,b) => a.orde-b.orde);
+    todosConcertos = cRows.map((r) => {
+      const id = valor(r,'Id','Row ID');
+      const programa = pRows.filter((p) => valor(p,'Id_Conciertos','Id_Concertos') === id).map((p) => {
+        const obraId = valor(p,'Id_Obras');
+        const obra = obras.get(obraId) || {};
+        return { obra:obra.nome || obraId, autor:obra.autor || '', orde:Number(valor(p,'Orde')) || 999 };
+      }).sort((a,b) => a.orde-b.orde);
 
-      return {
-        id,
-        data:valor(r,'Data'),
-        nome:valor(r,'Nome'),
-        cidade:valor(r,'Cidade'),
-        lugar:valor(r,'Lugar'),
-        estado:normalizar(valor(r,'Estado')) || 'confirmado',
-        mostrarWeb:verdadeiro(valor(r,'Mostrar_Web')),
-        numeroConcerto:valor(r,'NumeroConcerto'),
-        ordeHistorica:Number(valor(r,'OrdeHistorica')) || 0,
-        dataTextoHistorica:valor(r,'DataTextoHistorica'),
-        caracteristicas:valor(r,'Características','Caracteristicas'),
-        programa,
-        asistentes:[]
-      };
-    }).filter((c) => c.id && (c.nome || c.numeroConcerto))
-      .sort((a,b) => (b.ordeHistorica || 0) - (a.ordeHistorica || 0) || dataISO(b.data).localeCompare(dataISO(a.data)));
-    concertos = todosConcertos.filter((c) => c.mostrarWeb && c.nome && c.data)
-      .sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data)));
+      return {
+        id,
+        data:valor(r,'Data'),
+        nome:valor(r,'Nome'),
+        cidade:valor(r,'Cidade'),
+        lugar:valor(r,'Lugar'),
+        estado:normalizar(valor(r,'Estado')) || 'confirmado',
+        mostrarWeb:verdadeiro(valor(r,'Mostrar_Web')),
+        numeroConcerto:valor(r,'NumeroConcerto'),
+        ordeHistorica:Number(valor(r,'OrdeHistorica')) || 0,
+        dataTextoHistorica:valor(r,'DataTextoHistorica'),
+        caracteristicas:valor(r,'Características','Caracteristicas'),
+        programa,
+        asistentes:[]
+      };
+    }).filter((c) => c.id && (c.nome || c.numeroConcerto))
+      .sort((a,b) => (b.ordeHistorica || 0) - (a.ordeHistorica || 0) || dataISO(b.data).localeCompare(dataISO(a.data)));
+    concertos = todosConcertos.filter((c) => c.mostrarWeb && c.nome && c.data)
+      .sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data)));
 
-    pintarConcertos();
-    pintarHistorico();
-    if (app instanceof HTMLElement) app.hidden = false;
-    if (estado instanceof HTMLElement) estado.hidden = true;
-  }
+    pintarConcertos();
+    pintarHistorico();
+    if (app instanceof HTMLElement) app.hidden = false;
+    if (estado instanceof HTMLElement) estado.hidden = true;
+  }
 
-  async function cargarAsistencias(user) {
-    const inicio = performance.now();
-    try {
-      const idToken = await user.getIdToken(true);
-      const r = await fetch(`/api/asistencias-concertos?t=${Date.now()}`, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json', Accept:'application/json' },
-        body:JSON.stringify({ idToken }),
-        cache:'no-store'
-      });
-      const datos = await r.json();
-      if (!r.ok || !datos?.ok) throw new Error(datos?.erro || `HTTP ${r.status}`);
-      const porConcerto = datos.asistenciasPorConcerto || {};
-      todosConcertos = todosConcertos.map((c) => ({ ...c, asistentes:Array.isArray(porConcerto[c.id]) ? porConcerto[c.id] : [] }));
-      concertos = todosConcertos.filter((c) => c.mostrarWeb && c.nome && c.data)
-        .sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data)));
-      pintarConcertos();
-      pintarInforme();
-      pintarHistorico();
-      if (estadoAsistencias) estadoAsistencias.textContent = `Asistentes cargados en ${Math.round(performance.now()-inicio)} ms`;
-    } catch (e) {
-      if (estadoAsistencias) estadoAsistencias.textContent = `Erro ao cargar asistentes: ${e instanceof Error ? e.message : e}`;
-    }
-  }
+  async function cargarAsistencias(user) {
+    const inicio = performance.now();
+    try {
+      const idToken = await user.getIdToken(true);
+      const r = await fetch(`/api/asistencias-concertos?t=${Date.now()}`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', Accept:'application/json' },
+        body:JSON.stringify({ idToken }),
+        cache:'no-store'
+      });
+      const datos = await r.json();
+      if (!r.ok || !datos?.ok) throw new Error(datos?.erro || `HTTP ${r.status}`);
+      const porConcerto = datos.asistenciasPorConcerto || {};
+      todosConcertos = todosConcertos.map((c) => ({ ...c, asistentes:Array.isArray(porConcerto[c.id]) ? porConcerto[c.id] : [] }));
+      concertos = todosConcertos.filter((c) => c.mostrarWeb && c.nome && c.data)
+        .sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data)));
+      pintarConcertos();
+      pintarInforme();
+      pintarHistorico();
+      if (estadoAsistencias) estadoAsistencias.textContent = `Asistentes cargados en ${Math.round(performance.now()-inicio)} ms`;
+    } catch (e) {
+      if (estadoAsistencias) estadoAsistencias.textContent = `Erro ao cargar asistentes: ${e instanceof Error ? e.message : e}`;
+    }
+  }
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user?.email) { window.location.replace('/portal/'); return; }
-    const email = document.querySelector('#user-email');
-    if (email) email.textContent = user.email;
-    try {
-      await cargarConcertos();
-      cargarAsistencias(user);
-    } catch (e) {
-      if (estado) estado.textContent = e instanceof Error ? e.message : String(e);
-    }
-  });
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) { window.location.replace('/portal/'); return; }
+    const email = document.querySelector('#user-email');
+    if (email) email.textContent = user.email;
+    try {
+      await cargarConcertos();
+      cargarAsistencias(user);
+    } catch (e) {
+      if (estado) estado.textContent = e instanceof Error ? e.message : String(e);
+    }
+  });
 
-  busca?.addEventListener('input', pintarConcertos);
-  filtros?.addEventListener('click', (e) => {
-    const target = e.target;
-    if (!(target instanceof HTMLButtonElement) || !target.dataset.filter) return;
-    filtroActivo = target.dataset.filter;
-    filtros.querySelectorAll('button').forEach((b) => b.classList.toggle('is-active', b === target));
-    pintarConcertos();
-  });
-  grid?.addEventListener('click', (e) => {
-    const target = e.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest('[data-id]');
-    if (button) abrirConcerto(button.getAttribute('data-id') || '');
-  });
-  informe?.addEventListener('click', (e) => {
-    const target = e.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest('[data-report-id]');
-    if (button) abrirConcerto(button.getAttribute('data-report-id') || '');
-  });
-  botonConcertos?.addEventListener('click', () => {
-    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = false;
-    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = true;
-    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = true;
-    botonConcertos.classList.add('is-active');
-    botonInforme?.classList.remove('is-active');
-    botonHistorico?.classList.remove('is-active');
-  });
-  botonInforme?.addEventListener('click', () => {
-    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = true;
-    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = false;
-    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = true;
-    botonInforme.classList.add('is-active');
-    botonConcertos?.classList.remove('is-active');
-    botonHistorico?.classList.remove('is-active');
-  });
-  botonHistorico?.addEventListener('click', () => {
-    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = true;
-    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = true;
-    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = false;
-    botonHistorico.classList.add('is-active');
-    botonConcertos?.classList.remove('is-active');
-    botonInforme?.classList.remove('is-active');
-  });
-  buscaHistorico?.addEventListener('input', pintarHistorico);
+  busca?.addEventListener('input', pintarConcertos);
+  filtros?.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLButtonElement) || !target.dataset.filter) return;
+    filtroActivo = target.dataset.filter;
+    filtros.querySelectorAll('button').forEach((b) => b.classList.toggle('is-active', b === target));
+    pintarConcertos();
+  });
+  grid?.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('[data-id]');
+    if (button) abrirConcerto(button.getAttribute('data-id') || '');
+  });
+  informe?.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('[data-report-id]');
+    if (button) abrirConcerto(button.getAttribute('data-report-id') || '');
+  });
+  botonConcertos?.addEventListener('click', () => {
+    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = false;
+    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = true;
+    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = true;
+    botonConcertos.classList.add('is-active');
+    botonInforme?.classList.remove('is-active');
+    botonHistorico?.classList.remove('is-active');
+  });
+  botonInforme?.addEventListener('click', () => {
+    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = true;
+    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = false;
+    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = true;
+    botonInforme.classList.add('is-active');
+    botonConcertos?.classList.remove('is-active');
+    botonHistorico?.classList.remove('is-active');
+  });
+  botonHistorico?.addEventListener('click', () => {
+    if (vistaConcertos instanceof HTMLElement) vistaConcertos.hidden = true;
+    if (vistaInforme instanceof HTMLElement) vistaInforme.hidden = true;
+    if (vistaHistorico instanceof HTMLElement) vistaHistorico.hidden = false;
+    botonHistorico.classList.add('is-active');
+    botonConcertos?.classList.remove('is-active');
+    botonInforme?.classList.remove('is-active');
+  });
+  buscaHistorico?.addEventListener('input', pintarHistorico);
 
-  document.querySelector('#pechar')?.addEventListener('click', () => dialogo instanceof HTMLDialogElement && dialogo.close());
-  dialogo?.addEventListener('click', (e) => { if (e.target === dialogo && dialogo instanceof HTMLDialogElement) dialogo.close(); });
-  logout?.addEventListener('click', async () => { await signOut(auth); window.location.href='/portal/'; });
+  document.querySelector('#pechar')?.addEventListener('click', () => dialogo instanceof HTMLDialogElement && dialogo.close());
+  dialogo?.addEventListener('click', (e) => { if (e.target === dialogo && dialogo instanceof HTMLDialogElement) dialogo.close(); });
+  logout?.addEventListener('click', async () => { await signOut(auth); window.location.href='/portal/'; });
 </script>
 
 <style>
-  .private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh;background:#fff}
-  .concertos-main{box-sizing:border-box;width:100%;max-width:1500px;margin:0 auto;padding:2.7rem clamp(1.5rem,4vw,4.2rem) 4rem clamp(.85rem,1.4vw,1.5rem);font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif}
-  .private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:2rem}
-  .section-kicker{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
-  .private-page-header h1{margin:.35rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,3.4vw,2.75rem);font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif}
-  .private-page-header p{max-width:760px;margin:0;color:#5f5b58;font-size:.94rem;line-height:1.55}
-  .account-card{display:grid;gap:.18rem;min-width:245px;padding:.9rem 1rem;border:1px solid #ddd9d5;border-radius:4px;background:#fff}
-  .account-card small{color:#6f6965;font-size:.7rem}.account-card strong{max-width:210px;overflow:hidden;color:var(--color-principal);font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}
-  .portal-state{padding:1rem 1.1rem;border:1px solid #ddd9d5;border-radius:4px;background:#faf9f7;color:#5d5956}
-  .view-switch{display:flex;width:max-content;margin-bottom:1.2rem;border:1px solid #d5d0cb}.view-switch button{min-height:2.5rem;padding:.55rem 1rem;border:0;border-right:1px solid #d5d0cb;background:#fff;color:#5f5955;font:inherit;font-size:.78rem;cursor:pointer}.view-switch button:last-child{border-right:0}.view-switch button.is-active{background:var(--color-principal);color:#fff}
-  #vista-concertos[hidden],#vista-informe[hidden],#vista-historico[hidden],#app[hidden],.no-results[hidden],.program-empty[hidden]{display:none}
-  
-  .history-report{display:flex;flex-direction:column;gap:1.2rem;width:100%}
-  .history-actions{display:flex;flex-wrap:wrap;gap:.65rem}
-  .history-actions a{min-height:42px;box-sizing:border-box;padding:.68rem 1.1rem;border:1px solid var(--color-principal);border-radius:4px;background:#fff;color:var(--color-principal);font-size:.78rem;font-weight:800;text-decoration:none;transition:all 0.2s}
-  .history-actions a:hover{background:var(--color-principal);color:#fff}
-  .history-search{width:min(100%,540px);box-sizing:border-box}
+  .private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh;background:#fff}
+  .concertos-main{box-sizing:border-box;width:100%;max-width:1500px;margin:0 auto;padding:2.7rem clamp(1.5rem,4vw,4.2rem) 4rem clamp(.85rem,1.4vw,1.5rem);font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif}
+  .private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:2rem}
+  .section-kicker{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+  .private-page-header h1{margin:.35rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,3.4vw,2.75rem);font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif}
+  .private-page-header p{max-width:760px;margin:0;color:#5f5b58;font-size:.94rem;line-height:1.55}
+  .account-card{display:grid;gap:.18rem;min-width:245px;padding:.9rem 1rem;border:1px solid #ddd9d5;border-radius:4px;background:#fff}
+  .account-card small{color:#6f6965;font-size:.7rem}.account-card strong{max-width:210px;overflow:hidden;color:var(--color-principal);font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}
+  .portal-state{padding:1rem 1.1rem;border:1px solid #ddd9d5;border-radius:4px;background:#faf9f7;color:#5d5956}
+  .view-switch{display:flex;width:max-content;margin-bottom:1.2rem;border:1px solid #d5d0cb}.view-switch button{min-height:2.5rem;padding:.55rem 1rem;border:0;border-right:1px solid #d5d0cb;background:#fff;color:#5f5955;font:inherit;font-size:.78rem;cursor:pointer}.view-switch button:last-child{border-right:0}.view-switch button.is-active{background:var(--color-principal);color:#fff}
+  #vista-concertos[hidden],#vista-informe[hidden],#vista-historico[hidden],#app[hidden],.no-results[hidden],.program-empty[hidden]{display:none}
+  
+  .history-report{display:flex;flex-direction:column;gap:1.2rem;width:100%}
+  .history-actions{display:flex;flex-wrap:wrap;gap:.65rem}
+  .history-actions a{min-height:42px;box-sizing:border-box;padding:.68rem 1.1rem;border:1px solid var(--color-principal);border-radius:4px;background:#fff;color:var(--color-principal);font-size:.78rem;font-weight:800;text-decoration:none;transition:all 0.2s}
+  .history-actions a:hover{background:var(--color-principal);color:#fff}
+  .history-search{width:min(100%,540px);box-sizing:border-box}
 
-  /* ESTILOS DE HISTÓRICO CON TIPOGRAFÍA APTOS EN TODOS SUS ELEMENTOS */
-  .historico-container { display: flex; flex-direction: column; gap: 1rem; width: 100% !important; box-sizing: border-box; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  
-  .historico-decada { width: 100% !important; border: 1px solid #d8d2cc; background: #fff; margin: 0; box-sizing: border-box; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  .historico-decada[open] { border-color: #a18331; box-shadow: 0 10px 25px rgba(54,42,36,0.08); }
-  
-  .historico-summary {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    width: 100% !important;
-    padding: 1rem 1.2rem;
-    background: #fff;
-    cursor: pointer;
-    user-select: none;
-    box-sizing: border-box;
-    font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;
+  /* =========================================================
+     HISTÓRICO DE CONCERTOS
+     ========================================================= */
+
+  .historico-container{
+    display:flex;
+    flex-direction:column;
+    gap:.8rem;
+    width:100%;
+    box-sizing:border-box;
+    font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif;
   }
-  .historico-summary:hover { background: #faf8f4; }
-  
-  .historico-summary-info { display: flex; flex-direction: column; gap: 0.2rem; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  .historico-kicker { color: #9a7624; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  .historico-title { color: var(--color-principal); font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif !important; font-size: 1.35rem; font-weight: 700; }
-  .historico-count { color: #2f2926; font-size: 0.76rem; font-weight: 700; margin-top: 0.2rem; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  
-  .historico-table-wrapper { width: 100% !important; overflow-x: auto; border-top: 1px solid #d8d2cc; background: #fff; box-sizing: border-box; }
-  .historico-table { width: 100% !important; border-collapse: collapse; text-align: left; font-size: 0.82rem; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif !important; }
-  .historico-table thead tr { background: #fbfaf8; border-bottom: 1px solid #eeeae6; }
-  .historico-table th { padding: 0.78rem 0.9rem; color: var(--color-principal); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  .historico-table td { padding: 0.78rem 0.9rem; border-bottom: 1px solid #eeeae6; vertical-align: top; color: #57514d; line-height: 1.5; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  .historico-table tr:last-child td { border-bottom: 0; }
-  .historico-table .col-num { color: #9a7624; font-weight: 800; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  .historico-table .col-date { white-space: nowrap; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
-  .historico-table .col-desc { color: #57514d; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
 
-  .concert-toolbar{display:grid;grid-template-columns:minmax(270px,430px) auto 1fr;gap:1rem;align-items:center;margin-bottom:.45rem}
-  .search-box{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #d5d0cb;background:#fff}.search-box svg{width:18px;height:18px;fill:none;stroke:#766f6a;stroke-width:1.7}.search-box input{min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:.8rem}
-  .filters{display:flex;border:1px solid #d5d0cb}.filters button{min-height:2.55rem;padding:.55rem .85rem;border:0;border-right:1px solid #d5d0cb;background:#fff;color:#5f5955;font:inherit;font-size:.76rem;cursor:pointer}.filters button:last-child{border-right:0}.filters button.is-active{background:var(--color-principal);color:#fff}
-  .concert-count{justify-self:end;margin:0;color:#6b6561;font-size:.75rem}.concert-count strong{color:var(--color-principal);font-size:1rem}.attendance-status{margin:.2rem 0 1rem;color:#77716c;font-size:.72rem}
-  .concert-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,250px));gap:.8rem;justify-content:start}
-  .concert-square{display:flex;flex-direction:column;box-sizing:border-box;aspect-ratio:1/1;min-width:0;padding:1.15rem;border:1px solid #d8d2cc;border-radius:0;background:#fff;color:#393532;font-family:inherit;text-align:left;cursor:pointer;transition:border-color .18s,transform .18s,box-shadow .18s}.concert-square:hover{transform:translateY(-2px);border-color:#a18331;box-shadow:0 10px 25px rgba(54,42,36,.08)}.concert-square.is-past{background:#fafafa}
-  .square-top,.square-bottom{display:flex;justify-content:space-between;gap:.7rem;align-items:center;width:100%}.square-state{color:var(--color-principal);font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.square-year{color:#77716c;font-size:.7rem}.square-date{display:flex;gap:.42rem;align-items:baseline;margin:auto 0 .7rem;color:var(--color-principal)}.square-date strong{font-size:clamp(1.55rem,2.2vw,2rem);font-weight:500;line-height:1}.square-date span{font-size:.68rem;font-weight:700}.square-copy{display:grid;gap:.35rem;width:100%}.square-copy strong{color:#2f2b29;font-size:1rem;line-height:1.3}.square-copy span{color:#6d6762;font-size:.75rem;line-height:1.4}.square-bottom{margin-top:auto;padding-top:.8rem;border-top:1px solid #e5e1dd;color:var(--color-principal);font-size:.68rem;font-weight:700}
-  .no-results{padding:1.5rem;border:1px solid #ddd9d5;color:#77716c;text-align:center}
-  .concert-dialog{width:min(900px,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:2rem;overflow:auto;border:0;border-top:5px solid var(--color-principal);background:#fff;color:#393532;font-family:inherit;box-shadow:0 30px 80px rgba(0,0,0,.28)}.concert-dialog::backdrop{background:rgba(31,28,26,.7)}.dialog-close{position:absolute;top:.65rem;right:.8rem;width:2rem;height:2rem;border:0;background:transparent;color:var(--color-principal);font:inherit;font-size:1.7rem;cursor:pointer}
-  .detail-state{color:var(--color-principal);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.concert-dialog time{display:block;margin:.8rem 0 .3rem;color:#a18331;font-size:.84rem;font-weight:800;text-transform:capitalize}.concert-dialog h2{margin:.25rem 0 .65rem;color:#2f2b29;font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.15}.detail-location{margin:0;color:var(--color-principal);font-weight:700}
-  .program-section{margin-top:1.8rem;padding-top:1.3rem;border-top:1px solid #d8d2cc}.program-section>header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.8rem}.program-section>header span{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.program-section>header strong{color:#77716c;font-size:.72rem}.program-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;padding:0;border-top:1px solid #e0dcd8;border-left:1px solid #e0dcd8;list-style:none}.program-list li{display:grid;grid-template-columns:2.1rem minmax(0,1fr);gap:.6rem;min-height:72px;padding:.8rem;border-right:1px solid #e0dcd8;border-bottom:1px solid #e0dcd8}.program-order{color:#a18331;font-size:.68rem;font-weight:800}.program-list li>span:last-child{display:grid;align-content:start;gap:.18rem}.program-list strong{color:#34302d;font-size:.82rem;line-height:1.35}.program-list small{color:#716b66;font-size:.68rem;line-height:1.35}.program-empty{margin:0;color:#77716c;font-size:.8rem}
-  .attendees-section{margin-top:1.1rem;border-top:1px solid #d8d2cc}.attendees-section summary{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.attendees-section summary strong{color:#77716c;font-size:.72rem;letter-spacing:0;text-transform:none}.attendees-groups{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding-bottom:.5rem}.voice-group{border:1px solid #e0dcd8;background:#fafafa}.voice-group h3{display:flex;justify-content:space-between;gap:.5rem;margin:0;padding:.65rem .75rem;border-bottom:1px solid #e0dcd8;color:var(--color-principal);font-size:.76rem}.voice-group h3 span{color:#a18331}.voice-group ul{margin:0;padding:.55rem .75rem .7rem;list-style:none}.voice-group li{padding:.22rem 0;color:#5f5a56;font-size:.7rem;line-height:1.35}.attendees-empty{margin:0 0 .5rem;color:#77716c;font-size:.78rem}
-  .report-heading{display:flex;justify-content:space-between;gap:2rem;align-items:end;padding:1.2rem 0;border-top:1px solid #d8d2cc;border-bottom:1px solid #d8d2cc}.report-heading span{color:var(--color-principal);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.report-heading h2{margin:.28rem 0;color:#2f2b29;font-size:1.55rem}.report-heading p{margin:0;color:#6d6762;font-size:.82rem}.report-heading>strong{color:var(--color-principal);font-size:.8rem;white-space:nowrap}.report-content{display:grid;gap:1.4rem;margin-top:1.4rem}.attendance-tier{border:1px solid #d8d2cc}.attendance-tier>header{display:flex;justify-content:space-between;align-items:baseline;padding:.75rem 1rem;background:#f2ecec}.attendance-tier>header strong{color:var(--color-principal);font-size:1rem}.attendance-tier>header span{color:#6d6762;font-size:.72rem}.report-voices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.report-voice{min-width:0;border-right:1px solid #e0dcd8;border-bottom:1px solid #e0dcd8}.report-voice h3{display:flex;justify-content:space-between;margin:0;padding:.65rem .85rem;border-bottom:1px solid #e0dcd8;color:var(--color-principal);font-size:.78rem}.report-voice h3 span{color:#a18331}.person-report{padding:.75rem .85rem}.person-report+.person-report{border-top:1px solid #ece9e6}.person-report>header{display:flex;justify-content:space-between;gap:.6rem;align-items:baseline}.person-report>header strong{color:#34302d;font-size:.82rem;font-weight:600}.person-report>header span{color:var(--color-principal);font-size:.68rem;font-weight:800}.person-report ul{display:grid;gap:.18rem;margin:.45rem 0 0;padding:0;list-style:none}.person-report button{display:grid;grid-template-columns:76px minmax(0,1fr);gap:.5rem;width:100%;padding:0;border:0;background:transparent;color:#68625e;font:inherit;font-size:.68rem;line-height:1.35;text-align:left;cursor:pointer}.person-report button:hover span{color:var(--color-principal);text-decoration:underline;text-underline-offset:2px}.person-report time{margin:0;color:var(--color-principal);font-size:.68rem;font-weight:700;text-transform:none}
-
-  @media(max-width:1100px){.concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start}}
-  @media(max-width:900px){.private-layout{grid-template-columns:1fr}.concertos-main{padding:1.7rem 1rem 3rem}}
-  @media(max-width:680px){
-    .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-square{aspect-ratio:auto;min-height:280px}.program-list{grid-template-columns:1fr}.attendees-groups,.report-voices{grid-template-columns:1fr}.report-heading{align-items:start;flex-direction:column}.view-switch{width:100%}.view-switch button{flex:1}.history-actions{align-items:stretch;flex-direction:column}.history-actions a{text-align:center}
+  .historico-decada{
+    width:100%;
+    margin:0;
+    overflow:hidden;
+    border:1px solid #ddd6d2;
+    border-radius:6px;
+    background:#fff;
+    box-sizing:border-box;
+    transition:border-color .18s ease,box-shadow .18s ease;
   }
+
+  .historico-decada:hover{border-color:#b9a5a0}
+
+  .historico-decada[open]{
+    border-color:var(--color-principal);
+    box-shadow:0 8px 24px rgba(69,25,35,.08);
+  }
+
+  .historico-summary{list-style:none}
+  .historico-summary::-webkit-details-marker{display:none}
+
+  .historico-summary{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+    min-height:76px;
+    padding:.9rem 1.1rem;
+    background:#fff;
+    cursor:pointer;
+    user-select:none;
+    box-sizing:border-box;
+    transition:background .18s ease,color .18s ease;
+  }
+
+  .historico-summary:hover{background:#faf7f7}
+  .historico-decada[open] > .historico-summary{background:var(--color-principal)}
+
+  .historico-summary-main{
+    display:flex;
+    align-items:center;
+    gap:.9rem;
+    min-width:0;
+  }
+
+  .historico-icon{
+    flex:0 0 auto;
+    width:11px;
+    height:42px;
+    border-radius:2px;
+    background:var(--color-principal);
+  }
+
+  .historico-decada[open] .historico-icon{background:#d5b45b}
+
+  .historico-summary-info{
+    display:flex;
+    flex-direction:column;
+    gap:.16rem;
+    min-width:0;
+  }
+
+  .historico-kicker{
+    color:#9a7624;
+    font-size:.61rem;
+    font-weight:800;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+  }
+
+  .historico-title{
+    overflow:hidden;
+    color:#342e2c;
+    font-size:1.08rem;
+    font-weight:750;
+    line-height:1.25;
+    text-overflow:ellipsis;
+  }
+
+  .historico-decada[open] .historico-kicker{color:#ead8a4}
+  .historico-decada[open] .historico-title{color:#fff}
+
+  .historico-summary-side{
+    display:flex;
+    align-items:center;
+    gap:.9rem;
+    flex:0 0 auto;
+  }
+
+  .historico-count{
+    display:flex;
+    align-items:baseline;
+    justify-content:center;
+    gap:.3rem;
+    min-width:92px;
+    padding:.42rem .7rem;
+    border:1px solid #ddd3d0;
+    border-radius:999px;
+    color:var(--color-principal);
+    background:#fff;
+    font-size:.85rem;
+    font-weight:800;
+    text-align:center;
+  }
+
+  .historico-count small{
+    color:#736c68;
+    font-size:.65rem;
+    font-weight:600;
+  }
+
+  .historico-decada[open] .historico-count{
+    border-color:rgba(255,255,255,.32);
+    background:rgba(255,255,255,.1);
+    color:#fff;
+  }
+
+  .historico-decada[open] .historico-count small{color:#f1e9e7}
+
+  .historico-toggle{
+    position:relative;
+    display:block;
+    width:22px;
+    height:22px;
+    flex:0 0 22px;
+  }
+
+  .historico-toggle::before,
+  .historico-toggle::after{
+    content:"";
+    position:absolute;
+    top:50%;
+    left:50%;
+    width:14px;
+    height:2px;
+    border-radius:2px;
+    background:var(--color-principal);
+    transform:translate(-50%,-50%);
+  }
+
+  .historico-toggle::after{transform:translate(-50%,-50%) rotate(90deg)}
+  .historico-decada[open] .historico-toggle::before{background:#fff}
+  .historico-decada[open] .historico-toggle::after{display:none}
+
+  .historico-content{
+    width:100%;
+    background:#fff;
+  }
+
+  .historico-table-wrapper{
+    width:100%;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    -webkit-overflow-scrolling:touch;
+    background:#fff;
+  }
+
+  .historico-table{
+    width:100%;
+    min-width:820px;
+    border-collapse:separate;
+    border-spacing:0;
+    color:#423d3a;
+    background:#fff;
+    font-family:Aptos,'Segoe UI',Arial,Helvetica,sans-serif;
+    font-size:.82rem;
+    text-align:left;
+  }
+
+  .historico-table thead{background:#f3eeee}
+
+  .historico-table th{
+    padding:.72rem .85rem;
+    border-bottom:2px solid var(--color-principal);
+    color:var(--color-principal);
+    font-size:.68rem;
+    font-weight:800;
+    letter-spacing:.055em;
+    line-height:1.2;
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+
+  .historico-table .th-num{width:58px}
+  .historico-table .th-data{width:110px}
+  .historico-table .th-localidade{width:145px}
+  .historico-table .th-lugar{width:230px}
+  .historico-table .th-descricion{width:auto}
+
+  .historico-table td{
+    padding:.7rem .85rem;
+    border-bottom:1px solid #ece8e5;
+    color:#4d4845;
+    line-height:1.42;
+    vertical-align:top;
+  }
+
+  .historico-table tbody tr:nth-child(even){background:#fbfaf9}
+  .historico-table tbody tr:hover{background:#f7f1f2}
+
+  .historico-table .col-num{
+    color:var(--color-principal);
+    font-weight:800;
+    white-space:nowrap;
+  }
+
+  .historico-table .col-date{
+    color:#4b4542;
+    font-weight:600;
+    white-space:nowrap;
+  }
+
+  .historico-table .col-localidade{white-space:nowrap}
+
+  .historico-table .col-lugar strong{
+    color:#302b29;
+    font-weight:700;
+  }
+
+  .historico-table .col-desc{
+    min-width:260px;
+    color:#59534f;
+  }
+
+  .historico-table tbody tr:last-child td{border-bottom:0}
+
+  .concert-toolbar{display:grid;grid-template-columns:minmax(270px,430px) auto 1fr;gap:1rem;align-items:center;margin-bottom:.45rem}
+  .search-box{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #d5d0cb;background:#fff}.search-box svg{width:18px;height:18px;fill:none;stroke:#766f6a;stroke-width:1.7}.search-box input{min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:.8rem}
+  .filters{display:flex;border:1px solid #d5d0cb}.filters button{min-height:2.55rem;padding:.55rem .85rem;border:0;border-right:1px solid #d5d0cb;background:#fff;color:#5f5955;font:inherit;font-size:.76rem;cursor:pointer}.filters button:last-child{border-right:0}.filters button.is-active{background:var(--color-principal);color:#fff}
+  .concert-count{justify-self:end;margin:0;color:#6b6561;font-size:.75rem}.concert-count strong{color:var(--color-principal);font-size:1rem}.attendance-status{margin:.2rem 0 1rem;color:#77716c;font-size:.72rem}
+  .concert-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,250px));gap:.8rem;justify-content:start}
+  .concert-square{display:flex;flex-direction:column;box-sizing:border-box;aspect-ratio:1/1;min-width:0;padding:1.15rem;border:1px solid #d8d2cc;border-radius:0;background:#fff;color:#393532;font-family:inherit;text-align:left;cursor:pointer;transition:border-color .18s,transform .18s,box-shadow .18s}.concert-square:hover{transform:translateY(-2px);border-color:#a18331;box-shadow:0 10px 25px rgba(54,42,36,.08)}.concert-square.is-past{background:#fafafa}
+  .square-top,.square-bottom{display:flex;justify-content:space-between;gap:.7rem;align-items:center;width:100%}.square-state{color:var(--color-principal);font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.square-year{color:#77716c;font-size:.7rem}.square-date{display:flex;gap:.42rem;align-items:baseline;margin:auto 0 .7rem;color:var(--color-principal)}.square-date strong{font-size:clamp(1.55rem,2.2vw,2rem);font-weight:500;line-height:1}.square-date span{font-size:.68rem;font-weight:700}.square-copy{display:grid;gap:.35rem;width:100%}.square-copy strong{color:#2f2b29;font-size:1rem;line-height:1.3}.square-copy span{color:#6d6762;font-size:.75rem;line-height:1.4}.square-bottom{margin-top:auto;padding-top:.8rem;border-top:1px solid #e5e1dd;color:var(--color-principal);font-size:.68rem;font-weight:700}
+  .no-results{padding:1.5rem;border:1px solid #ddd9d5;color:#77716c;text-align:center}
+  .concert-dialog{width:min(900px,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:2rem;overflow:auto;border:0;border-top:5px solid var(--color-principal);background:#fff;color:#393532;font-family:inherit;box-shadow:0 30px 80px rgba(0,0,0,.28)}.concert-dialog::backdrop{background:rgba(31,28,26,.7)}.dialog-close{position:absolute;top:.65rem;right:.8rem;width:2rem;height:2rem;border:0;background:transparent;color:var(--color-principal);font:inherit;font-size:1.7rem;cursor:pointer}
+  .detail-state{color:var(--color-principal);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.concert-dialog time{display:block;margin:.8rem 0 .3rem;color:#a18331;font-size:.84rem;font-weight:800;text-transform:capitalize}.concert-dialog h2{margin:.25rem 0 .65rem;color:#2f2b29;font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.15}.detail-location{margin:0;color:var(--color-principal);font-weight:700}
+  .program-section{margin-top:1.8rem;padding-top:1.3rem;border-top:1px solid #d8d2cc}.program-section>header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.8rem}.program-section>header span{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.program-section>header strong{color:#77716c;font-size:.72rem}.program-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;padding:0;border-top:1px solid #e0dcd8;border-left:1px solid #e0dcd8;list-style:none}.program-list li{display:grid;grid-template-columns:2.1rem minmax(0,1fr);gap:.6rem;min-height:72px;padding:.8rem;border-right:1px solid #e0dcd8;border-bottom:1px solid #e0dcd8}.program-order{color:#a18331;font-size:.68rem;font-weight:800}.program-list li>span:last-child{display:grid;align-content:start;gap:.18rem}.program-list strong{color:#34302d;font-size:.82rem;line-height:1.35}.program-list small{color:#716b66;font-size:.68rem;line-height:1.35}.program-empty{margin:0;color:#77716c;font-size:.8rem}
+  .attendees-section{margin-top:1.1rem;border-top:1px solid #d8d2cc}.attendees-section summary{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.attendees-section summary strong{color:#77716c;font-size:.72rem;letter-spacing:0;text-transform:none}.attendees-groups{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding-bottom:.5rem}.voice-group{border:1px solid #e0dcd8;background:#fafafa}.voice-group h3{display:flex;justify-content:space-between;gap:.5rem;margin:0;padding:.65rem .75rem;border-bottom:1px solid #e0dcd8;color:var(--color-principal);font-size:.76rem}.voice-group h3 span{color:#a18331}.voice-group ul{margin:0;padding:.55rem .75rem .7rem;list-style:none}.voice-group li{padding:.22rem 0;color:#5f5a56;font-size:.7rem;line-height:1.35}.attendees-empty{margin:0 0 .5rem;color:#77716c;font-size:.78rem}
+  .report-heading{display:flex;justify-content:space-between;gap:2rem;align-items:end;padding:1.2rem 0;border-top:1px solid #d8d2cc;border-bottom:1px solid #d8d2cc}.report-heading span{color:var(--color-principal);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.report-heading h2{margin:.28rem 0;color:#2f2b29;font-size:1.55rem}.report-heading p{margin:0;color:#6d6762;font-size:.82rem}.report-heading>strong{color:var(--color-principal);font-size:.8rem;white-space:nowrap}.report-content{display:grid;gap:1.4rem;margin-top:1.4rem}.attendance-tier{border:1px solid #d8d2cc}.attendance-tier>header{display:flex;justify-content:space-between;align-items:baseline;padding:.75rem 1rem;background:#f2ecec}.attendance-tier>header strong{color:var(--color-principal);font-size:1rem}.attendance-tier>header span{color:#6d6762;font-size:.72rem}.report-voices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.report-voice{min-width:0;border-right:1px solid #e0dcd8;border-bottom:1px solid #e0dcd8}.report-voice h3{display:flex;justify-content:space-between;margin:0;padding:.65rem .85rem;border-bottom:1px solid #e0dcd8;color:var(--color-principal);font-size:.78rem}.report-voice h3 span{color:#a18331}.person-report{padding:.75rem .85rem}.person-report+.person-report{border-top:1px solid #ece9e6}.person-report>header{display:flex;justify-content:space-between;gap:.6rem;align-items:baseline}.person-report>header strong{color:#34302d;font-size:.82rem;font-weight:600}.person-report>header span{color:var(--color-principal);font-size:.68rem;font-weight:800}.person-report ul{display:grid;gap:.18rem;margin:.45rem 0 0;padding:0;list-style:none}.person-report button{display:grid;grid-template-columns:76px minmax(0,1fr);gap:.5rem;width:100%;padding:0;border:0;background:transparent;color:#68625e;font:inherit;font-size:.68rem;line-height:1.35;text-align:left;cursor:pointer}.person-report button:hover span{color:var(--color-principal);text-decoration:underline;text-underline-offset:2px}.person-report time{margin:0;color:var(--color-principal);font-size:.68rem;font-weight:700;text-transform:none}
+
+  @media(max-width:1100px){.concert-toolbar{grid-template-columns:1fr auto}.concert-count{grid-column:1/-1;justify-self:start}}
+  @media(max-width:900px){.private-layout{grid-template-columns:1fr}.concertos-main{padding:1.7rem 1rem 3rem}}
+  @media(max-width:680px){
+    .private-page-header{flex-direction:column}.account-card{width:100%;box-sizing:border-box}.concert-toolbar{grid-template-columns:1fr}.filters{width:100%}.filters button{flex:1}.concert-grid{grid-template-columns:1fr}.concert-square{aspect-ratio:auto;min-height:280px}.program-list{grid-template-columns:1fr}.attendees-groups,.report-voices{grid-template-columns:1fr}.report-heading{align-items:start;flex-direction:column}.view-switch{width:100%}.view-switch button{flex:1}.history-actions{align-items:stretch;flex-direction:column}.history-actions a{text-align:center}
+  
+    .historico-container{gap:.65rem}
+    .historico-summary{min-height:68px;padding:.75rem .72rem;gap:.55rem}
+    .historico-summary-main{gap:.62rem}
+    .historico-icon{width:7px;height:38px}
+    .historico-kicker{font-size:.54rem}
+    .historico-title{font-size:.94rem}
+    .historico-summary-side{gap:.45rem}
+    .historico-count{min-width:auto;padding:.32rem .5rem;font-size:.74rem}
+    .historico-count small{display:none}
+    .historico-toggle{width:18px;height:18px;flex-basis:18px}
+    .historico-table-wrapper{position:relative;overflow-x:auto}
+    .historico-table{min-width:760px;font-size:.76rem}
+    .historico-table th{padding:.62rem .65rem;font-size:.61rem}
+    .historico-table td{padding:.62rem .65rem}
+    .historico-table .th-num{width:48px}
+    .historico-table .th-data{width:96px}
+    .historico-table .th-localidade{width:125px}
+    .historico-table .th-lugar{width:190px}
+    .historico-table .col-desc{min-width:220px}
+}
 </style>
