@@ -50,7 +50,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
 <script>
   import { getApp, getApps, initializeApp } from 'firebase/app';
-  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+  import { getAuth, onAuthStateChanged, signOut, type User } from 'firebase/auth';
 
   const firebaseConfig = {
     apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
@@ -70,12 +70,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const repetir = document.querySelector('#repetir');
   const logout = document.querySelector('#proba-logout');
 
-  const poñerTexto = (id, valor) => {
+  const poñerTexto = (id: string, valor: unknown): void => {
     const elemento = document.querySelector(id);
     if (elemento) elemento.textContent = String(valor ?? '—');
   };
 
-  async function executarProba(user) {
+  async function executarProba(user: User): Promise<void> {
     if (estado) estado.textContent = 'Consultando as asistencias…';
     if (senSesion instanceof HTMLElement) senSesion.hidden = true;
     if (resumo instanceof HTMLElement) resumo.hidden = true;
