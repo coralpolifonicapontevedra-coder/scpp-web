@@ -61,7 +61,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           <p id="informe-baleiro" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
         </section>
 
-        <!-- VISTA DE HISTÓRICO CON CONTENEDORES ESTILIZADOS -->
+        <!-- VISTA DE HISTÓRICO CON ANCHO COMPLETO Y TABLA ESTRUCTURADA -->
         <section id="vista-historico" class="history-report" hidden>
           <header class="report-heading">
             <div>
@@ -546,7 +546,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   });
   buscaHistorico?.addEventListener('input', pintarHistorico);
 
-  // MANEJADOR DE APERTURA DE DÉCADAS
   anosHistorico?.addEventListener('click', (e) => {
     const target = e.target;
     if (!(target instanceof Element)) return;
@@ -584,16 +583,16 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .view-switch{display:flex;width:max-content;margin-bottom:1.2rem;border:1px solid #d5d0cb}.view-switch button{min-height:2.5rem;padding:.55rem 1rem;border:0;border-right:1px solid #d5d0cb;background:#fff;color:#5f5955;font:inherit;font-size:.78rem;cursor:pointer}.view-switch button:last-child{border-right:0}.view-switch button.is-active{background:var(--color-principal);color:#fff}
   #vista-concertos[hidden],#vista-informe[hidden],#vista-historico[hidden],#app[hidden],.no-results[hidden],.program-empty[hidden]{display:none}
   
-  .history-report{display:grid;gap:1.2rem}
+  .history-report{display:flex;flex-direction:column;gap:1.2rem;width:100%}
   .history-actions{display:flex;flex-wrap:wrap;gap:.65rem}
   .history-actions a{min-height:42px;box-sizing:border-box;padding:.68rem 1.1rem;border:1px solid var(--color-principal);border-radius:4px;background:#fff;color:var(--color-principal);font-size:.78rem;font-weight:800;text-decoration:none;transition:all 0.2s}
   .history-actions a:hover{background:var(--color-principal);color:#fff}
   .history-search{width:min(100%,540px);box-sizing:border-box}
 
-  /* NUEVA ESTRUCTURA MAQUETADA PARA DÉCADAS */
-  .history-years-wrapper { display: flex; flex-direction: column; gap: 0.85rem; width: 100%; }
+  /* ESTILOS DE ANCHO COMPLETO (100%) PARA TARJETAS Y TABLAS */
+  .history-years-wrapper { display: flex; flex-direction: column; gap: 0.85rem; width: 100%; box-sizing: border-box; }
   
-  .decada-box { border: 1px solid #d8d2cc; background: #fff; border-radius: 0; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+  .decada-box { width: 100%; border: 1px solid #d8d2cc; background: #fff; box-sizing: border-box; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
   .decada-box.is-open { border-color: #a18331; box-shadow: 0 10px 25px rgba(54, 42, 36, 0.08); }
   
   .decada-header {
@@ -601,6 +600,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    box-sizing: border-box;
     min-height: 76px;
     padding: 0.9rem 1.2rem;
     border: 0;
@@ -620,10 +620,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .decada-icon { color: var(--color-principal); font-size: 0.75rem; transition: transform 0.2s ease; }
   .decada-box.is-open .decada-icon { transform: rotate(90deg); }
   
-  .decada-content { width: 100%; overflow-x: auto; border-top: 1px solid #d8d2cc; background: #fff; }
-  .decada-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem; }
+  .decada-content { width: 100%; box-sizing: border-box; overflow-x: auto; border-top: 1px solid #d8d2cc; background: #fff; }
+  .decada-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.82rem; table-layout: auto; }
   .decada-table thead tr { background: #fbfaf8; border-bottom: 1px solid #eeeae6; }
-  .decada-table th { padding: 0.78rem 0.9rem; color: var(--color-principal); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+  .decada-table th { padding: 0.78rem 0.9rem; color: var(--color-principal); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
   .decada-table td { padding: 0.78rem 0.9rem; border-bottom: 1px solid #eeeae6; vertical-align: top; color: #57514d; line-height: 1.5; }
   .decada-table tr:last-child td { border-bottom: 0; }
   .decada-table .col-num { color: #9a7624; font-weight: 800; }
