@@ -65,20 +65,28 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           <p id="report-empty" class="no-results" hidden>Non hai datos de asistencia dispoñibles.</p>
         </section>
 
+        <!-- SECCIÓN DE HISTÓRICO ACTUALIZADA -->
         <section id="history-report" class="history-report" hidden>
           <header class="report-heading">
             <div>
               <span>Arquivo da Coral</span>
               <h2>Histórico de concertos</h2>
-              <p>Consulta por ano os concertos celebrados desde 1925. Só se amosan os datos dispoñibles.</p>
+              <p>Consulta por décadas os concertos documentados desde 1925, cunha lectura directa e sen pasos intermedios.</p>
             </div>
             <strong id="history-summary"></strong>
           </header>
+
+          <div class="history-actions-row">
+            <button id="show-all-history" type="button" class="btn-history">Ver todo o histórico</button>
+            <a href="/documentos/concertos_scpp_1925_2026.pdf" download="concertos_scpp_1925_2026.pdf" class="btn-history">Descargar histórico (.pdf)</a>
+          </div>
+
           <label class="history-search search-box">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
             <input id="history-search" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" />
           </label>
-          <div id="history-years" class="history-years"></div>
+
+          <div id="history-years" class="history-years-vertical"></div>
           <p id="history-empty" class="no-results" hidden>Non hai concertos que coincidan coa busca.</p>
         </section>
       </section>
@@ -159,6 +167,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const historyYears = document.querySelector('#history-years');
   const historySearch = document.querySelector('#history-search');
   const historyEmpty = document.querySelector('#history-empty');
+  const showAllHistory = document.querySelector('#show-all-history');
 
   let concertos = [];
   let todosConcertos = [];
@@ -206,14 +215,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   const verdadeiro = (valorCampo = '') => ['true', '1', 'si', 'sí', 'yes', 'x'].includes(normalizar(valorCampo));
 
-  const anoHistorico = (concerto) => {
-    const anoData = String(concerto.data || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
-    const anoTexto = String(concerto.dataTextoHistorica || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
-    return anoData || anoTexto || 'Sen data';
-  };
-
-  const dataHistorica = (concerto) => concerto.dataTextoHistorica || concerto.data || 'Data non documentada';
-
   const dataISO = (data) => {
     const p = String(data).split(/[\/-]/).map(Number);
     if (p.length !== 3 || p.some(Number.isNaN)) return String(data);
@@ -242,6 +243,24 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const limpo = nome.replace(/\.pdf$/i, '.jpg');
     return `/media/concertos/${encodeURIComponent(limpo)}`;
   };
+
+  // FUNCIONS DE DÉCADAS PARA HISTÓRICO
+  const inicioPeriodo = (ano) => 1925 + Math.floor((Number(ano) - 1925) / 10) * 10;
+  const etiquetaPeriodo = (inicio) => `${inicio}–${Math.min(inicio + 9, 2026)}`;
+  const formatarDataHistorica = (concerto) => {
+    if (concerto.dataTextoHistorica) return concerto.dataTextoHistorica;
+    if (!concerto.data) return 'Data non documentada';
+    return dataLonga(concerto.data);
+  };
+  const nomeXenerico = (concerto) => {
+    const nome = normalizar(concerto.nome).replaceAll(' ', '');
+    const numero = normalizar(concerto.numeroConcerto).replaceAll(' ', '');
+    return nome === `concerto nº ${numero}`.replaceAll(' ', '')
+      || nome === `concerto n.º ${numero}`.replaceAll(' ', '')
+      || nome === `concerto numero ${numero}`.replaceAll(' ', '');
+  };
+  const descricionConcerto = (concerto) =>
+    concerto.caracteristicas || (nomeXenerico(concerto) ? '' : concerto.nome) || 'Sen descrición documentada';
 
   async function lerCSV(url) {
     const response = await fetch(url, { cache: 'no-store' });
@@ -417,61 +436,81 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     dialog.showModal();
   }
 
+  // DIBUJAR HISTÓRICO CON DÉCADAS Y TABLA COMPLETA
   function debuxarHistorico() {
     if (!(historyYears instanceof HTMLElement)) return;
-    const consulta = normalizar(historySearch instanceof HTMLInputElement ? historySearch.value : '');
-    const candidatos = todosConcertos.filter((concerto) => {
+    const query = normalizar(historySearch instanceof HTMLInputElement ? historySearch.value : '');
+    const exactYear = /^\d{4}$/.test(query);
+
+    const filtered = todosConcertos.filter((concerto) => {
       if (!concerto.numeroConcerto) return false;
-      const texto = normalizar([
-        anoHistorico(concerto), concerto.numeroConcerto, concerto.dataTextoHistorica,
-        concerto.data, concerto.nome, concerto.lugar, concerto.cidade, concerto.caracteristicas
-      ].join(' '));
-      return !consulta || texto.includes(consulta);
+      if (exactYear) return String(concerto.ano || '') === query;
+      return !query || normalizar([
+        concerto.ano, concerto.numeroConcerto, concerto.data, concerto.dataTextoHistorica,
+        concerto.nome, concerto.cidade, concerto.lugar, concerto.caracteristicas
+      ].join(' ')).includes(query);
     });
 
-    const porAno = new Map();
-    candidatos.forEach((concerto) => {
-      const ano = anoHistorico(concerto);
-      if (!porAno.has(ano)) porAno.set(ano, []);
-      porAno.get(ano).push(concerto);
+    const grouped = new Map();
+    filtered.forEach((concerto) => {
+      const ano = Number(concerto.ano);
+      const periodo = Number.isFinite(ano) ? inicioPeriodo(ano) : 'Sen data';
+      if (!grouped.has(periodo)) grouped.set(periodo, []);
+      grouped.get(periodo).push(concerto);
     });
-    const anos = Array.from(porAno.keys()).sort((a, b) => {
+
+    const periodos = Array.from(grouped.keys()).sort((a, b) => {
       if (a === 'Sen data') return 1;
       if (b === 'Sen data') return -1;
-      return Number(b) - Number(a);
+      return Number(a) - Number(b);
     });
 
-    historyYears.innerHTML = anos.map((ano) => {
-      const items = porAno.get(ano).sort((a, b) =>
-        (Number(b.ordeHistorica) || 0) - (Number(a.ordeHistorica) || 0)
-      );
-      return `<details class="history-year">
-        <summary>
-          <span class="history-year-number">${escapar(ano)}</span>
-          <span><strong>${items.length}</strong> concerto${items.length === 1 ? '' : 's'}</span>
-          <span class="history-open">Consultar</span>
+    const isOpen = query.length > 0 ? 'open' : '';
+
+    historyYears.innerHTML = periodos.map((periodo) => {
+      const items = grouped.get(periodo).sort((a, b) => (Number(a.ordeHistorica) || 0) - (Number(b.ordeHistorica) || 0));
+      const etiqueta = periodo === 'Sen data' ? periodo : `Década de ${etiquetaPeriodo(periodo)}`;
+
+      return `<details class="card-decada" ${isOpen} style="width: 100%; background: #ffffff; border: 1px solid #e2ddd7; border-radius: 6px; overflow: hidden; margin-bottom: 0.5rem;">
+        <summary style="display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.4rem; background: #faf8f5; cursor: pointer; user-select: none; list-style: none;">
+          <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+            <span style="font-size: 0.65rem; font-weight: 800; color: #a3821a; text-transform: uppercase; letter-spacing: 0.08em;">Período histórico</span>
+            <strong style="font-family: Georgia, serif; font-size: 1.25rem; color: #5c1926;">${escapar(etiqueta)}</strong>
+          </div>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: #555; background: #eae4d9; padding: 0.25rem 0.75rem; border-radius: 12px;">${items.length} concertos</span>
+            <span style="font-size: 0.8rem; color: #5c1926;">▼</span>
+          </div>
         </summary>
-        <ol class="history-list">
-          ${items.map((concerto) => {
-            const localizacion = [concerto.lugar, concerto.cidade].filter(Boolean).join(' · ');
-            return `<li>
-              <div class="history-number">N.º ${escapar(concerto.numeroConcerto)}</div>
-              <div class="history-copy">
-                <time>${escapar(dataHistorica(concerto))}</time>
-                <strong>${escapar(concerto.nome || 'Concerto histórico')}</strong>
-                ${localizacion ? `<span>${escapar(localizacion)}</span>` : ''}
-                ${concerto.caracteristicas ? `<p>${escapar(concerto.caracteristicas)}</p>` : ''}
-              </div>
-            </li>`;
-          }).join('')}
-        </ol>
+        <div style="width: 100%; overflow-x: auto; border-top: 1px solid #e2ddd7; background: #fff;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+            <thead>
+              <tr style="background: #fcfbf9; border-bottom: 2px solid #e2ddd7;">
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 8%;">Nº</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%;">Data</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%;">Localidade</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 24%;">Lugar</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 32%;">Descrición</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((concerto) => `<tr style="border-bottom: 1px solid #f0ebe3;">
+                <td data-label="Nº" style="padding: 0.8rem 1rem; color: #a3821a; font-weight: 800; vertical-align: top;">${escapar(concerto.numeroConcerto || '—')}</td>
+                <td data-label="Data" style="padding: 0.8rem 1rem; font-weight: 600; white-space: nowrap; vertical-align: top;">${escapar(formatarDataHistorica(concerto))}</td>
+                <td data-label="Localidade" style="padding: 0.8rem 1rem; vertical-align: top;">${escapar(concerto.cidade || '—')}</td>
+                <td data-label="Lugar" style="padding: 0.8rem 1rem; vertical-align: top;"><strong>${escapar(concerto.lugar || '—')}</strong></td>
+                <td data-label="Descrición" style="padding: 0.8rem 1rem; vertical-align: top; color: #444;">${escapar(descricionConcerto(concerto))}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
       </details>`;
     }).join('');
 
     if (historySummary instanceof HTMLElement) {
-      historySummary.textContent = `${candidatos.length} concertos · ${anos.length} anos`;
+      historySummary.textContent = `${filtered.length} concertos documentados · ${periodos.length} períodos`;
     }
-    if (historyEmpty instanceof HTMLElement) historyEmpty.hidden = candidatos.length > 0;
+    if (historyEmpty instanceof HTMLElement) historyEmpty.hidden = filtered.length > 0;
   }
 
   async function cargar() {
@@ -492,6 +531,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       }]));
       todosConcertos = concertosRaw.map((fila) => {
         const id = valor(fila, 'Id', 'Row ID');
+        const dataVal = valor(fila, 'Data');
+        const anoData = String(dataVal || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
+        const dataTxtHist = valor(fila, 'DataTextoHistorica');
+        const anoTexto = String(dataTxtHist || '').match(/\b(18|19|20)\d{2}\b/)?.[0];
+
         const programa = programasRaw.filter((p) => valor(p, 'Id_Conciertos', 'Id_Concertos') === id)
           .map((p) => {
             const obra = obras.get(valor(p, 'Id_Obras')) || {};
@@ -503,9 +547,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
               solista: valor(p, 'Solista')
             };
           }).sort((a, b) => a.orde - b.orde);
+
         return {
           id,
-          data: valor(fila, 'Data'),
+          data: dataVal,
+          ano: anoData || anoTexto || '',
           nome: corrixir(valor(fila, 'Nome')),
           cidade: valor(fila, 'Cidade'),
           lugar: valor(fila, 'Lugar'),
@@ -516,7 +562,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           mostrarWeb: verdadeiro(valor(fila, 'Mostrar_Web')),
           numeroConcerto: valor(fila, 'NumeroConcerto'),
           ordeHistorica: Number(valor(fila, 'OrdeHistorica')) || 0,
-          dataTextoHistorica: valor(fila, 'DataTextoHistorica'),
+          dataTextoHistorica: dataTxtHist,
           programa,
           asistentes: Array.isArray(asistenciasPorConcerto[id])
             ? asistenciasPorConcerto[id]
@@ -525,12 +571,15 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       }).filter((c) => c.id && (c.data || c.dataTextoHistorica || c.numeroConcerto))
         .sort((a, b) => (b.ordeHistorica || 0) - (a.ordeHistorica || 0)
           || dataISO(b.data).localeCompare(dataISO(a.data)));
+
       concertos = todosConcertos
         .filter((concerto) => concerto.mostrarWeb && concerto.data && concerto.nome)
         .sort((a, b) => dataISO(b.data).localeCompare(dataISO(a.data)));
+
       debuxarTarxetas();
       debuxarInforme();
       debuxarHistorico();
+
       if (app instanceof HTMLElement) app.hidden = false;
       const requested = new URLSearchParams(window.location.search).get('id');
       const concerto = requested && concertos.find((c) => c.id === requested);
@@ -578,8 +627,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     filters.querySelectorAll('button').forEach((button) => button.classList.toggle('is-active', button === target));
     debuxarTarxetas();
   });
+
   search?.addEventListener('input', debuxarTarxetas);
   historySearch?.addEventListener('input', debuxarHistorico);
+  showAllHistory?.addEventListener('click', () => {
+    if (historySearch instanceof HTMLInputElement) historySearch.value = '';
+    debuxarHistorico();
+  });
+
   retryButton?.addEventListener('click', cargar);
   dialogClose?.addEventListener('click', () => dialog instanceof HTMLDialogElement && dialog.close());
   dialog?.addEventListener('click', (event) => {
@@ -608,26 +663,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .view-switch button:last-child { border-right:0; }
   .view-switch button.is-active { background:var(--color-principal); color:#fff; }
   #concerts-view[hidden],.attendance-report[hidden],.history-report[hidden] { display:none; }
-  .history-report { display:grid; gap:1rem; }
+  .history-report { display:grid; gap:1.2rem; }
   .history-search { width:min(100%,540px); box-sizing:border-box; }
-  .history-years { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:.75rem; align-items:start; }
-  .history-year { border:1px solid #d8d2cc; background:#fff; }
-  .history-year[open] { grid-column:1/-1; }
-  .history-year summary { display:grid; grid-template-columns:72px 1fr auto; gap:1rem; align-items:center; min-height:74px; padding:.65rem 1rem; list-style:none; cursor:pointer; }
-  .history-year summary::-webkit-details-marker { display:none; }
-  .history-year summary:hover { background:#faf8f4; }
-  .history-year-number { color:var(--color-principal); font-family:Georgia,serif; font-size:1.35rem; font-weight:700; }
-  .history-year summary > span:nth-child(2) { color:#69625e; font-size:.76rem; }
-  .history-year summary > span:nth-child(2) strong { color:#2f2926; font-size:1rem; }
-  .history-open { color:#9a7624; font-size:.72rem; font-weight:700; }
-  .history-list { display:grid; gap:0; margin:0; padding:0; border-top:1px solid #e5e0db; list-style:none; }
-  .history-list li { display:grid; grid-template-columns:minmax(70px,110px) 1fr; gap:1rem; padding:1rem; border-bottom:1px solid #eeeae6; }
-  .history-list li:last-child { border-bottom:0; }
-  .history-number { color:#9a7624; font-size:.72rem; font-weight:800; letter-spacing:.04em; }
-  .history-copy { display:grid; gap:.18rem; min-width:0; }
-  .history-copy time,.history-copy span { color:#6c6560; font-size:.74rem; }
-  .history-copy strong { color:#302a27; font-size:.9rem; }
-  .history-copy p { margin:.28rem 0 0; color:#57514d; font-size:.78rem; line-height:1.5; }
+
+  .history-actions-row { display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem; }
+  .btn-history { padding:0.55rem 1rem; border:1px solid var(--color-principal); background:#fff; color:var(--color-principal); font-weight:700; font-size:0.8rem; text-decoration:none; cursor:pointer; border-radius:4px; transition:all 0.2s; }
+  .btn-history:hover { background:var(--color-principal); color:#fff; }
+
+  .history-years-vertical { display:flex; flex-direction:column; gap:0.75rem; width:100%; }
 
   .concert-toolbar { display:grid; grid-template-columns:minmax(270px,430px) auto 1fr; gap:1rem; align-items:center; margin-bottom:1.2rem; }
   .search-box { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:.55rem; padding:.65rem .75rem; border:1px solid #d5d0cb; background:#fff; }
