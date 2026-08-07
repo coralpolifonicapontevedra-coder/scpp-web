@@ -59,7 +59,7 @@ const fitosOrixes = [
     ano: '1925',
     etiqueta: '3 de febreiro',
     titulo: 'Fundación da Sociedade Coral Polifónica de Pontevedra',
-    texto: 'A primeira Xunta Xeral celebrouse o 3 de febreiro de 1925. Antón Losada Diéguez asumiu a presidencia e Antonio Blanco Porto a dirección musical. Da unión de músicos, intelectuais, artistas e persoas comprometidas coa vida cultural da cidade xurdiu unha institución chamada a converterse nun dos grandes referentes da música coral galega.',
+    texto: 'A primeira Xunta Xeral celebróuse o 3 de febreiro de 1925. Antón Losada Diéguez asumiu a presidencia e Antonio Blanco Porto a dirección musical. Da unión de músicos, intelectuais, artistas e persoas comprometidas coa vida cultural da cidade xurdiu unha institución chamada a converterse nun dos grandes referentes da música coral galega.',
     detalle: 'A nova Sociedade reuniu voces de procedencias moi diversas. O padre Luis María Fernández Espinosa desempeñou posteriormente un papel fundamental na incorporación das voces femininas procedentes da Xuventude Antoniana, contribuíndo decisivamente á consolidación do carácter mixto e pioneiro da agrupación.'
   },
   {
@@ -694,10 +694,32 @@ const legado = [
     border-bottom: 0;
   }
 
-  .archive-tab:hover,
+  @media (hover: hover) {
+    .archive-tab:hover {
+      background: var(--wine);
+      color: white;
+    }
+    .archive-tab:hover .tab-number,
+    .archive-tab:hover .tab-meta {
+      color: #e1ca7b;
+    }
+    .archive-tab:hover small {
+      color: rgba(255, 255, 255, 0.72);
+    }
+  }
+
   .archive-tab.active {
     background: var(--wine);
     color: white;
+  }
+
+  .archive-tab.active .tab-number,
+  .archive-tab.active .tab-meta {
+    color: #e1ca7b;
+  }
+
+  .archive-tab.active small {
+    color: rgba(255, 255, 255, 0.72);
   }
 
   .tab-number {
@@ -709,11 +731,6 @@ const legado = [
     letter-spacing: 0.12em;
   }
 
-  .archive-tab.active .tab-number,
-  .archive-tab:hover .tab-number {
-    color: #e1ca7b;
-  }
-
   .tab-meta {
     display: block;
     margin-bottom: 0.35rem;
@@ -722,11 +739,6 @@ const legado = [
     font-weight: 700;
     letter-spacing: 0.13em;
     text-transform: uppercase;
-  }
-
-  .archive-tab.active .tab-meta,
-  .archive-tab:hover .tab-meta {
-    color: #e1ca7b;
   }
 
   .archive-tab strong {
@@ -743,15 +755,10 @@ const legado = [
     line-height: 1.5;
   }
 
-  .archive-tab.active small,
-  .archive-tab:hover small {
-    color: rgba(255, 255, 255, 0.72);
-  }
-
   .archive-content {
     width: min(980px, calc(100% - 3rem));
     margin: 0 auto;
-    scroll-margin-top: 7rem;
+    scroll-margin-top: 6rem;
   }
 
   .archive-panel {
