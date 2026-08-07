@@ -161,7 +161,7 @@ const fitosCronoloxia = [
   {
     ano: '2000–2001',
     titulo: 'Setenta e cinco anos e Premio Cidade de Pontevedra',
-    texto: 'O 75 aniversario impulsou concertos, publicationes e recuperacións discográficas. Nese contexto, o Concello recoñeceu o labor colectivo da Sociedade coa concesión do Premio Cidade de Pontevedra.'
+    texto: 'O 75 aniversario impulsou concertos, publicacións e recuperacións discográficas. Nese contexto, o Concello recoñeceu o labor colectivo da Sociedade coa concesión do Premio Cidade de Pontevedra.'
   },
   {
     ano: '2025',
@@ -549,73 +549,38 @@ const legado = [
         </div>
       </div>
 
-      <!-- 07 HISTÓRICO DE CONCERTOS (NUEVO PANEL REDISEÑADO) -->
+      <!-- 07 HISTÓRICO DE CONCERTOS (INTEGRACIÓN EXACTA DO ARQUIVO COMPLETO) -->
       <div id="panel-historico" class="archive-panel" role="tabpanel">
         <header class="section-heading">
-          <p class="section-kicker">Arquivo da Coral</p>
+          <p class="section-kicker">Arquivo histórico</p>
           <h2>Histórico de concertos</h2>
-          <p>
-            Consulta por décadas os concertos documentados desde 1925, cunha lectura directa e sen pasos intermedios.
-          </p>
+          <p>Consulta por décadas os concertos documentados desde 1925, cunha lectura directa e sen pasos intermedios.</p>
+          <div id="history-summary" class="history-summary-badge" aria-live="polite">Cargando o arquivo…</div>
+          <div class="history-actions-row">
+            <button id="show-all-history" type="button" class="btn-history">Ver todo o histórico</button>
+            <a href="/documentos/concertos_scpp_1925_2026.pdf" download="concertos_scpp_1925_2026.pdf" class="btn-history">Descargar histórico (.pdf)</a>
+          </div>
         </header>
 
-        <!-- Barra de herramientas superior -->
-        <div class="historico-toolbar">
-          <div class="historico-actions">
-            <a href="#" class="btn-action">Ver histórico completo</a>
-            <a href="#" class="btn-action btn-icon">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 1rem; height: 1rem;">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-              </svg>
-              Descargar histórico (.docx)
-            </a>
-          </div>
-          <div class="historico-counter">
-            733 concertos · 11 períodos
-          </div>
+        <div class="history-toolbar-container">
+          <label class="history-search-label">
+            <span class="sr-only">Buscar no histórico</span>
+            <input id="history-search" type="search" placeholder="Buscar ano, número, concerto, cidade ou lugar" autocomplete="off" class="history-search-input" />
+          </label>
         </div>
 
-        <!-- Campo de Búsqueda -->
-        <div class="search-box">
-          <span class="search-icon">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 1.2rem; height: 1.2rem;">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-          </span>
-          <input 
-            type="text" 
-            placeholder="Buscar ano, número, concerto, cidade ou lugar" 
-            class="search-input"
-          />
-        </div>
+        <!-- Contenedor vertical forzado das décadas -->
+        <div id="history-years" style="display: flex; flex-direction: column; gap: 1.25rem; width: 100%;"></div>
 
-        <!-- Lista de Períodos en Acordeóns -->
-        <div class="accordion-list">
-          <details class="accordion-item">
-            <summary class="accordion-header">
-              <div class="accordion-title-group">
-                <span class="accordion-label">Período histórico</span>
-                <span class="accordion-years">1925 – 1934</span>
-                <span class="accordion-badge">60 concertos</span>
-              </div>
-              <div class="accordion-trigger">
-                <span>Ver concertos</span>
-                <svg class="accordion-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 1rem; height: 1rem;">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </summary>
-            <div class="accordion-content">
-              <p class="placeholder-text">Listaxe detallada de concertos para o período 1925-1934...</p>
-            </div>
-          </details>
-        </div>
+        <p id="history-empty" class="history-state" hidden>Non hai concertos que coincidan coa busca.</p>
+        <p id="history-error" class="history-state error" hidden>Non foi posible cargar o histórico. Téntao de novo nuns instantes.</p>
       </div>
     </section>
   </main>
 </BaseLayout>
 
 <script>
+  // Cambiar de Pestaña
   const activateTab = (targetId) => {
     const tabs = document.querySelectorAll('.archive-tab');
     const panels = document.querySelectorAll('.archive-panel');
@@ -646,6 +611,136 @@ const legado = [
       }
     });
   });
+
+  // Lógica dinámica do Histórico de Concertos
+  const endpoint = '/api/concertos-historico';
+  const years = document.querySelector('#history-years');
+  const summary = document.querySelector('#history-summary');
+  const search = document.querySelector('#history-search');
+  const empty = document.querySelector('#history-empty');
+  const errorState = document.querySelector('#history-error');
+  const showAll = document.querySelector('#show-all-history');
+  let concertos = [];
+
+  const normalizar = (value = '') => String(value)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+  const escapar = (value = '') => String(value)
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+
+  const formatarData = (concerto) => {
+    if (concerto.dataTextoHistorica) return concerto.dataTextoHistorica;
+    if (!concerto.data) return 'Data non documentada';
+    const date = new Date(concerto.data + 'T12:00:00');
+    return Number.isNaN(date.getTime())
+      ? concerto.data
+      : new Intl.DateTimeFormat('gl-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+  };
+
+  const inicioPeriodo = (ano) => 1925 + Math.floor((Number(ano) - 1925) / 10) * 10;
+  const etiquetaPeriodo = (inicio) => `${inicio}–${Math.min(inicio + 9, 2026)}`;
+  const nomeXenerico = (concerto) => {
+    const nome = normalizar(concerto.nome).replaceAll(' ', '');
+    const numero = normalizar(concerto.numeroConcerto).replaceAll(' ', '');
+    return nome === `concerto nº ${numero}`.replaceAll(' ', '')
+      || nome === `concerto n.º ${numero}`.replaceAll(' ', '')
+      || nome === `concerto numero ${numero}`.replaceAll(' ', '');
+  };
+  const descricionConcerto = (concerto) =>
+    concerto.descricion || (nomeXenerico(concerto) ? '' : concerto.nome) || 'Sen descrición documentada';
+
+  function debuxar() {
+    if (!(years instanceof HTMLElement)) return;
+    const query = normalizar(search instanceof HTMLInputElement ? search.value : '');
+    const exactYear = /^\d{4}$/.test(query);
+    const filtered = concertos.filter((concerto) => {
+      if (exactYear) return String(concerto.ano || '') === query;
+      return !query || normalizar([
+        concerto.ano, concerto.numeroConcerto, concerto.data, concerto.dataTextoHistorica,
+        concerto.nome, concerto.cidade, concerto.lugar, concerto.descricion
+      ].join(' ')).includes(query);
+    });
+
+    const grouped = new Map();
+    filtered.forEach((concerto) => {
+      const ano = Number(concerto.ano);
+      const periodo = Number.isFinite(ano) ? inicioPeriodo(ano) : 'Sen data';
+      if (!grouped.has(periodo)) grouped.set(periodo, []);
+      grouped.get(periodo).push(concerto);
+    });
+    const periodos = Array.from(grouped.keys()).sort((a, b) => {
+      if (a === 'Sen data') return 1;
+      if (b === 'Sen data') return -1;
+      return Number(a) - Number(b);
+    });
+
+    const isOpen = query.length > 0 ? 'open' : '';
+
+    years.innerHTML = periodos.map((periodo) => {
+      const items = grouped.get(periodo).sort((a, b) => (Number(a.ordeHistorica) || 0) - (Number(b.ordeHistorica) || 0));
+      const etiqueta = periodo === 'Sen data' ? periodo : `Década de ${etiquetaPeriodo(periodo)}`;
+      
+      return `<details class="card-decada" ${isOpen} style="width: 100%; background: #ffffff; border: 1px solid #e2ddd7; border-radius: 6px; overflow: hidden; margin-bottom: 0.5rem;">
+        <summary style="display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.4rem; background: #faf8f5; cursor: pointer; user-select: none; list-style: none;">
+          <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+            <span style="font-size: 0.65rem; font-weight: 800; color: #a3821a; text-transform: uppercase; letter-spacing: 0.08em;">Período histórico</span>
+            <strong style="font-family: Georgia, serif; font-size: 1.25rem; color: #5c1926;">${escapar(etiqueta)}</strong>
+          </div>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: #555; background: #eae4d9; padding: 0.25rem 0.75rem; border-radius: 12px;">${items.length} concertos</span>
+            <span style="font-size: 0.8rem; color: #5c1926;">▼</span>
+          </div>
+        </summary>
+        <div style="width: 100%; overflow-x: auto; border-top: 1px solid #e2ddd7; background: #fff;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+            <thead>
+              <tr style="background: #fcfbf9; border-bottom: 2px solid #e2ddd7;">
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 8%;">Nº</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%;">Data</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%;">Localidade</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 24%;">Lugar</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 32%;">Descrición</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((concerto) => `<tr style="border-bottom: 1px solid #f0ebe3;">
+                <td data-label="Nº" style="padding: 0.8rem 1rem; color: #a3821a; font-weight: 800; vertical-align: top;">${escapar(concerto.numeroConcerto || '—')}</td>
+                <td data-label="Data" style="padding: 0.8rem 1rem; font-weight: 600; white-space: nowrap; vertical-align: top;">${escapar(formatarData(concerto))}</td>
+                <td data-label="Localidade" style="padding: 0.8rem 1rem; vertical-align: top;">${escapar(concerto.cidade || '—')}</td>
+                <td data-label="Lugar" style="padding: 0.8rem 1rem; vertical-align: top;"><strong>${escapar(concerto.lugar || '—')}</strong></td>
+                <td data-label="Descrición" style="padding: 0.8rem 1rem; vertical-align: top; color: #444;">${escapar(descricionConcerto(concerto))}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </details>`;
+    }).join('');
+
+    if (summary instanceof HTMLElement) summary.textContent = `${filtered.length} concerto${filtered.length === 1 ? '' : 's'} documentado${filtered.length === 1 ? '' : 's'} · ${periodos.length} ${periodos.length === 1 ? 'década' : 'décadas'}`;
+    if (empty instanceof HTMLElement) empty.hidden = filtered.length > 0;
+  }
+
+  async function cargar() {
+    try {
+      const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      if (!data?.ok || !Array.isArray(data.concertos)) throw new Error('Índice non válido');
+      concertos = data.concertos;
+      debuxar();
+    } catch {
+      if (summary instanceof HTMLElement) summary.textContent = 'Arquivo temporalmente non dispoñible';
+      if (errorState instanceof HTMLElement) errorState.hidden = false;
+    }
+  }
+
+  search?.addEventListener('input', debuxar);
+  showAll?.addEventListener('click', () => {
+    if (search instanceof HTMLInputElement) search.value = '';
+    debuxar();
+  });
+  cargar();
 </script>
 
 <style>
@@ -1095,171 +1190,93 @@ const legado = [
     text-align: center;
   }
 
-  /* ESTILOS ESPECÍFICOS DO NOVO PANEL HISTÓRICO */
-  .historico-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .historico-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  .btn-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
+  /* ESTILOS ESPECÍFICOS DO NOVO HISTÓRICO */
+  .history-summary-badge {
+    display: inline-block;
+    margin-top: 1.2rem;
     padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
     color: var(--wine);
+    background: #f4f0e8;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: 4px;
+  }
+
+  .history-actions-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.2rem;
+  }
+
+  .btn-history {
+    padding: 0.75rem 1.25rem;
     border: 1px solid var(--wine);
-    border-radius: 0.375rem;
+    background: #fff;
+    color: var(--wine);
+    font-weight: 700;
+    font-size: 0.8rem;
     text-decoration: none;
-    transition: all 0.2s ease;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
   }
 
-  .btn-action:hover {
+  .btn-history:hover {
     background: var(--wine);
-    color: white;
+    color: #fff;
   }
 
-  .historico-counter {
-    font-size: 0.875rem;
-    color: var(--muted);
-    font-weight: 600;
-  }
-
-  .search-box {
-    position: relative;
-    width: 100%;
-    max-width: 36rem;
+  .history-toolbar-container {
+    display: flex;
+    justify-content: flex-end;
     margin-bottom: 2rem;
   }
 
-  .search-icon {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    padding-left: 0.75rem;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    color: var(--muted);
+  .history-search-label {
+    width: min(100%, 380px);
   }
 
-  .search-input {
+  .history-search-input {
     width: 100%;
-    padding-left: 2.5rem;
-    padding-right: 1rem;
-    padding-top: 0.625rem;
-    padding-bottom: 0.625rem;
-    font-size: 0.875rem;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
     border: 1px solid var(--line);
-    border-radius: 0.5rem;
-    outline: none;
-    background: white;
-    color: var(--ink);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+    border-radius: 4px;
   }
 
-  .search-input:focus {
-    border-color: var(--wine);
-    box-shadow: 0 0 0 3px rgba(92, 25, 38, 0.15);
+  summary::-webkit-details-marker {
+    display: none !important;
   }
 
-  .accordion-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+  .history-state {
+    padding: 1.4rem;
+    background: #f5f2ed;
+    text-align: center;
+    border-radius: 4px;
   }
 
-  .accordion-item {
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 0.5rem;
+  .history-state.error {
+    color: #7a2525;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
     overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
-  .accordion-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.2s ease;
-  }
-
-  .accordion-header:hover {
-    background: var(--paper);
-  }
-
-  .accordion-title-group {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-
-  .accordion-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .accordion-years {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--wine);
-  }
-
-  .accordion-badge {
-    padding: 0.125rem 0.625rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: rgba(163, 130, 26, 0.15);
-    color: var(--wine);
-    border-radius: 9999px;
-  }
-
-  .accordion-trigger {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--wine);
-  }
-
-  .accordion-item[open] .accordion-arrow {
-    transform: rotate(180deg);
-  }
-
-  .accordion-arrow {
-    transition: transform 0.2s ease;
-  }
-
-  .accordion-content {
-    padding: 1rem;
-    border-top: 1px solid var(--line);
-    background: var(--paper);
-  }
-
-  .placeholder-text {
-    font-style: italic;
-    color: var(--muted);
-    font-size: 0.875rem;
-    margin: 0;
+  [hidden] {
+    display: none !important;
   }
 
   @media (max-width: 820px) {
@@ -1344,6 +1361,14 @@ const legado = [
     .person-card {
       grid-template-columns: 1fr;
       gap: 0.5rem;
+    }
+
+    .history-toolbar-container {
+      justify-content: stretch;
+    }
+
+    .history-search-label {
+      width: 100%;
     }
   }
 </style>
