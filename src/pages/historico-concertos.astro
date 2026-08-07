@@ -106,35 +106,35 @@ import BaseLayout from '../layouts/Layout.astro';
       const items = grouped.get(periodo).sort((a, b) => (Number(a.ordeHistorica) || 0) - (Number(b.ordeHistorica) || 0));
       const etiqueta = periodo === 'Sen data' ? periodo : `Década de ${etiquetaPeriodo(periodo)}`;
       
-      return `<details class="card-decada" ${isOpen} style="width: 100%; background: #ffffff; border: 1px solid #e2ddd7; border-radius: 6px; overflow: hidden; margin-bottom: 0.5rem;">
-        <summary style="display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.4rem; background: #faf8f5; cursor: pointer; user-select: none; list-style: none;">
+      return `<details class="card-decada" ${isOpen} style="width: 100%; background: #ffffff; border: 1px solid #e2ddd7; border-radius: 6px; overflow: hidden; margin-bottom: 0.5rem; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">
+        <summary style="display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.4rem; background: #faf8f5; cursor: pointer; user-select: none; list-style: none; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">
           <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-            <span style="font-size: 0.65rem; font-weight: 800; color: #a3821a; text-transform: uppercase; letter-spacing: 0.08em;">Período histórico</span>
-            <strong style="font-family: Georgia, serif; font-size: 1.25rem; color: #5c1926;">${escapar(etiqueta)}</strong>
+            <span style="font-size: 0.65rem; font-weight: 800; color: #a3821a; text-transform: uppercase; letter-spacing: 0.08em; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">Período histórico</span>
+            <strong style="font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 1.25rem; font-weight: 700; color: #5c1926;">${escapar(etiqueta)}</strong>
           </div>
           <div style="display: flex; align-items: center; gap: 1rem;">
-            <span style="font-size: 0.78rem; font-weight: 700; color: #555; background: #eae4d9; padding: 0.25rem 0.75rem; border-radius: 12px;">${items.length} concertos</span>
+            <span style="font-size: 0.78rem; font-weight: 700; color: #555; background: #eae4d9; padding: 0.25rem 0.75rem; border-radius: 12px; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">${items.length} concertos</span>
             <span style="font-size: 0.8rem; color: #5c1926;">▼</span>
           </div>
         </summary>
         <div style="width: 100%; overflow-x: auto; border-top: 1px solid #e2ddd7; background: #fff;">
-          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">
             <thead>
               <tr style="background: #fcfbf9; border-bottom: 2px solid #e2ddd7;">
-                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 8%;">Nº</th>
-                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%;">Data</th>
-                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%;">Localidade</th>
-                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 24%;">Lugar</th>
-                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 32%;">Descrición</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 8%; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">Nº</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">Data</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 18%; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">Localidade</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 24%; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">Lugar</th>
+                <th style="padding: 0.8rem 1rem; color: #5c1926; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; width: 32%; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">Descrición</th>
               </tr>
             </thead>
             <tbody>
               ${items.map((concerto) => `<tr style="border-bottom: 1px solid #f0ebe3;">
-                <td data-label="Nº" style="padding: 0.8rem 1rem; color: #a3821a; font-weight: 800; vertical-align: top;">${escapar(concerto.numeroConcerto || '—')}</td>
-                <td data-label="Data" style="padding: 0.8rem 1rem; font-weight: 600; white-space: nowrap; vertical-align: top;">${escapar(formatarData(concerto))}</td>
-                <td data-label="Localidade" style="padding: 0.8rem 1rem; vertical-align: top;">${escapar(concerto.cidade || '—')}</td>
-                <td data-label="Lugar" style="padding: 0.8rem 1rem; vertical-align: top;"><strong>${escapar(concerto.lugar || '—')}</strong></td>
-                <td data-label="Descrición" style="padding: 0.8rem 1rem; vertical-align: top; color: #444;">${escapar(descricionConcerto(concerto))}</td>
+                <td data-label="Nº" style="padding: 0.8rem 1rem; color: #a3821a; font-weight: 800; vertical-align: top; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">${escapar(concerto.numeroConcerto || '—')}</td>
+                <td data-label="Data" style="padding: 0.8rem 1rem; font-weight: 600; white-space: nowrap; vertical-align: top; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">${escapar(formatarData(concerto))}</td>
+                <td data-label="Localidade" style="padding: 0.8rem 1rem; vertical-align: top; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">${escapar(concerto.cidade || '—')}</td>
+                <td data-label="Lugar" style="padding: 0.8rem 1rem; vertical-align: top; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;"><strong style="font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">${escapar(concerto.lugar || '—')}</strong></td>
+                <td data-label="Descrición" style="padding: 0.8rem 1rem; vertical-align: top; color: #444; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif;">${escapar(descricionConcerto(concerto))}</td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -170,26 +170,26 @@ import BaseLayout from '../layouts/Layout.astro';
 </script>
 
 <style>
-  .history-page { padding-block: clamp(3rem, 5vw, 5rem); }
+  .history-page { padding-block: clamp(3rem, 5vw, 5rem); font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
   .history-hero { max-width: 850px; margin: 0 auto 3rem; text-align: center; }
-  .eyebrow { margin: 0 0 .4rem; color: #a3821a; font-size: .75rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
-  .history-hero h1 { margin: .25rem 0; color: #5c1926; font-size: clamp(2.2rem, 4vw, 3.5rem); font-family: Georgia, serif; }
-  .history-hero > p:not(.eyebrow) { max-width: 680px; margin: 1rem auto 0; color: #555; line-height: 1.6; }
+  .eyebrow { margin: 0 0 .4rem; color: #a3821a; font-size: .75rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
+  .history-hero h1 { margin: .25rem 0; color: #5c1926; font-size: clamp(2.2rem, 4vw, 3.5rem); font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; font-weight: 700; }
+  .history-hero > p:not(.eyebrow) { max-width: 680px; margin: 1rem auto 0; color: #555; line-height: 1.6; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
   .section-line-center { width: 60px; height: 2px; margin: 1rem auto; background: #a3821a; }
-  .history-summary { display: inline-block; margin-top: 1.2rem; padding: .5rem 1rem; color: #5c1926; background: #f4f0e8; font-size: .85rem; font-weight: 700; border-radius: 4px; }
+  .history-summary { display: inline-block; margin-top: 1.2rem; padding: .5rem 1rem; color: #5c1926; background: #f4f0e8; font-size: .85rem; font-weight: 700; border-radius: 4px; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
   
-  .history-browser { max-width: 1000px; margin: auto; }
+  .history-browser { max-width: 1000px; margin: auto; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
   .history-toolbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #e0d9d0; }
-  .history-toolbar h2 { margin: 0; color: #5c1926; font-size: 1.8rem; font-family: Georgia, serif; }
+  .history-toolbar h2 { margin: 0; color: #5c1926; font-size: 1.8rem; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; font-weight: 700; }
   .history-search { width: min(100%, 380px); }
-  .history-search input { width: 100%; box-sizing: border-box; padding: .75rem 1rem; border: 1px solid #ccc; background: #fff; font: inherit; font-size: .9rem; border-radius: 4px; }
+  .history-search input { width: 100%; box-sizing: border-box; padding: .75rem 1rem; border: 1px solid #ccc; background: #fff; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; font-size: .9rem; border-radius: 4px; }
   .history-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 1.2rem; }
-  .history-actions a, .history-actions button { padding: .75rem 1.25rem; border: 1px solid #5c1926; background: #fff; color: #5c1926; font-weight: 700; font-size: .8rem; text-decoration: none; cursor: pointer; border-radius: 4px; transition: all .2s; }
+  .history-actions a, .history-actions button { padding: .75rem 1.25rem; border: 1px solid #5c1926; background: #fff; color: #5c1926; font-weight: 700; font-size: .8rem; text-decoration: none; cursor: pointer; border-radius: 4px; transition: all .2s; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
   .history-actions a:hover, .history-actions button:hover { background: #5c1926; color: #fff; }
 
   summary::-webkit-details-marker { display: none !important; }
 
-  .history-state { padding: 1.4rem; background: #f5f2ed; text-align: center; border-radius: 4px; }
+  .history-state { padding: 1.4rem; background: #f5f2ed; text-align: center; border-radius: 4px; font-family: Aptos, 'Segoe UI', Arial, Helvetica, sans-serif; }
   .history-state.error { color: #7a2525; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   [hidden] { display: none !important; }
