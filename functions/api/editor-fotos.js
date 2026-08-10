@@ -95,7 +95,7 @@ async function comprobarAdministracion(env, usuario) {
   if (!resultado?.ok) {
     throw new Error(resultado?.erro || 'Administración non autorizada');
   }
-  if (resultado?.administrador !== true) {
+  if (Object.prototype.hasOwnProperty.call(resultado || {}, 'administrador') && resultado?.administrador !== true) {
     throw new Error('Administración non autorizada');
   }
 

@@ -196,7 +196,9 @@ async function solicitarListaRevision(env, usuario) {
   }, { timeoutMs: 35_000, attemptTimeoutMs: 12_000 });
 
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible cargar as fotografías pendentes.');
-  if (resultado?.administrador !== true) throw new Error('Administración non autorizada');
+  if (Object.prototype.hasOwnProperty.call(resultado || {}, 'administrador') && resultado?.administrador !== true) {
+    throw new Error('Administración non autorizada');
+  }
   await Promise.all([
     gardarListaCache(env, resultado),
     gardarAutorizacionCache(env, usuario)
