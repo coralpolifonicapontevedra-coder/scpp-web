@@ -271,7 +271,7 @@ const homeModules = getPortalNavigationModules('home');
       body: JSON.stringify({ idToken, accion: 'listarFotosRevision' })
     });
     const result = await response.json().catch(() => null);
-    return response.ok && result?.ok === true && result?.administrador === true;
+    return response.ok && result?.ok === true;
   }
 
   async function showDashboard(user) {

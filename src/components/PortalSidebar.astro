@@ -146,7 +146,7 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
       body: JSON.stringify({ idToken, accion: 'listarFotosRevision' })
     });
     const result = await response.json().catch(() => null);
-    if (response.ok && result?.ok === true && result?.administrador === true) {
+    if (response.ok && result?.ok === true) {
       return { allowed: true, uncertain: false };
     }
     if (response.status === 403) {
