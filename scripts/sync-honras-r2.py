@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Constrúe o índice público de Honras en R2 a partir da Sheet.
+"""Xera indices/honras-v1.json en R2 desde a Sheet Honras.
 
-A web nunca consulta Google en tempo real: só le indices/honras-v1.json.
-Se a extracción ou a validación falla, non se substitúe o último índice válido.
+A lectura web queda desacoplada de Google. Se a fonte ou a validación fallan,
+o índice anterior non se toca.
 """
-
 from __future__ import annotations
 
 import csv
@@ -20,13 +19,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-PUBLIC_BUCKET = os.getenv("R2_PUBLIC_BUCKET", "scpp-publico").strip()
-PUBLIC_INDEX_KEY = "indices/honras-v1.json"
+BUCKET = os.getenv("R2_PUBLIC_BUCKET", "scpp-publico").strip()
+INDEX_KEY = "indices/honras-v1.json"
 ATTEMPTS = int(os.getenv("SYNC_ATTEMPTS", "5"))
-TIMEOUT_SECONDS = int(os.getenv("SYNC_TIMEOUT_SECONDS", "90"))
+TIMEOUT = int(os.getenv("SYNC_TIMEOUT_SECONDS", "90"))
 REQUIRED_HEADERS = {
-    "id_honra", "categoria", "data", "ano", "festividade", "persoaentidade",
-    "tipodestinatario", "condicion", "observacions", "mostrarweb", "orde"
+    "idhonra", "categoria", "data", "ano", "festividade", "persoaentidade",
+    "tipodestinatario", "condicion", "observacions", "mostrarweb", "orde",
 }
 
 
@@ -39,7 +38,7 @@ def normalize(value: Any = "") -> str:
     return "".join(ch for ch in raw if unicodedata.category(ch) != "Mn").lower()
 
 
-def header_name(value: Any = "") -> str:
+def header(value: Any = "") -> str:
     return re.sub(r"[^a-z0-9]+", "", normalize(value))
 
 
@@ -65,7 +64,7 @@ def iso_date(value: Any = "") -> str:
         try:
             return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
         except ValueError:
-            pass
+            continue
     raise ValueError(f"Data non válida: {raw}")
 
 
@@ -73,10 +72,10 @@ def parse_csv(content: str) -> tuple[list[dict[str, str]], set[str]]:
     reader = csv.DictReader(io.StringIO(content.lstrip("\ufeff")))
     if not reader.fieldnames:
         raise RuntimeError("A fonte Honras non ten cabeceiras")
-    headers = {header_name(name) for name in reader.fieldnames if text(name)}
-    rows = []
+    headers = {header(name) for name in reader.fieldnames if text(name)}
+    rows: list[dict[str, str]] = []
     for raw in reader:
-        row = {header_name(k): text(v) for k, v in raw.items() if k is not None and text(k)}
+        row = {header(k): text(v) for k, v in raw.items() if k is not None and text(k)}
         if any(row.values()):
             rows.append(row)
     if not rows:
@@ -84,7 +83,7 @@ def parse_csv(content: str) -> tuple[list[dict[str, str]], set[str]]:
     return rows, headers
 
 
-def fetch_source() -> tuple[list[dict[str, str]], set[str]]:
+def source() -> tuple[list[dict[str, str]], set[str]]:
     local_file = text(os.getenv("HONRAS_CSV_FILE"))
     if local_file:
         return parse_csv(Path(local_file).read_text(encoding="utf-8-sig"))
@@ -97,14 +96,18 @@ def fetch_source() -> tuple[list[dict[str, str]], set[str]]:
     last_error: Exception | None = None
     for attempt in range(1, ATTEMPTS + 1):
         try:
-            response = requests.get(url, headers={"Accept": "text/csv", "Cache-Control": "no-cache"}, timeout=TIMEOUT_SECONDS)
+            response = requests.get(
+                url,
+                headers={"Accept": "text/csv", "Cache-Control": "no-cache", "User-Agent": "SCPP-Honras-R2/1.0"},
+                timeout=TIMEOUT,
+            )
             response.raise_for_status()
             rows, headers = parse_csv(response.content.decode("utf-8-sig"))
             print(f"Honras: {len(rows)} filas no intento {attempt}")
             return rows, headers
         except Exception as exc:  # noqa: BLE001
             last_error = exc
-            print(f"Intento {attempt}/{ATTEMPTS} fallido: {exc}", file=sys.stderr)
+            print(f"Intento {attempt}/{ATTEMPTS} fallido para Honras: {exc}", file=sys.stderr)
             if attempt < ATTEMPTS:
                 time.sleep(min(attempt * 10, 30))
     raise RuntimeError(f"Non foi posible obter Honras: {last_error}")
@@ -115,8 +118,8 @@ def build(rows: list[dict[str, str]], headers: set[str]) -> list[dict[str, Any]]
     if missing:
         raise RuntimeError("Faltan columnas en Honras: " + ", ".join(missing))
 
-    honras = []
-    ids = set()
+    ids: set[str] = set()
+    result: list[dict[str, Any]] = []
     for row_number, row in enumerate(rows, start=2):
         ident = text(row.get("idhonra"))
         if not ident:
@@ -126,14 +129,14 @@ def build(rows: list[dict[str, str]], headers: set[str]) -> list[dict[str, Any]]
         ids.add(ident)
         if not truthy(row.get("mostrarweb")):
             continue
+
         ano = integer(row.get("ano"))
-        if ano is None:
-            raise RuntimeError(f"Honra {ident}: falta Ano")
         nome = text(row.get("persoaentidade"))
         categoria = text(row.get("categoria"))
-        if not nome or not categoria:
-            raise RuntimeError(f"Honra {ident}: falta Categoria ou PersoaEntidade")
-        honras.append({
+        if ano is None or not nome or not categoria:
+            raise RuntimeError(f"Honra {ident}: faltan Ano, Categoria ou PersoaEntidade")
+
+        result.append({
             "id": ident,
             "categoria": categoria,
             "data": iso_date(row.get("data")),
@@ -146,13 +149,13 @@ def build(rows: list[dict[str, str]], headers: set[str]) -> list[dict[str, Any]]
             "orde": integer(row.get("orde")) or 999,
         })
 
-    if not honras:
+    if not result:
         raise RuntimeError("Non hai honras con MostrarWeb activado; mantense o índice anterior")
-    honras.sort(key=lambda item: (item["categoria"], -item["ano"], item["orde"], item["persoaEntidade"]))
-    return honras
+    result.sort(key=lambda item: (item["categoria"], -item["ano"], item["orde"], item["persoaEntidade"]))
+    return result
 
 
-def payload(honras: list[dict[str, Any]]) -> dict[str, Any]:
+def make_payload(honras: list[dict[str, Any]]) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     return {
         "ok": True,
@@ -185,44 +188,52 @@ def r2_client():
     )
 
 
-def head_object(client: Any, bucket: str, key: str) -> dict[str, Any] | None:
+def head(client: Any) -> dict[str, Any] | None:
     from botocore.exceptions import ClientError
     try:
-        return client.head_object(Bucket=bucket, Key=key)
+        return client.head_object(Bucket=BUCKET, Key=INDEX_KEY)
     except ClientError as exc:
-        if text(exc.response.get("Error", {}).get("Code")) in {"404", "NoSuchKey", "NotFound"}:
+        code = text(exc.response.get("Error", {}).get("Code"))
+        if code in {"404", "NoSuchKey", "NotFound"}:
             return None
         raise
 
 
 def publish(client: Any, body: dict[str, Any]) -> bool:
-    data_body = json.dumps(body["honras"], ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    data_sha = hashlib.sha256(data_body).hexdigest()
-    current = head_object(client, PUBLIC_BUCKET, PUBLIC_INDEX_KEY)
+    data_raw = json.dumps(body["honras"], ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    data_sha = hashlib.sha256(data_raw).hexdigest()
+    current = head(client)
     if current and text(current.get("Metadata", {}).get("data-sha256")) == data_sha:
-        print(f"Sen cambios: s3://{PUBLIC_BUCKET}/{PUBLIC_INDEX_KEY}")
+        print(f"Sen cambios: s3://{BUCKET}/{INDEX_KEY}")
         return False
+
     raw = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     body_sha = hashlib.sha256(raw).hexdigest()
     client.put_object(
-        Bucket=PUBLIC_BUCKET,
-        Key=PUBLIC_INDEX_KEY,
+        Bucket=BUCKET,
+        Key=INDEX_KEY,
         Body=raw,
         ContentType="application/json; charset=utf-8",
         CacheControl="public, max-age=300",
-        Metadata={"data-sha256": data_sha, "body-sha256": body_sha, "scpp-source": "github-actions-sheets-r2"},
+        Metadata={
+            "data-sha256": data_sha,
+            "body-sha256": body_sha,
+            "scpp-source": "github-actions-sheets-r2",
+            "scpp-generated-at": str(body["xeradoEnMs"]),
+        },
     )
-    verified = head_object(client, PUBLIC_BUCKET, PUBLIC_INDEX_KEY)
-    if not verified or int(verified.get("ContentLength", 0)) != len(raw):
-        raise RuntimeError("Fallou a verificación do índice Honras en R2")
-    print(f"Publicado: s3://{PUBLIC_BUCKET}/{PUBLIC_INDEX_KEY} ({len(raw)} bytes, {body['total']} honras)")
+    verified = head(client)
+    metadata = verified.get("Metadata", {}) if verified else {}
+    if not verified or int(verified.get("ContentLength", 0)) != len(raw) or text(metadata.get("body-sha256")) != body_sha:
+        raise RuntimeError(f"Fallou a verificación de s3://{BUCKET}/{INDEX_KEY}")
+    print(f"Publicado: s3://{BUCKET}/{INDEX_KEY} ({len(raw)} bytes, {body['total']} honras)")
     return True
 
 
 def run() -> int:
-    rows, headers = fetch_source()
+    rows, headers = source()
     honras = build(rows, headers)
-    changed = publish(r2_client(), payload(honras))
+    changed = publish(r2_client(), make_payload(honras))
     print(json.dumps({"publicas": len(honras), "indiceActualizado": changed}, ensure_ascii=False))
     return 0
 
