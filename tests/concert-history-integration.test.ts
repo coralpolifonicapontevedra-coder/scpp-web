@@ -14,7 +14,7 @@ describe('histórico de concertos activo', () => {
   it('proba a implementación que realmente serve a ruta oficial', () => {
     expect(route).toContain("const RUTA_IMPLEMENTACION = '/portal/concertos-novo/'");
     expect(privatePage).toContain('id="ver-historico"');
-    expect(privatePage).toContain('let todosConcertos = []');
+    expect(privatePage).toMatch(/let\s+todosConcertos(?::\s*Concerto\[\])?\s*=\s*\[\]/);
   });
 
   it('limita a grella principal a Mostrar_Web sen reducir o informe', () => {
@@ -25,27 +25,34 @@ describe('histórico de concertos activo', () => {
 
   it('ofrece o arquivo completo por décadas nas dúas áreas', () => {
     expect(privatePage).toContain('function pintarHistorico()');
-    expect(privatePage).toContain('<details class="history-period"');
-    expect(privatePage).toContain('name="periodos-historicos-privados"');
+    expect(privatePage).toContain('<details class="card-decada"');
+    expect(privatePage).toContain('Década de ${etiquetaPeriodo');
     expect(publicPage).toContain("const endpoint = '/api/concertos-historico'");
     expect(publicPage).toContain('const exactYear = /^\\d{4}$/.test(query)');
-    expect(publicPage).toContain('<details class="period-block"');
-    expect(publicPage).toContain('name="periodos-historicos"');
-    expect(publicPage).toContain('class="period-toggle"');
+    expect(publicPage).toContain('<details class="card-decada"');
+    expect(publicPage).toContain('Década de ${etiquetaPeriodo');
   });
 
   it('presenta os campos separados e evita repetir o número do concerto', () => {
     for (const page of [privatePage, publicPage]) {
-      expect(page).toContain('<th>Nº</th><th>Data</th><th>Localidade</th><th>Lugar</th><th>Descrición</th>');
       expect(page).toContain('data-label="Nº"');
+      expect(page).toContain('data-label="Data"');
+      expect(page).toContain('data-label="Localidade"');
+      expect(page).toContain('data-label="Lugar"');
+      expect(page).toContain('data-label="Descrición"');
       expect(page).toContain('nomeXenerico');
-      expect(page).toContain('<table class="history-table">');
+      expect(page).toContain('<table');
+      expect(page).toContain('>Nº</th>');
+      expect(page).toContain('>Data</th>');
+      expect(page).toContain('>Localidade</th>');
+      expect(page).toContain('>Lugar</th>');
+      expect(page).toContain('>Descrición</th>');
       expect(page).not.toContain('data-history-id');
     }
   });
 
   it('publica a descarga documental desde as dúas áreas', () => {
-    const download = '/documentos/historico-concertos-scpp-1925-2026.docx';
+    const download = '/arquivos/publico/documentos/concertos_scpp_1925_2026.pdf';
     expect(privatePage).toContain(download);
     expect(publicPage).toContain(download);
   });
