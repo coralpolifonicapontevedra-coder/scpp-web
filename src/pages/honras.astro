@@ -15,8 +15,7 @@ const categorias = [
 >
   <main class="honras-page">
     <header class="page-header">
-      <h1>Honras concedidas</h1>
-      <p class="subtitle">Distincións concedidas</p>
+      <h1>Distincións concedidas</h1>
       <p class="intro">
         Placas e medallas coas que a Sociedade Coral Polifónica de Pontevedra
         recoñeceu persoas, colectivos e entidades vinculadas á súa historia.
@@ -182,26 +181,25 @@ const categorias = [
     --muted:#68625b;
     --paper:#fdfbf7;
     --soft:#f4f0e6;
-    --line:rgba(106,27,41,.17);
+    --line:rgba(106,27,41,.24);
     background:var(--paper);
     color:var(--ink);
     min-height:70vh;
-    padding:clamp(3rem,6vw,5.5rem) clamp(1rem,3.5vw,3rem) clamp(4rem,8vw,7rem);
+    padding:clamp(2rem,4vw,3.5rem) clamp(1rem,3.5vw,3rem) clamp(4rem,8vw,7rem);
   }
   .page-header,.honras-directory { width:min(1420px,100%); margin-inline:auto; }
-  .page-header { text-align:center; margin-bottom:clamp(2.2rem,4vw,3.5rem); }
+  .page-header { text-align:center; margin-bottom:clamp(2rem,3.5vw,3rem); }
   .page-header h1 {
     color:var(--wine-dark);
     font-family:var(--fuente-minimalista);
-    font-size:clamp(2.8rem,7vw,5.5rem);
+    font-size:clamp(1.9rem,3.8vw,2.8rem);
     font-weight:700;
-    letter-spacing:-.04em;
-    line-height:.96;
+    letter-spacing:-.02em;
+    line-height:1.05;
     margin:0;
   }
-  .page-header h1::after { background:var(--gold); content:''; display:block; height:2px; margin:1.4rem auto 1rem; width:4rem; }
-  .subtitle { color:var(--wine); font-size:clamp(1.25rem,2.5vw,1.8rem); font-weight:700; margin:0 0 .85rem; }
-  .intro { color:var(--muted); font-size:clamp(1.02rem,1.7vw,1.2rem); line-height:1.65; margin:0 auto; max-width:820px; }
+  .page-header h1::after { background:var(--gold); content:''; display:block; height:2px; margin:1rem auto 1rem; width:3.5rem; }
+  .intro { color:var(--muted); font-size:clamp(1rem,1.6vw,1.16rem); line-height:1.65; margin:0 auto; max-width:820px; }
   .category-grid { display:grid; gap:.8rem; grid-template-columns:repeat(4,minmax(0,1fr)); margin-bottom:2.2rem; }
   .category-card {
     align-items:center;
@@ -218,7 +216,7 @@ const categorias = [
     padding:1rem;
     text-align:left;
   }
-  .category-card:hover,.category-card[aria-pressed='true'] { background:var(--soft); border-color:rgba(106,27,41,.32); }
+  .category-card:hover,.category-card[aria-pressed='true'] { background:var(--soft); border-color:rgba(106,27,41,.4); }
   .category-card[aria-pressed='true'] { box-shadow:inset 3px 0 0 var(--gold); }
   .category-number { color:var(--gold); font-size:.72rem; font-weight:800; }
   .category-copy strong,.category-copy small { display:block; }
@@ -229,14 +227,15 @@ const categorias = [
   .year-heading { align-items:baseline; border-bottom:3px solid var(--wine); display:flex; justify-content:space-between; padding:0 .15rem .65rem; }
   .year-heading h3 { color:var(--wine-dark); font-size:1.65rem; margin:0; }
   .year-heading span { color:var(--muted); font-size:.9rem; }
-  .table-wrap { background:#fff; border:1px solid var(--line); border-top:0; overflow-x:auto; }
+  .table-wrap { background:#fff; border:1px solid var(--wine); border-top:0; overflow-x:auto; }
   .honras-table { border-collapse:collapse; table-layout:fixed; width:100%; }
   .honras-table th {
     background:var(--soft);
+    border:1px solid var(--wine);
     color:var(--wine-dark);
     font-size:.8rem;
     letter-spacing:.035em;
-    padding:.85rem 1rem;
+    padding:.9rem 1rem;
     text-align:left;
     text-transform:uppercase;
   }
@@ -245,8 +244,14 @@ const categorias = [
   .honras-table th:nth-child(3) { width:19%; }
   .honras-table th:nth-child(4) { width:15%; }
   .honras-table th:nth-child(5) { width:28%; }
-  .honras-table td { border-top:1px solid var(--line); line-height:1.45; padding:.95rem 1rem; vertical-align:top; }
-  .honras-table tbody tr:hover { background:#fdfaf4; }
+  .honras-table td {
+    border:1px solid var(--line);
+    line-height:1.5;
+    padding:1rem 1.05rem;
+    vertical-align:top;
+  }
+  .honras-table tbody tr:nth-child(even) { background:#fdfaf5; }
+  .honras-table tbody tr:hover { background:#f7f1e6; }
   .honra-date { color:var(--wine); font-weight:700; white-space:nowrap; }
   .honra-name { color:var(--ink); font-weight:700; }
   .honra-notes { color:var(--muted); }
@@ -259,25 +264,25 @@ const categorias = [
 
   @media (max-width:760px) {
     .honras-page { padding-inline:.85rem; }
-    .page-header { margin-bottom:2rem; }
+    .page-header { margin-bottom:1.75rem; }
     .category-grid { grid-template-columns:1fr; }
     .table-wrap { background:transparent; border:0; overflow:visible; }
     .honras-table,.honras-table tbody,.honras-table tr,.honras-table td { display:block; width:100%; }
     .honras-table thead { display:none; }
-    .honras-table tbody { display:grid; gap:.75rem; }
+    .honras-table tbody { display:grid; gap:.8rem; }
     .honras-table tr {
       background:#fff;
-      border:1px solid var(--line);
+      border:1px solid var(--wine);
       border-radius:6px;
-      box-shadow:0 1px 0 rgba(73,18,29,.03);
       padding:.45rem .9rem;
     }
     .honras-table td {
-      border-top:1px solid rgba(106,27,41,.1);
+      border:0;
+      border-top:1px solid var(--line);
       display:grid;
       gap:.55rem;
       grid-template-columns:108px minmax(0,1fr);
-      padding:.65rem 0;
+      padding:.7rem 0;
       white-space:normal;
     }
     .honras-table td:first-child { border-top:0; }
