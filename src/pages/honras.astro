@@ -1,0 +1,319 @@
+---
+import BaseLayout from '../layouts/Layout.astro';
+
+const categorias = [
+  { clave: 'Placa de San David', titulo: 'Placas de San David' },
+  { clave: 'Medalla de Ouro e Brillantes', titulo: 'Medallas de Ouro e Brillantes' },
+  { clave: 'Medalla de Ouro', titulo: 'Medallas de Ouro' },
+  { clave: 'Medalla de Prata', titulo: 'Medallas de Prata' },
+];
+---
+
+<BaseLayout
+  title="Honras concedidas | Sociedade Coral Polifónica de Pontevedra"
+  description="Placas e medallas concedidas pola Sociedade Coral Polifónica de Pontevedra a persoas, colectivos e entidades ao longo da súa historia."
+>
+  <main class="honras-page">
+    <header class="page-header">
+      <h1>Distincións</h1>
+      <p class="intro">
+        Placas e medallas coas que a Sociedade Coral Polifónica de Pontevedra
+        recoñeceu persoas, colectivos e entidades vinculadas á súa historia.
+      </p>
+    </header>
+
+    <section class="honras-directory" aria-label="Distincións concedidas">
+      <div class="category-grid" aria-label="Categorías de honras">
+        {categorias.map((categoria, index) => (
+          <button class="category-card" type="button" data-category={categoria.clave} aria-pressed="false">
+            <span class="category-number">{String(index + 1).padStart(2, '0')}</span>
+            <span class="category-copy">
+              <strong>{categoria.titulo}</strong>
+              <small data-category-count={categoria.clave}>—</small>
+            </span>
+            <span class="category-arrow" aria-hidden="true">↓</span>
+          </button>
+        ))}
+      </div>
+
+      <div id="honras-status" class="status" role="status" aria-live="polite">
+        Cargando as honras concedidas…
+      </div>
+
+      <div id="honras-results" class="honras-results" hidden></div>
+
+      <div id="error-actions" class="error-actions" hidden>
+        <button id="retry-button" type="button">Tentar de novo</button>
+      </div>
+    </section>
+  </main>
+
+  <script is:inline>
+    (() => {
+      const API_URL = '/api/honras';
+      const order = ['Placa de San David', 'Medalla de Ouro e Brillantes', 'Medalla de Ouro', 'Medalla de Prata'];
+      const collator = new Intl.Collator('gl', { sensitivity: 'base' });
+      const status = document.getElementById('honras-status');
+      const results = document.getElementById('honras-results');
+      const errorActions = document.getElementById('error-actions');
+      const retryButton = document.getElementById('retry-button');
+      const buttons = [...document.querySelectorAll('[data-category]')];
+      let honras = [];
+      let active = '';
+
+      const clean = (value) => String(value ?? '').trim();
+      const displayDate = (value) => {
+        const raw = clean(value);
+        if (!raw) return '';
+        const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+      };
+
+      const cell = (label, value, className = '') => {
+        const td = document.createElement('td');
+        td.dataset.label = label;
+        if (className) td.className = className;
+        td.textContent = clean(value) || '—';
+        return td;
+      };
+
+      const render = (category) => {
+        active = category;
+        buttons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.category === category)));
+        const selected = honras.filter((item) => clean(item.categoria) === category);
+        const years = new Map();
+        selected.forEach((item) => {
+          const year = Number(item.ano) || 0;
+          if (!years.has(year)) years.set(year, []);
+          years.get(year).push(item);
+        });
+
+        results.replaceChildren();
+        [...years.entries()].sort((a, b) => b[0] - a[0]).forEach(([year, items]) => {
+          items.sort((a, b) => (Number(a.orde) || 999) - (Number(b.orde) || 999) || collator.compare(clean(a.persoaEntidade), clean(b.persoaEntidade)));
+
+          const section = document.createElement('section');
+          section.className = 'year-block';
+
+          const header = document.createElement('header');
+          header.className = 'year-heading';
+          const h3 = document.createElement('h3');
+          h3.textContent = String(year);
+          const count = document.createElement('span');
+          count.textContent = `${items.length} ${items.length === 1 ? 'distinción' : 'distincións'}`;
+          header.append(h3, count);
+
+          const tableWrap = document.createElement('div');
+          tableWrap.className = 'table-wrap';
+          const table = document.createElement('table');
+          table.className = 'honras-table';
+
+          const thead = document.createElement('thead');
+          const headRow = document.createElement('tr');
+          ['Data', 'Persoa / entidade', 'Condición', 'Festividade', 'Observacións'].forEach((label) => {
+            const th = document.createElement('th');
+            th.scope = 'col';
+            th.textContent = label;
+            headRow.append(th);
+          });
+          thead.append(headRow);
+
+          const tbody = document.createElement('tbody');
+          items.forEach((item) => {
+            const row = document.createElement('tr');
+            row.append(
+              cell('Data', displayDate(item.data) || String(year), 'honra-date'),
+              cell('Persoa / entidade', item.persoaEntidade, 'honra-name'),
+              cell('Condición', item.condicion),
+              cell('Festividade', item.festividade),
+              cell('Observacións', item.observacions, 'honra-notes')
+            );
+            tbody.append(row);
+          });
+
+          table.append(thead, tbody);
+          tableWrap.append(table);
+          section.append(header, tableWrap);
+          results.append(section);
+        });
+
+        results.hidden = false;
+        status.hidden = true;
+      };
+
+      const load = async () => {
+        status.hidden = false;
+        status.textContent = 'Cargando as honras concedidas…';
+        results.hidden = true;
+        errorActions.hidden = true;
+        try {
+          const response = await fetch(API_URL, { headers: { Accept: 'application/json' } });
+          if (!response.ok) throw new Error(`Resposta HTTP ${response.status}`);
+          const data = await response.json();
+          if (!data?.ok || !Array.isArray(data.honras)) throw new Error('Formato de resposta non válido');
+          honras = data.honras;
+          order.forEach((category) => {
+            const count = honras.filter((item) => clean(item.categoria) === category).length;
+            const node = document.querySelector(`[data-category-count="${category}"]`);
+            if (node) node.textContent = `${count} ${count === 1 ? 'distinción' : 'distincións'}`;
+          });
+          render(active || order[0]);
+        } catch (error) {
+          status.hidden = false;
+          status.textContent = 'Non foi posible cargar agora a relación de honras.';
+          errorActions.hidden = false;
+        }
+      };
+
+      buttons.forEach((button) => button.addEventListener('click', () => render(button.dataset.category || order[0])));
+      retryButton?.addEventListener('click', load);
+      load();
+    })();
+  </script>
+</BaseLayout>
+
+<style>
+  .honras-page {
+    --wine:#6a1b29;
+    --wine-dark:#49121d;
+    --gold:#c5a059;
+    --ink:#1f1f1f;
+    --muted:#68625b;
+    --paper:#fdfbf7;
+    --soft:#f4f0e6;
+    --line:rgba(106,27,41,.32);
+    background:var(--paper);
+    color:var(--ink);
+    min-height:70vh;
+    padding:clamp(2rem,4vw,3.5rem) clamp(1rem,3.5vw,3rem) clamp(4rem,8vw,7rem);
+  }
+  .page-header,.honras-directory { width:min(1420px,100%); margin-inline:auto; }
+  .page-header { text-align:left; margin-bottom:clamp(2rem,3.5vw,3rem); }
+  .page-header h1 {
+    color:var(--wine-dark);
+    font-family:var(--fuente-minimalista);
+    font-size:clamp(1.9rem,3.8vw,2.8rem);
+    font-weight:700;
+    letter-spacing:-.02em;
+    line-height:1.05;
+    margin:0;
+  }
+  .page-header h1::after { background:var(--gold); content:''; display:block; height:3px; margin:1rem 0 1rem; width:4.5rem; }
+  .intro { color:var(--muted); font-size:clamp(1rem,1.6vw,1.16rem); line-height:1.65; margin:0; max-width:980px; }
+  .category-grid { display:grid; gap:.8rem; grid-template-columns:repeat(4,minmax(0,1fr)); margin-bottom:2.2rem; }
+  .category-card {
+    align-items:center;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:5px;
+    color:var(--wine-dark);
+    cursor:pointer;
+    display:grid;
+    font:inherit;
+    gap:.85rem;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    min-height:5rem;
+    padding:1rem;
+    text-align:left;
+  }
+  .category-card:hover,.category-card[aria-pressed='true'] { background:var(--soft); border-color:rgba(106,27,41,.55); }
+  .category-card[aria-pressed='true'] { box-shadow:inset 4px 0 0 var(--gold); }
+  .category-number { color:var(--gold); font-size:.72rem; font-weight:800; }
+  .category-copy strong,.category-copy small { display:block; }
+  .category-copy small { color:var(--muted); margin-top:.2rem; }
+  .category-arrow { color:var(--gold); }
+  .status { background:var(--soft); border:1px solid var(--line); border-radius:5px; color:var(--muted); padding:1rem; }
+  .error-actions { margin-top:1rem; }
+  .error-actions button { background:var(--wine); border:0; border-radius:4px; color:#fff; cursor:pointer; font:inherit; padding:.65rem 1rem; }
+
+  :global(.year-block) { margin-top:2.6rem; }
+  :global(.year-heading) {
+    align-items:baseline;
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:.65rem;
+    padding:0 .1rem;
+  }
+  :global(.year-heading h3) { color:var(--wine-dark); font-size:1.7rem; margin:0; }
+  :global(.year-heading span) { color:var(--muted); font-size:.92rem; font-weight:600; }
+  :global(.table-wrap) { background:#fff; overflow-x:auto; }
+  :global(.honras-table) {
+    border:2px solid var(--wine);
+    border-collapse:collapse;
+    table-layout:fixed;
+    width:100%;
+  }
+  :global(.honras-table th) {
+    background:var(--wine);
+    border:1px solid rgba(255,255,255,.72);
+    color:#fff;
+    font-size:.82rem;
+    font-weight:700;
+    letter-spacing:.025em;
+    padding:.85rem 1rem;
+    text-align:center;
+    text-transform:none;
+  }
+  :global(.honras-table th:nth-child(1)) { width:12%; }
+  :global(.honras-table th:nth-child(2)) { width:27%; }
+  :global(.honras-table th:nth-child(3)) { width:19%; }
+  :global(.honras-table th:nth-child(4)) { width:16%; }
+  :global(.honras-table th:nth-child(5)) { width:26%; }
+  :global(.honras-table td) {
+    background:#fff;
+    border:1px solid var(--line);
+    color:var(--ink);
+    line-height:1.45;
+    padding:1rem 1.05rem;
+    vertical-align:top;
+  }
+  :global(.honras-table tbody tr:nth-child(even) td) { background:#fbf7ef; }
+  :global(.honras-table tbody tr:hover td) { background:#f6efe1; }
+  :global(.honra-date) { color:var(--wine); font-weight:700; white-space:nowrap; }
+  :global(.honra-name) { color:var(--ink); font-weight:700; }
+  :global(.honra-notes) { color:var(--muted); }
+
+  @media (max-width:1050px) {
+    .category-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+
+  @media (max-width:760px) {
+    .honras-page { padding-inline:.85rem; }
+    .page-header { margin-bottom:1.75rem; }
+    .category-grid { grid-template-columns:1fr; }
+    :global(.table-wrap) { background:transparent; overflow:visible; }
+    :global(.honras-table),
+    :global(.honras-table tbody),
+    :global(.honras-table tr),
+    :global(.honras-table td) { display:block; width:100%; }
+    :global(.honras-table) { border:0; }
+    :global(.honras-table thead) { display:none; }
+    :global(.honras-table tbody) { display:grid; gap:.8rem; }
+    :global(.honras-table tr) {
+      background:#fff;
+      border:2px solid var(--wine);
+      border-radius:6px;
+      overflow:hidden;
+    }
+    :global(.honras-table td) {
+      border:0;
+      border-top:1px solid var(--line);
+      display:grid;
+      gap:.55rem;
+      grid-template-columns:108px minmax(0,1fr);
+      padding:.7rem .85rem;
+      white-space:normal;
+    }
+    :global(.honras-table td:first-child) { border-top:0; }
+    :global(.honras-table td::before) {
+      color:var(--wine);
+      content:attr(data-label);
+      font-size:.72rem;
+      font-weight:800;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    :global(.honra-date),:global(.honra-name) { font-weight:700; }
+    :global(.year-block) { margin-top:2rem; }
+  }
+</style>

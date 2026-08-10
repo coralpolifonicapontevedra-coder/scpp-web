@@ -1,0 +1,63 @@
+name: Sincronizar honras con R2
+
+# A mesma canalización serve para a carga inicial e para as actualizacións posteriores.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/honras-concedidas
+    paths:
+      - '.github/workflows/sync-honras-r2.yml'
+      - 'scripts/sync-honras-r2.py'
+      - 'tests/test_sync_honras_r2.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-honras-r2
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: r2-migration
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: python -m pip install --disable-pip-version-check boto3==1.40.1 requests==2.32.4 google-auth==2.40.3
+
+      - name: Probar o normalizador de Honras
+        run: python -m unittest tests/test_sync_honras_r2.py
+
+      - name: Construír, verificar e publicar o índice
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          HONRAS_SPREADSHEET_ID: '1YUJ-110A2A8EASTblPE8YSJuRUTKgmKIFGPRaOVhCAE'
+          HONRAS_SHEET_NAME: 'Honras'
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_PUBLIC_BUCKET: scpp-publico
+          SYNC_ATTEMPTS: '5'
+          SYNC_TIMEOUT_SECONDS: '90'
+        run: |
+          set -o pipefail
+          python scripts/sync-honras-r2.py | tee honras-r2.log
+
+      - name: Resumo
+        if: always()
+        run: |
+          echo "## Índice de Honras" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Público: scpp-publico/indices/honras-v1.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- O índice anterior consérvase se Google ou a validación fallan." >> "$GITHUB_STEP_SUMMARY"
+          tail -n 20 honras-r2.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
