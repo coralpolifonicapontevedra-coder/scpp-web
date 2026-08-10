@@ -23,7 +23,7 @@ O índice contén os datos xa normalizados para lectura web. A páxina pública 
 
 ```text
 AppSheet / Sheet Honras
-        ↓ sincronización
+        ↓ sincronización con conta de servizo
 scripts/sync-honras-r2.py
         ↓ validación
 scpp-publico/indices/honras-v1.json
@@ -53,7 +53,9 @@ functions/api/honras.js
 
 Ruta: `/honras`.
 
-A páxina presenta catro categorías e, dentro de cada unha, agrupa os rexistros por ano. En escritorio utiliza unha relación tabular e en móbil cada rexistro pasa a unha disposición vertical para evitar desprazamento horizontal.
+A cabeceira pública usa `Honras concedidas` como título principal e `Distincións concedidas` como subtítulo. Evítanse referencias técnicas ao índice R2 na interface pública.
+
+A páxina presenta catro categorías e, dentro de cada unha, agrupa os rexistros por ano. En escritorio utiliza unha táboa ampla, aproveitando case todo o ancho útil da páxina, coas columnas `Data`, `Persoa / entidade`, `Condición`, `Festividade` e `Observacións`. En móbil a mesma táboa transfórmase en fichas verticais, mantendo visibles as etiquetas de cada campo e evitando o desprazamento horizontal.
 
 ## Menú institucional
 
@@ -68,6 +70,14 @@ A URL histórica `/distincions` consérvase.
 
 O normalizador está en `scripts/sync-honras-r2.py` e a súa proba en `tests/test_sync_honras_r2.py`.
 
-O workflow `sync-honras-r2.yml` queda inicialmente en execución manual ata conectar unha fonte CSV accesible por GitHub Actions mediante `HONRAS_CSV_URL`. Non se activa unha programación periódica mentres esa fonte non estea verificada, para evitar falsos erros e manter intacto o último índice válido.
+O workflow `sync-honras-r2.yml` utiliza a conta de servizo de Google xa configurada no environment `r2-migration` para ler a Sheet `Honras` e publicar o índice en `scpp-publico`. Os valores secretos non se almacenan no repositorio.
 
-Unha vez verificada a fonte, o workflow debe seguir o mesmo patrón periódico que os demais índices públicos e rexenerar só este módulo.
+A primeira sincronización foi validada correctamente mediante GitHub Actions. O módulo mantén a última copia válida de R2 se Google, a validación ou a publicación fallan.
+
+## Preview de Cloudflare
+
+Para probar `/honras` nun Branch Preview, o ambiente Preview de Cloudflare debe ter dispoñible o binding:
+
+- `R2_PUBLICO` → bucket público `scpp-publico`.
+
+`R2_PRIVADO` non é necesario para a lectura de Honras, aínda que pode existir por coherencia co resto do proxecto. O endpoint `/api/r2-status` permite comprobar se os bindings están configurados e accesibles no ambiente activo.
