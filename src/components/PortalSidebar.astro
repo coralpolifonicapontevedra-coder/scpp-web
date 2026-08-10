@@ -120,6 +120,25 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
     return BOARD_ROLE_TOKENS.some((token) => cargo.includes(token));
   }
 
+  const REVIEW_MENU_CACHE_KEY = 'scpp-review-menu-v1';
+
+  function readReviewMenuCache() {
+    try {
+      return window.sessionStorage.getItem(REVIEW_MENU_CACHE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  function writeReviewMenuCache(allowed) {
+    try {
+      if (allowed) window.sessionStorage.setItem(REVIEW_MENU_CACHE_KEY, '1');
+      else window.sessionStorage.removeItem(REVIEW_MENU_CACHE_KEY);
+    } catch {
+      // Ignorar sesión non dispoñible.
+    }
+  }
+
   async function canReviewPhotos(idToken) {
     const response = await fetch('/api/fotos', {
       method: 'POST',
@@ -127,7 +146,13 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
       body: JSON.stringify({ idToken, accion: 'listarFotosRevision' })
     });
     const result = await response.json().catch(() => null);
-    return response.ok && result?.ok === true && result?.administrador === true;
+    if (response.ok && result?.ok === true && result?.administrador === true) {
+      return { allowed: true, uncertain: false };
+    }
+    if (response.status === 403) {
+      return { allowed: false, uncertain: false };
+    }
+    return { allowed: false, uncertain: true };
   }
 
   async function canAccessAdministration(idToken) {
@@ -176,15 +201,22 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
 
   onAuthStateChanged(auth, async (user) => {
     if (!user?.email) {
+      writeReviewMenuCache(false);
       syncProtectedNavigation({ reviewAllowed: false, administrationAllowed: false });
       return;
     }
 
     const idToken = await user.getIdToken(true);
-    const [reviewAllowed, administrationAllowed] = await Promise.all([
-      canReviewPhotos(idToken).catch(() => false),
+    const [reviewCheck, administrationAllowed] = await Promise.all([
+      canReviewPhotos(idToken).catch(() => ({ allowed: false, uncertain: true })),
       canAccessAdministration(idToken).catch(() => false)
     ]);
+
+    let reviewAllowed = reviewCheck.allowed;
+    if (!reviewAllowed && reviewCheck.uncertain) {
+      reviewAllowed = administrationAllowed || readReviewMenuCache();
+    }
+    writeReviewMenuCache(reviewAllowed);
 
     syncProtectedNavigation({ reviewAllowed, administrationAllowed });
   });
