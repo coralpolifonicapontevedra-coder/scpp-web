@@ -18,9 +18,12 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 BUCKET = os.getenv("R2_PUBLIC_BUCKET", "scpp-publico").strip()
 INDEX_KEY = "indices/honras-v1.json"
+SPREADSHEET_ID = os.getenv("HONRAS_SPREADSHEET_ID", "1YUJ-110A2A8EASTblPE8YSJuRUTKgmKIFGPRaOVhCAE").strip()
+SHEET_NAME = os.getenv("HONRAS_SHEET_NAME", "Honras").strip()
 ATTEMPTS = int(os.getenv("SYNC_ATTEMPTS", "5"))
 TIMEOUT = int(os.getenv("SYNC_TIMEOUT_SECONDS", "90"))
 REQUIRED_HEADERS = {
@@ -83,14 +86,48 @@ def parse_csv(content: str) -> tuple[list[dict[str, str]], set[str]]:
     return rows, headers
 
 
+def source_from_google_api() -> tuple[list[dict[str, str]], set[str]] | None:
+    raw_credentials = text(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON"))
+    if not raw_credentials:
+        return None
+
+    from google.auth.transport.requests import AuthorizedSession
+    from google.oauth2.service_account import Credentials
+
+    info = json.loads(raw_credentials)
+    credentials = Credentials.from_service_account_info(
+        info,
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    )
+    session = AuthorizedSession(credentials)
+    a1_range = quote(f"{SHEET_NAME}!A:K", safe="")
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values/{a1_range}"
+    response = session.get(url, timeout=TIMEOUT)
+    response.raise_for_status()
+    values = response.json().get("values") or []
+    if len(values) < 2:
+        raise RuntimeError("A API de Google non devolveu filas de Honras")
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    for row in values:
+        writer.writerow(list(row) + [""] * max(0, 11 - len(row)))
+    print(f"Honras: {len(values) - 1} filas lidas coa conta de servizo")
+    return parse_csv(buffer.getvalue())
+
+
 def source() -> tuple[list[dict[str, str]], set[str]]:
     local_file = text(os.getenv("HONRAS_CSV_FILE"))
     if local_file:
         return parse_csv(Path(local_file).read_text(encoding="utf-8-sig"))
 
+    google_source = source_from_google_api()
+    if google_source:
+        return google_source
+
     url = text(os.getenv("HONRAS_CSV_URL"))
     if not url:
-        raise RuntimeError("Falta HONRAS_CSV_URL ou HONRAS_CSV_FILE")
+        raise RuntimeError("Falta GOOGLE_SERVICE_ACCOUNT_JSON, HONRAS_CSV_URL ou HONRAS_CSV_FILE")
 
     import requests
     last_error: Exception | None = None
