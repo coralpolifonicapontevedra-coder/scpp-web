@@ -43,12 +43,8 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
     path: '/portal/revision-fotos/',
     enabled: true,
     order: 90,
-    surfaces: ['sidebar', 'home'],
-    homeTitle: 'Revisión de fotografías',
-    homeDescription: 'Aproba, rexeita e completa a información das imaxes recibidas.',
-    homeNumber: '07',
+    surfaces: ['sidebar'],
     adminOnly: true,
-    homeCardId: 'photo-review-link',
   },
   {
     id: 'repertorio',
