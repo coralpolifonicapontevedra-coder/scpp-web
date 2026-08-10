@@ -27,7 +27,7 @@ const categorias = [
       <div class="directory-heading">
         <div>
           <p class="section-label">Arquivo histórico</p>
-          <h2 id="honras-title">Recoñecementos concedidos pola Sociedade</h2>
+          <h2 id="honras-title">Distincións concedidas</h2>
         </div>
         <p class="directory-note">
           A relación procede da xestión interna da Sociedade e publícase desde o índice público de R2.
@@ -63,12 +63,6 @@ const categorias = [
     (() => {
       const API_URL = '/api/honras';
       const order = ['Placa de San David', 'Medalla de Ouro e Brillantes', 'Medalla de Ouro', 'Medalla de Prata'];
-      const titles = {
-        'Placa de San David': 'Placas de San David',
-        'Medalla de Ouro e Brillantes': 'Medallas de Ouro e Brillantes',
-        'Medalla de Ouro': 'Medallas de Ouro',
-        'Medalla de Prata': 'Medallas de Prata'
-      };
       const collator = new Intl.Collator('gl', { sensitivity: 'base' });
       const status = document.getElementById('honras-status');
       const results = document.getElementById('honras-results');
