@@ -2,6 +2,9 @@
 /* src/pages/portal.astro */
 import BaseLayout from '../layouts/Layout.astro';
 import PortalSidebar from '../components/PortalSidebar.astro';
+import { getPortalNavigationModules } from '../data/portal-navigation';
+
+const homeModules = getPortalNavigationModules('home');
 ---
 
 <BaseLayout title="Portal do Coralista" lang="gl">
@@ -30,27 +33,27 @@ import PortalSidebar from '../components/PortalSidebar.astro';
         </header>
 
         <div id="portal-feature-grid" class="portal-feature-grid is-locked" aria-label="Contidos do portal">
-          <a class="portal-feature is-active" href="/portal/concertos/">
-            <span>01</span><strong>Concertos</strong><p>Convocatorias, horarios, programas e información práctica.</p><b aria-hidden="true">→</b>
-          </a>
-          <a class="portal-feature is-active" href="/portal/repertorio/">
-            <span>02</span><strong>Repertorio</strong><p>Partituras, audios por corda, vídeos e notas de traballo.</p><b aria-hidden="true">→</b>
-          </a>
-          <article class="portal-feature is-disabled">
-            <span>03</span><strong>Ensaios</strong><p>Calendario, avisos, asistencia e materiais de preparación.</p><em>Próximamente</em>
-          </article>
-          <a class="portal-feature is-active" href="/portal/fotos/">
-            <span>04</span><strong>Galería e fotografías</strong><p>Consulta e achega novas fotografías ao arquivo da Coral.</p><b aria-hidden="true">→</b>
-          </a>
-          <a class="portal-feature is-active" href="/portal/documentacion/">
-            <span>05</span><strong>Documentación</strong><p>Actas, estatutos, transparencia e documentación interna.</p><b aria-hidden="true">→</b>
-          </a>
-          <a class="portal-feature is-active" href="/portal/perfil/">
-            <span>06</span><strong>O meu perfil</strong><p>Datos persoais, contacto e preferencias da túa conta.</p><b aria-hidden="true">→</b>
-          </a>
-          <a id="photo-review-link" class="portal-feature is-active is-admin" href="/portal/revision-fotos/" hidden>
-            <span>07</span><strong>Revisión de fotografías</strong><p>Aproba, rexeita e completa a información das imaxes recibidas.</p><b aria-hidden="true">→</b>
-          </a>
+          {homeModules.map((module) => {
+            const isEnabled = module.homeEnabled ?? module.enabled;
+            const title = module.homeTitle || module.label;
+            const description = module.homeDescription || '';
+            const number = module.homeNumber || '00';
+
+            return isEnabled ? (
+              <a
+                id={module.homeCardId}
+                class:list={['portal-feature', 'is-active', module.adminOnly && 'is-admin']}
+                href={module.path}
+                hidden={module.adminOnly ? true : undefined}
+              >
+                <span>{number}</span><strong>{title}</strong><p>{description}</p><b aria-hidden="true">→</b>
+              </a>
+            ) : (
+              <article class="portal-feature is-disabled">
+                <span>{number}</span><strong>{title}</strong><p>{description}</p><em>{module.statusText || 'Próximamente'}</em>
+              </article>
+            );
+          })}
         </div>
       </div>
 
@@ -268,7 +271,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
       body: JSON.stringify({ idToken, accion: 'listarFotosRevision' })
     });
     const result = await response.json().catch(() => null);
-    return response.ok && result?.ok === true;
+    return response.ok && result?.ok === true && result?.administrador === true;
   }
 
   async function showDashboard(user) {
@@ -380,6 +383,7 @@ import PortalSidebar from '../components/PortalSidebar.astro';
   .portal-lead { max-width: 690px; margin: 1.3rem 0 0; color: #5c5652; font-size: 1rem; line-height: 1.72; }
   .portal-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
   .portal-feature { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: .3rem 1rem; min-height: 132px; padding: 1.25rem; border: 1px solid #ddd7d1; background: #fff; color: inherit; text-decoration: none; }
+  .portal-feature[hidden] { display: none !important; }
   .portal-feature > span { grid-row: 1 / span 2; color: var(--color-acento); font-size: .72rem; font-weight: 800; }
   .portal-feature strong { color: #2f2a27; font-size: 1rem; }
   .portal-feature p { margin: 0; color: #6a625d; font-size: .86rem; line-height: 1.5; }

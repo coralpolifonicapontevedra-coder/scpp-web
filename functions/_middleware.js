@@ -1,6 +1,7 @@
 const IDS_AUDIO_DESACTIVADOS = new Set(['18', '35', '52', '67']);
 const REVISION_INDEX_PATH = 'indices/revision-fotos-v1.json';
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
+const AUTH_CACHE_VERSION = 2;
 
 function filtrarAudiosDesactivados(resultado) {
   if (!resultado || typeof resultado !== 'object') return resultado;
@@ -74,7 +75,8 @@ async function administracionCacheada(env, email) {
   if (!object) return false;
   const data = await object.json().catch(() => null);
   const verifiedAt = Date.parse(String(data?.verificadaEn || ''));
-  return data?.administrador === true && Number.isFinite(verifiedAt) &&
+  return data?.version === AUTH_CACHE_VERSION &&
+    data?.administrador === true && Number.isFinite(verifiedAt) &&
     Date.now() - verifiedAt < AUTH_TTL_MS;
 }
 
@@ -111,6 +113,7 @@ async function intentarRevisionR2(context, url) {
 
   return json(200, {
     ok: true,
+    administrador: true,
     fotos: index.fotos,
     total: index.fotos.length,
     xeradoEn: index.xeradoEn,
@@ -125,8 +128,8 @@ async function intentarRevisionR2(context, url) {
 export async function onRequest(context) {
   const url = new URL(context.request.url);
 
-  const revisionR2 = await intentarRevisionR2(context, url);
-  if (revisionR2) return revisionR2;
+  // Seguridade: a revisión de fotos debe validar permisos no endpoint principal
+  // en cada petición, sen atallos de caché no middleware.
 
   const response = await context.next();
 

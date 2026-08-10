@@ -3,6 +3,7 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 const MAX_BYTES = 12 * 1024 * 1024;
 const TIPOS = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const AUTH_TTL_MS = 15 * 60 * 1000;
+const AUTH_CACHE_VERSION = 2;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -75,6 +76,7 @@ async function comprobarAdministracion(env, usuario) {
     const datos = await gardada.json().catch(() => null);
     const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
     if (
+      datos?.version === AUTH_CACHE_VERSION &&
       datos?.administrador === true &&
       Number.isFinite(verificadaEn) &&
       Date.now() - verificadaEn < AUTH_TTL_MS
@@ -93,8 +95,12 @@ async function comprobarAdministracion(env, usuario) {
   if (!resultado?.ok) {
     throw new Error(resultado?.erro || 'Administración non autorizada');
   }
+  if (resultado?.administrador !== true) {
+    throw new Error('Administración non autorizada');
+  }
 
   await env.R2_PRIVADO.put(ruta, JSON.stringify({
+    version: AUTH_CACHE_VERSION,
     administrador: true,
     email: usuario.email,
     verificadaEn: new Date().toISOString()

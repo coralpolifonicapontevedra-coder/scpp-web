@@ -6,6 +6,7 @@ const LISTA_CACHE_PATH = 'cache/fotos/listar-revision.json';
 const LISTA_FRESH_MS = 5 * 60 * 1000;
 const LISTA_STALE_MS = 24 * 60 * 60 * 1000;
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
+const AUTH_CACHE_VERSION = 2;
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -49,7 +50,8 @@ async function comprobarAutorizacionCache(env, usuario) {
   if (!obxecto) return false;
   const datos = await obxecto.json().catch(() => null);
   const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
-  return datos?.administrador === true && Number.isFinite(verificadaEn) &&
+  return datos?.version === AUTH_CACHE_VERSION &&
+    datos?.administrador === true && Number.isFinite(verificadaEn) &&
     Date.now() - verificadaEn < AUTH_TTL_MS;
 }
 
@@ -59,6 +61,7 @@ async function gardarAutorizacionCache(env, usuario) {
   await env.R2_PRIVADO.put(
     `cache/autorizacion-fotos/${clave}.json`,
     JSON.stringify({
+      version: AUTH_CACHE_VERSION,
       administrador: true,
       email: usuario.email,
       verificadaEn: new Date().toISOString()
@@ -193,6 +196,7 @@ async function solicitarListaRevision(env, usuario) {
   }, { timeoutMs: 35_000, attemptTimeoutMs: 12_000 });
 
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible cargar as fotografías pendentes.');
+  if (resultado?.administrador !== true) throw new Error('Administración non autorizada');
   await Promise.all([
     gardarListaCache(env, resultado),
     gardarAutorizacionCache(env, usuario)
@@ -227,27 +231,6 @@ export async function onRequest(context) {
 
   if (accion === 'listarFotosRevision') {
     try {
-      const autorizado = await comprobarAutorizacionCache(env, usuario);
-      const cache = autorizado ? await lerListaCache(env) : null;
-
-      if (cache && cache.idadeMs < LISTA_FRESH_MS) {
-        return json(200, cache.resultado, {
-          'X-SCPP-Cache': 'HIT',
-          'Server-Timing': 'cache;dur=1'
-        });
-      }
-
-      if (cache && cache.idadeMs < LISTA_STALE_MS) {
-        const refresco = solicitarListaRevision(env, usuario).catch((erro) => {
-          console.error('Non se puido refrescar a caché de revisión:', erro);
-        });
-        if (context.waitUntil) context.waitUntil(refresco);
-        return json(200, cache.resultado, {
-          'X-SCPP-Cache': 'STALE',
-          'Server-Timing': 'cache;dur=1'
-        });
-      }
-
       const inicio = Date.now();
       const { resultado, usouRespaldo } = await solicitarListaRevision(env, usuario);
       return json(200, resultado, {
@@ -257,8 +240,11 @@ export async function onRequest(context) {
       });
     } catch (erro) {
       const cache = await lerListaCache(env);
-      if (cache && cache.idadeMs < LISTA_STALE_MS) {
-        return json(200, cache.resultado, { 'X-SCPP-Cache': 'STALE-ERROR' });
+      if (
+        erro instanceof Error &&
+        erro.message === 'Administración non autorizada'
+      ) {
+        return json(403, { ok: false, erro: 'Administración non autorizada' });
       }
       const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
       return json(status, {
