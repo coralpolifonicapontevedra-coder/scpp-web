@@ -1,5 +1,6 @@
 name: Sincronizar honras con R2
 
+# A mesma canalización serve para a carga inicial e para as actualizacións posteriores.
 on:
   workflow_dispatch:
   push:
