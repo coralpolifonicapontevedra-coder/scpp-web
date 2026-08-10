@@ -92,34 +92,6 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
   const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
   const mobileMenuQuery = window.matchMedia('(max-width: 620px)');
 
-  const normalizeText = (value) => String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-
-  const BOARD_ROLE_TOKENS = [
-    'presidente',
-    'presidenta',
-    'vicepresidente',
-    'vicepresidenta',
-    'secretario',
-    'secretaria',
-    'vicesecretario',
-    'vicesecretaria',
-    'contador',
-    'contadora',
-    'tesoureiro',
-    'tesoureira',
-    'tesorero',
-    'tesorera'
-  ];
-
-  function hasBoardAdministrationRole(profile) {
-    const cargo = normalizeText(profile?.cargo);
-    return BOARD_ROLE_TOKENS.some((token) => cargo.includes(token));
-  }
-
   const REVIEW_MENU_CACHE_KEY = 'scpp-review-menu-v1';
 
   function readReviewMenuCache() {
@@ -156,14 +128,13 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
   }
 
   async function canAccessAdministration(idToken) {
-    const response = await fetch('/api/perfil', {
+    const response = await fetch('/api/persoas-v2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion: 'obterPerfil' })
+      body: JSON.stringify({ idToken, accion: 'listarPersoasAdministracion' })
     });
     const result = await response.json().catch(() => null);
-    if (!response.ok || result?.ok !== true) return false;
-    return hasBoardAdministrationRole(result?.perfil || {});
+    return response.ok && result?.ok === true;
   }
 
   function syncProtectedNavigation({ reviewAllowed, administrationAllowed }) {
