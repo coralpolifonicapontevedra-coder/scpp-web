@@ -1,0 +1,212 @@
+---
+import BaseLayout from '../layouts/Layout.astro';
+
+const categorias = [
+  { clave: 'Placa de San David', titulo: 'Placas de San David' },
+  { clave: 'Medalla de Ouro e Brillantes', titulo: 'Medallas de Ouro e Brillantes' },
+  { clave: 'Medalla de Ouro', titulo: 'Medallas de Ouro' },
+  { clave: 'Medalla de Prata', titulo: 'Medallas de Prata' },
+];
+---
+
+<BaseLayout
+  title="Honras concedidas | Sociedade Coral Polifónica de Pontevedra"
+  description="Placas e medallas concedidas pola Sociedade Coral Polifónica de Pontevedra a persoas, colectivos e entidades ao longo da súa historia."
+>
+  <main class="honras-page">
+    <header class="page-header">
+      <p class="eyebrow">Memoria institucional</p>
+      <h1>Honras concedidas</h1>
+      <p class="intro">
+        Placas e medallas coas que a Sociedade Coral Polifónica de Pontevedra
+        recoñeceu persoas, colectivos e entidades vinculadas á súa historia.
+      </p>
+    </header>
+
+    <section class="honras-directory" aria-labelledby="honras-title">
+      <div class="directory-heading">
+        <div>
+          <p class="section-label">Arquivo histórico</p>
+          <h2 id="honras-title">Recoñecementos concedidos pola Sociedade</h2>
+        </div>
+        <p class="directory-note">
+          A relación procede da xestión interna da Sociedade e publícase desde o índice público de R2.
+        </p>
+      </div>
+
+      <div class="category-grid" aria-label="Categorías de honras">
+        {categorias.map((categoria, index) => (
+          <button class="category-card" type="button" data-category={categoria.clave} aria-pressed="false">
+            <span class="category-number">{String(index + 1).padStart(2, '0')}</span>
+            <span class="category-copy">
+              <strong>{categoria.titulo}</strong>
+              <small data-category-count={categoria.clave}>—</small>
+            </span>
+            <span class="category-arrow" aria-hidden="true">↓</span>
+          </button>
+        ))}
+      </div>
+
+      <div id="honras-status" class="status" role="status" aria-live="polite">
+        Cargando as honras concedidas…
+      </div>
+
+      <div id="honras-results" class="honras-results" hidden></div>
+
+      <div id="error-actions" class="error-actions" hidden>
+        <button id="retry-button" type="button">Tentar de novo</button>
+      </div>
+    </section>
+  </main>
+
+  <script is:inline>
+    (() => {
+      const API_URL = '/api/honras';
+      const order = ['Placa de San David', 'Medalla de Ouro e Brillantes', 'Medalla de Ouro', 'Medalla de Prata'];
+      const titles = {
+        'Placa de San David': 'Placas de San David',
+        'Medalla de Ouro e Brillantes': 'Medallas de Ouro e Brillantes',
+        'Medalla de Ouro': 'Medallas de Ouro',
+        'Medalla de Prata': 'Medallas de Prata'
+      };
+      const collator = new Intl.Collator('gl', { sensitivity: 'base' });
+      const status = document.getElementById('honras-status');
+      const results = document.getElementById('honras-results');
+      const errorActions = document.getElementById('error-actions');
+      const retryButton = document.getElementById('retry-button');
+      const buttons = [...document.querySelectorAll('[data-category]')];
+      let honras = [];
+      let active = '';
+
+      const clean = (value) => String(value ?? '').trim();
+      const displayDate = (value) => {
+        const raw = clean(value);
+        if (!raw) return '';
+        const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+      };
+
+      const render = (category) => {
+        active = category;
+        buttons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.category === category)));
+        const selected = honras.filter((item) => clean(item.categoria) === category);
+        const years = new Map();
+        selected.forEach((item) => {
+          const year = Number(item.ano) || 0;
+          if (!years.has(year)) years.set(year, []);
+          years.get(year).push(item);
+        });
+        results.replaceChildren();
+        [...years.entries()].sort((a, b) => b[0] - a[0]).forEach(([year, items]) => {
+          items.sort((a, b) => (Number(a.orde) || 999) - (Number(b.orde) || 999) || collator.compare(clean(a.persoaEntidade), clean(b.persoaEntidade)));
+          const section = document.createElement('section');
+          section.className = 'year-block';
+          const header = document.createElement('header');
+          header.className = 'year-heading';
+          const h3 = document.createElement('h3');
+          h3.textContent = String(year);
+          const count = document.createElement('span');
+          count.textContent = `${items.length} ${items.length === 1 ? 'honra' : 'honras'}`;
+          header.append(h3, count);
+          const list = document.createElement('div');
+          list.className = 'honras-table';
+          items.forEach((item) => {
+            const row = document.createElement('article');
+            row.className = 'honra-row';
+            const date = document.createElement('div');
+            date.className = 'honra-date';
+            date.textContent = displayDate(item.data) || clean(item.festividade) || String(year);
+            const body = document.createElement('div');
+            body.className = 'honra-body';
+            const name = document.createElement('h4');
+            name.textContent = clean(item.persoaEntidade);
+            body.append(name);
+            const meta = [clean(item.condicion), clean(item.festividade)].filter(Boolean);
+            if (meta.length) {
+              const p = document.createElement('p');
+              p.className = 'honra-meta';
+              p.textContent = [...new Set(meta)].join(' · ');
+              body.append(p);
+            }
+            if (clean(item.observacions)) {
+              const p = document.createElement('p');
+              p.className = 'honra-notes';
+              p.textContent = clean(item.observacions);
+              body.append(p);
+            }
+            row.append(date, body);
+            list.append(row);
+          });
+          section.append(header, list);
+          results.append(section);
+        });
+        results.hidden = false;
+        status.hidden = true;
+      };
+
+      const load = async () => {
+        status.hidden = false;
+        status.textContent = 'Cargando as honras concedidas…';
+        results.hidden = true;
+        errorActions.hidden = true;
+        try {
+          const response = await fetch(API_URL, { headers: { Accept: 'application/json' } });
+          if (!response.ok) throw new Error(`Resposta HTTP ${response.status}`);
+          const data = await response.json();
+          if (!data?.ok || !Array.isArray(data.honras)) throw new Error('Formato de resposta non válido');
+          honras = data.honras;
+          order.forEach((category) => {
+            const count = honras.filter((item) => clean(item.categoria) === category).length;
+            const node = document.querySelector(`[data-category-count="${category}"]`);
+            if (node) node.textContent = `${count} ${count === 1 ? 'honra' : 'honras'}`;
+          });
+          render(active || order[0]);
+        } catch (error) {
+          status.hidden = false;
+          status.textContent = 'Non foi posible cargar agora a relación de honras.';
+          errorActions.hidden = false;
+        }
+      };
+
+      buttons.forEach((button) => button.addEventListener('click', () => render(button.dataset.category || order[0])));
+      retryButton?.addEventListener('click', load);
+      load();
+    })();
+  </script>
+</BaseLayout>
+
+<style>
+  .honras-page { --wine:#6a1b29; --wine-dark:#49121d; --gold:#c5a059; --ink:#1f1f1f; --muted:#68625b; --paper:#fdfbf7; --soft:#f4f0e6; --line:rgba(106,27,41,.17); background:var(--paper); color:var(--ink); min-height:70vh; padding:clamp(3.5rem,7vw,6.5rem) clamp(1.25rem,5vw,5rem) clamp(4rem,8vw,7rem); }
+  .page-header,.honras-directory { width:min(1180px,100%); margin-inline:auto; }
+  .page-header { text-align:center; margin-bottom:clamp(3rem,6vw,5rem); }
+  .eyebrow,.section-label { color:var(--wine); font-size:.76rem; font-weight:700; letter-spacing:.2em; margin:0 0 1rem; text-transform:uppercase; }
+  .page-header h1 { color:var(--wine-dark); font-family:var(--fuente-minimalista); font-size:clamp(2.8rem,7vw,5.5rem); font-weight:700; letter-spacing:-.04em; line-height:.96; margin:0; }
+  .page-header h1::after { background:var(--gold); content:''; display:block; height:2px; margin:1.5rem auto 1.75rem; width:4rem; }
+  .intro { color:var(--muted); font-size:clamp(1.05rem,2vw,1.3rem); line-height:1.65; margin:0 auto; max-width:760px; }
+  .directory-heading { align-items:end; border-bottom:1px solid var(--line); display:grid; gap:2rem; grid-template-columns:minmax(0,1fr) minmax(280px,470px); margin-bottom:2rem; padding-bottom:1.75rem; }
+  .directory-heading h2 { color:var(--wine-dark); font-size:clamp(1.7rem,3vw,2.5rem); line-height:1.08; margin:0; }
+  .directory-note { color:var(--muted); margin:0; }
+  .category-grid { display:grid; gap:.8rem; grid-template-columns:repeat(2,minmax(0,1fr)); margin-bottom:2rem; }
+  .category-card { align-items:center; background:#fff; border:1px solid var(--line); border-radius:5px; color:var(--wine-dark); cursor:pointer; display:grid; font:inherit; gap:.85rem; grid-template-columns:auto minmax(0,1fr) auto; min-height:5rem; padding:1rem; text-align:left; }
+  .category-card:hover,.category-card[aria-pressed='true'] { background:var(--soft); border-color:rgba(106,27,41,.32); }
+  .category-card[aria-pressed='true'] { box-shadow:inset 3px 0 0 var(--gold); }
+  .category-number { color:var(--gold); font-size:.72rem; font-weight:800; }
+  .category-copy strong,.category-copy small { display:block; }
+  .category-copy small { color:var(--muted); margin-top:.2rem; }
+  .category-arrow { color:var(--gold); }
+  .status { background:var(--soft); border:1px solid var(--line); border-radius:5px; color:var(--muted); padding:1rem; }
+  .year-block { margin-top:2rem; }
+  .year-heading { align-items:baseline; border-bottom:2px solid var(--wine); display:flex; justify-content:space-between; padding-bottom:.6rem; }
+  .year-heading h3 { color:var(--wine-dark); font-size:1.5rem; margin:0; }
+  .year-heading span { color:var(--muted); font-size:.85rem; }
+  .honras-table { background:#fff; border:1px solid var(--line); border-top:0; }
+  .honra-row { display:grid; gap:1rem; grid-template-columns:150px minmax(0,1fr); padding:1rem 1.1rem; }
+  .honra-row + .honra-row { border-top:1px solid var(--line); }
+  .honra-date { color:var(--wine); font-weight:700; }
+  .honra-body h4 { color:var(--ink); font-size:1rem; margin:0; }
+  .honra-meta,.honra-notes { color:var(--muted); margin:.25rem 0 0; }
+  .honra-notes { font-size:.9rem; }
+  .error-actions { margin-top:1rem; }
+  .error-actions button { background:var(--wine); border:0; border-radius:4px; color:#fff; cursor:pointer; font:inherit; padding:.65rem 1rem; }
+  @media (max-width:760px) { .honras-page { padding-inline:1rem; } .directory-heading,.category-grid { grid-template-columns:1fr; } .directory-heading { gap:1rem; } .honra-row { grid-template-columns:1fr; gap:.25rem; } .honra-date { font-size:.85rem; } }
+</style>
