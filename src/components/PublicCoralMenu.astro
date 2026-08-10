@@ -11,7 +11,8 @@ const seccions = [
   { nome: 'Directora', url: '/directora', rutas: ['/directora'] },
   { nome: 'Xunta Directiva', url: '/xunta-directiva', rutas: ['/xunta-directiva'] },
   { nome: 'Coralistas', url: '/coralistas', rutas: ['/coralistas'] },
-  { nome: 'Distincións', url: '/distincions', rutas: ['/distincions'] },
+  { nome: 'Distincións recibidas', url: '/distincions', rutas: ['/distincions'] },
+  { nome: 'Honras concedidas', url: '/honras', rutas: ['/honras'] },
   { nome: 'Solicitar un concerto', url: '/contacto', rutas: ['/contacto'] }
 ];
 
@@ -213,7 +214,8 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
   :global(.public-site-main .coralistas-page .directory-heading h2),
   :global(.public-site-main .distincions-page .intro-section h2),
   :global(.public-site-main .distincions-page .section-heading h2),
-  :global(.public-site-main .distincions-page .documentation-note h2) {
+  :global(.public-site-main .distincions-page .documentation-note h2),
+  :global(.public-site-main .honras-page .directory-heading h2) {
     font-size: clamp(1.55rem, 2.6vw, 2.2rem) !important;
     line-height: 1.15 !important;
     letter-spacing: -.02em !important;
