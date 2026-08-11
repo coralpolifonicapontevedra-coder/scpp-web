@@ -5,6 +5,7 @@
 
   let currentRehearsalId = '';
   let syncing = false;
+  let syncPending = false;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -20,9 +21,7 @@
       flex-direction: column !important;
       gap: .42rem !important;
     }
-    #repertoire-panel .work-link strong {
-      color: #24211f !important;
-    }
+    #repertoire-panel .work-link strong { color: #24211f !important; }
     #repertoire-panel .work-link small {
       display: block !important;
       margin: 0 !important;
@@ -30,9 +29,7 @@
     }
     #repertoire-panel .work-type,
     #repertoire-panel .work-from,
-    #repertoire-panel .work-to {
-      display: none !important;
-    }
+    #repertoire-panel .work-to { display: none !important; }
     #repertoire-panel .work-fields {
       display: grid !important;
       grid-template-columns: minmax(0, 1fr) auto auto auto !important;
@@ -68,6 +65,14 @@
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 
+  function normalize(value = '') {
+    return String(value)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
   function renameLabels() {
     document.querySelectorAll('[data-work="repertorio"], #repertoire-panel h2, #program-dialog .section-kicker').forEach((node) => {
       if (node.textContent?.trim() === 'Obras traballadas') node.textContent = 'Obras';
@@ -76,7 +81,7 @@
     if (summary?.textContent) summary.textContent = summary.textContent.replace(/\s+traballadas?$/i, ' obras');
   }
 
-  function inferCurrentRehearsal() {
+  function inferCurrentRehearsalFromDom() {
     if (currentRehearsalId) return currentRehearsalId;
     const heroDate = document.querySelector('#next-rehearsal h2')?.textContent?.trim();
     if (!heroDate) return '';
@@ -88,9 +93,31 @@
     return currentRehearsalId;
   }
 
+  function inferCurrentRehearsalFromPayload(payload) {
+    if (currentRehearsalId) return currentRehearsalId;
+    const rows = Array.isArray(payload?.ensaios) ? payload.ensaios : [];
+    if (!rows.length) return '';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const candidates = rows
+      .filter((item) => !item.cancelado)
+      .map((item) => {
+        const raw = String(item.data || '').slice(0, 10);
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T12:00:00`) : null;
+        return { item, date };
+      })
+      .filter(({ date }) => date && !Number.isNaN(date.getTime()) && date >= today)
+      .sort((a, b) => a.date - b.date);
+
+    const next = candidates[0]?.item || rows[0];
+    currentRehearsalId = String(next?.idEnsaio || next?.id || '').trim();
+    return currentRehearsalId;
+  }
+
   function enhanceRows() {
     renameLabels();
-    inferCurrentRehearsal();
+    inferCurrentRehearsalFromDom();
     document.querySelectorAll('#repertoire-list .work-row').forEach((row) => {
       if (!(row instanceof HTMLElement)) return;
       const fields = row.querySelector('.work-fields');
@@ -141,33 +168,49 @@
 
   function resolveWork(ref, repertoire) {
     const key = String(ref || '').trim();
+    if (!key) return null;
+
     let work = repertoire.find((item) => String(item.idRepertorio || item.id || '').trim() === key);
     if (work) return work;
 
+    const normalizedKey = normalize(key);
+    work = repertoire.find((item) => {
+      const id = normalize(item.idRepertorio || item.id || '');
+      const title = normalize(item.nomeObra || item.nome || '');
+      return id === normalizedKey || title === normalizedKey;
+    });
+    if (work) return work;
+
     // Compatibilidade con referencias antigas que gardaban o número de fila da Sheet.
-    if (/^\d+$/.test(key)) {
-      const sheetRow = Number(key);
-      const index = sheetRow - 2; // fila 1 = cabeceira; a primeira obra está na fila 2.
-      if (index >= 0 && index < repertoire.length) work = repertoire[index];
+    const numeric = Number(key.replace(',', '.'));
+    if (Number.isInteger(numeric) && numeric > 0) {
+      const candidates = [numeric - 2, numeric - 1, numeric];
+      for (const index of candidates) {
+        if (index >= 0 && index < repertoire.length) {
+          const candidate = repertoire[index];
+          if (candidate?.nomeObra || candidate?.nome) return candidate;
+        }
+      }
     }
-    return work || null;
+    return null;
   }
 
   function buildWorkRow(record, repertoire) {
     const id = String(record.repertorio || record.idRepertorio || '').trim();
     const work = resolveWork(id, repertoire);
-    const title = work?.nomeObra || work?.nome || id || 'Obra';
+    const title = work?.nomeObra || work?.nome || 'Obra sen identificar';
     const composer = work?.compositor || '';
+    const targetId = String(work?.idRepertorio || work?.id || id).trim();
     return `<article class="work-row" data-work-id="${esc(id)}">
       <div class="work-main">
-        <a class="work-link" href="/portal/repertorio/?id=${encodeURIComponent(work?.idRepertorio || work?.id || id)}">
+        <a class="work-link" href="/portal/repertorio/?id=${encodeURIComponent(targetId)}">
           <strong>${esc(title)}</strong>${composer ? `<small>${esc(composer)}</small>` : ''}
         </a>
       </div>
       <div class="work-fields">
-        <select class="work-type"><option value="">Tipo de traballo</option>${['Lectura','Montaxe','Repaso','Perfeccionamento','Interpretación completa'].map((value) => `<option ${record.tipoTraballo === value ? 'selected' : ''}>${value}</option>`).join('')}</select>
-        <input class="work-from" placeholder="Desde" value="${esc(record.desde || '')}" />
-        <input class="work-to" placeholder="Ata" value="${esc(record.ata || '')}" />
+        <select class="work-type"><option value="">Tipo de traballo</option></select>
+        <input class="work-from" placeholder="Desde" />
+        <input class="work-to" placeholder="Ata" />
         <input class="work-notes" placeholder="Observacións" value="${esc(record.observacions || '')}" />
         <button class="save-work" type="button">Gardar</button>
         <button class="remove-work" type="button">Eliminar</button>
@@ -180,11 +223,11 @@
     const select = document.querySelector('#work-search-select');
     const input = document.querySelector('#work-search-input');
     if (!(select instanceof HTMLSelectElement)) return;
-    const query = String(input?.value || '').trim().toLowerCase();
+    const query = normalize(input?.value || '');
     const options = (payload.repertorio || [])
       .filter((work) => {
         const id = String(work.idRepertorio || work.id || '');
-        const haystack = [work.nomeObra, work.nome, work.compositor].filter(Boolean).join(' ').toLowerCase();
+        const haystack = normalize([work.nomeObra, work.nome, work.compositor].filter(Boolean).join(' '));
         return !workedIds.has(id) && (!query || haystack.includes(query));
       })
       .sort((a, b) => String(a.nomeObra || a.nome || '').localeCompare(String(b.nomeObra || b.nome || ''), 'gl', { sensitivity:'base' }))
@@ -193,7 +236,7 @@
   }
 
   function syncRows(payload) {
-    const idEnsaio = inferCurrentRehearsal();
+    const idEnsaio = inferCurrentRehearsalFromDom() || inferCurrentRehearsalFromPayload(payload);
     const list = document.querySelector('#repertoire-list');
     if (!idEnsaio || !(list instanceof HTMLElement)) return;
 
@@ -213,7 +256,10 @@
   }
 
   async function refreshAndSync() {
-    if (syncing) return;
+    if (syncing) {
+      syncPending = true;
+      return;
+    }
     syncing = true;
     try {
       const idToken = await readFirebaseToken();
@@ -224,6 +270,10 @@
       console.warn('Non se puido actualizar automaticamente a lista de obras:', error);
     } finally {
       syncing = false;
+      if (syncPending) {
+        syncPending = false;
+        window.setTimeout(refreshAndSync, 50);
+      }
     }
   }
 
@@ -232,6 +282,24 @@
     if (!(target instanceof Element)) return;
     const rehearsal = target.closest('[data-rehearsal]');
     if (rehearsal) currentRehearsalId = rehearsal.getAttribute('data-rehearsal') || '';
+  }, true);
+
+  // Tras engadir unha obra, incluso se hai unha sincronización previa en curso,
+  // queda programada outra actualización para reflectir o cambio sen recargar a páxina.
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('#add-work')) {
+      window.setTimeout(refreshAndSync, 350);
+      window.setTimeout(refreshAndSync, 1200);
+    }
+  }, true);
+
+  document.addEventListener('submit', (event) => {
+    if (event.target instanceof Element && event.target.matches('#program-form')) {
+      window.setTimeout(refreshAndSync, 500);
+      window.setTimeout(refreshAndSync, 1500);
+    }
   }, true);
 
   document.addEventListener('click', async (event) => {
@@ -243,7 +311,7 @@
     const row = button.closest('.work-row');
     if (!(row instanceof HTMLElement)) return;
     const idRepertorio = row.dataset.workId || '';
-    const idEnsaio = inferCurrentRehearsal();
+    const idEnsaio = inferCurrentRehearsalFromDom() || currentRehearsalId;
     const message = document.querySelector('#repertoire-message');
 
     if (!idEnsaio) {
@@ -268,9 +336,13 @@
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Non foi posible eliminar a obra.');
 
-      const payload = await fetchFreshPayload(idToken);
-      syncRows(payload);
+      // Retirada visual inmediata e sincronización posterior coa fonte de verdade.
+      row.remove();
+      const remaining = document.querySelectorAll('#repertoire-list .work-row').length;
+      const summary = document.querySelector('#repertoire-summary');
+      if (summary) summary.textContent = `${remaining} obras`;
       if (message) message.textContent = '✓ Obra eliminada.';
+      await refreshAndSync();
     } catch (error) {
       button.disabled = false;
       if (message) message.textContent = `⚠ ${error instanceof Error ? error.message : 'Non foi posible eliminar a obra.'}`;
@@ -292,6 +364,6 @@
   }
 
   enhanceRows();
-  window.setTimeout(enhanceRows, 500);
-  window.setTimeout(refreshAndSync, 1200);
+  window.setTimeout(enhanceRows, 400);
+  window.setTimeout(refreshAndSync, 900);
 })();
