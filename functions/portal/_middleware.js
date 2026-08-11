@@ -28,6 +28,8 @@ const PHOTO_MANAGER_SCRIPT = [
   '<script src="/js/renovar-borrador-foto.js?v=20260805-4" defer></script>'
 ].join('');
 
+const ENSAIOS_DRAFT_SCRIPT = '<script src="/js/ensaios-borrador-r2.js?v=20260812-1" defer></script>';
+
 class PortalHeadRewriter {
   constructor(extra = '') { this.extra = extra; }
   element(element) {
@@ -41,7 +43,9 @@ export async function onRequest(context) {
   if (!contentType.includes('text/html')) return response;
 
   const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '');
-  const extra = pathname === '/portal/revision-fotos' ? PHOTO_MANAGER_SCRIPT : '';
+  let extra = '';
+  if (pathname === '/portal/revision-fotos') extra += PHOTO_MANAGER_SCRIPT;
+  if (pathname === '/portal/ensaios') extra += ENSAIOS_DRAFT_SCRIPT;
 
   return new HTMLRewriter()
     .on('head', new PortalHeadRewriter(extra))
