@@ -212,3 +212,11 @@
     setupSearchResults();
   }
 })();
+
+(() => {
+  if (!window.location.pathname.startsWith('/portal/ensaios')) return;
+  const script = document.createElement('script');
+  script.src = '/js/ensaios-obras.js';
+  script.defer = true;
+  document.head.append(script);
+})();
