@@ -28,7 +28,10 @@ const PHOTO_MANAGER_SCRIPT = [
   '<script src="/js/renovar-borrador-foto.js?v=20260805-4" defer></script>'
 ].join('');
 
-const ENSAIOS_DRAFT_SCRIPT = '<script src="/js/ensaios-borrador-r2.js?v=20260812-1" defer></script>';
+const ENSAIOS_DRAFT_SCRIPT = [
+  '<script src="/js/ensaios-borrador-r2.js?v=20260812-1" defer></script>',
+  '<script src="/js/ensaios-ui-simple.js?v=20260812-1" defer></script>'
+].join('');
 
 class PortalHeadRewriter {
   constructor(extra = '') { this.extra = extra; }
