@@ -1,6 +1,6 @@
 # Módulo Ensaios
 
-Estado: primeira implementación en rama de proba.
+Estado: primeira implementación xa integrada en produción e en ampliación funcional.
 
 ## Obxectivo
 
@@ -21,11 +21,11 @@ R2 non substitúe ás Sheets. Utilízase como índice privado e respaldo rápido
 
 ## Permisos
 
-- Xunta Directiva: lectura e escritura de asistencias e repertorio traballado.
+- Xunta Directiva: lectura e escritura de ensaios, asistencias e repertorio traballado.
 - Dirección: lectura e indicadores.
 - Resto de usuarios: sen acceso ao módulo de xestión.
 
-A autorización final das escrituras debe facerse en Apps Script, non só na interface.
+A autorización final das escrituras faise en Apps Script, non só na interface.
 
 ## API
 
@@ -34,6 +34,7 @@ Endpoint: `/api/ensaios`
 Accións:
 
 - `listarEnsaiosPortal`
+- `gardarEnsaio`
 - `gardarAsistenciaEnsaio`
 - `gardarEnsaioRepertorio`
 - `obterSeguimentoEnsaios`
@@ -61,7 +62,7 @@ Cabeceiras de diagnóstico:
 - `X-SCPP-Storage`
 - `Server-Timing`
 
-A interface tamén mostra discretamente a fonte durante a fase de proba (`SHEET`, `R2-CACHE`, `R2-STALE`).
+A interface tamén mostra discretamente a fonte (`SHEET`, `R2-CACHE`, `R2-STALE`).
 
 ## Fluxo de escritura
 
@@ -75,18 +76,40 @@ A interface tamén mostra discretamente a fonte durante a fase de proba (`SHEET`
 
 Nunca se considera definitiva unha modificación antes de confirmar a escritura en Sheet.
 
+## Alta de ensaios
+
+Os membros da Xunta Directiva con `podeEditar = true` dispoñen na cabeceira do módulo do botón `+ Novo ensaio`.
+
+O formulario inicial permite gardar:
+
+- data;
+- hora de inicio;
+- hora de fin;
+- lugar;
+- tipo de ensaio;
+- descrición;
+- observacións.
+
+A escritura crea un `Id_Ensaio` mediante UUID, grava a fila na Sheet `Ensaios`, invalida a caché privada e tenta rexenerar inmediatamente o índice de R2.
+
 ## Apps Script
 
-Ficheiro fonte no repositorio: `apps-script/ensaios-portal.gs`.
+Ficheiros fonte no repositorio:
+
+- `apps-script/ensaios-portal.gs`
+- `apps-script/ensaios-alta.gs`
 
 O despachador principal `doPost` debe incorporar estas correspondencias:
 
 ```text
 listarEnsaiosPortal          -> listarEnsaiosPortal_(datos)
+gardarEnsaioPortal           -> gardarEnsaioPortal_(datos)
 gardarAsistenciaEnsaioPortal -> gardarAsistenciaEnsaioPortal_(datos)
 gardarEnsaioRepertorioPortal -> gardarEnsaioRepertorioPortal_(datos)
 obterSeguimentoEnsaiosPortal -> obterSeguimentoEnsaiosPortal_(datos)
 ```
+
+`gardarEnsaioPortal`, `gardarAsistenciaEnsaioPortal` e `gardarEnsaioRepertorioPortal` deben considerarse accións de escritura se o dispatcher usa `ScriptLock`.
 
 As propiedades opcionais son:
 
@@ -97,7 +120,7 @@ As propiedades opcionais son:
 - `CONCERTOS_SPREADSHEET_ID`
 - `REPERTORIO_SPREADSHEET_ID`
 
-O ficheiro inclúe os IDs non secretos actuais como respaldo de configuración.
+Os ficheiros inclúen os IDs non secretos actuais como respaldo de configuración.
 
 ## Interface
 
@@ -135,10 +158,10 @@ Indicadores iniciais:
 - asistencia por corda;
 - número de ensaios por obra.
 
-## Pendentes antes de produción
+## Pendentes
 
-1. incorporar as catro accións ao `doPost` de produción e despregar Apps Script;
-2. verificar os valores reais de `Cargo` en `Persoas` para Xunta e Dirección;
+1. incorporar `gardarEnsaioPortal` ao `doPost` de produción e despregar Apps Script;
+2. probar a primeira alta real de ensaio desde o portal;
 3. enriquecer as obras co índice R2 de `Repertorio` para abrir directamente audios por voz;
 4. probar escrituras concorrentes de dous membros da Xunta;
 5. probar móbil;
