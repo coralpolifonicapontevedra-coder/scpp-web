@@ -28,7 +28,38 @@ const PHOTO_MANAGER_SCRIPT = [
   '<script src="/js/renovar-borrador-foto.js?v=20260805-4" defer></script>'
 ].join('');
 
-const ENSAIOS_DRAFT_SCRIPT = '<script src="/js/ensaios-borrador-r2.js?v=20260812-1" defer></script>';
+const ENSAIOS_DRAFT_SCRIPT = '<script src="/js/ensaios-borrador-r2.js?v=20260812-2" defer></script>';
+
+const ENSAIOS_SIMPLE_UI = `
+<style id="scpp-ensaios-simple-ui">
+  #repertoire-panel .work-type,
+  #repertoire-panel .work-from,
+  #repertoire-panel .work-to { display:none !important; }
+  #repertoire-panel .work-fields {
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) auto auto auto !important;
+    align-items:center;
+    gap:.55rem !important;
+  }
+  #repertoire-panel .work-notes { width:100%; min-width:0; box-sizing:border-box; }
+  #repertoire-panel .work-link,
+  #repertoire-panel .work-link:visited,
+  #repertoire-panel .work-link:hover,
+  #repertoire-panel .work-link:focus { color:#24211f !important; text-decoration:none !important; }
+  #repertoire-panel .work-link { display:flex !important; flex-direction:column; gap:.42rem !important; }
+  @media(max-width:680px){
+    #repertoire-panel .work-fields{grid-template-columns:1fr !important;}
+    #repertoire-panel .save-work,
+    #repertoire-panel .remove-work{width:100%;}
+  }
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('#repertoire-panel h2, [data-work="repertorio"], #program-dialog .section-kicker, #tracking-kpis span').forEach(function (node) {
+      if ((node.textContent || '').trim() === 'Obras traballadas') node.textContent = 'Obras';
+    });
+  }, { once:true });
+</script>`;
 
 class PortalHeadRewriter {
   constructor(extra = '') { this.extra = extra; }
@@ -45,7 +76,7 @@ export async function onRequest(context) {
   const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '');
   let extra = '';
   if (pathname === '/portal/revision-fotos') extra += PHOTO_MANAGER_SCRIPT;
-  if (pathname === '/portal/ensaios') extra += ENSAIOS_DRAFT_SCRIPT;
+  if (pathname === '/portal/ensaios') extra += ENSAIOS_DRAFT_SCRIPT + ENSAIOS_SIMPLE_UI;
 
   return new HTMLRewriter()
     .on('head', new PortalHeadRewriter(extra))
