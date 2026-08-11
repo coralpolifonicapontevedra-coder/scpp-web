@@ -5,7 +5,8 @@
  * - Este ficheiro documenta o bloque exacto que debe incorporarse no doPost
  *   da implementación principal de Apps Script.
  * - NON crear un segundo doPost.
- * - As funcións chamadas están definidas en apps-script/ensaios-portal.gs.
+ * - As funcións chamadas están definidas en apps-script/ensaios-portal.gs
+ *   e apps-script/ensaios-alta.gs.
  */
 
 /*
@@ -15,6 +16,8 @@
  *
  *   } else if (accion === 'listarEnsaiosPortal') {
  *     resultado = listarEnsaiosPortal_(datos);
+ *   } else if (accion === 'gardarEnsaioPortal') {
+ *     resultado = gardarEnsaioPortal_(datos);
  *   } else if (accion === 'gardarAsistenciaEnsaioPortal') {
  *     resultado = gardarAsistenciaEnsaioPortal_(datos);
  *   } else if (accion === 'gardarEnsaioRepertorioPortal') {
@@ -26,6 +29,9 @@
  *
  *   case 'listarEnsaiosPortal':
  *     resultado = listarEnsaiosPortal_(datos);
+ *     break;
+ *   case 'gardarEnsaioPortal':
+ *     resultado = gardarEnsaioPortal_(datos);
  *     break;
  *   case 'gardarAsistenciaEnsaioPortal':
  *     resultado = gardarAsistenciaEnsaioPortal_(datos);
@@ -42,8 +48,9 @@
  * ACCIÓNS DE ESCRITURA
  *
  * Se Código.gs mantén unha lista ou condición de accións que adquiren ScriptLock,
- * deben considerarse de escritura estas dúas:
+ * deben considerarse de escritura estas tres:
  *
+ *   gardarEnsaioPortal
  *   gardarAsistenciaEnsaioPortal
  *   gardarEnsaioRepertorioPortal
  *
@@ -51,6 +58,7 @@
  */
 
 var ACCIONS_ESCRITURA_ENSAIOS_PORTAL_ = [
+  'gardarEnsaioPortal',
   'gardarAsistenciaEnsaioPortal',
   'gardarEnsaioRepertorioPortal'
 ];
