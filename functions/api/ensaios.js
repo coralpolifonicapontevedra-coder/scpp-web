@@ -3,7 +3,8 @@ const CACHE_RESPALDO_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_TOKEN_MS = 10 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
-const R2_PREFIX = 'ensaios/cache/usuarios/';
+const R2_PREFIX = 'ensaios/cache-v2/usuarios/';
+const CONCERTOS_PRIVATE_INDEX_KEY = 'indices/concertos-privado-v1.json';
 
 const cacheTokens = new Map();
 const cacheMemoria = new Map();
@@ -100,7 +101,60 @@ async function r2Key(user) {
 }
 
 function payloadValido(payload) {
-  return payload?.ok === true && Array.isArray(payload.ensaios) && Array.isArray(payload.persoas);
+  return payload?.ok === true && payload?.version === 2 && Array.isArray(payload.ensaios) && Array.isArray(payload.persoas);
+}
+
+function normalizar(value = '') {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
+async function lerConcertosPrivados(env, repertorio = []) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return [];
+  try {
+    const object = await env.R2_PRIVADO.get(CONCERTOS_PRIVATE_INDEX_KEY);
+    if (!object) return [];
+    const index = await object.json();
+    if (index?.ok !== true || !Array.isArray(index.concertos)) return [];
+
+    const porTitulo = new Map();
+    repertorio.forEach((obra) => {
+      const id = String(obra.idRepertorio || obra.id || '').trim();
+      const titulo = normalizar(obra.nomeObra || obra.nome || '');
+      if (id && titulo && !porTitulo.has(titulo)) porTitulo.set(titulo, id);
+    });
+
+    return index.concertos.map((concerto) => ({
+      id: String(concerto.id || '').trim(),
+      nome: String(concerto.nome || '').trim(),
+      data: String(concerto.data || '').trim(),
+      programa: (Array.isArray(concerto.programa) ? concerto.programa : []).map((item) => ({
+        idRepertorio: String(item.idRepertorio || porTitulo.get(normalizar(item.obra)) || '').trim(),
+        orde: Number(item.orde || 999),
+        obra: String(item.obra || '').trim(),
+        autor: String(item.autor || '').trim()
+      })).filter((item) => item.obra)
+    })).filter((concerto) => concerto.id);
+  } catch (error) {
+    console.warn('Non se puido ler o índice privado de concertos para Ensaios:', error);
+    return [];
+  }
+}
+
+async function crearPayload(env, result) {
+  const repertorio = Array.isArray(result.repertorio) ? result.repertorio : [];
+  return {
+    ok: true,
+    version: 2,
+    perfil: result.perfil || {},
+    ensaios: Array.isArray(result.ensaios) ? result.ensaios : [],
+    persoas: Array.isArray(result.persoas) ? result.persoas : [],
+    asistencias: Array.isArray(result.asistencias) ? result.asistencias : [],
+    ensaiosRepertorio: Array.isArray(result.ensaiosRepertorio) ? result.ensaiosRepertorio : [],
+    repertorio,
+    concertos: await lerConcertosPrivados(env, repertorio),
+    seguimento: result.seguimento || {},
+    xeradoEn: new Date().toISOString()
+  };
 }
 
 async function lerR2(env, user) {
@@ -179,17 +233,7 @@ async function listar(context, user, forzar = false) {
   const inicio = Date.now();
   try {
     const result = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
-    const payload = {
-      ok: true,
-      perfil: result.perfil || {},
-      ensaios: Array.isArray(result.ensaios) ? result.ensaios : [],
-      persoas: Array.isArray(result.persoas) ? result.persoas : [],
-      asistencias: Array.isArray(result.asistencias) ? result.asistencias : [],
-      ensaiosRepertorio: Array.isArray(result.ensaiosRepertorio) ? result.ensaiosRepertorio : [],
-      repertorio: Array.isArray(result.repertorio) ? result.repertorio : [],
-      seguimento: result.seguimento || {},
-      xeradoEn: new Date().toISOString()
-    };
+    const payload = await crearPayload(context.env, result);
     await gardarCache(context.env, user, payload);
     return json(200, conDiagnostico(payload, 'SHEET'), {
       'X-SCPP-Cache': forzar ? 'REFRESH' : 'MISS',
@@ -209,28 +253,53 @@ async function listar(context, user, forzar = false) {
   }
 }
 
+async function rexenerarCache(context, user) {
+  const fresh = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
+  const payload = await crearPayload(context.env, fresh);
+  await gardarCache(context.env, user, payload);
+  return payload;
+}
+
 async function escribir(context, user, accion, datos) {
   const inicio = Date.now();
   const result = await chamarAppsScript(context.env, user, accion, datos);
   await invalidarCache(context.env, user);
-  try {
-    const fresh = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
-    const payload = {
-      ok: true,
-      perfil: fresh.perfil || {},
-      ensaios: fresh.ensaios || [],
-      persoas: fresh.persoas || [],
-      asistencias: fresh.asistencias || [],
-      ensaiosRepertorio: fresh.ensaiosRepertorio || [],
-      repertorio: fresh.repertorio || [],
-      seguimento: fresh.seguimento || {},
-      xeradoEn: new Date().toISOString()
-    };
-    await gardarCache(context.env, user, payload);
-  } catch (error) {
-    console.warn('A escritura completouse, pero non se puido rexenerar o índice de Ensaios:', error);
-  }
+  try { await rexenerarCache(context, user); }
+  catch (error) { console.warn('A escritura completouse, pero non se puido rexenerar o índice de Ensaios:', error); }
   return json(200, { ok: true, resultado: result.resultado || result, diagnostico: { fonte: 'SHEET-WRITE', duracionMs: Date.now() - inicio } }, {
+    'X-SCPP-Cache': 'INVALIDATED',
+    'X-SCPP-Storage': 'SHEET'
+  });
+}
+
+async function incluirPrograma(context, user, body) {
+  const idEnsaio = String(body.idEnsaio || '').trim();
+  const ids = [...new Set((Array.isArray(body.idsRepertorio) ? body.idsRepertorio : []).map((id) => String(id || '').trim()).filter(Boolean))].slice(0, 40);
+  if (!idEnsaio || !ids.length) return erro(400, 'REQUEST', 'INVALID_DATA', 'Non hai obras do programa para incluír.');
+
+  const inicio = Date.now();
+  let engadidas = 0;
+  for (const idRepertorio of ids) {
+    await chamarAppsScript(context.env, user, 'gardarEnsaioRepertorioPortal', {
+      idEnsaio,
+      idRepertorio,
+      tipoTraballo: '',
+      desde: '',
+      ata: '',
+      observacions: ''
+    });
+    engadidas += 1;
+  }
+  await invalidarCache(context.env, user);
+  let payload = null;
+  try { payload = await rexenerarCache(context, user); }
+  catch (error) { console.warn('Programa incluído, pero non se puido rexenerar o índice:', error); }
+  return json(200, {
+    ok: true,
+    engadidas,
+    payload,
+    diagnostico: { fonte: 'SHEET-WRITE', duracionMs: Date.now() - inicio }
+  }, {
     'X-SCPP-Cache': 'INVALIDATED',
     'X-SCPP-Storage': 'SHEET'
   });
@@ -254,7 +323,7 @@ export async function onRequest(context) {
   if (!user) return erro(401, 'AUTH', 'INVALID_SESSION', 'A identificación non é válida ou caducou.');
 
   const accion = String(body.accion || 'listarEnsaiosPortal').trim();
-  const permitidas = new Set(['listarEnsaiosPortal', 'gardarEnsaio', 'gardarAsistenciaEnsaio', 'gardarEnsaioRepertorio', 'obterSeguimentoEnsaios']);
+  const permitidas = new Set(['listarEnsaiosPortal', 'gardarEnsaio', 'gardarAsistenciaEnsaio', 'gardarEnsaioRepertorio', 'incluírProgramaEnsaio', 'obterSeguimentoEnsaios']);
   if (!permitidas.has(accion)) return erro(400, 'REQUEST', 'ACTION_NOT_ALLOWED', 'Acción non permitida.');
 
   try {
@@ -292,6 +361,8 @@ export async function onRequest(context) {
         observacions: String(body.observacions || '').trim()
       });
     }
+    if (accion === 'incluírProgramaEnsaio') return await incluirPrograma(context, user, body);
+
     const result = await chamarAppsScript(env, user, 'obterSeguimentoEnsaiosPortal', {
       desde: String(body.desde || '').trim(),
       ata: String(body.ata || '').trim(),
