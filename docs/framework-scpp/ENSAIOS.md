@@ -103,12 +103,18 @@ Non se renderiza o repertorio completo, xa que pode superar centos de obras.
 
 Hai dúas vías de alta:
 
-- `Incluír desde programa`: usa o concerto vinculado ao ensaio e incorpora as obras do seu programa que teñen correspondencia con Repertorio;
+- `Incluír desde programa`: abre un selector de concertos. Se o ensaio xa ten concerto asociado, aparece preseleccionado; se non, pódese escoller calquera concerto dispoñible. As obras do programa relaciónanse co Repertorio por `Id_Repertorio` e, como respaldo, por título normalizado;
 - buscador por título ou compositor: selecciona unha obra concreta e engádea ao ensaio.
 
 Debaixo só se listan as obras efectivamente asociadas a ese ensaio. O título de cada obra enlaza directamente a `/portal/repertorio/?id=<Id_Repertorio>`.
 
-A inclusión desde programa reutiliza a acción existente `gardarEnsaioRepertorioPortal` de Apps Script e invalida/Rexenera a caché unha única vez ao rematar o lote.
+A inclusión desde programa reutiliza a acción existente `gardarEnsaioRepertorioPortal` de Apps Script e invalida/rexenera a caché unha única vez ao rematar o lote.
+
+## Calendario e móbil
+
+A interface elimina duplicados de ensaios por `Id_Ensaio` antes de renderizar calendario e histórico. Se faltase o ID, utiliza unha clave de respaldo formada por data, hora, tipo e lugar.
+
+En pantallas de ata 900 px o `private-layout` pasa a bloque para evitar que o ancho da barra lateral empurre o contido cara á dereita. As tarxetas de calendario son compactas, con ancho máximo do contedor e metadatos agrupados nun único bloque. En móbil os botóns de vistas e cordas pasan a grella e todos os formularios limitan o seu ancho ao viewport.
 
 ## Presentación de campos
 
@@ -145,7 +151,7 @@ Indicadores iniciais: ensaios realizados, asistencia media, ausencias xustificad
 
 ## Pendentes
 
-1. probar en móbil a nova navegación por cordas;
+1. comprobar nun móbil real a corrección do ancho e o calendario compacto;
 2. comprobar con programas reais a resolución automática das obras desde o índice privado de concertos;
 3. enriquecer máis adiante as obras cos audios do índice R2 de Repertorio;
 4. probar escrituras concorrentes de dous membros da Xunta;
