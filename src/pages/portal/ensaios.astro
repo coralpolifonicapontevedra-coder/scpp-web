@@ -41,7 +41,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             <label>Tipo de ensaio
               <input id="new-type" type="text" list="rehearsal-types" maxlength="80" required />
               <datalist id="rehearsal-types">
-                <option value="Ordinario"></option><option value="Extraordinario"></option><option value="Xeral"></option><option value="Por cordas"></option>
+                <option value="Ordinario"></option>
+                <option value="Extraordinario"></option>
+                <option value="Xeral"></option>
+                <option value="Por cordas"></option>
               </datalist>
             </label>
             <label>Concerto relacionado
@@ -51,13 +54,39 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             <label class="form-wide">Observacións <textarea id="new-notes" rows="3"></textarea></label>
           </div>
           <p id="new-rehearsal-status" class="form-status" role="status" aria-live="polite"></p>
-          <footer><button id="cancel-new-rehearsal" class="secondary-button" type="button">Cancelar</button><button id="save-new-rehearsal" class="primary-button" type="submit">Gardar ensaio</button></footer>
+          <footer>
+            <button id="cancel-new-rehearsal" class="secondary-button" type="button">Cancelar</button>
+            <button id="save-new-rehearsal" class="primary-button" type="submit">Gardar ensaio</button>
+          </footer>
+        </form>
+      </dialog>
+
+      <dialog id="program-dialog" class="rehearsal-dialog program-dialog">
+        <form id="program-form" class="rehearsal-form">
+          <header>
+            <div>
+              <span class="section-kicker">Obras traballadas</span>
+              <h2>Incluír desde programa</h2>
+              <p>Escolle o concerto do que queres incorporar o programa.</p>
+            </div>
+            <button id="close-program-dialog" class="dialog-close" type="button" aria-label="Pechar">×</button>
+          </header>
+          <label class="program-select-label">Concerto
+            <select id="program-concert-select"><option value="">Escolle un concerto…</option></select>
+          </label>
+          <p id="program-dialog-message" class="form-status" role="status" aria-live="polite"></p>
+          <footer>
+            <button id="cancel-program" class="secondary-button" type="button">Cancelar</button>
+            <button class="primary-button" type="submit">Incluír programa</button>
+          </footer>
         </form>
       </dialog>
 
       <section id="loading" class="portal-state">Cargando os ensaios…</section>
       <section id="error-state" class="portal-state error-state" hidden>
-        <strong>Non foi posible cargar os ensaios</strong><p id="error-message"></p><button id="retry-button" type="button">Tentar de novo</button>
+        <strong>Non foi posible cargar os ensaios</strong>
+        <p id="error-message"></p>
+        <button id="retry-button" type="button">Tentar de novo</button>
       </section>
 
       <section id="ensaios-app" class="ensaios-app" hidden>
@@ -84,12 +113,18 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
                 <button type="button" data-voice="Tenor">Tenores</button>
                 <button type="button" data-voice="Baixo">Baixos</button>
               </div>
-              <div class="attendance-heading"><div><span>Control de presenza</span><h2 id="attendance-title">Asistentes</h2></div><strong id="attendance-summary">—</strong></div>
+              <div class="attendance-heading">
+                <div><span>Control de presenza</span><h2 id="attendance-title">Asistentes</h2></div>
+                <strong id="attendance-summary">—</strong>
+              </div>
               <div id="attendance-list" class="attendance-list"></div>
             </div>
 
             <div id="repertoire-panel" class="work-content" hidden>
-              <div class="attendance-heading"><div><span>Preparación musical</span><h2>Obras traballadas</h2></div><strong id="repertoire-summary">—</strong></div>
+              <div class="attendance-heading">
+                <div><span>Preparación musical</span><h2>Obras traballadas</h2></div>
+                <strong id="repertoire-summary">—</strong>
+              </div>
               <div class="repertoire-tools">
                 <button id="include-program" type="button" class="secondary-button">Incluír desde programa</button>
                 <div class="work-search">
@@ -105,22 +140,39 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         </section>
 
         <section id="view-calendario" class="module-view" hidden>
-          <header class="section-heading"><div><span>Planificación</span><h2>Calendario de ensaios</h2></div><strong id="calendar-summary"></strong></header><div id="calendar-list" class="rehearsal-list"></div>
+          <header class="section-heading">
+            <div><span>Planificación</span><h2>Calendario de ensaios</h2></div>
+            <strong id="calendar-summary"></strong>
+          </header>
+          <div id="calendar-list" class="rehearsal-list"></div>
         </section>
+
         <section id="view-historico" class="module-view" hidden>
-          <header class="section-heading"><div><span>Arquivo de traballo</span><h2>Histórico</h2></div><strong id="history-summary"></strong></header><div id="history-list" class="rehearsal-list"></div>
+          <header class="section-heading">
+            <div><span>Arquivo de traballo</span><h2>Histórico</h2></div>
+            <strong id="history-summary"></strong>
+          </header>
+          <div id="history-list" class="rehearsal-list"></div>
         </section>
+
         <section id="view-seguimento" class="module-view" hidden>
-          <header class="section-heading"><div><span>Dirección e Xunta Directiva</span><h2>Seguimento</h2><p>Indicadores calculados sobre o período seleccionado.</p></div></header>
+          <header class="section-heading">
+            <div><span>Dirección e Xunta Directiva</span><h2>Seguimento</h2><p>Indicadores calculados sobre o período seleccionado.</p></div>
+          </header>
           <form id="tracking-form" class="tracking-filters">
-            <label>Desde<input id="date-from" type="date" /></label><label>Ata<input id="date-to" type="date" /></label>
+            <label>Desde<input id="date-from" type="date" /></label>
+            <label>Ata<input id="date-to" type="date" /></label>
             <label>Concerto<select id="concert-filter"><option value="">Todos</option></select></label>
             <label>Corda<select id="voice-filter"><option value="">Todas</option><option>Soprano</option><option>Contralto</option><option>Tenor</option><option>Baixo</option></select></label>
             <button type="submit">Aplicar</button>
           </form>
           <div id="tracking-kpis" class="kpi-grid"></div>
-          <div class="tracking-grid"><section class="tracking-card"><h3>Asistencia por corda</h3><div id="tracking-voices"></div></section><section class="tracking-card"><h3>Obras traballadas</h3><div id="tracking-works"></div></section></div>
+          <div class="tracking-grid">
+            <section class="tracking-card"><h3>Asistencia por corda</h3><div id="tracking-voices"></div></section>
+            <section class="tracking-card"><h3>Obras traballadas</h3><div id="tracking-works"></div></section>
+          </div>
         </section>
+
         <p id="data-source" class="data-source" aria-live="polite"></p>
       </section>
     </main>
@@ -131,79 +183,495 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   import { getApp, getApps, initializeApp } from 'firebase/app';
   import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 
-  const firebaseConfig={apiKey:'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',authDomain:'scpp-portal-privado.firebaseapp.com',projectId:'scpp-portal-privado',storageBucket:'scpp-portal-privado.firebasestorage.app',messagingSenderId:'506857659587',appId:'1:506857659587:web:a7ed36b22f044f5f639676'};
-  const auth=getAuth(getApps().length?getApp():initializeApp(firebaseConfig));
-  const $=(s)=>document.querySelector(s);
-  const loading=$('#loading'),errorState=$('#error-state'),errorMessage=$('#error-message'),app=$('#ensaios-app'),userEmail=$('#user-email'),dataSource=$('#data-source');
-  const newButton=$('#new-rehearsal-button'),newDialog=$('#new-rehearsal-dialog'),newForm=$('#new-rehearsal-form'),newStatus=$('#new-rehearsal-status');
-  let payload=null,selectedRehearsal=null,selectedVoice='Asistentes';
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
 
-  const esc=(v='')=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-  const norm=(v='')=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-  const truthy=(v)=>v===true||['true','1','si','sí','yes','x'].includes(norm(v));
-  const toDate=(v)=>{const t=String(v||'').trim();if(!t)return null;const iso=/^\d{4}-\d{2}-\d{2}/.test(t)?t.slice(0,10):t.split(/[\/-]/).reverse().join('-');const d=new Date(`${iso}T12:00:00`);return Number.isNaN(d.getTime())?null:d;};
-  const fmtDate=(v)=>{const d=toDate(v);return d?new Intl.DateTimeFormat('gl-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d):String(v||'');};
-  const fmtTime=(v)=>String(v||'').trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/,'$1');
-  const personName=(p)=>p.nomeCompleto||[p.nome,p.primeiroApelido,p.segundoApelido].filter(Boolean).join(' ');
-  const alpha=(a,b)=>personName(a).localeCompare(personName(b),'gl',{sensitivity:'base'});
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const $ = (selector) => document.querySelector(selector);
+  const loading = $('#loading');
+  const errorState = $('#error-state');
+  const errorMessage = $('#error-message');
+  const app = $('#ensaios-app');
+  const userEmail = $('#user-email');
+  const dataSource = $('#data-source');
+  const newButton = $('#new-rehearsal-button');
+  const newDialog = $('#new-rehearsal-dialog');
+  const newForm = $('#new-rehearsal-form');
+  const newStatus = $('#new-rehearsal-status');
+  const programDialog = $('#program-dialog');
+  let payload = null;
+  let selectedRehearsal = null;
+  let selectedVoice = 'Asistentes';
 
-  async function api(accion,extra={}){const user=auth.currentUser;if(!user?.email)throw new Error('A sesión non está dispoñible.');const idToken=await user.getIdToken();const response=await fetch('/api/ensaios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,accion,...extra})});const result=await response.json().catch(()=>null);if(!response.ok||!result?.ok)throw new Error(result?.erro||`Erro ${response.status}`);return result;}
-  function rehearsalById(id){return(payload?.ensaios||[]).find((item)=>String(item.idEnsaio||item.id||'')===String(id||''));}
-  function nextRehearsal(){const now=new Date();now.setHours(0,0,0,0);return[...(payload?.ensaios||[])].filter((e)=>!truthy(e.cancelado)&&(!toDate(e.data)||toDate(e.data)>=now)).sort((a,b)=>(toDate(a.data)?.getTime()||0)-(toDate(b.data)?.getTime()||0))[0]||null;}
-  function selectedConcert(){const id=String(selectedRehearsal?.concerto||'');return(payload?.concertos||[]).find((c)=>String(c.id)===id)||null;}
+  const esc = (value = '') => String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const norm = (value = '') => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  const compactNorm = (value = '') => norm(value).replace(/[^a-z0-9]/g, '');
+  const truthy = (value) => value === true || ['true','1','si','sí','yes','x'].includes(norm(value));
+  const toDate = (value) => {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const iso = /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text.split(/[\/-]/).reverse().join('-');
+    const date = new Date(`${iso}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+  const fmtDate = (value) => {
+    const date = toDate(value);
+    return date ? new Intl.DateTimeFormat('gl-ES', { weekday:'long', day:'numeric', month:'long', year:'numeric' }).format(date) : String(value || '');
+  };
+  const fmtTime = (value) => String(value || '').trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1');
+  const personName = (person) => person.nomeCompleto || [person.nome, person.primeiroApelido, person.segundoApelido].filter(Boolean).join(' ');
+  const alpha = (a, b) => personName(a).localeCompare(personName(b), 'gl', { sensitivity:'base' });
 
-  function renderHero(){
-    selectedRehearsal=selectedRehearsal||nextRehearsal();const box=$('#next-rehearsal');
-    if(!selectedRehearsal){box.innerHTML='<div class="empty-state"><strong>Non hai próximos ensaios rexistrados.</strong></div>';$('#work-panel').hidden=true;return;}
-    const e=selectedRehearsal,cancelled=truthy(e.cancelado);const horario=[fmtTime(e.horaInicio),e.horaFin?fmtTime(e.horaFin):''].filter(Boolean).join(' – ');const situacion=[horario,e.lugar].filter(Boolean).join(' · ');const clasificacion=[e.tipoEnsaio,e.concertoNome||'Ensaio xeral'].filter(Boolean).join(' · ');
-    box.innerHTML=`<div class="hero-date"><span>${cancelled?'Ensaio cancelado':'Próximo ensaio'}</span><h2>${esc(fmtDate(e.data))}</h2>${situacion?`<p>${esc(situacion)}</p>`:''}</div><div class="hero-meta"><p class="hero-classification">${esc(clasificacion)}</p>${e.descricion?`<p>${esc(e.descricion)}</p>`:''}</div>`;
-    $('#work-panel').hidden=false;selectedVoice='Asistentes';document.querySelectorAll('[data-voice]').forEach((b)=>b.classList.toggle('is-active',b.dataset.voice==='Asistentes'));renderAttendance();renderRepertoire();
+  async function api(accion, extra = {}) {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('A sesión non está dispoñible.');
+    const idToken = await user.getIdToken();
+    const response = await fetch('/api/ensaios', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body:JSON.stringify({ idToken, accion, ...extra })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro ${response.status}`);
+    return result;
   }
 
-  function attendanceForSelected(){const id=String(selectedRehearsal?.idEnsaio||selectedRehearsal?.id||'');return(payload?.asistencias||[]).filter((a)=>String(a.ensaio||a.idEnsaio||'')===id);}
-  function attendanceMap(){return new Map(attendanceForSelected().map((a)=>[String(a.persoa||a.idPersoa||''),a]));}
-  function renderAttendance(){
-    const people=[...(payload?.persoas||[])],map=attendanceMap(),title=$('#attendance-title');
-    if(selectedVoice==='Asistentes'){
-      const voices=['Soprano','Contralto','Tenor','Baixo'];let total=0;
-      const sections=voices.map((voice)=>{const present=people.filter((p)=>norm(p.voz)===norm(voice)&&norm(map.get(String(p.idPersoa||p.id||''))?.estadoAsistencia)==='asiste').sort(alpha);total+=present.length;return `<section class="attendance-group"><header><h3>${esc(voice==='Baixo'?'Baixos':voice+'s')}</h3><strong>${present.length}</strong></header>${present.length?`<div class="attendee-names">${present.map((p)=>`<span>${esc(personName(p))}</span>`).join('')}</div>`:'<p class="helper">Sen asistentes rexistrados.</p>'}</section>`;}).join('');
-      if(title)title.textContent='Asistentes';$('#attendance-summary').textContent=`${total} asistentes`;$('#attendance-list').innerHTML=sections;return;
+  function rehearsalId(item) { return String(item?.idEnsaio || item?.id || '').trim(); }
+  function rehearsalById(id) { return (payload?.ensaios || []).find((item) => rehearsalId(item) === String(id || '')); }
+  function uniqueRehearsals(items = []) {
+    const map = new Map();
+    items.forEach((item) => {
+      const key = rehearsalId(item) || [item.data, item.horaInicio, item.tipoEnsaio, item.lugar].map((v) => compactNorm(v)).join('|');
+      if (key && !map.has(key)) map.set(key, item);
+    });
+    return [...map.values()];
+  }
+  function nextRehearsal() {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    return uniqueRehearsals(payload?.ensaios || [])
+      .filter((item) => !truthy(item.cancelado) && (!toDate(item.data) || toDate(item.data) >= today))
+      .sort((a,b) => (toDate(a.data)?.getTime() || 0) - (toDate(b.data)?.getTime() || 0))[0] || null;
+  }
+  function concertById(id) { return (payload?.concertos || []).find((concert) => String(concert.id || '') === String(id || '')) || null; }
+  function selectedConcert() { return concertById(selectedRehearsal?.concerto); }
+
+  function renderHero() {
+    selectedRehearsal = selectedRehearsal || nextRehearsal();
+    const box = $('#next-rehearsal');
+    if (!selectedRehearsal) {
+      box.innerHTML = '<div class="empty-state"><strong>Non hai próximos ensaios rexistrados.</strong></div>';
+      $('#work-panel').hidden = true;
+      return;
     }
-    const filtered=people.filter((p)=>norm(p.voz)===norm(selectedVoice)).sort(alpha);const decided=filtered.filter((p)=>{const s=norm(map.get(String(p.idPersoa||p.id||''))?.estadoAsistencia);return s==='asiste'||s==='non asiste';}).length;const present=filtered.filter((p)=>norm(map.get(String(p.idPersoa||p.id||''))?.estadoAsistencia)==='asiste').length;
-    if(title)title.textContent=selectedVoice==='Baixo'?'Baixos':`${selectedVoice}s`;$('#attendance-summary').textContent=`${present} asisten · ${decided}/${filtered.length} rexistrados`;
-    $('#attendance-list').innerHTML=filtered.map((p)=>{const id=String(p.idPersoa||p.id||''),a=map.get(id)||{},state=norm(a.estadoAsistencia);return `<article class="person-row" data-person="${esc(id)}"><strong>${esc(personName(p))}</strong><div class="attendance-actions"><button type="button" class="${state==='asiste'?'is-selected':''}" data-state="Asiste">✓ Asiste</button><button type="button" class="${state==='non asiste'?'is-selected negative':''}" data-state="Non asiste">× Non asiste</button></div><label class="justify"><input type="checkbox" ${truthy(a.xustificada)?'checked':''} disabled /> Xustificada</label><span class="save-status" aria-live="polite"></span></article>`;}).join('')||'<p class="empty-state">Non hai persoas nesta corda.</p>';
+    const rehearsal = selectedRehearsal;
+    const cancelled = truthy(rehearsal.cancelado);
+    const horario = [fmtTime(rehearsal.horaInicio), rehearsal.horaFin ? fmtTime(rehearsal.horaFin) : ''].filter(Boolean).join(' – ');
+    const situacion = [horario, rehearsal.lugar].filter(Boolean).join(' · ');
+    const clasificacion = [rehearsal.tipoEnsaio, rehearsal.concertoNome || 'Ensaio xeral'].filter(Boolean).join(' · ');
+    box.innerHTML = `<div class="hero-date"><span>${cancelled ? 'Ensaio cancelado' : 'Próximo ensaio'}</span><h2>${esc(fmtDate(rehearsal.data))}</h2>${situacion ? `<p>${esc(situacion)}</p>` : ''}</div><div class="hero-meta"><p class="hero-classification">${esc(clasificacion)}</p>${rehearsal.descricion ? `<p>${esc(rehearsal.descricion)}</p>` : ''}</div>`;
+    $('#work-panel').hidden = false;
+    selectedVoice = 'Asistentes';
+    document.querySelectorAll('[data-voice]').forEach((button) => button.classList.toggle('is-active', button.dataset.voice === 'Asistentes'));
+    renderAttendance();
+    renderRepertoire();
   }
 
-  function workedForSelected(){const id=String(selectedRehearsal?.idEnsaio||selectedRehearsal?.id||'');return(payload?.ensaiosRepertorio||[]).filter((r)=>String(r.ensaio||r.idEnsaio||'')===id);}
-  function workById(id){return(payload?.repertorio||[]).find((w)=>String(w.idRepertorio||w.id||'')===String(id||''));}
-  function updateWorkSearch(){const input=$('#work-search-input'),select=$('#work-search-select');if(!(select instanceof HTMLSelectElement))return;const q=norm(input?.value||''),already=new Set(workedForSelected().map((r)=>String(r.repertorio||r.idRepertorio||'')));const options=(payload?.repertorio||[]).filter((w)=>!already.has(String(w.idRepertorio||w.id||''))&&(!q||norm([w.nomeObra,w.nome,w.compositor].join(' ')).includes(q))).sort((a,b)=>String(a.nomeObra||a.nome||'').localeCompare(String(b.nomeObra||b.nome||''),'gl',{sensitivity:'base'})).slice(0,80);select.innerHTML='<option value="">Escolle unha obra…</option>'+options.map((w)=>`<option value="${esc(w.idRepertorio||w.id||'')}">${esc([w.nomeObra||w.nome,w.compositor].filter(Boolean).join(' — '))}</option>`).join('');}
-  function renderRepertoire(){
-    const worked=workedForSelected().sort((a,b)=>Number(a.orde||999)-Number(b.orde||999));$('#repertoire-summary').textContent=`${worked.length} traballadas`;
-    $('#repertoire-list').innerHTML=worked.map((r)=>{const wid=String(r.repertorio||r.idRepertorio||''),w=workById(wid)||{};return `<article class="work-row" data-work-id="${esc(wid)}"><div class="work-main"><a class="work-link" href="/portal/repertorio/?id=${encodeURIComponent(wid)}"><strong>${esc(w.nomeObra||w.nome||wid)}</strong>${w.compositor?`<small>${esc(w.compositor)}</small>`:''}</a></div><div class="work-fields"><select class="work-type"><option value="">Tipo de traballo</option>${['Lectura','Montaxe','Repaso','Perfeccionamento','Interpretación completa'].map((v)=>`<option ${r.tipoTraballo===v?'selected':''}>${v}</option>`).join('')}</select><input class="work-from" placeholder="Desde" value="${esc(r.desde||'')}"/><input class="work-to" placeholder="Ata" value="${esc(r.ata||'')}"/><input class="work-notes" placeholder="Observacións" value="${esc(r.observacions||'')}"/><button class="save-work" type="button">Gardar</button><span class="save-status"></span></div></article>`;}).join('')||'<p class="empty-state">Aínda non se rexistraron obras neste ensaio.</p>';
-    const concert=selectedConcert(),include=$('#include-program');if(include instanceof HTMLButtonElement){include.disabled=!concert?.programa?.some((p)=>p.idRepertorio);include.title=concert?'':'Este ensaio non ten concerto asociado.';}updateWorkSearch();
+  function attendanceForSelected() {
+    const id = rehearsalId(selectedRehearsal);
+    return (payload?.asistencias || []).filter((attendance) => String(attendance.ensaio || attendance.idEnsaio || '') === id);
+  }
+  function attendanceMap() {
+    return new Map(attendanceForSelected().map((attendance) => [String(attendance.persoa || attendance.idPersoa || ''), attendance]));
+  }
+  function renderAttendance() {
+    const people = [...(payload?.persoas || [])];
+    const map = attendanceMap();
+    const title = $('#attendance-title');
+    if (selectedVoice === 'Asistentes') {
+      const voices = ['Soprano','Contralto','Tenor','Baixo'];
+      let total = 0;
+      const sections = voices.map((voice) => {
+        const present = people.filter((person) => norm(person.voz) === norm(voice) && norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste').sort(alpha);
+        total += present.length;
+        const label = voice === 'Baixo' ? 'Baixos' : `${voice}s`;
+        return `<section class="attendance-group"><header><h3>${esc(label)}</h3><strong>${present.length}</strong></header>${present.length ? `<div class="attendee-names">${present.map((person) => `<span>${esc(personName(person))}</span>`).join('')}</div>` : '<p class="helper group-empty">Sen asistentes rexistrados.</p>'}</section>`;
+      }).join('');
+      if (title) title.textContent = 'Asistentes';
+      $('#attendance-summary').textContent = `${total} asistentes`;
+      $('#attendance-list').innerHTML = sections;
+      return;
+    }
+
+    const filtered = people.filter((person) => norm(person.voz) === norm(selectedVoice)).sort(alpha);
+    const decided = filtered.filter((person) => {
+      const state = norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia);
+      return state === 'asiste' || state === 'non asiste';
+    }).length;
+    const present = filtered.filter((person) => norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste').length;
+    if (title) title.textContent = selectedVoice === 'Baixo' ? 'Baixos' : `${selectedVoice}s`;
+    $('#attendance-summary').textContent = `${present} asisten · ${decided}/${filtered.length} rexistrados`;
+    $('#attendance-list').innerHTML = filtered.map((person) => {
+      const id = String(person.idPersoa || person.id || '');
+      const attendance = map.get(id) || {};
+      const state = norm(attendance.estadoAsistencia);
+      return `<article class="person-row" data-person="${esc(id)}"><strong>${esc(personName(person))}</strong><div class="attendance-actions"><button type="button" class="${state === 'asiste' ? 'is-selected' : ''}" data-state="Asiste">✓ Asiste</button><button type="button" class="${state === 'non asiste' ? 'is-selected negative' : ''}" data-state="Non asiste">× Non asiste</button></div><label class="justify"><input type="checkbox" ${truthy(attendance.xustificada) ? 'checked' : ''} disabled /> Xustificada</label><span class="save-status" aria-live="polite"></span></article>`;
+    }).join('') || '<p class="empty-state">Non hai persoas nesta corda.</p>';
   }
 
-  function renderLists(){const today=new Date();today.setHours(0,0,0,0);const all=[...(payload?.ensaios||[])].sort((a,b)=>(toDate(b.data)?.getTime()||0)-(toDate(a.data)?.getTime()||0));const card=(e)=>`<button type="button" class="rehearsal-card ${truthy(e.cancelado)?'is-cancelled':''}" data-rehearsal="${esc(e.idEnsaio||e.id||'')}"><time>${esc(fmtDate(e.data))}</time><strong>${esc(e.tipoEnsaio||'Ensaio')}</strong><span>${esc([fmtTime(e.horaInicio),e.lugar,e.concertoNome].filter(Boolean).join(' · '))}</span></button>`;const future=all.filter((e)=>toDate(e.data)>=today),history=all.filter((e)=>toDate(e.data)<today);$('#calendar-list').innerHTML=future.map(card).join('')||'<p class="empty-state">Non hai ensaios previstos.</p>';$('#calendar-summary').textContent=`${future.length} próximos`;$('#history-list').innerHTML=history.map(card).join('')||'<p class="empty-state">Aínda non hai histórico.</p>';$('#history-summary').textContent=`${history.length} ensaios`;}
-  function renderTracking(result=payload?.seguimento){const t=result||{},kpis=[['Ensaios realizados',t.ensaiosRealizados??0],['Asistencia media',`${t.asistenciaMedia??0} %`],['Ausencias xustificadas',t.ausenciasXustificadas??0],['Obras traballadas',t.obrasTraballadas??0]];$('#tracking-kpis').innerHTML=kpis.map(([l,v])=>`<article><span>${esc(l)}</span><strong>${esc(v)}</strong></article>`).join('');$('#tracking-voices').innerHTML=(t.porVoz||[]).map((v)=>`<div class="metric-row"><span>${esc(v.voz)}</span><strong>${esc(v.porcentaxe)} %</strong></div>`).join('')||'<p class="helper">Sen datos no período.</p>';$('#tracking-works').innerHTML=(t.porObra||[]).slice(0,12).map((w)=>`<div class="metric-row"><span>${esc(w.nome)}</span><strong>${esc(w.ensaios)} ens.</strong></div>`).join('')||'<p class="helper">Sen datos no período.</p>';}
-  function fillConcertSelectors(){const concerts=[...(payload?.concertos||[])].sort((a,b)=>String(a.data||'').localeCompare(String(b.data||'')));const options=concerts.map((c)=>`<option value="${esc(c.id)}">${esc([c.data,c.nome].filter(Boolean).join(' · '))}</option>`).join('');const newSelect=$('#new-concert');if(newSelect)newSelect.innerHTML='<option value="">Sen concerto asociado</option>'+options;const filter=$('#concert-filter');if(filter)filter.innerHTML='<option value="">Todos</option>'+concerts.map((c)=>`<option value="${esc(c.nome)}">${esc(c.nome)}</option>`).join('');}
-  async function load(forzar=false){loading.hidden=false;errorState.hidden=true;app.hidden=true;try{payload=await api('listarEnsaiosPortal',{forzar});selectedRehearsal=null;renderHero();renderLists();renderTracking();fillConcertSelectors();dataSource.textContent=payload.diagnostico?.fonte?`Fonte: ${payload.diagnostico.fonte}${payload.diagnostico.xeradoEn?` · actualizado ${payload.diagnostico.xeradoEn}`:''}`:'';if(newButton instanceof HTMLButtonElement)newButton.hidden=payload?.perfil?.podeEditar!==true;loading.hidden=true;app.hidden=false;}catch(error){loading.hidden=true;errorState.hidden=false;errorMessage.textContent=error instanceof Error?error.message:'Erro descoñecido';}}
+  function workedForSelected() {
+    const id = rehearsalId(selectedRehearsal);
+    return (payload?.ensaiosRepertorio || []).filter((row) => String(row.ensaio || row.idEnsaio || '') === id);
+  }
+  function workById(id) { return (payload?.repertorio || []).find((work) => String(work.idRepertorio || work.id || '') === String(id || '')); }
+  function resolveProgramWorkId(item) {
+    if (item?.idRepertorio && workById(item.idRepertorio)) return String(item.idRepertorio);
+    const target = compactNorm(item?.obra || '');
+    if (!target) return '';
+    const works = payload?.repertorio || [];
+    const exact = works.find((work) => compactNorm(work.nomeObra || work.nome || '') === target);
+    if (exact) return String(exact.idRepertorio || exact.id || '');
+    const close = works.find((work) => {
+      const candidate = compactNorm(work.nomeObra || work.nome || '');
+      return candidate && (candidate.includes(target) || target.includes(candidate));
+    });
+    return close ? String(close.idRepertorio || close.id || '') : '';
+  }
+  function updateWorkSearch() {
+    const input = $('#work-search-input');
+    const select = $('#work-search-select');
+    if (!(select instanceof HTMLSelectElement)) return;
+    const query = norm(input?.value || '');
+    const already = new Set(workedForSelected().map((row) => String(row.repertorio || row.idRepertorio || '')));
+    const options = (payload?.repertorio || [])
+      .filter((work) => !already.has(String(work.idRepertorio || work.id || '')) && (!query || norm([work.nomeObra, work.nome, work.compositor].join(' ')).includes(query)))
+      .sort((a,b) => String(a.nomeObra || a.nome || '').localeCompare(String(b.nomeObra || b.nome || ''), 'gl', { sensitivity:'base' }))
+      .slice(0, 80);
+    select.innerHTML = '<option value="">Escolle unha obra…</option>' + options.map((work) => `<option value="${esc(work.idRepertorio || work.id || '')}">${esc([work.nomeObra || work.nome, work.compositor].filter(Boolean).join(' — '))}</option>`).join('');
+  }
+  function renderRepertoire() {
+    const worked = workedForSelected().sort((a,b) => Number(a.orde || 999) - Number(b.orde || 999));
+    $('#repertoire-summary').textContent = `${worked.length} traballadas`;
+    $('#repertoire-list').innerHTML = worked.map((row) => {
+      const id = String(row.repertorio || row.idRepertorio || '');
+      const work = workById(id) || {};
+      return `<article class="work-row" data-work-id="${esc(id)}"><div class="work-main"><a class="work-link" href="/portal/repertorio/?id=${encodeURIComponent(id)}"><strong>${esc(work.nomeObra || work.nome || id)}</strong>${work.compositor ? `<small>${esc(work.compositor)}</small>` : ''}</a></div><div class="work-fields"><select class="work-type"><option value="">Tipo de traballo</option>${['Lectura','Montaxe','Repaso','Perfeccionamento','Interpretación completa'].map((value) => `<option ${row.tipoTraballo === value ? 'selected' : ''}>${value}</option>`).join('')}</select><input class="work-from" placeholder="Desde" value="${esc(row.desde || '')}"/><input class="work-to" placeholder="Ata" value="${esc(row.ata || '')}"/><input class="work-notes" placeholder="Observacións" value="${esc(row.observacions || '')}"/><button class="save-work" type="button">Gardar</button><span class="save-status"></span></div></article>`;
+    }).join('') || '<p class="empty-state">Aínda non se rexistraron obras neste ensaio.</p>';
+    const include = $('#include-program');
+    if (include instanceof HTMLButtonElement) {
+      include.disabled = !(payload?.concertos || []).some((concert) => Array.isArray(concert.programa) && concert.programa.length);
+      include.title = include.disabled ? 'Non hai programas de concertos dispoñibles.' : '';
+    }
+    updateWorkSearch();
+  }
 
-  function closeNewDialog(){if(newDialog instanceof HTMLDialogElement)newDialog.close();if(newStatus)newStatus.textContent='';}
-  newButton?.addEventListener('click',()=>{if(!(newDialog instanceof HTMLDialogElement))return;if(newForm instanceof HTMLFormElement)newForm.reset();if(newStatus)newStatus.textContent='';const d=$('#new-date');if(d instanceof HTMLInputElement)d.value=new Date().toISOString().slice(0,10);newDialog.showModal();});
-  $('#close-rehearsal-dialog')?.addEventListener('click',closeNewDialog);$('#cancel-new-rehearsal')?.addEventListener('click',closeNewDialog);newDialog?.addEventListener('click',(e)=>{if(e.target===newDialog)closeNewDialog();});
-  newForm?.addEventListener('submit',async(e)=>{e.preventDefault();const save=$('#save-new-rehearsal');if(save instanceof HTMLButtonElement){save.disabled=true;save.textContent='Gardando…';}if(newStatus)newStatus.textContent='Gardando o ensaio na Sheet…';try{await api('gardarEnsaio',{data:$('#new-date')?.value||'',horaInicio:$('#new-start')?.value||'',horaFin:$('#new-end')?.value||'',lugar:$('#new-place')?.value||'',tipoEnsaio:$('#new-type')?.value||'',concerto:$('#new-concert')?.value||'',descricion:$('#new-description')?.value||'',observacions:$('#new-notes')?.value||'',cancelado:false});if(newStatus)newStatus.textContent='✓ Ensaio gardado correctamente.';await load(true);setTimeout(closeNewDialog,450);}catch(error){if(newStatus)newStatus.textContent=error instanceof Error?`⚠ ${error.message}`:'⚠ Non foi posible gardar o ensaio.';}finally{if(save instanceof HTMLButtonElement){save.disabled=false;save.textContent='Gardar ensaio';}}});
+  function rehearsalCard(item) {
+    const horario = [fmtTime(item.horaInicio), item.horaFin ? fmtTime(item.horaFin) : ''].filter(Boolean).join(' – ');
+    const details = [horario, item.lugar, item.concertoNome].filter(Boolean).join(' · ');
+    return `<button type="button" class="rehearsal-card ${truthy(item.cancelado) ? 'is-cancelled' : ''}" data-rehearsal="${esc(rehearsalId(item))}"><time>${esc(fmtDate(item.data))}</time><div class="rehearsal-card-copy"><strong>${esc(item.tipoEnsaio || 'Ensaio')}</strong>${details ? `<span>${esc(details)}</span>` : ''}</div></button>`;
+  }
+  function renderLists() {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const all = uniqueRehearsals(payload?.ensaios || []).sort((a,b) => (toDate(b.data)?.getTime() || 0) - (toDate(a.data)?.getTime() || 0));
+    const future = all.filter((item) => toDate(item.data) && toDate(item.data) >= today);
+    const history = all.filter((item) => toDate(item.data) && toDate(item.data) < today);
+    $('#calendar-list').innerHTML = future.map(rehearsalCard).join('') || '<p class="empty-state">Non hai ensaios previstos.</p>';
+    $('#calendar-summary').textContent = `${future.length} próximos`;
+    $('#history-list').innerHTML = history.map(rehearsalCard).join('') || '<p class="empty-state">Aínda non hai histórico.</p>';
+    $('#history-summary').textContent = `${history.length} ensaios`;
+  }
+  function renderTracking(result = payload?.seguimento) {
+    const tracking = result || {};
+    const kpis = [['Ensaios realizados', tracking.ensaiosRealizados ?? 0], ['Asistencia media', `${tracking.asistenciaMedia ?? 0} %`], ['Ausencias xustificadas', tracking.ausenciasXustificadas ?? 0], ['Obras traballadas', tracking.obrasTraballadas ?? 0]];
+    $('#tracking-kpis').innerHTML = kpis.map(([label,value]) => `<article><span>${esc(label)}</span><strong>${esc(value)}</strong></article>`).join('');
+    $('#tracking-voices').innerHTML = (tracking.porVoz || []).map((item) => `<div class="metric-row"><span>${esc(item.voz)}</span><strong>${esc(item.porcentaxe)} %</strong></div>`).join('') || '<p class="helper">Sen datos no período.</p>';
+    $('#tracking-works').innerHTML = (tracking.porObra || []).slice(0,12).map((item) => `<div class="metric-row"><span>${esc(item.nome)}</span><strong>${esc(item.ensaios)} ens.</strong></div>`).join('') || '<p class="helper">Sen datos no período.</p>';
+  }
+  function fillConcertSelectors() {
+    const concerts = [...(payload?.concertos || [])].sort((a,b) => String(a.data || '').localeCompare(String(b.data || '')));
+    const options = concerts.map((concert) => `<option value="${esc(concert.id)}">${esc([concert.data, concert.nome].filter(Boolean).join(' · '))}</option>`).join('');
+    const newSelect = $('#new-concert');
+    if (newSelect) newSelect.innerHTML = '<option value="">Sen concerto asociado</option>' + options;
+    const programSelect = $('#program-concert-select');
+    if (programSelect) programSelect.innerHTML = '<option value="">Escolle un concerto…</option>' + options;
+    const filter = $('#concert-filter');
+    if (filter) filter.innerHTML = '<option value="">Todos</option>' + concerts.map((concert) => `<option value="${esc(concert.nome)}">${esc(concert.nome)}</option>`).join('');
+  }
+  async function load(forzar = false) {
+    loading.hidden = false;
+    errorState.hidden = true;
+    app.hidden = true;
+    try {
+      payload = await api('listarEnsaiosPortal', { forzar });
+      selectedRehearsal = null;
+      renderHero();
+      renderLists();
+      renderTracking();
+      fillConcertSelectors();
+      dataSource.textContent = payload.diagnostico?.fonte ? `Fonte: ${payload.diagnostico.fonte}${payload.diagnostico.xeradoEn ? ` · actualizado ${payload.diagnostico.xeradoEn}` : ''}` : '';
+      if (newButton instanceof HTMLButtonElement) newButton.hidden = payload?.perfil?.podeEditar !== true;
+      loading.hidden = true;
+      app.hidden = false;
+    } catch (error) {
+      loading.hidden = true;
+      errorState.hidden = false;
+      errorMessage.textContent = error instanceof Error ? error.message : 'Erro descoñecido';
+    }
+  }
 
-  $('#work-search-input')?.addEventListener('input',updateWorkSearch);
-  $('#add-work')?.addEventListener('click',async()=>{const select=$('#work-search-select'),message=$('#repertoire-message');const id=select?.value||'';if(!id){if(message)message.textContent='Escolle primeiro unha obra.';return;}if(message)message.textContent='Engadindo obra…';try{await api('gardarEnsaioRepertorio',{idEnsaio:selectedRehearsal?.idEnsaio||selectedRehearsal?.id,idRepertorio:id,tipoTraballo:'',desde:'',ata:'',observacions:''});payload=await api('listarEnsaiosPortal',{forzar:true});if(message)message.textContent='✓ Obra engadida.';renderRepertoire();}catch(error){if(message)message.textContent=error instanceof Error?`⚠ ${error.message}`:'⚠ Non se puido engadir a obra.';}});
-  $('#include-program')?.addEventListener('click',async()=>{const concert=selectedConcert(),message=$('#repertoire-message'),button=$('#include-program');const existing=new Set(workedForSelected().map((r)=>String(r.repertorio||r.idRepertorio||'')));const ids=(concert?.programa||[]).map((p)=>p.idRepertorio).filter((id)=>id&&!existing.has(String(id)));if(!ids.length){if(message)message.textContent='O programa non ten obras novas para incluír.';return;}if(button instanceof HTMLButtonElement)button.disabled=true;if(message)message.textContent=`Incluíndo ${ids.length} obras do programa…`;try{const result=await api('incluírProgramaEnsaio',{idEnsaio:selectedRehearsal?.idEnsaio||selectedRehearsal?.id,idsRepertorio:ids});payload=result.payload||await api('listarEnsaiosPortal',{forzar:true});if(message)message.textContent=`✓ ${result.engadidas||ids.length} obras incluídas desde o programa.`;renderRepertoire();}catch(error){if(message)message.textContent=error instanceof Error?`⚠ ${error.message}`:'⚠ Non se puido incluír o programa.';}finally{if(button instanceof HTMLButtonElement)button.disabled=false;}});
+  function closeNewDialog() {
+    if (newDialog instanceof HTMLDialogElement) newDialog.close();
+    if (newStatus) newStatus.textContent = '';
+  }
+  newButton?.addEventListener('click', () => {
+    if (!(newDialog instanceof HTMLDialogElement)) return;
+    if (newForm instanceof HTMLFormElement) newForm.reset();
+    if (newStatus) newStatus.textContent = '';
+    const date = $('#new-date');
+    if (date instanceof HTMLInputElement) date.value = new Date().toISOString().slice(0,10);
+    newDialog.showModal();
+  });
+  $('#close-rehearsal-dialog')?.addEventListener('click', closeNewDialog);
+  $('#cancel-new-rehearsal')?.addEventListener('click', closeNewDialog);
+  newDialog?.addEventListener('click', (event) => { if (event.target === newDialog) closeNewDialog(); });
+  newForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const save = $('#save-new-rehearsal');
+    if (save instanceof HTMLButtonElement) { save.disabled = true; save.textContent = 'Gardando…'; }
+    if (newStatus) newStatus.textContent = 'Gardando o ensaio na Sheet…';
+    try {
+      await api('gardarEnsaio', {
+        data:$('#new-date')?.value || '',
+        horaInicio:$('#new-start')?.value || '',
+        horaFin:$('#new-end')?.value || '',
+        lugar:$('#new-place')?.value || '',
+        tipoEnsaio:$('#new-type')?.value || '',
+        concerto:$('#new-concert')?.value || '',
+        descricion:$('#new-description')?.value || '',
+        observacions:$('#new-notes')?.value || '',
+        cancelado:false
+      });
+      if (newStatus) newStatus.textContent = '✓ Ensaio gardado correctamente.';
+      await load(true);
+      setTimeout(closeNewDialog, 450);
+    } catch (error) {
+      if (newStatus) newStatus.textContent = error instanceof Error ? `⚠ ${error.message}` : '⚠ Non foi posible gardar o ensaio.';
+    } finally {
+      if (save instanceof HTMLButtonElement) { save.disabled = false; save.textContent = 'Gardar ensaio'; }
+    }
+  });
 
-  document.addEventListener('click',async(event)=>{const target=event.target;if(!(target instanceof HTMLElement))return;const viewButton=target.closest('[data-view]');if(viewButton){document.querySelectorAll('[data-view]').forEach((b)=>b.classList.toggle('is-active',b===viewButton));document.querySelectorAll('.module-view').forEach((v)=>v.hidden=v.id!==`view-${viewButton.dataset.view}`);return;}const workButton=target.closest('[data-work]');if(workButton){document.querySelectorAll('[data-work]').forEach((b)=>b.classList.toggle('is-active',b===workButton));$('#attendance-panel').hidden=workButton.dataset.work!=='asistencia';$('#repertoire-panel').hidden=workButton.dataset.work!=='repertorio';return;}const voiceButton=target.closest('[data-voice]');if(voiceButton){selectedVoice=voiceButton.dataset.voice||'Asistentes';document.querySelectorAll('[data-voice]').forEach((b)=>b.classList.toggle('is-active',b===voiceButton));renderAttendance();return;}const rehearsalButton=target.closest('[data-rehearsal]');if(rehearsalButton){selectedRehearsal=rehearsalById(rehearsalButton.dataset.rehearsal);document.querySelectorAll('[data-view]').forEach((b)=>b.classList.toggle('is-active',b.dataset.view==='proximo'));document.querySelectorAll('.module-view').forEach((v)=>v.hidden=v.id!=='view-proximo');renderHero();window.scrollTo({top:0,behavior:'smooth'});return;}const stateButton=target.closest('[data-state]');if(stateButton){const row=stateButton.closest('.person-row'),status=row?.querySelector('.save-status');if(!row)return;stateButton.setAttribute('disabled','');if(status)status.textContent='Gardando…';try{await api('gardarAsistenciaEnsaio',{idEnsaio:selectedRehearsal?.idEnsaio||selectedRehearsal?.id,idPersoa:row.dataset.person,estadoAsistencia:stateButton.dataset.state,xustificada:false});payload=await api('listarEnsaiosPortal',{forzar:true});renderAttendance();}catch(e){if(status)status.textContent='⚠ Non se puido gardar';stateButton.removeAttribute('disabled');}return;}const saveWork=target.closest('.save-work');if(saveWork){const row=saveWork.closest('.work-row'),status=row?.querySelector('.save-status');if(!row)return;if(status)status.textContent='Gardando…';try{await api('gardarEnsaioRepertorio',{idEnsaio:selectedRehearsal?.idEnsaio||selectedRehearsal?.id,idRepertorio:row.dataset.workId,tipoTraballo:row.querySelector('.work-type')?.value||'',desde:row.querySelector('.work-from')?.value||'',ata:row.querySelector('.work-to')?.value||'',observacions:row.querySelector('.work-notes')?.value||''});payload=await api('listarEnsaiosPortal',{forzar:true});if(status)status.textContent='✓ Gardado';renderRepertoire();}catch(e){if(status)status.textContent='⚠ Non se puido gardar';}}});
-  $('#tracking-form')?.addEventListener('submit',async(e)=>{e.preventDefault();try{const result=await api('obterSeguimentoEnsaios',{desde:$('#date-from')?.value||'',ata:$('#date-to')?.value||'',concerto:$('#concert-filter')?.value||'',voz:$('#voice-filter')?.value||''});renderTracking(result.seguimento);}catch(e){alert(e instanceof Error?e.message:'Non foi posible calcular o seguimento.');}});
-  $('#retry-button')?.addEventListener('click',()=>load(true));$('#ensaios-logout')?.addEventListener('click',async()=>{await signOut(auth);location.href='/portal/acceso/';});onAuthStateChanged(auth,(user)=>{if(!user?.email){location.href='/portal/acceso/';return;}userEmail.textContent=user.email;load();});
+  $('#work-search-input')?.addEventListener('input', updateWorkSearch);
+  $('#add-work')?.addEventListener('click', async () => {
+    const select = $('#work-search-select');
+    const message = $('#repertoire-message');
+    const id = select?.value || '';
+    if (!id) { if (message) message.textContent = 'Escolle primeiro unha obra.'; return; }
+    if (message) message.textContent = 'Engadindo obra…';
+    try {
+      await api('gardarEnsaioRepertorio', { idEnsaio:rehearsalId(selectedRehearsal), idRepertorio:id, tipoTraballo:'', desde:'', ata:'', observacions:'' });
+      payload = await api('listarEnsaiosPortal', { forzar:true });
+      if (message) message.textContent = '✓ Obra engadida.';
+      renderRepertoire();
+    } catch (error) {
+      if (message) message.textContent = error instanceof Error ? `⚠ ${error.message}` : '⚠ Non se puido engadir a obra.';
+    }
+  });
+
+  function closeProgramDialog() {
+    if (programDialog instanceof HTMLDialogElement) programDialog.close();
+    const message = $('#program-dialog-message');
+    if (message) message.textContent = '';
+  }
+  $('#include-program')?.addEventListener('click', () => {
+    if (!(programDialog instanceof HTMLDialogElement)) return;
+    const select = $('#program-concert-select');
+    if (select instanceof HTMLSelectElement) select.value = selectedRehearsal?.concerto || '';
+    const message = $('#program-dialog-message');
+    if (message) message.textContent = '';
+    programDialog.showModal();
+  });
+  $('#close-program-dialog')?.addEventListener('click', closeProgramDialog);
+  $('#cancel-program')?.addEventListener('click', closeProgramDialog);
+  programDialog?.addEventListener('click', (event) => { if (event.target === programDialog) closeProgramDialog(); });
+  $('#program-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const select = $('#program-concert-select');
+    const message = $('#program-dialog-message');
+    const concert = concertById(select?.value || '');
+    if (!concert) { if (message) message.textContent = 'Escolle primeiro un concerto.'; return; }
+    const existing = new Set(workedForSelected().map((row) => String(row.repertorio || row.idRepertorio || '')));
+    const ids = [...new Set((concert.programa || []).map(resolveProgramWorkId).filter((id) => id && !existing.has(String(id))))];
+    if (!ids.length) {
+      if (message) message.textContent = concert.programa?.length ? 'Non se puideron relacionar obras novas do programa co Repertorio.' : 'Ese concerto non ten programa cargado.';
+      return;
+    }
+    if (message) message.textContent = `Incluíndo ${ids.length} obras…`;
+    try {
+      const result = await api('incluírProgramaEnsaio', { idEnsaio:rehearsalId(selectedRehearsal), idsRepertorio:ids });
+      payload = result.payload || await api('listarEnsaiosPortal', { forzar:true });
+      const mainMessage = $('#repertoire-message');
+      if (mainMessage) mainMessage.textContent = `✓ ${result.engadidas || ids.length} obras incluídas desde o programa.`;
+      renderRepertoire();
+      closeProgramDialog();
+    } catch (error) {
+      if (message) message.textContent = error instanceof Error ? `⚠ ${error.message}` : '⚠ Non se puido incluír o programa.';
+    }
+  });
+
+  document.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const viewButton = target.closest('[data-view]');
+    if (viewButton) {
+      document.querySelectorAll('[data-view]').forEach((button) => button.classList.toggle('is-active', button === viewButton));
+      document.querySelectorAll('.module-view').forEach((view) => { view.hidden = view.id !== `view-${viewButton.dataset.view}`; });
+      return;
+    }
+    const workButton = target.closest('[data-work]');
+    if (workButton) {
+      document.querySelectorAll('[data-work]').forEach((button) => button.classList.toggle('is-active', button === workButton));
+      $('#attendance-panel').hidden = workButton.dataset.work !== 'asistencia';
+      $('#repertoire-panel').hidden = workButton.dataset.work !== 'repertorio';
+      return;
+    }
+    const voiceButton = target.closest('[data-voice]');
+    if (voiceButton) {
+      selectedVoice = voiceButton.dataset.voice || 'Asistentes';
+      document.querySelectorAll('[data-voice]').forEach((button) => button.classList.toggle('is-active', button === voiceButton));
+      renderAttendance();
+      return;
+    }
+    const rehearsalButton = target.closest('[data-rehearsal]');
+    if (rehearsalButton) {
+      selectedRehearsal = rehearsalById(rehearsalButton.dataset.rehearsal);
+      document.querySelectorAll('[data-view]').forEach((button) => button.classList.toggle('is-active', button.dataset.view === 'proximo'));
+      document.querySelectorAll('.module-view').forEach((view) => { view.hidden = view.id !== 'view-proximo'; });
+      renderHero();
+      window.scrollTo({ top:0, behavior:'smooth' });
+      return;
+    }
+    const stateButton = target.closest('[data-state]');
+    if (stateButton) {
+      const row = stateButton.closest('.person-row');
+      const status = row?.querySelector('.save-status');
+      if (!row) return;
+      stateButton.setAttribute('disabled','');
+      if (status) status.textContent = 'Gardando…';
+      try {
+        await api('gardarAsistenciaEnsaio', { idEnsaio:rehearsalId(selectedRehearsal), idPersoa:row.dataset.person, estadoAsistencia:stateButton.dataset.state, xustificada:false });
+        payload = await api('listarEnsaiosPortal', { forzar:true });
+        renderAttendance();
+      } catch {
+        if (status) status.textContent = '⚠ Non se puido gardar';
+        stateButton.removeAttribute('disabled');
+      }
+      return;
+    }
+    const saveWork = target.closest('.save-work');
+    if (saveWork) {
+      const row = saveWork.closest('.work-row');
+      const status = row?.querySelector('.save-status');
+      if (!row) return;
+      if (status) status.textContent = 'Gardando…';
+      try {
+        await api('gardarEnsaioRepertorio', {
+          idEnsaio:rehearsalId(selectedRehearsal),
+          idRepertorio:row.dataset.workId,
+          tipoTraballo:row.querySelector('.work-type')?.value || '',
+          desde:row.querySelector('.work-from')?.value || '',
+          ata:row.querySelector('.work-to')?.value || '',
+          observacions:row.querySelector('.work-notes')?.value || ''
+        });
+        payload = await api('listarEnsaiosPortal', { forzar:true });
+        if (status) status.textContent = '✓ Gardado';
+        renderRepertoire();
+      } catch {
+        if (status) status.textContent = '⚠ Non se puido gardar';
+      }
+    }
+  });
+
+  $('#tracking-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      const result = await api('obterSeguimentoEnsaios', { desde:$('#date-from')?.value || '', ata:$('#date-to')?.value || '', concerto:$('#concert-filter')?.value || '', voz:$('#voice-filter')?.value || '' });
+      renderTracking(result.seguimento);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Non foi posible calcular o seguimento.');
+    }
+  });
+  $('#retry-button')?.addEventListener('click', () => load(true));
+  $('#ensaios-logout')?.addEventListener('click', async () => { await signOut(auth); location.href='/portal/acceso/'; });
+  onAuthStateChanged(auth, (user) => {
+    if (!user?.email) { location.href='/portal/acceso/'; return; }
+    userEmail.textContent = user.email;
+    load();
+  });
 </script>
 
 <style>
-  :global(.private-layout){display:flex;min-height:100vh;background:#f7f5f2;color:#26221f}.ensaios-main{flex:1;min-width:0;padding:2.3rem 3rem 4rem}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.5rem}.header-actions{display:flex;align-items:stretch;gap:.7rem}.new-rehearsal-button,.primary-button{border:0;background:var(--color-principal);color:#fff;padding:.75rem 1rem;cursor:pointer;font-weight:700}.secondary-button,.dialog-close{border:1px solid #d9d2cc;background:#fff;color:#504944;padding:.72rem 1rem;cursor:pointer}.section-kicker,.section-heading span,.attendance-heading span{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.private-page-header h1{margin:.2rem 0 .45rem;font-family:Georgia,'Times New Roman',serif;font-size:2.25rem}.private-page-header p{max-width:720px;margin:0;color:#6b645f}.account-card{min-width:220px;padding:.8rem 1rem;border:1px solid #ded8d2;background:#fff}.account-card small{display:block;color:#847b74;font-size:.7rem}.account-card strong{display:block;margin-top:.18rem;font-size:.82rem}.rehearsal-dialog{width:min(760px,calc(100vw - 2rem));border:1px solid #d9d2cc;padding:0;background:#f7f5f2;color:#26221f}.rehearsal-dialog::backdrop{background:rgba(31,24,22,.45)}.rehearsal-form{padding:1.35rem}.rehearsal-form header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding-bottom:1rem;border-bottom:1px solid #e2ddd8}.rehearsal-form h2{margin:.2rem 0;font-family:Georgia,'Times New Roman',serif}.rehearsal-form header p{margin:.25rem 0 0;color:#6b645f;font-size:.86rem}.dialog-close{font-size:1.35rem;line-height:1;padding:.35rem .6rem}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;margin:1rem 0}.form-grid label{display:grid;gap:.35rem;font-size:.78rem;font-weight:700}.form-grid input,.form-grid textarea,.form-grid select{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d9d2cc;background:#fff;padding:.68rem;font:inherit}.form-wide{grid-column:1/-1}.rehearsal-form footer{display:flex;justify-content:flex-end;gap:.6rem;border-top:1px solid #e2ddd8;padding-top:1rem}.form-status{min-height:1.25rem;margin:.4rem 0;color:#6b645f;font-size:.82rem}.portal-state{padding:2rem;border:1px solid #e2ddd8;background:#fff}.error-state{border-left:3px solid var(--color-principal)}.error-state button,.tracking-filters button{margin-top:.5rem;border:0;background:var(--color-principal);color:#fff;padding:.7rem 1rem;cursor:pointer}.view-switch,.work-tabs,.voice-tabs{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1.2rem}.view-switch button,.work-tabs button,.voice-tabs button{border:1px solid #d9d2cc;background:#fff;color:#504944;padding:.62rem .9rem;border-radius:3px;cursor:pointer}.view-switch button.is-active,.work-tabs button.is-active,.voice-tabs button.is-active{background:var(--color-principal);border-color:var(--color-principal);color:#fff}.hero-card{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,.75fr);gap:2rem;padding:2rem;border-top:4px solid var(--color-principal);background:#fff;box-shadow:0 10px 30px rgba(65,43,37,.06)}.hero-date span{color:var(--color-principal);font-size:.72rem;font-weight:800;text-transform:uppercase}.hero-date h2{margin:.35rem 0;font-family:Georgia,'Times New Roman',serif;font-size:1.8rem}.hero-date p,.hero-meta p{color:#6d655f}.hero-meta{padding-left:1.5rem;border-left:1px solid #e4ded8}.hero-classification{margin:.2rem 0;font-weight:700;color:#302b27!important}.work-panel{margin-top:1.2rem;padding:1.3rem;background:#fff;border:1px solid #e2ddd8}.attendance-heading,.section-heading{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin:1rem 0}.attendance-heading h2,.section-heading h2{margin:.18rem 0;font-family:Georgia,'Times New Roman',serif}.attendance-list,.repertoire-list,.rehearsal-list{display:grid;gap:.55rem}.attendance-group{border:1px solid #e5dfda;background:#faf9f7}.attendance-group header{display:flex;justify-content:space-between;align-items:center;padding:.7rem .85rem;border-bottom:1px solid #e5dfda}.attendance-group h3{margin:0;font-size:.95rem}.attendance-group header strong{color:var(--color-principal)}.attendee-names{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.45rem .8rem;padding:.8rem}.attendee-names span{padding:.35rem .45rem;background:#fff;border:1px solid #eee8e3}.person-row{display:grid;grid-template-columns:minmax(220px,1fr) auto auto minmax(90px,auto);gap:.8rem;align-items:center;padding:.8rem;border:1px solid #e7e1dc;background:#fff}.attendance-actions{display:flex;gap:.35rem}.attendance-actions button{border:1px solid #d6d0ca;background:#fff;padding:.5rem .65rem;cursor:pointer}.attendance-actions button.is-selected{background:#eef3ed;border-color:#78906f}.attendance-actions button.negative{background:#f6eded;border-color:#b98282}.justify{font-size:.78rem}.save-status{font-size:.72rem;color:#6f665f}.helper,.data-source{color:#817872;font-size:.78rem}.repertoire-tools{display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:.7rem}.work-search{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,1.4fr) auto;gap:.45rem;flex:1}.work-search input,.work-search select,.work-fields input,.work-fields select,.tracking-filters input,.tracking-filters select{min-width:0;border:1px solid #d9d2cc;background:#fff;padding:.58rem}.work-row{padding:.9rem;border:1px solid #e7e1dc;background:#fff}.work-link{display:inline-flex;flex-direction:column;gap:.15rem;color:#27221f;text-decoration:none}.work-link:hover strong{text-decoration:underline}.work-link small{color:#817872}.work-fields{display:grid;grid-template-columns:1fr .7fr .7fr 2fr auto auto;gap:.5rem;margin-top:.8rem}.save-work{border:0;background:var(--color-principal);color:#fff;padding:.55rem .8rem}.rehearsal-card{display:grid;grid-template-columns:1.2fr 1fr 2fr;gap:1rem;text-align:left;padding:1rem;border:1px solid #e4ded8;background:#fff;cursor:pointer}.rehearsal-card.is-cancelled{opacity:.55;text-decoration:line-through}.tracking-filters{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr)) auto;gap:.75rem;align-items:end;padding:1rem;background:#fff;border:1px solid #e2ddd8}.tracking-filters label{display:grid;gap:.35rem;font-size:.74rem;font-weight:700}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:1rem 0}.kpi-grid article,.tracking-card{padding:1rem;background:#fff;border:1px solid #e3ddd8}.kpi-grid span{display:block;color:#817872;font-size:.72rem}.kpi-grid strong{display:block;margin-top:.35rem;font-family:Georgia,'Times New Roman',serif;font-size:1.5rem}.tracking-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.tracking-card h3{margin-top:0}.metric-row{display:flex;justify-content:space-between;gap:1rem;padding:.55rem 0;border-bottom:1px solid #eee9e5}.empty-state{padding:1rem;color:#817872}.data-source{text-align:right;margin-top:1rem}
-  @media(max-width:900px){.ensaios-main{padding:1.5rem}.private-page-header{display:block}.header-actions{margin-top:1rem;flex-wrap:wrap}.account-card{margin-top:0}.hero-card,.tracking-grid{grid-template-columns:1fr}.hero-meta{padding-left:0;border-left:0;border-top:1px solid #e4ded8;padding-top:1rem}.person-row{grid-template-columns:1fr}.work-fields{grid-template-columns:1fr 1fr}.work-search{grid-template-columns:1fr}.tracking-filters{grid-template-columns:1fr 1fr}.kpi-grid{grid-template-columns:1fr 1fr}.rehearsal-card{grid-template-columns:1fr}}
-  @media(max-width:560px){.ensaios-main{padding:1rem}.view-switch button{flex:1 1 45%}.voice-tabs button{flex:1 1 30%}.attendance-actions button{flex:1}.attendance-actions{display:flex}.work-fields,.tracking-filters,.kpi-grid,.form-grid{grid-template-columns:1fr}.form-wide{grid-column:auto}.hero-card{padding:1.25rem}.private-page-header h1{font-size:1.85rem}.header-actions{display:grid}.new-rehearsal-button,.account-card{width:100%;box-sizing:border-box}.repertoire-tools{display:grid}.attendee-names{grid-template-columns:1fr}}
+  :global(.private-layout){display:flex;min-height:100vh;background:#f7f5f2;color:#26221f;min-width:0}
+  .ensaios-main{flex:1;min-width:0;max-width:100%;padding:2.3rem 3rem 4rem;box-sizing:border-box;overflow-x:hidden}
+  .private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.5rem}
+  .header-actions{display:flex;align-items:stretch;gap:.7rem}
+  .new-rehearsal-button,.primary-button{border:0;background:var(--color-principal);color:#fff;padding:.75rem 1rem;cursor:pointer;font-weight:700}
+  .secondary-button,.dialog-close{border:1px solid #d9d2cc;background:#fff;color:#504944;padding:.72rem 1rem;cursor:pointer}
+  .section-kicker,.section-heading span,.attendance-heading span{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+  .private-page-header h1{margin:.2rem 0 .45rem;font-family:Georgia,'Times New Roman',serif;font-size:2.25rem}
+  .private-page-header p{max-width:720px;margin:0;color:#6b645f}
+  .account-card{min-width:220px;padding:.8rem 1rem;border:1px solid #ded8d2;background:#fff;box-sizing:border-box}
+  .account-card small{display:block;color:#847b74;font-size:.7rem}.account-card strong{display:block;margin-top:.18rem;font-size:.82rem}
+  .rehearsal-dialog{width:min(760px,calc(100vw - 2rem));max-width:calc(100vw - 2rem);border:1px solid #d9d2cc;padding:0;background:#f7f5f2;color:#26221f;box-sizing:border-box}
+  .rehearsal-dialog::backdrop{background:rgba(31,24,22,.45)}
+  .rehearsal-form{padding:1.35rem}.rehearsal-form header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding-bottom:1rem;border-bottom:1px solid #e2ddd8}
+  .rehearsal-form h2{margin:.2rem 0;font-family:Georgia,'Times New Roman',serif}.rehearsal-form header p{margin:.25rem 0 0;color:#6b645f;font-size:.86rem}
+  .dialog-close{font-size:1.35rem;line-height:1;padding:.35rem .6rem}
+  .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;margin:1rem 0}.form-grid label,.program-select-label{display:grid;gap:.35rem;font-size:.78rem;font-weight:700}
+  .form-grid input,.form-grid textarea,.form-grid select,.program-select-label select{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d9d2cc;background:#fff;padding:.68rem;font:inherit}
+  .program-select-label{margin:1rem 0}.form-wide{grid-column:1/-1}.rehearsal-form footer{display:flex;justify-content:flex-end;gap:.6rem;border-top:1px solid #e2ddd8;padding-top:1rem}
+  .form-status{min-height:1.25rem;margin:.4rem 0;color:#6b645f;font-size:.82rem}
+  .portal-state{padding:2rem;border:1px solid #e2ddd8;background:#fff}.error-state{border-left:3px solid var(--color-principal)}
+  .error-state button,.tracking-filters button{margin-top:.5rem;border:0;background:var(--color-principal);color:#fff;padding:.7rem 1rem;cursor:pointer}
+  .view-switch,.work-tabs,.voice-tabs{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1.2rem}
+  .view-switch button,.work-tabs button,.voice-tabs button{border:1px solid #d9d2cc;background:#fff;color:#504944;padding:.62rem .9rem;border-radius:3px;cursor:pointer}
+  .view-switch button.is-active,.work-tabs button.is-active,.voice-tabs button.is-active{background:var(--color-principal);border-color:var(--color-principal);color:#fff}
+  .hero-card{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,.75fr);gap:2rem;padding:2rem;border-top:4px solid var(--color-principal);background:#fff;box-shadow:0 10px 30px rgba(65,43,37,.06);min-width:0}
+  .hero-date span{color:var(--color-principal);font-size:.72rem;font-weight:800;text-transform:uppercase}.hero-date h2{margin:.35rem 0;font-family:Georgia,'Times New Roman',serif;font-size:1.8rem}
+  .hero-date p,.hero-meta p{color:#6d655f}.hero-meta{padding-left:1.5rem;border-left:1px solid #e4ded8;min-width:0}.hero-classification{margin:.2rem 0;font-weight:700;color:#302b27!important}
+  .work-panel{margin-top:1.2rem;padding:1.3rem;background:#fff;border:1px solid #e2ddd8;min-width:0}.attendance-heading,.section-heading{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin:1rem 0}
+  .attendance-heading h2,.section-heading h2{margin:.18rem 0;font-family:Georgia,'Times New Roman',serif}.attendance-list,.repertoire-list,.rehearsal-list{display:grid;gap:.55rem;min-width:0}
+  .attendance-group{border:1px solid #e5dfda;background:#faf9f7;min-width:0}.attendance-group header{display:flex;justify-content:space-between;align-items:center;padding:.7rem .85rem;border-bottom:1px solid #e5dfda}
+  .attendance-group h3{margin:0;font-size:.95rem}.attendance-group header strong{color:var(--color-principal)}.group-empty{padding:0 .85rem .75rem}
+  .attendee-names{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.45rem .8rem;padding:.8rem}.attendee-names span{padding:.35rem .45rem;background:#fff;border:1px solid #eee8e3;min-width:0;overflow-wrap:anywhere}
+  .person-row{display:grid;grid-template-columns:minmax(180px,1fr) auto auto minmax(80px,auto);gap:.8rem;align-items:center;padding:.8rem;border:1px solid #e7e1dc;background:#fff;min-width:0}
+  .attendance-actions{display:flex;gap:.35rem}.attendance-actions button{border:1px solid #d6d0ca;background:#fff;padding:.5rem .65rem;cursor:pointer}.attendance-actions button.is-selected{background:#eef3ed;border-color:#78906f}.attendance-actions button.negative{background:#f6eded;border-color:#b98282}
+  .justify{font-size:.78rem}.save-status{font-size:.72rem;color:#6f665f}.helper,.data-source{color:#817872;font-size:.78rem}
+  .repertoire-tools{display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:.7rem}.work-search{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.4fr) auto;gap:.45rem;flex:1;min-width:0}
+  .work-search input,.work-search select,.work-fields input,.work-fields select,.tracking-filters input,.tracking-filters select{min-width:0;max-width:100%;box-sizing:border-box;border:1px solid #d9d2cc;background:#fff;padding:.58rem}
+  .work-row{padding:.9rem;border:1px solid #e7e1dc;background:#fff;min-width:0}.work-link{display:inline-flex;flex-direction:column;gap:.15rem;color:#27221f;text-decoration:none;max-width:100%}.work-link:hover strong{text-decoration:underline}.work-link small{color:#817872}
+  .work-fields{display:grid;grid-template-columns:1fr .7fr .7fr 2fr auto auto;gap:.5rem;margin-top:.8rem;min-width:0}.save-work{border:0;background:var(--color-principal);color:#fff;padding:.55rem .8rem}
+  .rehearsal-card{display:grid;grid-template-columns:minmax(170px,.8fr) minmax(0,2fr);gap:1rem;align-items:center;width:100%;max-width:100%;box-sizing:border-box;text-align:left;padding:.9rem 1rem;border:1px solid #e4ded8;background:#fff;cursor:pointer;min-width:0}
+  .rehearsal-card time{font-weight:700;color:#3d3733}.rehearsal-card-copy{display:flex;flex-wrap:wrap;gap:.35rem .75rem;align-items:baseline;min-width:0}.rehearsal-card-copy strong{flex:0 0 auto}.rehearsal-card-copy span{color:#6d655f;min-width:0;overflow-wrap:anywhere}.rehearsal-card.is-cancelled{opacity:.55;text-decoration:line-through}
+  .tracking-filters{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr)) auto;gap:.75rem;align-items:end;padding:1rem;background:#fff;border:1px solid #e2ddd8;min-width:0}.tracking-filters label{display:grid;gap:.35rem;font-size:.74rem;font-weight:700}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:1rem 0}.kpi-grid article,.tracking-card{padding:1rem;background:#fff;border:1px solid #e3ddd8;min-width:0}.kpi-grid span{display:block;color:#817872;font-size:.72rem}.kpi-grid strong{display:block;margin-top:.35rem;font-family:Georgia,'Times New Roman',serif;font-size:1.5rem}
+  .tracking-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.tracking-card h3{margin-top:0}.metric-row{display:flex;justify-content:space-between;gap:1rem;padding:.55rem 0;border-bottom:1px solid #eee9e5}.empty-state{padding:1rem;color:#817872}.data-source{text-align:right;margin-top:1rem;overflow-wrap:anywhere}
+
+  @media(max-width:900px){
+    :global(.private-layout){display:block!important;width:100%!important;max-width:100vw!important;overflow-x:hidden!important}
+    .ensaios-main{width:100%;max-width:100vw;padding:1.35rem 1rem 3rem}
+    .private-page-header{display:block}.header-actions{margin-top:1rem;flex-wrap:wrap}.account-card{margin-top:0}.hero-card,.tracking-grid{grid-template-columns:1fr}.hero-meta{padding-left:0;border-left:0;border-top:1px solid #e4ded8;padding-top:1rem}
+    .person-row{grid-template-columns:1fr}.work-fields{grid-template-columns:1fr 1fr}.work-search{grid-template-columns:1fr}.tracking-filters{grid-template-columns:1fr 1fr}.kpi-grid{grid-template-columns:1fr 1fr}.rehearsal-card{grid-template-columns:1fr;gap:.35rem}
+  }
+  @media(max-width:560px){
+    .ensaios-main{padding:1rem .75rem 2.5rem}.view-switch{display:grid;grid-template-columns:1fr 1fr}.view-switch button{width:100%}.voice-tabs{display:grid;grid-template-columns:1fr 1fr}.voice-tabs button{width:100%}.voice-tabs button:first-child{grid-column:1/-1}
+    .attendance-heading,.section-heading{align-items:flex-start}.attendance-heading{flex-direction:column;gap:.25rem}.attendance-actions{display:grid;grid-template-columns:1fr 1fr}.attendance-actions button{width:100%}.work-fields,.tracking-filters,.kpi-grid,.form-grid{grid-template-columns:1fr}.form-wide{grid-column:auto}.hero-card{padding:1.1rem}.private-page-header h1{font-size:1.85rem}.header-actions{display:grid}.new-rehearsal-button,.account-card{width:100%;box-sizing:border-box}.repertoire-tools{display:grid}.attendee-names{grid-template-columns:1fr}.rehearsal-form{padding:1rem}.rehearsal-form footer{flex-direction:column-reverse}.rehearsal-form footer button{width:100%}.rehearsal-card{padding:.8rem}.rehearsal-card-copy{display:grid;gap:.2rem}.data-source{text-align:left}
+  }
 </style>
