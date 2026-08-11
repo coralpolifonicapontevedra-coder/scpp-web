@@ -254,11 +254,24 @@ export async function onRequest(context) {
   if (!user) return erro(401, 'AUTH', 'INVALID_SESSION', 'A identificación non é válida ou caducou.');
 
   const accion = String(body.accion || 'listarEnsaiosPortal').trim();
-  const permitidas = new Set(['listarEnsaiosPortal', 'gardarAsistenciaEnsaio', 'gardarEnsaioRepertorio', 'obterSeguimentoEnsaios']);
+  const permitidas = new Set(['listarEnsaiosPortal', 'gardarEnsaio', 'gardarAsistenciaEnsaio', 'gardarEnsaioRepertorio', 'obterSeguimentoEnsaios']);
   if (!permitidas.has(accion)) return erro(400, 'REQUEST', 'ACTION_NOT_ALLOWED', 'Acción non permitida.');
 
   try {
     if (accion === 'listarEnsaiosPortal') return await listar(context, user, body.forzar === true);
+    if (accion === 'gardarEnsaio') {
+      return await escribir(context, user, 'gardarEnsaioPortal', {
+        data: String(body.data || '').trim(),
+        horaInicio: String(body.horaInicio || '').trim(),
+        horaFin: String(body.horaFin || '').trim(),
+        lugar: String(body.lugar || '').trim(),
+        tipoEnsaio: String(body.tipoEnsaio || '').trim(),
+        concerto: String(body.concerto || '').trim(),
+        descricion: String(body.descricion || '').trim(),
+        observacions: String(body.observacions || '').trim(),
+        cancelado: body.cancelado === true
+      });
+    }
     if (accion === 'gardarAsistenciaEnsaio') {
       return await escribir(context, user, 'gardarAsistenciaEnsaioPortal', {
         idEnsaio: String(body.idEnsaio || '').trim(),
