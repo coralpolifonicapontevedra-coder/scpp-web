@@ -14,11 +14,51 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           <h1>Ensaios</h1>
           <p>Planificación, asistencia, repertorio traballado e seguimento da preparación musical.</p>
         </div>
-        <div class="account-card" aria-label="Conta identificada">
-          <small>Conta identificada</small>
-          <strong id="user-email">—</strong>
+        <div class="header-actions">
+          <button id="new-rehearsal-button" class="new-rehearsal-button" type="button" hidden>+ Novo ensaio</button>
+          <div class="account-card" aria-label="Conta identificada">
+            <small>Conta identificada</small>
+            <strong id="user-email">—</strong>
+          </div>
         </div>
       </header>
+
+      <dialog id="new-rehearsal-dialog" class="rehearsal-dialog">
+        <form id="new-rehearsal-form" class="rehearsal-form">
+          <header>
+            <div>
+              <span class="section-kicker">Planificación</span>
+              <h2>Novo ensaio</h2>
+              <p>O ensaio gardarase na Sheet e o índice privado de R2 actualizarase despois da escritura.</p>
+            </div>
+            <button id="close-rehearsal-dialog" class="dialog-close" type="button" aria-label="Pechar">×</button>
+          </header>
+
+          <div class="form-grid">
+            <label>Data <input id="new-date" type="date" required /></label>
+            <label>Hora de inicio <input id="new-start" type="time" required /></label>
+            <label>Hora de fin <input id="new-end" type="time" /></label>
+            <label>Lugar <input id="new-place" type="text" maxlength="120" /></label>
+            <label>Tipo de ensaio
+              <input id="new-type" type="text" list="rehearsal-types" maxlength="80" required />
+              <datalist id="rehearsal-types">
+                <option value="Ordinario"></option>
+                <option value="Extraordinario"></option>
+                <option value="Xeral"></option>
+                <option value="Por cordas"></option>
+              </datalist>
+            </label>
+            <label class="form-wide">Descrición <textarea id="new-description" rows="3"></textarea></label>
+            <label class="form-wide">Observacións <textarea id="new-notes" rows="3"></textarea></label>
+          </div>
+
+          <p id="new-rehearsal-status" class="form-status" role="status" aria-live="polite"></p>
+          <footer>
+            <button id="cancel-new-rehearsal" class="secondary-button" type="button">Cancelar</button>
+            <button id="save-new-rehearsal" class="primary-button" type="submit">Gardar ensaio</button>
+          </footer>
+        </form>
+      </dialog>
 
       <section id="loading" class="portal-state">Cargando os ensaios…</section>
       <section id="error-state" class="portal-state error-state" hidden>
@@ -122,6 +162,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const app = $('#ensaios-app');
   const userEmail = $('#user-email');
   const dataSource = $('#data-source');
+  const newButton = $('#new-rehearsal-button');
+  const newDialog = $('#new-rehearsal-dialog');
+  const newForm = $('#new-rehearsal-form');
+  const newStatus = $('#new-rehearsal-status');
   let payload = null;
   let selectedRehearsal = null;
   let selectedVoice = 'Todas';
@@ -188,11 +232,53 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     $('#tracking-works').innerHTML=(t.porObra||[]).slice(0,12).map((w)=>`<div class="metric-row"><span>${esc(w.nome)}</span><strong>${esc(w.ensaios)} ens.</strong></div>`).join('')||'<p class="helper">Sen datos no período.</p>';
   }
 
-  async function load() {
+  async function load(forzar = false) {
     loading.hidden=false; errorState.hidden=true; app.hidden=true;
-    try { payload=await api('listarEnsaiosPortal'); selectedRehearsal=null; renderHero(); renderLists(); renderTracking(); const concerts=[...new Set((payload.ensaios||[]).map((e)=>e.concertoNome).filter(Boolean))].sort(); $('#concert-filter').innerHTML='<option value="">Todos</option>'+concerts.map((c)=>`<option>${esc(c)}</option>`).join(''); dataSource.textContent=payload.diagnostico?.fonte?`Fonte: ${payload.diagnostico.fonte}${payload.diagnostico.xeradoEn?` · actualizado ${payload.diagnostico.xeradoEn}`:''}`:''; loading.hidden=true; app.hidden=false; }
+    try { payload=await api('listarEnsaiosPortal',{forzar}); selectedRehearsal=null; renderHero(); renderLists(); renderTracking(); const concerts=[...new Set((payload.ensaios||[]).map((e)=>e.concertoNome).filter(Boolean))].sort(); $('#concert-filter').innerHTML='<option value="">Todos</option>'+concerts.map((c)=>`<option>${esc(c)}</option>`).join(''); dataSource.textContent=payload.diagnostico?.fonte?`Fonte: ${payload.diagnostico.fonte}${payload.diagnostico.xeradoEn?` · actualizado ${payload.diagnostico.xeradoEn}`:''}`:''; if(newButton instanceof HTMLButtonElement) newButton.hidden=payload?.perfil?.podeEditar!==true; loading.hidden=true; app.hidden=false; }
     catch(error){ loading.hidden=true; errorState.hidden=false; errorMessage.textContent=error instanceof Error?error.message:'Erro descoñecido'; }
   }
+
+  function closeNewDialog() {
+    if (newDialog instanceof HTMLDialogElement) newDialog.close();
+    if (newStatus instanceof HTMLElement) newStatus.textContent='';
+  }
+
+  newButton?.addEventListener('click',()=>{
+    if (!(newDialog instanceof HTMLDialogElement)) return;
+    if (newForm instanceof HTMLFormElement) newForm.reset();
+    if (newStatus instanceof HTMLElement) newStatus.textContent='';
+    const dateInput=$('#new-date');
+    if(dateInput instanceof HTMLInputElement) dateInput.value=new Date().toISOString().slice(0,10);
+    newDialog.showModal();
+  });
+  $('#close-rehearsal-dialog')?.addEventListener('click',closeNewDialog);
+  $('#cancel-new-rehearsal')?.addEventListener('click',closeNewDialog);
+  newDialog?.addEventListener('click',(event)=>{ if(event.target===newDialog) closeNewDialog(); });
+  newForm?.addEventListener('submit',async(event)=>{
+    event.preventDefault();
+    const save=$('#save-new-rehearsal');
+    if(save instanceof HTMLButtonElement){save.disabled=true;save.textContent='Gardando…';}
+    if(newStatus instanceof HTMLElement)newStatus.textContent='Gardando o ensaio na Sheet…';
+    try{
+      await api('gardarEnsaio',{
+        data:$('#new-date')?.value||'',
+        horaInicio:$('#new-start')?.value||'',
+        horaFin:$('#new-end')?.value||'',
+        lugar:$('#new-place')?.value||'',
+        tipoEnsaio:$('#new-type')?.value||'',
+        descricion:$('#new-description')?.value||'',
+        observacions:$('#new-notes')?.value||'',
+        cancelado:false
+      });
+      if(newStatus instanceof HTMLElement)newStatus.textContent='✓ Ensaio gardado correctamente.';
+      await load(true);
+      setTimeout(closeNewDialog,450);
+    }catch(error){
+      if(newStatus instanceof HTMLElement)newStatus.textContent=error instanceof Error?`⚠ ${error.message}`:'⚠ Non foi posible gardar o ensaio.';
+    }finally{
+      if(save instanceof HTMLButtonElement){save.disabled=false;save.textContent='Gardar ensaio';}
+    }
+  });
 
   document.addEventListener('click', async (event)=>{
     const target=event.target; if(!(target instanceof HTMLElement)) return;
@@ -206,13 +292,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   document.addEventListener('change',(event)=>{ const input=event.target; if(input instanceof HTMLInputElement && input.classList.contains('worked-check')){ const fields=input.closest('.work-row')?.querySelector('.work-fields'); if(fields instanceof HTMLElement) fields.hidden=!input.checked; } });
   $('#tracking-form')?.addEventListener('submit',async(event)=>{event.preventDefault(); try{ const result=await api('obterSeguimentoEnsaios',{ desde:$('#date-from')?.value||'', ata:$('#date-to')?.value||'', concerto:$('#concert-filter')?.value||'', voz:$('#voice-filter')?.value||'' }); renderTracking(result.seguimento); }catch(e){ alert(e instanceof Error?e.message:'Non foi posible calcular o seguimento.'); }});
-  $('#retry-button')?.addEventListener('click',load);
+  $('#retry-button')?.addEventListener('click',()=>load(true));
   $('#ensaios-logout')?.addEventListener('click',async()=>{await signOut(auth); location.href='/portal/acceso/';});
   onAuthStateChanged(auth,(user)=>{ if(!user?.email){location.href='/portal/acceso/';return;} userEmail.textContent=user.email; load(); });
 </script>
 
 <style>
-  :global(.private-layout){display:flex;min-height:100vh;background:#f7f5f2;color:#26221f}.ensaios-main{flex:1;min-width:0;padding:2.3rem 3rem 4rem}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.5rem}.section-kicker,.section-heading span,.attendance-heading span{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.private-page-header h1{margin:.2rem 0 .45rem;font-family:Georgia,'Times New Roman',serif;font-size:2.25rem}.private-page-header p{max-width:720px;margin:0;color:#6b645f}.account-card{min-width:220px;padding:.8rem 1rem;border:1px solid #ded8d2;background:#fff}.account-card small{display:block;color:#847b74;font-size:.7rem}.account-card strong{display:block;margin-top:.18rem;font-size:.82rem}.portal-state{padding:2rem;border:1px solid #e2ddd8;background:#fff}.error-state{border-left:3px solid var(--color-principal)}.error-state button,.tracking-filters button{margin-top:.5rem;border:0;background:var(--color-principal);color:#fff;padding:.7rem 1rem;cursor:pointer}.view-switch,.work-tabs,.voice-tabs{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1.2rem}.view-switch button,.work-tabs button,.voice-tabs button{border:1px solid #d9d2cc;background:#fff;color:#504944;padding:.62rem .9rem;border-radius:3px;cursor:pointer}.view-switch button.is-active,.work-tabs button.is-active,.voice-tabs button.is-active{background:var(--color-principal);border-color:var(--color-principal);color:#fff}.hero-card{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,.75fr);gap:2rem;padding:2rem;border-top:4px solid var(--color-principal);background:#fff;box-shadow:0 10px 30px rgba(65,43,37,.06)}.hero-date span,.hero-meta span{color:var(--color-principal);font-size:.72rem;font-weight:800;text-transform:uppercase}.hero-date h2{margin:.35rem 0;font-family:Georgia,'Times New Roman',serif;font-size:1.8rem}.hero-date p,.hero-meta p{color:#6d655f}.hero-meta{padding-left:1.5rem;border-left:1px solid #e4ded8}.hero-meta strong{display:block;margin:.35rem 0;font-size:1rem}.work-panel{margin-top:1.2rem;padding:1.3rem;background:#fff;border:1px solid #e2ddd8}.attendance-heading,.section-heading{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin:1rem 0}.attendance-heading h2,.section-heading h2{margin:.18rem 0;font-family:Georgia,'Times New Roman',serif}.attendance-list,.repertoire-list,.rehearsal-list{display:grid;gap:.45rem}.person-row{display:grid;grid-template-columns:minmax(220px,1fr) auto auto minmax(90px,auto);gap:.8rem;align-items:center;padding:.7rem .8rem;border-bottom:1px solid #eee9e5}.person-row>div:first-child{display:flex;flex-direction:column}.person-row span{font-size:.76rem;color:#817872}.attendance-actions{display:flex;gap:.35rem}.attendance-actions button{border:1px solid #d6d0ca;background:#fff;padding:.5rem .65rem;cursor:pointer}.attendance-actions button.is-selected{background:#eef3ed;border-color:#78906f}.attendance-actions button.negative{background:#f6eded;border-color:#b98282}.justify{font-size:.78rem}.save-status{font-size:.72rem;color:#6f665f}.helper,.data-source{color:#817872;font-size:.78rem}.work-row{padding:.9rem;border:1px solid #e7e1dc}.work-main{display:flex;justify-content:space-between;gap:1rem}.work-main label{display:flex;gap:.7rem}.work-main label span{display:flex;flex-direction:column}.work-main small{color:#817872}.audio-links{display:flex;flex-wrap:wrap;gap:.35rem}.audio-links a{color:#27221f;text-decoration:none;font-size:.74rem}.work-fields{display:grid;grid-template-columns:1fr 1fr 1fr 2fr auto auto;gap:.5rem;margin-top:.8rem}.work-fields input,.work-fields select,.tracking-filters input,.tracking-filters select{min-width:0;border:1px solid #d9d2cc;background:#fff;padding:.58rem}.save-work{border:0;background:var(--color-principal);color:#fff;padding:.55rem .8rem}.rehearsal-card{display:grid;grid-template-columns:1.2fr 1fr 2fr;gap:1rem;text-align:left;padding:1rem;border:1px solid #e4ded8;background:#fff;cursor:pointer}.rehearsal-card.is-cancelled{opacity:.55;text-decoration:line-through}.tracking-filters{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr)) auto;gap:.75rem;align-items:end;padding:1rem;background:#fff;border:1px solid #e2ddd8}.tracking-filters label{display:grid;gap:.35rem;font-size:.74rem;font-weight:700}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:1rem 0}.kpi-grid article,.tracking-card{padding:1rem;background:#fff;border:1px solid #e3ddd8}.kpi-grid span{display:block;color:#817872;font-size:.72rem}.kpi-grid strong{display:block;margin-top:.35rem;font-family:Georgia,'Times New Roman',serif;font-size:1.5rem}.tracking-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.tracking-card h3{margin-top:0}.metric-row{display:flex;justify-content:space-between;gap:1rem;padding:.55rem 0;border-bottom:1px solid #eee9e5}.empty-state{padding:1rem;color:#817872}.data-source{text-align:right;margin-top:1rem}
-  @media(max-width:900px){.ensaios-main{padding:1.5rem}.private-page-header{display:block}.account-card{margin-top:1rem}.hero-card,.tracking-grid{grid-template-columns:1fr}.hero-meta{padding-left:0;border-left:0;border-top:1px solid #e4ded8;padding-top:1rem}.person-row{grid-template-columns:1fr}.work-main{display:block}.work-fields{grid-template-columns:1fr 1fr}.tracking-filters{grid-template-columns:1fr 1fr}.kpi-grid{grid-template-columns:1fr 1fr}.rehearsal-card{grid-template-columns:1fr}}
-  @media(max-width:560px){.ensaios-main{padding:1rem}.view-switch button{flex:1 1 45%}.voice-tabs button{flex:1 1 30%}.attendance-actions button{flex:1}.attendance-actions{display:flex}.work-fields,.tracking-filters,.kpi-grid{grid-template-columns:1fr}.hero-card{padding:1.25rem}.private-page-header h1{font-size:1.85rem}}
+  :global(.private-layout){display:flex;min-height:100vh;background:#f7f5f2;color:#26221f}.ensaios-main{flex:1;min-width:0;padding:2.3rem 3rem 4rem}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.5rem}.header-actions{display:flex;align-items:stretch;gap:.7rem}.new-rehearsal-button,.primary-button{border:0;background:var(--color-principal);color:#fff;padding:.75rem 1rem;cursor:pointer;font-weight:700}.secondary-button,.dialog-close{border:1px solid #d9d2cc;background:#fff;color:#504944;padding:.72rem 1rem;cursor:pointer}.section-kicker,.section-heading span,.attendance-heading span{color:var(--color-principal);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.private-page-header h1{margin:.2rem 0 .45rem;font-family:Georgia,'Times New Roman',serif;font-size:2.25rem}.private-page-header p{max-width:720px;margin:0;color:#6b645f}.account-card{min-width:220px;padding:.8rem 1rem;border:1px solid #ded8d2;background:#fff}.account-card small{display:block;color:#847b74;font-size:.7rem}.account-card strong{display:block;margin-top:.18rem;font-size:.82rem}.rehearsal-dialog{width:min(760px,calc(100vw - 2rem));border:1px solid #d9d2cc;padding:0;background:#f7f5f2;color:#26221f}.rehearsal-dialog::backdrop{background:rgba(31,24,22,.45)}.rehearsal-form{padding:1.35rem}.rehearsal-form header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding-bottom:1rem;border-bottom:1px solid #e2ddd8}.rehearsal-form h2{margin:.2rem 0;font-family:Georgia,'Times New Roman',serif}.rehearsal-form header p{margin:.25rem 0 0;color:#6b645f;font-size:.86rem}.dialog-close{font-size:1.35rem;line-height:1;padding:.35rem .6rem}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;margin:1rem 0}.form-grid label{display:grid;gap:.35rem;font-size:.78rem;font-weight:700}.form-grid input,.form-grid textarea{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d9d2cc;background:#fff;padding:.68rem;font:inherit}.form-wide{grid-column:1/-1}.rehearsal-form footer{display:flex;justify-content:flex-end;gap:.6rem;border-top:1px solid #e2ddd8;padding-top:1rem}.form-status{min-height:1.25rem;margin:.4rem 0;color:#6b645f;font-size:.82rem}.portal-state{padding:2rem;border:1px solid #e2ddd8;background:#fff}.error-state{border-left:3px solid var(--color-principal)}.error-state button,.tracking-filters button{margin-top:.5rem;border:0;background:var(--color-principal);color:#fff;padding:.7rem 1rem;cursor:pointer}.view-switch,.work-tabs,.voice-tabs{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1.2rem}.view-switch button,.work-tabs button,.voice-tabs button{border:1px solid #d9d2cc;background:#fff;color:#504944;padding:.62rem .9rem;border-radius:3px;cursor:pointer}.view-switch button.is-active,.work-tabs button.is-active,.voice-tabs button.is-active{background:var(--color-principal);border-color:var(--color-principal);color:#fff}.hero-card{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,.75fr);gap:2rem;padding:2rem;border-top:4px solid var(--color-principal);background:#fff;box-shadow:0 10px 30px rgba(65,43,37,.06)}.hero-date span,.hero-meta span{color:var(--color-principal);font-size:.72rem;font-weight:800;text-transform:uppercase}.hero-date h2{margin:.35rem 0;font-family:Georgia,'Times New Roman',serif;font-size:1.8rem}.hero-date p,.hero-meta p{color:#6d655f}.hero-meta{padding-left:1.5rem;border-left:1px solid #e4ded8}.hero-meta strong{display:block;margin:.35rem 0;font-size:1rem}.work-panel{margin-top:1.2rem;padding:1.3rem;background:#fff;border:1px solid #e2ddd8}.attendance-heading,.section-heading{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin:1rem 0}.attendance-heading h2,.section-heading h2{margin:.18rem 0;font-family:Georgia,'Times New Roman',serif}.attendance-list,.repertoire-list,.rehearsal-list{display:grid;gap:.45rem}.person-row{display:grid;grid-template-columns:minmax(220px,1fr) auto auto minmax(90px,auto);gap:.8rem;align-items:center;padding:.7rem .8rem;border-bottom:1px solid #eee9e5}.person-row>div:first-child{display:flex;flex-direction:column}.person-row span{font-size:.76rem;color:#817872}.attendance-actions{display:flex;gap:.35rem}.attendance-actions button{border:1px solid #d6d0ca;background:#fff;padding:.5rem .65rem;cursor:pointer}.attendance-actions button.is-selected{background:#eef3ed;border-color:#78906f}.attendance-actions button.negative{background:#f6eded;border-color:#b98282}.justify{font-size:.78rem}.save-status{font-size:.72rem;color:#6f665f}.helper,.data-source{color:#817872;font-size:.78rem}.work-row{padding:.9rem;border:1px solid #e7e1dc}.work-main{display:flex;justify-content:space-between;gap:1rem}.work-main label{display:flex;gap:.7rem}.work-main label span{display:flex;flex-direction:column}.work-main small{color:#817872}.audio-links{display:flex;flex-wrap:wrap;gap:.35rem}.audio-links a{color:#27221f;text-decoration:none;font-size:.74rem}.work-fields{display:grid;grid-template-columns:1fr 1fr 1fr 2fr auto auto;gap:.5rem;margin-top:.8rem}.work-fields input,.work-fields select,.tracking-filters input,.tracking-filters select{min-width:0;border:1px solid #d9d2cc;background:#fff;padding:.58rem}.save-work{border:0;background:var(--color-principal);color:#fff;padding:.55rem .8rem}.rehearsal-card{display:grid;grid-template-columns:1.2fr 1fr 2fr;gap:1rem;text-align:left;padding:1rem;border:1px solid #e4ded8;background:#fff;cursor:pointer}.rehearsal-card.is-cancelled{opacity:.55;text-decoration:line-through}.tracking-filters{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr)) auto;gap:.75rem;align-items:end;padding:1rem;background:#fff;border:1px solid #e2ddd8}.tracking-filters label{display:grid;gap:.35rem;font-size:.74rem;font-weight:700}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:1rem 0}.kpi-grid article,.tracking-card{padding:1rem;background:#fff;border:1px solid #e3ddd8}.kpi-grid span{display:block;color:#817872;font-size:.72rem}.kpi-grid strong{display:block;margin-top:.35rem;font-family:Georgia,'Times New Roman',serif;font-size:1.5rem}.tracking-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.tracking-card h3{margin-top:0}.metric-row{display:flex;justify-content:space-between;gap:1rem;padding:.55rem 0;border-bottom:1px solid #eee9e5}.empty-state{padding:1rem;color:#817872}.data-source{text-align:right;margin-top:1rem}
+  @media(max-width:900px){.ensaios-main{padding:1.5rem}.private-page-header{display:block}.header-actions{margin-top:1rem;flex-wrap:wrap}.account-card{margin-top:0}.hero-card,.tracking-grid{grid-template-columns:1fr}.hero-meta{padding-left:0;border-left:0;border-top:1px solid #e4ded8;padding-top:1rem}.person-row{grid-template-columns:1fr}.work-main{display:block}.work-fields{grid-template-columns:1fr 1fr}.tracking-filters{grid-template-columns:1fr 1fr}.kpi-grid{grid-template-columns:1fr 1fr}.rehearsal-card{grid-template-columns:1fr}}
+  @media(max-width:560px){.ensaios-main{padding:1rem}.view-switch button{flex:1 1 45%}.voice-tabs button{flex:1 1 30%}.attendance-actions button{flex:1}.attendance-actions{display:flex}.work-fields,.tracking-filters,.kpi-grid,.form-grid{grid-template-columns:1fr}.form-wide{grid-column:auto}.hero-card{padding:1.25rem}.private-page-header h1{font-size:1.85rem}.header-actions{display:grid}.new-rehearsal-button,.account-card{width:100%;box-sizing:border-box}}
 </style>
