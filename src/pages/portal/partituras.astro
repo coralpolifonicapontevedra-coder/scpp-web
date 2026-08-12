@@ -1,0 +1,338 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Partituras" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="partituras" logoutId="partituras-logout" />
+
+    <main class="partituras-main">
+      <header class="private-page-header">
+        <div>
+          <span class="section-kicker">Portal do Coralista</span>
+          <h1>Partituras</h1>
+          <p>Consulta o arquivo completo de partituras da Sociedade, independentemente de que formen parte do repertorio de traballo.</p>
+        </div>
+        <div class="account-card" aria-label="Conta identificada">
+          <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
+        </div>
+      </header>
+
+      <section id="loading" class="portal-state">Cargando o arquivo de partituras…</section>
+      <section id="error-state" class="portal-state error-state" hidden>
+        <strong>Non foi posible cargar as partituras</strong>
+        <p id="error-message"></p>
+        <button id="retry-button" type="button">Tentar de novo</button>
+      </section>
+
+      <section id="partituras-app" class="partituras-app" hidden>
+        <section class="score-tools" aria-label="Consulta de partituras">
+          <div class="score-tools-heading">
+            <div>
+              <span>Arquivo musical</span>
+              <strong>Busca ou selecciona unha partitura</strong>
+            </div>
+            <div class="score-summary">
+              <strong id="score-count">0</strong>
+              <span>partituras dispoñibles</span>
+            </div>
+          </div>
+
+          <div class="score-controls">
+            <label class="search-field">
+              <span>Buscar</span>
+              <span class="search-box">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
+                <input id="score-search" type="search" placeholder="Título ou nome do ficheiro" autocomplete="off" />
+              </span>
+            </label>
+
+            <label class="select-field">
+              <span>Seleccionar partitura</span>
+              <select id="score-select">
+                <option value="">Escolle unha partitura…</option>
+              </select>
+            </label>
+          </div>
+
+          <p id="no-results" class="no-results" hidden>Non hai partituras que coincidan coa busca.</p>
+        </section>
+
+        <section class="score-list-section" aria-labelledby="score-list-title">
+          <div class="list-heading">
+            <div>
+              <span>Listado</span>
+              <h2 id="score-list-title">Partituras dispoñibles</h2>
+            </div>
+            <small id="filter-summary"></small>
+          </div>
+          <div id="score-list" class="score-list"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const loading = document.querySelector('#loading');
+  const app = document.querySelector('#partituras-app');
+  const errorState = document.querySelector('#error-state');
+  const errorMessage = document.querySelector('#error-message');
+  const retryButton = document.querySelector('#retry-button');
+  const userEmail = document.querySelector('#user-email');
+  const logout = document.querySelector('#partituras-logout');
+  const search = document.querySelector('#score-search');
+  const select = document.querySelector('#score-select');
+  const scoreCount = document.querySelector('#score-count');
+  const noResults = document.querySelector('#no-results');
+  const scoreList = document.querySelector('#score-list');
+  const filterSummary = document.querySelector('#filter-summary');
+
+  let partituras = [];
+  let ficheiroUrl = '';
+
+  const normalizar = (value) => String(value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  const formatSize = (bytes) => {
+    const size = Number(bytes || 0);
+    if (!size) return '';
+    if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`;
+  };
+
+  async function aceptacionVixente(user) {
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/aceptacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: 'comprobarAceptacion', version: 'PRIVACIDADE-WEB-1.0' })
+    });
+    const result = await response.json().catch(() => null);
+    return response.ok && result?.ok && result.aceptacionVixente === true;
+  }
+
+  async function solicitar(accion, extra = {}) {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('A sesión xa non está activa.');
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/api/partituras', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion, ...extra })
+    });
+    if (accion === 'obterFicheiroPartitura' && response.ok) return response.blob();
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Non foi posible consultar as partituras.');
+    return result;
+  }
+
+  function crear(tag, className, content) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (content !== undefined) element.textContent = String(content);
+    return element;
+  }
+
+  async function abrirPartitura(partitura, button) {
+    if (!partitura?.r2Key || !(button instanceof HTMLButtonElement)) return;
+    const previo = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Abrindo…';
+    try {
+      const blob = await solicitar('obterFicheiroPartitura', { r2Key: partitura.r2Key });
+      if (ficheiroUrl) URL.revokeObjectURL(ficheiroUrl);
+      ficheiroUrl = URL.createObjectURL(blob);
+      window.open(ficheiroUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Non foi posible abrir a partitura.');
+    } finally {
+      button.disabled = false;
+      button.textContent = previo || 'Abrir partitura';
+    }
+  }
+
+  function filtradas() {
+    const query = normalizar(search instanceof HTMLInputElement ? search.value : '');
+    if (!query) return partituras;
+    return partituras.filter((partitura) => normalizar([
+      partitura.nome,
+      partitura.voz,
+      partitura.tipo,
+      partitura.idRepertorio
+    ].join(' ')).includes(query));
+  }
+
+  function debuxarListado(items) {
+    if (!(scoreList instanceof HTMLElement)) return;
+    scoreList.replaceChildren();
+
+    items.forEach((partitura) => {
+      const card = crear('article', 'score-card');
+      const copy = crear('div', 'score-copy');
+      copy.append(crear('strong', '', partitura.nome || 'Partitura'));
+
+      const meta = [];
+      if (partitura.voz && partitura.voz !== 'General') meta.push(partitura.voz);
+      if (partitura.tipo) meta.push(partitura.tipo);
+      const size = formatSize(partitura.tamano);
+      if (size) meta.push(size);
+      if (meta.length) copy.append(crear('span', '', meta.join(' · ')));
+
+      if (partitura.idRepertorio) {
+        const repertorioLink = crear('a', 'repertorio-link', 'Ver en Repertorio');
+        repertorioLink.href = `/portal/repertorio/?id=${encodeURIComponent(partitura.idRepertorio)}`;
+        copy.append(repertorioLink);
+      }
+
+      const button = crear('button', 'score-open', 'Abrir partitura');
+      button.type = 'button';
+      button.addEventListener('click', () => abrirPartitura(partitura, button));
+      card.append(copy, button);
+      scoreList.append(card);
+    });
+  }
+
+  function actualizarVista() {
+    const items = filtradas();
+    if (scoreCount instanceof HTMLElement) scoreCount.textContent = String(items.length);
+    if (filterSummary instanceof HTMLElement) {
+      filterSummary.textContent = items.length === partituras.length ? '' : `${items.length} de ${partituras.length}`;
+    }
+    if (noResults instanceof HTMLElement) noResults.hidden = items.length > 0;
+
+    if (select instanceof HTMLSelectElement) {
+      const anterior = select.value;
+      select.replaceChildren(new Option('Escolle unha partitura…', ''));
+      items.forEach((partitura) => select.add(new Option(partitura.nome || 'Partitura', partitura.r2Key)));
+      if (items.some((partitura) => partitura.r2Key === anterior)) select.value = anterior;
+    }
+    debuxarListado(items);
+  }
+
+  async function cargar() {
+    if (loading instanceof HTMLElement) loading.hidden = false;
+    if (app instanceof HTMLElement) app.hidden = true;
+    if (errorState instanceof HTMLElement) errorState.hidden = true;
+
+    try {
+      const result = await solicitar('listarPartiturasPortal');
+      partituras = Array.isArray(result.partituras) ? result.partituras : [];
+      actualizarVista();
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (app instanceof HTMLElement) app.hidden = false;
+    } catch (error) {
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (errorState instanceof HTMLElement) errorState.hidden = false;
+      if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Erro descoñecido.';
+    }
+  }
+
+  search?.addEventListener('input', actualizarVista);
+  select?.addEventListener('change', () => {
+    if (!(select instanceof HTMLSelectElement) || !select.value) return;
+    const partitura = partituras.find((item) => item.r2Key === select.value);
+    const card = [...document.querySelectorAll('.score-card')].find((item) =>
+      item.querySelector('strong')?.textContent === partitura?.nome
+    );
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  retryButton?.addEventListener('click', cargar);
+  logout?.addEventListener('click', async () => {
+    await signOut(auth).catch(() => {});
+    window.location.href = '/portal/';
+  });
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) {
+      window.location.href = '/portal/';
+      return;
+    }
+    if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
+    try {
+      if (!(await aceptacionVixente(user))) {
+        window.location.href = '/portal/';
+        return;
+      }
+      await cargar();
+    } catch {
+      window.location.href = '/portal/';
+    }
+  });
+
+  window.addEventListener('pagehide', () => {
+    if (ficheiroUrl) URL.revokeObjectURL(ficheiroUrl);
+  });
+</script>
+
+<style>
+  .private-layout { min-height: 100vh; display: grid; grid-template-columns: 282px minmax(0, 1fr); background: #f7f5f2; }
+  .partituras-main { min-width: 0; padding: 2.25rem clamp(1.25rem, 3vw, 3rem) 4rem; }
+  .private-page-header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; max-width: 1180px; margin: 0 auto 1.5rem; }
+  .section-kicker, .score-tools-heading span, .list-heading span { color: var(--color-acento); font-size: .73rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+  h1 { margin: .35rem 0 .55rem; color: var(--color-principal); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2rem, 4vw, 3rem); }
+  .private-page-header p { max-width: 760px; margin: 0; color: #5f5955; line-height: 1.65; }
+  .account-card { padding: .75rem 1rem; border: 1px solid #e4dfda; border-radius: 7px; background: #fff; }
+  .account-card span { display: grid; gap: .15rem; }
+  .account-card small { color: #857d77; font-size: .7rem; }
+  .account-card strong { color: #35312e; font-size: .78rem; }
+  .portal-state, .partituras-app { max-width: 1180px; margin: 0 auto; }
+  .portal-state { padding: 2rem; border: 1px solid #e6e0db; background: #fff; color: #5a5551; }
+  .error-state strong { color: var(--color-principal); }
+  .error-state button { margin-top: .75rem; }
+  .score-tools, .score-list-section { border: 1px solid #e3ddd8; border-radius: 8px; background: #fff; }
+  .score-tools { padding: 1.25rem; }
+  .score-tools-heading, .list-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; }
+  .score-tools-heading > div:first-child { display: grid; gap: .25rem; }
+  .score-tools-heading strong { color: #302c29; font-size: 1.05rem; }
+  .score-summary { display: grid; text-align: right; }
+  .score-summary strong { color: var(--color-principal); font-size: 1.5rem; }
+  .score-summary span { color: #77706b; font-size: .74rem; }
+  .score-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); gap: 1rem; margin-top: 1.1rem; }
+  .search-field, .select-field { display: grid; gap: .4rem; color: #5c5652; font-size: .76rem; font-weight: 700; }
+  .search-box { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: .45rem; min-height: 45px; padding: 0 .75rem; border: 1px solid #d8d1cc; border-radius: 5px; background: #fff; }
+  .search-box svg { width: 17px; height: 17px; fill: none; stroke: #776f69; stroke-width: 1.7; }
+  .search-box input { min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-weight: 400; }
+  .select-field select { min-height: 45px; padding: 0 .75rem; border: 1px solid #d8d1cc; border-radius: 5px; background: #fff; color: #393531; }
+  .no-results { margin: 1rem 0 0; color: #7b3737; }
+  .score-list-section { margin-top: 1rem; overflow: hidden; }
+  .list-heading { padding: 1.1rem 1.2rem; border-bottom: 1px solid #e7e1dc; }
+  .list-heading h2 { margin: .2rem 0 0; color: #302c29; font-family: Georgia, 'Times New Roman', serif; font-size: 1.25rem; }
+  .list-heading small { color: #756e69; }
+  .score-list { display: grid; }
+  .score-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: .9rem 1.2rem; border-bottom: 1px solid #eee9e5; }
+  .score-card:last-child { border-bottom: 0; }
+  .score-card:hover { background: #fbf9f7; }
+  .score-copy { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; }
+  .score-copy strong { color: #302c29; font-size: .94rem; }
+  .score-copy span { color: #817873; font-size: .76rem; }
+  .repertorio-link { color: #3e3935; font-size: .74rem; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+  .score-open, .error-state button { min-height: 38px; padding: .55rem .85rem; border: 1px solid var(--color-principal); border-radius: 4px; background: var(--color-principal); color: #fff; font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
+  .score-open:disabled { opacity: .6; cursor: wait; }
+  @media (max-width: 900px) {
+    .private-layout { grid-template-columns: 1fr; }
+    .partituras-main { padding-top: 1.25rem; }
+    .private-page-header { display: grid; }
+    .account-card { display: none; }
+  }
+  @media (max-width: 620px) {
+    .score-controls { grid-template-columns: 1fr; }
+    .score-tools-heading { align-items: flex-start; }
+    .score-card { grid-template-columns: 1fr; }
+    .score-open { width: 100%; }
+  }
+</style>
