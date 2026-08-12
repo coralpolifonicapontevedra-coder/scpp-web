@@ -1,13 +1,10 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
-const CACHE_ACEPTACION_MS = 30 * 60 * 1000;
-const CACHE_ACEPTACION_RESPALDO_MS = 24 * 60 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
 const TIMEOUT_APPS_SCRIPT_MS = 18 * 1000;
 
 const cacheTokens = new Map();
-const cacheAceptacions = new Map();
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -57,51 +54,6 @@ async function verificarTokenFirebase(idToken, apiKey) {
   return resultado;
 }
 
-function cacheRequest(request, clave) {
-  const url = new URL(request.url);
-  url.pathname = '/api/_cache/aceptacion';
-  url.search = `clave=${encodeURIComponent(clave)}`;
-  return new Request(url.toString(), { method: 'GET' });
-}
-
-async function lerAceptacionCache(request, clave) {
-  const memoria = cacheAceptacions.get(clave);
-  if (memoria && Date.now() - memoria.savedAt <= CACHE_ACEPTACION_RESPALDO_MS) return memoria;
-
-  const cacheApi = globalThis.caches?.default;
-  if (!cacheApi) return null;
-  try {
-    const resposta = await cacheApi.match(cacheRequest(request, clave));
-    if (!resposta) return null;
-    const entrada = await resposta.json();
-    if (entrada?.aceptacionVixente !== true) return null;
-    if (Date.now() - Number(entrada.savedAt || 0) > CACHE_ACEPTACION_RESPALDO_MS) return null;
-    cacheAceptacions.set(clave, entrada);
-    return entrada;
-  } catch {
-    return null;
-  }
-}
-
-async function gardarAceptacionCache(request, clave) {
-  const entrada = { aceptacionVixente: true, savedAt: Date.now() };
-  cacheAceptacions.set(clave, entrada);
-
-  const cacheApi = globalThis.caches?.default;
-  if (!cacheApi) return;
-  try {
-    await cacheApi.put(cacheRequest(request, clave), new Response(JSON.stringify(entrada), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': `public, max-age=${Math.floor(CACHE_ACEPTACION_RESPALDO_MS / 1000)}`
-      }
-    }));
-  } catch (erro) {
-    console.warn('Non se puido gardar a caché de aceptación:', erro);
-  }
-}
-
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
@@ -118,16 +70,13 @@ export async function onRequest(context) {
 
   const idToken = String(datos.idToken || '').trim();
   const accion = String(datos.accion || 'rexistrarAceptacion').trim();
-  const textoLegal = String(datos.textoLegal || '').trim();
-  const version = String(datos.version || '').trim();
 
   if (!idToken) return json(401, { ok: false, erro: 'É necesario identificarse de novo' });
-  if (!['comprobarAceptacion', 'rexistrarAceptacion'].includes(accion)) {
+  if (!['obterTextoLegalVixente', 'comprobarAceptacion', 'rexistrarAceptacion'].includes(accion)) {
     return json(400, { ok: false, erro: 'Acción non válida' });
   }
-  if (!version) return json(400, { ok: false, erro: 'Falta a versión do texto legal' });
-  if (accion === 'rexistrarAceptacion' && (datos.aceptaFines !== true || !textoLegal)) {
-    return json(400, { ok: false, erro: 'É necesario confirmar a aceptación e o texto legal' });
+  if (accion === 'rexistrarAceptacion' && datos.aceptaFines !== true) {
+    return json(400, { ok: false, erro: 'É necesario confirmar a aceptación' });
   }
 
   let usuarioFirebase;
@@ -138,31 +87,15 @@ export async function onRequest(context) {
   }
   if (!usuarioFirebase) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
-  const claveAceptacion = `${usuarioFirebase.email}|${version}`;
-  const cacheada = await lerAceptacionCache(request, claveAceptacion);
-  if (accion === 'comprobarAceptacion' && cacheada?.aceptacionVixente === true) {
-    const idade = Date.now() - cacheada.savedAt;
-    return json(200, {
-      ok: true,
-      email: usuarioFirebase.email,
-      aceptacionVixente: true
-    }, {
-      'X-SCPP-Cache': idade <= CACHE_ACEPTACION_MS ? 'HIT' : 'EMERGENCY'
-    });
-  }
-
   const corpoAppsScript = {
     token: env.WEB_WRITE_TOKEN,
     accion,
     email: usuarioFirebase.email,
-    uidFirebase: usuarioFirebase.uid,
-    version
+    uidFirebase: usuarioFirebase.uid
   };
 
   if (accion === 'rexistrarAceptacion') {
-    corpoAppsScript.textoLegal = textoLegal;
     corpoAppsScript.aceptaFines = true;
-    corpoAppsScript.ambito = String(datos.ambito || 'coralpolifonicapontevedra.org').trim();
   }
 
   const inicio = Date.now();
@@ -180,26 +113,36 @@ export async function onRequest(context) {
       });
     }
 
-    if (accion === 'comprobarAceptacion') {
-      const aceptacionVixente = resultado.aceptacionVixente === true;
-      if (aceptacionVixente) await gardarAceptacionCache(request, claveAceptacion);
+    if (accion === 'obterTextoLegalVixente') {
       return json(200, {
         ok: true,
         email: usuarioFirebase.email,
-        aceptacionVixente
+        textoLegal: resultado.textoLegal
       }, {
-        'X-SCPP-Cache': 'MISS',
         'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
         'X-SCPP-AppScript-Attempt': String(intento),
         'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
       });
     }
 
-    await gardarAceptacionCache(request, claveAceptacion);
+    if (accion === 'comprobarAceptacion') {
+      return json(200, {
+        ok: true,
+        email: usuarioFirebase.email,
+        aceptacionVixente: resultado.aceptacionVixente === true,
+        textoLegal: resultado.textoLegal
+      }, {
+        'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
+        'X-SCPP-AppScript-Attempt': String(intento),
+        'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
+      });
+    }
+
     return json(200, {
       ok: true,
       email: usuarioFirebase.email,
       mensaxe: 'Aceptación rexistrada correctamente',
+      version: resultado.version || '',
       redirect: resultado.redirect || ''
     }, {
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
@@ -209,18 +152,6 @@ export async function onRequest(context) {
   } catch (erro) {
     console.error('Erro no servizo de aceptación:', erro);
 
-    const anterior = await lerAceptacionCache(request, claveAceptacion);
-    if (accion === 'comprobarAceptacion' && anterior?.aceptacionVixente === true) {
-      return json(200, {
-        ok: true,
-        email: usuarioFirebase.email,
-        aceptacionVixente: true
-      }, {
-        'X-SCPP-Cache': 'EMERGENCY',
-        'X-SCPP-Warning': 'upstream-unavailable'
-      });
-    }
-
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
     return json(status, {
       ok: false,
@@ -228,3 +159,4 @@ export async function onRequest(context) {
     });
   }
 }
+
