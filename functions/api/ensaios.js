@@ -1,7 +1,6 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 
-const CACHE_FRESCA_MS = 10 * 60 * 1000;
-const CACHE_RESPALDO_MS = 7 * 24 * 60 * 60 * 1000;
+const CACHE_MEMORIA_MS = 10 * 60 * 1000;
 const CACHE_TOKEN_MS = 10 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
@@ -22,14 +21,14 @@ const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
 });
 
 function erro(status, etapa, codigo, mensaxe) {
-  return json(status, { ok: false, etapa, codigo, erro: mensaxe });
+  return json(status, { ok:false, etapa, codigo, erro:mensaxe });
 }
 
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, redirect: 'follow', signal: controller.signal });
+    return await fetch(url, { ...options, redirect:'follow', signal:controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -52,31 +51,31 @@ async function verificarFirebase(idToken, apiKey) {
   const response = await fetchConLimite(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: token })
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body:JSON.stringify({ idToken:token })
     },
     TIMEOUT_FIREBASE_MS
   );
   if (!response.ok) return null;
   const user = (await response.json())?.users?.[0];
   if (!user?.email || user.emailVerified !== true) return null;
-  const usuario = { uid: String(user.localId || ''), email: String(user.email).trim().toLowerCase() };
-  cacheTokens.set(token, { usuario, expira: Date.now() + CACHE_TOKEN_MS });
+  const usuario = { uid:String(user.localId || ''), email:String(user.email).trim().toLowerCase() };
+  cacheTokens.set(token, { usuario, expira:Date.now() + CACHE_TOKEN_MS });
   limparMap(cacheTokens);
   return usuario;
 }
 
 async function chamarAppsScript(env, user, accion, datos = {}) {
   const { resultado } = await obterJsonAppsScript(env, {
-    token: env.WEB_WRITE_TOKEN,
+    token:env.WEB_WRITE_TOKEN,
     accion,
-    email: user.email,
-    uidFirebase: user.uid,
+    email:user.email,
+    uidFirebase:user.uid,
     ...datos
   }, {
-    timeoutMs: TIMEOUT_APPS_SCRIPT_MS,
-    attemptTimeoutMs: 8_000
+    timeoutMs:TIMEOUT_APPS_SCRIPT_MS,
+    attemptTimeoutMs:8_000
   });
 
   if (!resultado?.ok) {
@@ -120,14 +119,14 @@ async function lerConcertosPrivados(env, repertorio = []) {
     });
 
     return index.concertos.map((concerto) => ({
-      id: String(concerto.id || '').trim(),
-      nome: String(concerto.nome || '').trim(),
-      data: String(concerto.data || '').trim(),
-      programa: (Array.isArray(concerto.programa) ? concerto.programa : []).map((item) => ({
-        idRepertorio: String(item.idRepertorio || porTitulo.get(normalizar(item.obra)) || '').trim(),
-        orde: Number(item.orde || 999),
-        obra: String(item.obra || '').trim(),
-        autor: String(item.autor || '').trim()
+      id:String(concerto.id || '').trim(),
+      nome:String(concerto.nome || '').trim(),
+      data:String(concerto.data || '').trim(),
+      programa:(Array.isArray(concerto.programa) ? concerto.programa : []).map((item) => ({
+        idRepertorio:String(item.idRepertorio || porTitulo.get(normalizar(item.obra)) || '').trim(),
+        orde:Number(item.orde || 999),
+        obra:String(item.obra || '').trim(),
+        autor:String(item.autor || '').trim()
       })).filter((item) => item.obra)
     })).filter((concerto) => concerto.id);
   } catch (error) {
@@ -139,17 +138,17 @@ async function lerConcertosPrivados(env, repertorio = []) {
 async function crearPayload(env, result) {
   const repertorio = Array.isArray(result.repertorio) ? result.repertorio : [];
   return {
-    ok: true,
-    version: 2,
-    perfil: result.perfil || {},
-    ensaios: Array.isArray(result.ensaios) ? result.ensaios : [],
-    persoas: Array.isArray(result.persoas) ? result.persoas : [],
-    asistencias: Array.isArray(result.asistencias) ? result.asistencias : [],
-    ensaiosRepertorio: Array.isArray(result.ensaiosRepertorio) ? result.ensaiosRepertorio : [],
+    ok:true,
+    version:2,
+    perfil:result.perfil || {},
+    ensaios:Array.isArray(result.ensaios) ? result.ensaios : [],
+    persoas:Array.isArray(result.persoas) ? result.persoas : [],
+    asistencias:Array.isArray(result.asistencias) ? result.asistencias : [],
+    ensaiosRepertorio:Array.isArray(result.ensaiosRepertorio) ? result.ensaiosRepertorio : [],
     repertorio,
-    concertos: await lerConcertosPrivados(env, repertorio),
-    seguimento: result.seguimento || {},
-    xeradoEn: new Date().toISOString()
+    concertos:await lerConcertosPrivados(env, repertorio),
+    seguimento:result.seguimento || {},
+    xeradoEn:new Date().toISOString()
   };
 }
 
@@ -160,9 +159,7 @@ async function lerR2(env, user) {
     if (!object) return null;
     const entry = await object.json();
     if (entry?.email !== user.email || !payloadValido(entry?.payload)) return null;
-    const idade = Date.now() - Number(entry.savedAt || 0);
-    if (idade > CACHE_RESPALDO_MS) return null;
-    return { ...entry, idade };
+    return { ...entry, idade:Date.now() - Number(entry.savedAt || 0) };
   } catch (error) {
     console.warn('Non se puido ler o índice de Ensaios desde R2:', error);
     return null;
@@ -172,8 +169,8 @@ async function lerR2(env, user) {
 async function gardarR2(env, user, payload) {
   if (!payloadValido(payload) || !env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
   const savedAt = Date.now();
-  await env.R2_PRIVADO.put(await r2Key(user), JSON.stringify({ savedAt, email: user.email, payload }), {
-    httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
+  await env.R2_PRIVADO.put(await r2Key(user), JSON.stringify({ savedAt, email:user.email, payload }), {
+    httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' }
   });
 }
 
@@ -182,15 +179,17 @@ function cacheKey(user) { return user.email; }
 async function lerCache(env, user) {
   const key = cacheKey(user);
   const memory = cacheMemoria.get(key);
-  if (memory && memory.expira > Date.now()) return { payload: memory.payload, fonte: 'MEMORIA', idade: Date.now() - memory.savedAt };
+  if (memory && memory.expira > Date.now()) {
+    return { payload:memory.payload, fonte:'MEMORIA', idade:Date.now() - memory.savedAt };
+  }
   const r2 = await lerR2(env, user);
   if (!r2) return null;
-  return { payload: r2.payload, fonte: r2.idade <= CACHE_FRESCA_MS ? 'R2-CACHE' : 'R2-STALE', idade: r2.idade };
+  return { payload:r2.payload, fonte:'R2', idade:r2.idade };
 }
 
 async function gardarCache(env, user, payload) {
   const now = Date.now();
-  cacheMemoria.set(cacheKey(user), { savedAt: now, expira: now + CACHE_FRESCA_MS, payload });
+  cacheMemoria.set(cacheKey(user), { savedAt:now, expira:now + CACHE_MEMORIA_MS, payload });
   limparMap(cacheMemoria, 50);
   await gardarR2(env, user, payload);
 }
@@ -206,10 +205,10 @@ async function invalidarCache(env, user) {
 function conDiagnostico(payload, fonte) {
   return {
     ...payload,
-    diagnostico: {
+    diagnostico:{
       ...(payload.diagnostico || {}),
       fonte,
-      xeradoEn: payload.diagnostico?.xeradoEn || payload.xeradoEn || new Date().toISOString()
+      xeradoEn:payload.diagnostico?.xeradoEn || payload.xeradoEn || new Date().toISOString()
     }
   };
 }
@@ -217,36 +216,26 @@ function conDiagnostico(payload, fonte) {
 async function listar(context, user, forzar = false) {
   if (!forzar) {
     const cached = await lerCache(context.env, user);
-    if (cached?.payload && cached.idade <= CACHE_FRESCA_MS) {
+    if (cached?.payload) {
       return json(200, conDiagnostico(cached.payload, cached.fonte), {
-        'X-SCPP-Cache': 'HIT',
-        'X-SCPP-Storage': cached.fonte,
-        'Server-Timing': 'apps-script;dur=0'
+        'X-SCPP-Cache':'HIT',
+        'X-SCPP-Storage':cached.fonte,
+        'Server-Timing':'apps-script;dur=0'
       });
     }
   }
 
+  // Só se chega á Sheet cando non existe aínda índice R2 ou cando unha acción
+  // explícita pide rexeneralo (por exemplo, despois dunha escritura/finalización).
   const inicio = Date.now();
-  try {
-    const result = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
-    const payload = await crearPayload(context.env, result);
-    await gardarCache(context.env, user, payload);
-    return json(200, conDiagnostico(payload, 'SHEET'), {
-      'X-SCPP-Cache': forzar ? 'REFRESH' : 'MISS',
-      'X-SCPP-Storage': 'SHEET',
-      'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
-    });
-  } catch (error) {
-    const stale = await lerR2(context.env, user);
-    if (stale?.payload) {
-      return json(200, conDiagnostico(stale.payload, 'R2-STALE'), {
-        'X-SCPP-Cache': 'STALE',
-        'X-SCPP-Storage': 'R2-STALE',
-        'X-SCPP-Warning': 'Apps-Script-Unavailable'
-      });
-    }
-    throw error;
-  }
+  const result = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
+  const payload = await crearPayload(context.env, result);
+  await gardarCache(context.env, user, payload);
+  return json(200, conDiagnostico(payload, 'SHEET-SEED'), {
+    'X-SCPP-Cache':forzar ? 'REFRESH' : 'SEED',
+    'X-SCPP-Storage':'SHEET',
+    'Server-Timing':`apps-script;dur=${Date.now() - inicio}`
+  });
 }
 
 async function rexenerarCache(context, user) {
@@ -262,9 +251,9 @@ async function escribir(context, user, accion, datos) {
   await invalidarCache(context.env, user);
   try { await rexenerarCache(context, user); }
   catch (error) { console.warn('A escritura completouse, pero non se puido rexenerar o índice de Ensaios:', error); }
-  return json(200, { ok: true, resultado: result.resultado || result, diagnostico: { fonte: 'SHEET-WRITE', duracionMs: Date.now() - inicio } }, {
-    'X-SCPP-Cache': 'INVALIDATED',
-    'X-SCPP-Storage': 'SHEET'
+  return json(200, { ok:true, resultado:result.resultado || result, diagnostico:{ fonte:'SHEET-WRITE', duracionMs:Date.now() - inicio } }, {
+    'X-SCPP-Cache':'INVALIDATED',
+    'X-SCPP-Storage':'SHEET'
   });
 }
 
@@ -279,10 +268,10 @@ async function incluirPrograma(context, user, body) {
     await chamarAppsScript(context.env, user, 'gardarEnsaioRepertorioPortal', {
       idEnsaio,
       idRepertorio,
-      tipoTraballo: '',
-      desde: '',
-      ata: '',
-      observacions: ''
+      tipoTraballo:'',
+      desde:'',
+      ata:'',
+      observacions:''
     });
     engadidas += 1;
   }
@@ -290,14 +279,9 @@ async function incluirPrograma(context, user, body) {
   let payload = null;
   try { payload = await rexenerarCache(context, user); }
   catch (error) { console.warn('Programa incluído, pero non se puido rexenerar o índice:', error); }
-  return json(200, {
-    ok: true,
-    engadidas,
-    payload,
-    diagnostico: { fonte: 'SHEET-WRITE', duracionMs: Date.now() - inicio }
-  }, {
-    'X-SCPP-Cache': 'INVALIDATED',
-    'X-SCPP-Storage': 'SHEET'
+  return json(200, { ok:true, engadidas, payload, diagnostico:{ fonte:'SHEET-WRITE', duracionMs:Date.now() - inicio } }, {
+    'X-SCPP-Cache':'INVALIDATED',
+    'X-SCPP-Storage':'SHEET'
   });
 }
 
@@ -326,46 +310,46 @@ export async function onRequest(context) {
     if (accion === 'listarEnsaiosPortal') return await listar(context, user, body.forzar === true);
     if (accion === 'gardarEnsaio') {
       return await escribir(context, user, 'gardarEnsaioPortal', {
-        data: String(body.data || '').trim(),
-        horaInicio: String(body.horaInicio || '').trim(),
-        horaFin: String(body.horaFin || '').trim(),
-        lugar: String(body.lugar || '').trim(),
-        tipoEnsaio: String(body.tipoEnsaio || '').trim(),
-        concerto: String(body.concerto || '').trim(),
-        descricion: String(body.descricion || '').trim(),
-        observacions: String(body.observacions || '').trim(),
-        cancelado: body.cancelado === true
+        data:String(body.data || '').trim(),
+        horaInicio:String(body.horaInicio || '').trim(),
+        horaFin:String(body.horaFin || '').trim(),
+        lugar:String(body.lugar || '').trim(),
+        tipoEnsaio:String(body.tipoEnsaio || '').trim(),
+        concerto:String(body.concerto || '').trim(),
+        descricion:String(body.descricion || '').trim(),
+        observacions:String(body.observacions || '').trim(),
+        cancelado:body.cancelado === true
       });
     }
     if (accion === 'gardarAsistenciaEnsaio') {
       return await escribir(context, user, 'gardarAsistenciaEnsaioPortal', {
-        idEnsaio: String(body.idEnsaio || '').trim(),
-        idPersoa: String(body.idPersoa || '').trim(),
-        estadoAsistencia: String(body.estadoAsistencia || '').trim(),
-        xustificada: body.xustificada === true,
-        motivo: String(body.motivo || '').trim(),
-        observacions: String(body.observacions || '').trim()
+        idEnsaio:String(body.idEnsaio || '').trim(),
+        idPersoa:String(body.idPersoa || '').trim(),
+        estadoAsistencia:String(body.estadoAsistencia || '').trim(),
+        xustificada:body.xustificada === true,
+        motivo:String(body.motivo || '').trim(),
+        observacions:String(body.observacions || '').trim()
       });
     }
     if (accion === 'gardarEnsaioRepertorio') {
       return await escribir(context, user, 'gardarEnsaioRepertorioPortal', {
-        idEnsaio: String(body.idEnsaio || '').trim(),
-        idRepertorio: String(body.idRepertorio || '').trim(),
-        tipoTraballo: String(body.tipoTraballo || '').trim(),
-        desde: String(body.desde || '').trim(),
-        ata: String(body.ata || '').trim(),
-        observacions: String(body.observacions || '').trim()
+        idEnsaio:String(body.idEnsaio || '').trim(),
+        idRepertorio:String(body.idRepertorio || '').trim(),
+        tipoTraballo:String(body.tipoTraballo || '').trim(),
+        desde:String(body.desde || '').trim(),
+        ata:String(body.ata || '').trim(),
+        observacions:String(body.observacions || '').trim()
       });
     }
     if (accion === 'incluírProgramaEnsaio') return await incluirPrograma(context, user, body);
 
     const result = await chamarAppsScript(env, user, 'obterSeguimentoEnsaiosPortal', {
-      desde: String(body.desde || '').trim(),
-      ata: String(body.ata || '').trim(),
-      concerto: String(body.concerto || '').trim(),
-      voz: String(body.voz || '').trim()
+      desde:String(body.desde || '').trim(),
+      ata:String(body.ata || '').trim(),
+      concerto:String(body.concerto || '').trim(),
+      voz:String(body.voz || '').trim()
     });
-    return json(200, { ok: true, seguimento: result.seguimento || {} }, { 'X-SCPP-Cache': 'NO-STORE' });
+    return json(200, { ok:true, seguimento:result.seguimento || {} }, { 'X-SCPP-Cache':'NO-STORE' });
   } catch (error) {
     console.error('Erro no módulo Ensaios:', error);
     if (error?.code === 'FORBIDDEN') return erro(403, 'PERMISOS', 'FORBIDDEN', 'Non tes permisos para realizar esta operación.');
