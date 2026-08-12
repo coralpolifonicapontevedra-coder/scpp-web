@@ -1,3 +1,4 @@
+import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
 const CACHE_MS = 10 * 60 * 1000;
@@ -29,6 +30,10 @@ function lerCache(cache, clave) {
 function gardarCache(cache, clave, valor, duracionMs) {
   cache.set(clave, { valor, expira: Date.now() + duracionMs });
   while (cache.size > 100) cache.delete(cache.keys().next().value);
+}
+
+function limparCatalogo() {
+  cacheCatalogo.clear();
 }
 
 async function fetchConTempoLimite(url, options, timeoutMs) {
@@ -72,6 +77,21 @@ function claveValida(valor) {
   const clave = String(valor || '').trim().replace(/^\/+/, '');
   if (!clave || clave.includes('..') || clave.includes('\\')) return '';
   return clave.startsWith(PREFIXO) ? clave : '';
+}
+
+function nomeSeguro(valor) {
+  return String(valor || 'partitura.pdf')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9._ -]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim() || 'partitura.pdf';
+}
+
+function bytesDesdeBase64(base64) {
+  const binario = atob(String(base64 || ''));
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
+  return bytes;
 }
 
 function catalogoActivo() {
@@ -124,6 +144,74 @@ async function obterFicheiro(env, clave) {
   return new Response(obxecto.body, { status: 200, headers });
 }
 
+async function altaPartitura(env, datos, usuario) {
+  if (!env.WEB_WRITE_TOKEN) return json(500, { ok: false, erro: 'A escritura non está configurada.' });
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') {
+    return json(503, { ok: false, erro: 'O almacén privado R2 non está configurado.' });
+  }
+
+  const nome = String(datos.nomepartitura || '').trim();
+  const ficheiro = datos.ficheiro || {};
+  if (!nome) return json(400, { ok: false, erro: 'Indica o nome da partitura.' });
+  if (!String(ficheiro.base64 || '')) return json(400, { ok: false, erro: 'Selecciona un ficheiro PDF.' });
+  if (String(ficheiro.mimeType || '').toLowerCase() !== 'application/pdf') {
+    return json(400, { ok: false, erro: 'O ficheiro debe ser PDF.' });
+  }
+
+  const nomeFicheiro = nomeSeguro(ficheiro.nome || `${nome}.pdf`);
+  const clave = `${PREFIXO}${Date.now()}-${nomeFicheiro}`;
+  const bytes = bytesDesdeBase64(ficheiro.base64);
+  await env.R2_PRIVADO.put(clave, bytes, {
+    httpMetadata: { contentType: 'application/pdf', cacheControl: 'private, max-age=3600' }
+  });
+
+  try {
+    const { resultado } = await obterJsonAppsScript(env, {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'altaPartituraPortal',
+      correo: usuario.email,
+      Id_Repertorio: String(datos.idRepertorio || '').trim(),
+      Nomepartitura: nome,
+      Voz: String(datos.voz || 'General').trim(),
+      'Versión': String(datos.version || '1.0').trim(),
+      PDF: `Partituras_Files_/${nomeFicheiro}`,
+      'Pública': datos.publica === true,
+      Activa: true,
+      'Observacións': String(datos.observacions || '').trim(),
+      TipoPartitura: String(datos.tipoPartitura || 'Coral').trim(),
+      Principal: datos.principal !== false,
+      R2Key: clave,
+      EstadoR2: 'Verificado',
+      DataSubidaR2: new Date().toISOString(),
+      TamanoR2: bytes.byteLength,
+      MimeType: 'application/pdf'
+    }, { timeoutMs: 30000 });
+
+    if (!resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible rexistrar a partitura na folla.');
+    limparCatalogo();
+    return json(200, { ok: true, r2Key: clave, idPartitura: resultado.idPartitura || '' });
+  } catch (erro) {
+    await env.R2_PRIVADO.delete(clave).catch(() => {});
+    throw erro;
+  }
+}
+
+async function eliminarPartitura(env, datos, usuario) {
+  if (!env.WEB_WRITE_TOKEN) return json(500, { ok: false, erro: 'A escritura non está configurada.' });
+  const idPartitura = String(datos.idPartitura || '').trim();
+  if (!idPartitura) return json(400, { ok: false, erro: 'Selecciona a partitura que queres eliminar.' });
+
+  const { resultado } = await obterJsonAppsScript(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion: 'eliminarPartituraPortal',
+    correo: usuario.email,
+    idPartitura
+  }, { timeoutMs: 30000 });
+  if (!resultado?.ok) return json(400, { ok: false, erro: resultado?.erro || 'Non foi posible eliminar a partitura.' });
+  limparCatalogo();
+  return json(200, { ok: true, idPartitura });
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
   if (!env.FIREBASE_API_KEY) return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
@@ -162,6 +250,24 @@ export async function onRequest({ request, env }) {
     } catch (erro) {
       console.error('Erro ao abrir Partitura desde R2:', erro);
       return json(503, { ok: false, erro: 'Non foi posible abrir a partitura.' });
+    }
+  }
+
+  if (accion === 'altaPartituraPortal') {
+    try {
+      return await altaPartitura(env, datos, usuario);
+    } catch (erro) {
+      console.error('Erro na alta de Partitura:', erro);
+      return json(503, { ok: false, erro: erro instanceof Error ? erro.message : 'Non foi posible dar de alta a partitura.' });
+    }
+  }
+
+  if (accion === 'eliminarPartituraPortal') {
+    try {
+      return await eliminarPartitura(env, datos, usuario);
+    } catch (erro) {
+      console.error('Erro ao eliminar Partitura:', erro);
+      return json(503, { ok: false, erro: erro instanceof Error ? erro.message : 'Non foi posible eliminar a partitura.' });
     }
   }
 
