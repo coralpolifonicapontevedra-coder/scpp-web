@@ -10,7 +10,10 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'gardarRutasFotoR2',
   'listarFotosPublicadas',
   'listarFotosPendentesR2',
-  'listarAsistenciasConcertosPortal'
+  'listarAsistenciasConcertosPortal',
+  'obterTextoLegalVixente',
+  'comprobarAceptacion',
+  'rexistrarAceptacion'
 ]);
 
 export class AppsScriptError extends Error {
