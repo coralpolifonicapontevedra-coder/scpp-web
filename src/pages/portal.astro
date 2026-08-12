@@ -225,7 +225,7 @@ const homeModules = getPortalNavigationModules('home');
   }
 
   function showChecking(email) {
-    setAuthenticatedLayout(true);
+    setAuthenticatedLayout(false);
     if (authOptions instanceof HTMLElement) authOptions.hidden = true;
     if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = false;
     if (authenticatedEmail instanceof HTMLElement) authenticatedEmail.textContent = email;
