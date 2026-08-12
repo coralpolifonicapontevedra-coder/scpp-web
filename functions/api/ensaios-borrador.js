@@ -1,18 +1,23 @@
 const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
 const DRAFT_PREFIX = 'ensaios/borradores-v1/';
+const MAIN_CACHE_PREFIX = 'ensaios/cache-v2/usuarios/';
 
 const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   status,
-  headers: {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'private, no-store',
-    'X-Content-Type-Options': 'nosniff',
+  headers:{
+    'Content-Type':'application/json; charset=utf-8',
+    'Cache-Control':'private, no-store',
+    'X-Content-Type-Options':'nosniff',
     ...extra
   }
 });
 
 const erro = (status, codigo, mensaxe) => json(status, { ok:false, codigo, erro:mensaxe });
+const clean = (value) => String(value || '').trim();
+const idEnsaioDe = (row) => clean(row?.ensaio || row?.idEnsaio);
+const idPersoaDe = (row) => clean(row?.persoa || row?.idPersoa);
+const idRepertorioDe = (row) => clean(row?.repertorio || row?.idRepertorio);
 
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
@@ -25,7 +30,7 @@ async function fetchConLimite(url, options, timeoutMs) {
 }
 
 async function verificarFirebase(idToken, apiKey) {
-  const token = String(idToken || '').trim();
+  const token = clean(idToken);
   if (!token) return null;
   const response = await fetchConLimite(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
@@ -43,7 +48,7 @@ async function verificarFirebase(idToken, apiKey) {
 }
 
 function appsScriptUrl(env) {
-  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  const url = clean(env.APPS_SCRIPT_WEBAPP_URL);
   return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) ? url : '';
 }
 
@@ -76,10 +81,9 @@ async function draftKey(idEnsaio) {
   return `${DRAFT_PREFIX}${await sha256(idEnsaio)}.json`;
 }
 
-const clean = (value) => String(value || '').trim();
-const idEnsaioDe = (row) => clean(row?.ensaio || row?.idEnsaio);
-const idPersoaDe = (row) => clean(row?.persoa || row?.idPersoa);
-const idRepertorioDe = (row) => clean(row?.repertorio || row?.idRepertorio);
+async function mainCacheKey(email) {
+  return `${MAIN_CACHE_PREFIX}${await sha256(String(email || '').trim().toLowerCase())}.json`;
+}
 
 function normalizarObra(row, idEnsaio, ordeFallback = 999) {
   return {
@@ -104,7 +108,7 @@ function normalizarAsistencia(row, idEnsaio) {
   };
 }
 
-function draftDesdeSheet(result, idEnsaio) {
+function draftDesdePayload(result, idEnsaio) {
   return {
     version:1,
     idEnsaio,
@@ -145,11 +149,29 @@ async function gardarDraft(env, draft) {
   return value;
 }
 
+async function lerPayloadPrincipalR2(env, user) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  try {
+    const object = await env.R2_PRIVADO.get(await mainCacheKey(user.email));
+    if (!object) return null;
+    const entry = await object.json();
+    if (entry?.email !== user.email || entry?.payload?.ok !== true || entry?.payload?.version !== 2) return null;
+    return entry.payload;
+  } catch (error) {
+    console.warn('Non se puido inicializar o borrador desde o índice principal de R2:', error);
+    return null;
+  }
+}
+
 async function obterOuCrearDraft(env, user, idEnsaio) {
   const existing = await lerDraft(env, idEnsaio);
   if (existing) return existing;
-  const sheet = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-  return await gardarDraft(env, draftDesdeSheet(sheet, idEnsaio));
+
+  // O borrador inicialízase exclusivamente desde o índice principal de R2.
+  // Non se consulta a Sheet ao abrir ou traballar nun ensaio.
+  const payloadR2 = await lerPayloadPrincipalR2(env, user);
+  const initial = draftDesdePayload(payloadR2 || {}, idEnsaio);
+  return await gardarDraft(env, initial);
 }
 
 async function executarEnLotes(items, worker, size = 6) {
@@ -176,6 +198,8 @@ function asistenciaIgual(a, b) {
 
 async function finalizar(env, user, idEnsaio) {
   const draft = await obterOuCrearDraft(env, user, idEnsaio);
+
+  // A Sheet só se consulta aquí: ao finalizar, para consolidar o resultado definitivo.
   const sheet = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
   const obrasSheet = (Array.isArray(sheet.ensaiosRepertorio) ? sheet.ensaiosRepertorio : []).filter((row) => idEnsaioDe(row) === idEnsaio);
   const asistSheet = (Array.isArray(sheet.asistencias) ? sheet.asistencias : []).filter((row) => idEnsaioDe(row) === idEnsaio);
@@ -212,7 +236,7 @@ async function finalizar(env, user, idEnsaio) {
   }));
 
   const fresh = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-  const synced = await gardarDraft(env, draftDesdeSheet(fresh, idEnsaio));
+  const synced = await gardarDraft(env, draftDesdePayload(fresh, idEnsaio));
   return {
     draft:synced,
     resumo:{ obrasGardadas:gardarObras.length, obrasEliminadas:eliminar.length, asistenciasGardadas:gardarAsistencias.length }
