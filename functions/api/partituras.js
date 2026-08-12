@@ -74,69 +74,33 @@ function claveValida(valor) {
   return clave.startsWith(PREFIXO) ? clave : '';
 }
 
-function nomeDesdeClave(clave) {
-  const ficheiro = String(clave || '').split('/').pop() || 'Partitura';
-  let nome = ficheiro.replace(/\.pdf$/i, '');
-  try { nome = decodeURIComponent(nome); } catch {}
-  return nome.replace(/_/g, ' ').replace(/\s+/g, ' ').trim() || 'Partitura';
-}
+function catalogoActivo() {
+  const cacheado = lerCache(cacheCatalogo, 'catalogo');
+  if (cacheado) return cacheado;
 
-function metadatosCoñecidos() {
   const porClave = new Map();
   for (const [idRepertorio, recursos] of Object.entries(REPERTORIO_R2 || {})) {
     for (const score of recursos?.partituras || []) {
       const clave = claveValida(score?.r2Key || score?.ruta);
       if (!clave) continue;
-      const actual = porClave.get(clave);
       const candidato = {
-        id: String(score?.id || ''),
+        id: String(score?.id || clave),
         idRepertorio: String(idRepertorio || ''),
-        nome: String(score?.nome || '').trim(),
+        nome: String(score?.nome || 'Partitura').trim(),
         voz: String(score?.voz || 'General').trim(),
         tipo: String(score?.tipo || '').trim(),
-        principal: score?.principal === true
+        principal: score?.principal === true,
+        r2Key: clave,
+        tamano: Number(score?.tamano || 0)
       };
+      const actual = porClave.get(clave);
       if (!actual || (!actual.principal && candidato.principal)) porClave.set(clave, candidato);
     }
   }
-  return porClave;
-}
 
-async function listarTodas(env) {
-  const cacheado = lerCache(cacheCatalogo, 'catalogo');
-  if (cacheado) return cacheado;
-  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.list !== 'function') {
-    throw new Error('O almacén privado R2 non está configurado.');
-  }
-
-  const metadata = metadatosCoñecidos();
-  const obxectos = [];
-  let cursor;
-  do {
-    const resultado = await env.R2_PRIVADO.list({ prefix: PREFIXO, cursor, limit: 1000 });
-    obxectos.push(...(resultado.objects || []));
-    cursor = resultado.truncated ? resultado.cursor : undefined;
-  } while (cursor);
-
-  const partituras = obxectos
-    .filter((obxecto) => /\.pdf$/i.test(obxecto.key || ''))
-    .map((obxecto) => {
-      const coñecido = metadata.get(obxecto.key) || {};
-      return {
-        id: coñecido.id || obxecto.key,
-        idRepertorio: coñecido.idRepertorio || '',
-        nome: coñecido.nome || nomeDesdeClave(obxecto.key),
-        voz: coñecido.voz || 'General',
-        tipo: coñecido.tipo || '',
-        principal: coñecido.principal === true,
-        r2Key: obxecto.key,
-        tamano: Number(obxecto.size || 0),
-        actualizado: obxecto.uploaded ? new Date(obxecto.uploaded).toISOString() : ''
-      };
-    })
+  const partituras = [...porClave.values()]
     .sort((a, b) => a.nome.localeCompare(b.nome, 'gl', { sensitivity: 'base' }));
-
-  const resultado = { ok: true, partituras, total: partituras.length, orixe: 'R2' };
+  const resultado = { ok: true, partituras, total: partituras.length, orixe: 'R2-INDEX' };
   gardarCache(cacheCatalogo, 'catalogo', resultado, CACHE_MS);
   return resultado;
 }
@@ -182,10 +146,10 @@ export async function onRequest({ request, env }) {
   const accion = String(datos.accion || 'listarPartiturasPortal').trim();
   if (accion === 'listarPartiturasPortal') {
     try {
-      const resultado = await listarTodas(env);
-      return json(200, resultado, { 'X-SCPP-Storage': 'R2', 'Server-Timing': 'r2-list;dur=1' });
+      const resultado = catalogoActivo();
+      return json(200, resultado, { 'X-SCPP-Storage': 'R2-INDEX', 'Server-Timing': 'r2-index;dur=1' });
     } catch (erro) {
-      console.error('Erro ao listar Partituras desde R2:', erro);
+      console.error('Erro ao listar Partituras desde o índice R2:', erro);
       return json(503, { ok: false, erro: 'Non foi posible cargar o arquivo de partituras.' });
     }
   }
