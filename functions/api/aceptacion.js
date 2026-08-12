@@ -3,6 +3,8 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
 const TIMEOUT_APPS_SCRIPT_MS = 18 * 1000;
+const CACHE_ACEPTACION_MS = 10 * 60 * 1000;
+const CACHE_ACEPTACION_PREFIX = 'cache/aceptacion-portal-v1/';
 
 const cacheTokens = new Map();
 
@@ -22,6 +24,55 @@ async function fetchConTempoLimite(url, options, timeoutMs) {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function claveCacheAceptacion(email) {
+  const datos = new TextEncoder().encode(String(email || '').trim().toLowerCase());
+  const hash = await crypto.subtle.digest('SHA-256', datos);
+  return CACHE_ACEPTACION_PREFIX + Array.from(new Uint8Array(hash), (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('') + '.json';
+}
+
+async function lerCacheAceptacion(env, email) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  try {
+    const obxecto = await env.R2_PRIVADO.get(await claveCacheAceptacion(email));
+    if (!obxecto) return null;
+    const cache = await obxecto.json();
+    const gardadaEn = Date.parse(String(cache?.gardadaEn || ''));
+    if (!Number.isFinite(gardadaEn) || Date.now() - gardadaEn > CACHE_ACEPTACION_MS) return null;
+    if (typeof cache?.aceptacionVixente !== 'boolean') return null;
+    return {
+      aceptacionVixente: cache.aceptacionVixente,
+      textoLegal: cache.textoLegal || null
+    };
+  } catch (erro) {
+    console.warn('Non se puido ler a caché de aceptación:', erro);
+    return null;
+  }
+}
+
+async function gardarCacheAceptacion(env, email, resultado) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
+  try {
+    await env.R2_PRIVADO.put(
+      await claveCacheAceptacion(email),
+      JSON.stringify({
+        gardadaEn: new Date().toISOString(),
+        aceptacionVixente: resultado.aceptacionVixente === true,
+        textoLegal: resultado.textoLegal || null
+      }),
+      {
+        httpMetadata: {
+          contentType: 'application/json; charset=utf-8',
+          cacheControl: 'private, max-age=600'
+        }
+      }
+    );
+  } catch (erro) {
+    console.warn('Non se puido gardar a caché de aceptación:', erro);
   }
 }
 
@@ -87,6 +138,20 @@ export async function onRequest(context) {
   }
   if (!usuarioFirebase) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
+  if (accion === 'comprobarAceptacion') {
+    const cache = await lerCacheAceptacion(env, usuarioFirebase.email);
+    if (cache) {
+      return json(200, {
+        ok: true,
+        email: usuarioFirebase.email,
+        ...cache
+      }, {
+        'X-SCPP-AppScript': 'R2-CACHE',
+        'Server-Timing': 'apps-script;dur=0'
+      });
+    }
+  }
+
   const corpoAppsScript = {
     token: env.WEB_WRITE_TOKEN,
     accion,
@@ -126,17 +191,27 @@ export async function onRequest(context) {
     }
 
     if (accion === 'comprobarAceptacion') {
+      const respostaAceptacion = {
+        aceptacionVixente: resultado.aceptacionVixente === true,
+        textoLegal: resultado.textoLegal
+      };
+      await gardarCacheAceptacion(env, usuarioFirebase.email, respostaAceptacion);
       return json(200, {
         ok: true,
         email: usuarioFirebase.email,
-        aceptacionVixente: resultado.aceptacionVixente === true,
-        textoLegal: resultado.textoLegal
+        ...respostaAceptacion
       }, {
         'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
         'X-SCPP-AppScript-Attempt': String(intento),
         'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
       });
     }
+
+    const cacheAnterior = await lerCacheAceptacion(env, usuarioFirebase.email);
+    await gardarCacheAceptacion(env, usuarioFirebase.email, {
+      aceptacionVixente: true,
+      textoLegal: cacheAnterior?.textoLegal || { version: resultado.version || '' }
+    });
 
     return json(200, {
       ok: true,
