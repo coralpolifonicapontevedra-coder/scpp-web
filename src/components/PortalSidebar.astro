@@ -92,20 +92,40 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
   const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
   const mobileMenuQuery = window.matchMedia('(max-width: 620px)');
 
-  const REVIEW_MENU_CACHE_KEY = 'scpp-review-menu-v1';
+  const PROTECTED_MENU_CACHE_KEY = 'scpp-protected-menu-v2';
 
-  function readReviewMenuCache() {
+  function normalizeEmail(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function readProtectedMenuCache(email) {
     try {
-      return window.sessionStorage.getItem(REVIEW_MENU_CACHE_KEY) === '1';
+      const raw = window.sessionStorage.getItem(PROTECTED_MENU_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (normalizeEmail(cached?.email) !== normalizeEmail(email)) return null;
+      if (typeof cached?.reviewAllowed !== 'boolean' || typeof cached?.administrationAllowed !== 'boolean') return null;
+      return cached;
     } catch {
-      return false;
+      return null;
     }
   }
 
-  function writeReviewMenuCache(allowed) {
+  function writeProtectedMenuCache(email, reviewAllowed, administrationAllowed) {
     try {
-      if (allowed) window.sessionStorage.setItem(REVIEW_MENU_CACHE_KEY, '1');
-      else window.sessionStorage.removeItem(REVIEW_MENU_CACHE_KEY);
+      window.sessionStorage.setItem(PROTECTED_MENU_CACHE_KEY, JSON.stringify({
+        email: normalizeEmail(email),
+        reviewAllowed: Boolean(reviewAllowed),
+        administrationAllowed: Boolean(administrationAllowed)
+      }));
+    } catch {
+      // Ignorar sesión non dispoñible.
+    }
+  }
+
+  function clearProtectedMenuCache() {
+    try {
+      window.sessionStorage.removeItem(PROTECTED_MENU_CACHE_KEY);
     } catch {
       // Ignorar sesión non dispoñible.
     }
@@ -134,7 +154,13 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
       body: JSON.stringify({ idToken, accion: 'listarPersoasAdministracion' })
     });
     const result = await response.json().catch(() => null);
-    return response.ok && result?.ok === true;
+    if (response.ok && result?.ok === true) {
+      return { allowed: true, uncertain: false };
+    }
+    if (response.status === 403) {
+      return { allowed: false, uncertain: false };
+    }
+    return { allowed: false, uncertain: true };
   }
 
   function syncProtectedNavigation({ reviewAllowed, administrationAllowed }) {
@@ -172,23 +198,33 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
 
   onAuthStateChanged(auth, async (user) => {
     if (!user?.email) {
-      writeReviewMenuCache(false);
+      clearProtectedMenuCache();
       syncProtectedNavigation({ reviewAllowed: false, administrationAllowed: false });
       return;
     }
 
-    const idToken = await user.getIdToken(true);
-    const [reviewCheck, administrationAllowed] = await Promise.all([
+    const cachedPermissions = readProtectedMenuCache(user.email);
+    if (cachedPermissions) {
+      syncProtectedNavigation({
+        reviewAllowed: cachedPermissions.reviewAllowed,
+        administrationAllowed: cachedPermissions.administrationAllowed
+      });
+    }
+
+    const idToken = await user.getIdToken();
+    const [reviewCheck, administrationCheck] = await Promise.all([
       canReviewPhotos(idToken).catch(() => ({ allowed: false, uncertain: true })),
-      canAccessAdministration(idToken).catch(() => false)
+      canAccessAdministration(idToken).catch(() => ({ allowed: false, uncertain: true }))
     ]);
 
-    let reviewAllowed = reviewCheck.allowed;
-    if (!reviewAllowed && reviewCheck.uncertain) {
-      reviewAllowed = administrationAllowed || readReviewMenuCache();
-    }
-    writeReviewMenuCache(reviewAllowed);
+    const reviewAllowed = reviewCheck.uncertain
+      ? Boolean(cachedPermissions?.reviewAllowed || administrationCheck.allowed)
+      : reviewCheck.allowed;
+    const administrationAllowed = administrationCheck.uncertain
+      ? Boolean(cachedPermissions?.administrationAllowed)
+      : administrationCheck.allowed;
 
+    writeProtectedMenuCache(user.email, reviewAllowed, administrationAllowed);
     syncProtectedNavigation({ reviewAllowed, administrationAllowed });
   });
 </script>
