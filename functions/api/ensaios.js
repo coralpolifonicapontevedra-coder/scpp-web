@@ -1,3 +1,5 @@
+import { obterJsonAppsScript } from '../_lib/apps-script.js';
+
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
 const CACHE_RESPALDO_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_TOKEN_MS = 10 * 60 * 1000;
@@ -65,30 +67,24 @@ async function verificarFirebase(idToken, apiKey) {
   return usuario;
 }
 
-function urlAppsScript(env) {
-  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) ? url : '';
-}
-
 async function chamarAppsScript(env, user, accion, datos = {}) {
-  const url = urlAppsScript(env);
-  if (!url) throw Object.assign(new Error('Non está configurada a implementación principal de Apps Script.'), { code: 'APPS_SCRIPT_NOT_CONFIGURED' });
-  const response = await fetchConLimite(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ token: env.WEB_WRITE_TOKEN, accion, email: user.email, uidFirebase: user.uid, ...datos })
-  }, TIMEOUT_APPS_SCRIPT_MS);
+  const { resultado } = await obterJsonAppsScript(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion,
+    email: user.email,
+    uidFirebase: user.uid,
+    ...datos
+  }, {
+    timeoutMs: TIMEOUT_APPS_SCRIPT_MS,
+    attemptTimeoutMs: 8_000
+  });
 
-  const text = await response.text();
-  let result;
-  try { result = JSON.parse(text); }
-  catch { throw Object.assign(new Error('Apps Script devolveu unha resposta non válida.'), { code: 'APPS_SCRIPT_INVALID_RESPONSE' }); }
-  if (!response.ok || !result?.ok) {
-    const message = result?.erro || `Apps Script respondeu HTTP ${response.status}.`;
-    const code = result?.codigo || (response.status === 403 || /non autorizado/i.test(message) ? 'FORBIDDEN' : 'APPS_SCRIPT_RESULT');
+  if (!resultado?.ok) {
+    const message = resultado?.erro || 'Apps Script non puido completar a operación.';
+    const code = resultado?.codigo || (/non autorizado/i.test(message) ? 'FORBIDDEN' : 'APPS_SCRIPT_RESULT');
     throw Object.assign(new Error(message), { code });
   }
-  return result;
+  return resultado;
 }
 
 async function hashEmail(email) {
