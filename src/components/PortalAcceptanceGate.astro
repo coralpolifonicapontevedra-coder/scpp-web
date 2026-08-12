@@ -11,7 +11,6 @@
     appId: '1:506857659587:web:a7ed36b22f044f5f639676'
   };
 
-  const VERSION_TEXTO_LEGAL = 'PRIVACIDADE-WEB-1.0';
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   const auth = getAuth(app);
 
@@ -48,8 +47,7 @@
         },
         body: JSON.stringify({
           idToken,
-          accion: 'comprobarAceptacion',
-          version: VERSION_TEXTO_LEGAL
+          accion: 'comprobarAceptacion'
         })
       });
 
@@ -71,3 +69,4 @@
     onAuthStateChanged(auth, comprobarAceptacionVixente);
   }
 </script>
+
