@@ -33,8 +33,8 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
     enabled: true,
     order: 40,
     surfaces: ['sidebar', 'home'],
-    homeTitle: 'Galería e fotografías',
-    homeDescription: 'Consulta e achega novas fotografías ao arquivo da Coral.',
+    homeTitle: 'Subir fotografías',
+    homeDescription: 'Achega novas fotografías ao arquivo da Coral.',
     homeNumber: '04',
   },
   {
@@ -92,7 +92,9 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
     path: '/portal/galeria/',
     enabled: true,
     order: 80,
-    surfaces: ['sidebar'],
+    surfaces: ['sidebar', 'home'],
+    homeDescription: 'Consulta as fotografías do arquivo privado da Coral.',
+    homeNumber: '08',
   },
   {
     id: 'documentacion',
