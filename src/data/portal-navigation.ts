@@ -57,6 +57,16 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
     homeNumber: '02',
   },
   {
+    id: 'partituras',
+    label: 'Partituras',
+    path: '/portal/partituras/',
+    enabled: true,
+    order: 55,
+    surfaces: ['sidebar', 'home'],
+    homeDescription: 'Arquivo completo de partituras da Sociedade, estean ou non no repertorio de traballo.',
+    homeNumber: '07',
+  },
+  {
     id: 'concertos',
     label: 'Concertos',
     path: '/portal/concertos/',
