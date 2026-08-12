@@ -253,15 +253,28 @@ function obterAdministradorFotos_(email) {
   var columnaEmail = cabeceiras.indexOf('Email');
   var columnaActivo = cabeceiras.indexOf('Activo');
   var columnaAdministrador = cabeceiras.indexOf('Administrador');
-  if (columnaEmail === -1 || columnaActivo === -1 || columnaAdministrador === -1) {
+  var columnaModulos = cabeceiras.indexOf('ModulosPermitidos');
+  if (columnaEmail === -1 || columnaActivo === -1) {
     return null;
   }
   var fila = valores.find(function(f, i) {
     return i > 0 && String(f[columnaEmail] || '').trim().toLowerCase() === email;
   });
-  if (!fila || !valorBooleanoFotos_(fila[columnaActivo]) ||
-      !valorBooleanoFotos_(fila[columnaAdministrador])) return null;
+  if (!fila || !valorBooleanoFotos_(fila[columnaActivo])) return null;
+
+  var administrador = columnaAdministrador !== -1 &&
+    valorBooleanoFotos_(fila[columnaAdministrador]);
+  var revisorFotos = columnaModulos !== -1 &&
+    tenModuloFotos_(fila[columnaModulos], 'RevisarFotos');
+  if (!administrador && !revisorFotos) return null;
   return usuario;
+}
+
+function tenModuloFotos_(valor, modulo) {
+  var buscado = String(modulo || '').trim().toLowerCase();
+  return String(valor || '').split(',').some(function(item) {
+    return String(item || '').trim().toLowerCase() === buscado;
+  });
 }
 
 function valorBooleanoFotos_(valor) {
