@@ -97,11 +97,9 @@ const homeModules = getPortalNavigationModules('home');
     <div class="privacy-backdrop"></div>
     <section class="privacy-dialog" role="dialog" aria-modal="true" aria-labelledby="privacy-title">
       <span class="access-kicker">Primeiro acceso</span>
-      <h2 id="privacy-title">Protección de datos e condicións de acceso</h2>
-      <div class="privacy-text" id="privacy-text" tabindex="0">
-        <p>Os datos facilitados serán tratados pola Sociedade Coral Polifónica de Pontevedra coa finalidade de xestionar o acceso á zona privada da web e á aplicación SCPP Xestión, así como as comunicacións e funcionalidades internas vinculadas á entidade.</p>
-        <p>O acceso é persoal e non transferible. A persoa usuaria comprométese a custodiar as súas credenciais e a empregar a información dispoñible exclusivamente para os fins propios da Sociedade.</p>
-        <p>A aceptación quedará rexistrada coa data e hora, o correo electrónico, a versión do texto legal e os identificadores internos da persoa usuaria. Poderá solicitarse a retirada do consentimento ou o exercicio dos dereitos correspondentes a través da páxina de contacto.</p>
+      <h2 id="privacy-title">Condicións de acceso</h2>
+      <div class="privacy-text" id="privacy-text" tabindex="0" aria-live="polite">
+        <p>Cargando as condicións vixentes…</p>
       </div>
 
       <label class="privacy-consent" for="acepta-fines">
@@ -144,8 +142,6 @@ const homeModules = getPortalNavigationModules('home');
   const auth = getAuth(app);
   auth.useDeviceLanguage();
 
-  const VERSION_TEXTO_LEGAL = 'PRIVACIDADE-WEB-1.0';
-  const AMBITO = 'coralpolifonicapontevedra.org';
   const EMAIL_GARDADO = 'scpp-email-acceso';
 
   const authOptions = document.querySelector('#auth-options');
@@ -157,6 +153,7 @@ const homeModules = getPortalNavigationModules('home');
   const portalShell = document.querySelector('#portal-shell');
   const sidebarContainer = document.querySelector('#portal-sidebar-container');
   const privacyModal = document.querySelector('#privacy-modal');
+  const privacyTitle = document.querySelector('#privacy-title');
   const privacyText = document.querySelector('#privacy-text');
   const privacyMessage = document.querySelector('#privacy-message');
   const consent = document.querySelector('#acepta-fines');
@@ -242,6 +239,22 @@ const homeModules = getPortalNavigationModules('home');
     hidePrivacyMessage();
   }
 
+  function renderTextoLegal(textoLegal) {
+    const titulo = String(textoLegal?.titulo || '').trim();
+    const texto = String(textoLegal?.texto || '').trim();
+    if (!titulo || !texto || !(privacyText instanceof HTMLElement)) {
+      throw new Error('Non foi posible cargar as condicións de acceso vixentes.');
+    }
+
+    if (privacyTitle instanceof HTMLElement) privacyTitle.textContent = titulo;
+    privacyText.replaceChildren();
+    texto.split(/\n\s*\n/).forEach((paragrafo) => {
+      const p = document.createElement('p');
+      p.textContent = paragrafo.trim();
+      privacyText.appendChild(p);
+    });
+  }
+
   function hidePrivacyModal() {
     if (privacyModal instanceof HTMLElement) privacyModal.hidden = true;
     document.body.classList.remove('modal-open');
@@ -254,7 +267,7 @@ const homeModules = getPortalNavigationModules('home');
     const response = await fetch('/api/aceptacion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion: action, version: VERSION_TEXTO_LEGAL, ...extra })
+      body: JSON.stringify({ idToken, accion: action, ...extra })
     });
     const result = await response.json().catch(() => null);
     if (!response.ok || !result?.ok) throw new Error(result?.erro || result?.detalle || 'Non foi posible comprobar o acceso.');
@@ -290,7 +303,10 @@ const homeModules = getPortalNavigationModules('home');
     try {
       const result = await requestAcceptance('comprobarAceptacion');
       if (result.aceptacionVixente) await showDashboard(user);
-      else showPrivacyModal();
+      else {
+        renderTextoLegal(result.textoLegal);
+        showPrivacyModal();
+      }
     } catch (error) {
       await signOut(auth).catch(() => undefined);
       showSignedOut();
@@ -332,11 +348,7 @@ const homeModules = getPortalNavigationModules('home');
     hidePrivacyMessage();
     setButton(acceptButton, true, 'Gardando…');
     try {
-      await requestAcceptance('rexistrarAceptacion', {
-        aceptaFines: true,
-        textoLegal: privacyText instanceof HTMLElement ? privacyText.innerText : '',
-        ambito: AMBITO
-      });
+      await requestAcceptance('rexistrarAceptacion', { aceptaFines: true });
       const user = auth.currentUser;
       if (!user) throw new Error('A sesión xa non está activa.');
       await showDashboard(user);
@@ -453,3 +465,4 @@ const homeModules = getPortalNavigationModules('home');
     .privacy-actions button { width: 100%; }
   }
 </style>
+
