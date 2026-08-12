@@ -12,7 +12,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         <div>
           <span class="section-kicker">Portal do Coralista</span>
           <h1>Partituras</h1>
-          <p>Consulta o arquivo completo de partituras da Sociedade, independentemente de que formen parte do repertorio de traballo.</p>
+          <p>Consulta o arquivo completo de partituras da Sociedade, estean ou non vinculadas ao repertorio de traballo.</p>
         </div>
         <div class="account-card" aria-label="Conta identificada">
           <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
@@ -44,7 +44,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
               <span>Buscar</span>
               <span class="search-box">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
-                <input id="score-search" type="search" placeholder="Título ou nome do ficheiro" autocomplete="off" />
+                <input id="score-search" type="search" placeholder="Título ou nome" autocomplete="off" />
               </span>
             </label>
 
@@ -55,23 +55,75 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
               </select>
             </label>
           </div>
-
           <p id="no-results" class="no-results" hidden>Non hai partituras que coincidan coa busca.</p>
         </section>
 
-        <section class="score-list-section" aria-labelledby="score-list-title">
-          <div class="list-heading">
-            <div>
-              <span>Listado</span>
-              <h2 id="score-list-title">Partituras dispoñibles</h2>
-            </div>
-            <small id="filter-summary"></small>
+        <div class="management-actions" aria-label="Xestión de partituras">
+          <button id="new-score-button" class="action-button primary" type="button">Nova partitura</button>
+          <button id="delete-score-button" class="action-button danger" type="button">Eliminar partitura</button>
+        </div>
+
+        <section id="empty-selection" class="empty-selection">Selecciona unha partitura para consultar a súa ficha e abrila.</section>
+
+        <article id="score-detail" class="score-detail" hidden aria-live="polite">
+          <header class="score-heading">
+            <span id="score-id" class="score-id"></span>
+            <h2 id="score-title"></h2>
+          </header>
+          <dl class="score-metadata">
+            <div><dt>Voz</dt><dd id="score-voice">—</dd></div>
+            <div><dt>Tipo</dt><dd id="score-type">—</dd></div>
+            <div><dt>Repertorio</dt><dd id="score-work">—</dd></div>
+            <div><dt>Principal</dt><dd id="score-principal">—</dd></div>
+          </dl>
+          <div class="score-detail-actions">
+            <button id="open-score-button" class="action-button primary" type="button">Abrir partitura</button>
+            <a id="repertorio-link" class="secondary-link" href="/portal/repertorio/" hidden>Ver en Repertorio</a>
           </div>
-          <div id="score-list" class="score-list"></div>
-        </section>
+        </article>
       </section>
     </main>
   </div>
+
+  <dialog id="new-score-dialog" class="score-dialog">
+    <form id="new-score-form">
+      <div class="dialog-heading">
+        <div><span>Alta</span><h2>Nova partitura</h2></div>
+        <button class="dialog-close" type="button" data-close="new-score-dialog" aria-label="Pechar">×</button>
+      </div>
+      <div class="form-grid">
+        <label class="wide"><span>Nome da partitura *</span><input name="nomepartitura" required /></label>
+        <label><span>Id_Repertorio</span><input name="idRepertorio" placeholder="Opcional" /></label>
+        <label><span>Voz</span><select name="voz"><option>General</option><option>Soprano</option><option>Contralto</option><option>Tenor</option><option>Baixo</option></select></label>
+        <label><span>Versión</span><input name="version" value="1.0" /></label>
+        <label><span>TipoPartitura</span><select name="tipoPartitura"><option>Coral</option><option>Outra</option></select></label>
+        <label><span>Pública</span><select name="publica"><option value="false">Non</option><option value="true">Si</option></select></label>
+        <label><span>Principal</span><select name="principal"><option value="true">Si</option><option value="false">Non</option></select></label>
+        <label class="wide"><span>Observacións</span><textarea name="observacions" rows="3"></textarea></label>
+        <label class="wide"><span>PDF *</span><input name="ficheiro" type="file" accept="application/pdf,.pdf" required /></label>
+      </div>
+      <p class="form-note">Os identificadores e os campos técnicos de R2 créanse automaticamente.</p>
+      <div class="dialog-actions">
+        <button type="button" class="action-button secondary" data-close="new-score-dialog">Cancelar</button>
+        <button id="save-score-button" type="submit" class="action-button primary">Gardar partitura</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="delete-score-dialog" class="score-dialog small-dialog">
+    <form id="delete-score-form">
+      <div class="dialog-heading">
+        <div><span>Eliminación</span><h2>Eliminar partitura</h2></div>
+        <button class="dialog-close" type="button" data-close="delete-score-dialog" aria-label="Pechar">×</button>
+      </div>
+      <p id="delete-score-copy"></p>
+      <p class="warning-copy">Esta acción elimina o rexistro de <strong>Partituras_App</strong>. Úsaa só cando a alta sexa errónea ou o rexistro non deba existir.</p>
+      <div class="dialog-actions">
+        <button type="button" class="action-button secondary" data-close="delete-score-dialog">Cancelar</button>
+        <button id="confirm-delete-button" type="submit" class="action-button danger">Eliminar definitivamente</button>
+      </div>
+    </form>
+  </dialog>
 </BaseLayout>
 
 <script>
@@ -99,27 +151,32 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const select = document.querySelector('#score-select');
   const scoreCount = document.querySelector('#score-count');
   const noResults = document.querySelector('#no-results');
-  const scoreList = document.querySelector('#score-list');
-  const filterSummary = document.querySelector('#filter-summary');
+  const emptySelection = document.querySelector('#empty-selection');
+  const scoreDetail = document.querySelector('#score-detail');
+  const openScoreButton = document.querySelector('#open-score-button');
+  const repertorioLink = document.querySelector('#repertorio-link');
+  const newScoreButton = document.querySelector('#new-score-button');
+  const deleteScoreButton = document.querySelector('#delete-score-button');
+  const newDialog = document.querySelector('#new-score-dialog');
+  const deleteDialog = document.querySelector('#delete-score-dialog');
+  const newForm = document.querySelector('#new-score-form');
+  const deleteForm = document.querySelector('#delete-score-form');
+  const deleteCopy = document.querySelector('#delete-score-copy');
 
   let partituras = [];
+  let partituraActiva = null;
   let ficheiroUrl = '';
 
-  const normalizar = (value) => String(value || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-  const formatSize = (bytes) => {
-    const size = Number(bytes || 0);
-    if (!size) return '';
-    if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
-    return `${(size / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`;
+  const normalizar = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const text = (selector, value) => {
+    const element = document.querySelector(selector);
+    if (element instanceof HTMLElement) element.textContent = value || '—';
   };
 
   async function aceptacionVixente(user) {
     const idToken = await user.getIdToken(true);
     const response = await fetch('/api/aceptacion', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken, accion: 'comprobarAceptacion', version: 'PRIVACIDADE-WEB-1.0' })
     });
     const result = await response.json().catch(() => null);
@@ -131,108 +188,93 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (!user?.email) throw new Error('A sesión xa non está activa.');
     const idToken = await user.getIdToken(true);
     const response = await fetch('/api/partituras', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken, accion, ...extra })
     });
     if (accion === 'obterFicheiroPartitura' && response.ok) return response.blob();
     const result = await response.json().catch(() => null);
-    if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Non foi posible consultar as partituras.');
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Non foi posible completar a operación.');
     return result;
   }
 
-  function crear(tag, className, content) {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (content !== undefined) element.textContent = String(content);
-    return element;
+  function filtradas() {
+    const query = normalizar(search instanceof HTMLInputElement ? search.value : '');
+    if (!query) return partituras;
+    return partituras.filter((p) => normalizar([p.nome, p.voz, p.tipo, p.idRepertorio].join(' ')).includes(query));
   }
 
-  async function abrirPartitura(partitura, button) {
-    if (!partitura?.r2Key || !(button instanceof HTMLButtonElement)) return;
-    const previo = button.textContent;
-    button.disabled = true;
-    button.textContent = 'Abrindo…';
+  function limparSeleccion() {
+    partituraActiva = null;
+    if (select instanceof HTMLSelectElement) select.value = '';
+    if (emptySelection instanceof HTMLElement) emptySelection.hidden = false;
+    if (scoreDetail instanceof HTMLElement) scoreDetail.hidden = true;
+  }
+
+  function actualizarSelector() {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const items = filtradas();
+    const anterior = partituraActiva?.r2Key || '';
+    select.replaceChildren(new Option('Escolle unha partitura…', ''));
+    items.forEach((p) => select.add(new Option(p.nome || 'Partitura', p.r2Key)));
+    if (scoreCount instanceof HTMLElement) scoreCount.textContent = String(items.length);
+    if (noResults instanceof HTMLElement) noResults.hidden = items.length > 0;
+    if (items.some((p) => p.r2Key === anterior)) select.value = anterior;
+    else if (anterior) limparSeleccion();
+  }
+
+  function mostrarPartitura(partitura) {
+    partituraActiva = partitura;
+    if (select instanceof HTMLSelectElement) select.value = partitura.r2Key;
+    if (emptySelection instanceof HTMLElement) emptySelection.hidden = true;
+    if (scoreDetail instanceof HTMLElement) scoreDetail.hidden = false;
+    text('#score-id', partitura.id ? `Partitura ${partitura.id}` : '');
+    text('#score-title', partitura.nome);
+    text('#score-voice', partitura.voz || 'General');
+    text('#score-type', partitura.tipo || '—');
+    text('#score-work', partitura.idRepertorio ? `Obra ${partitura.idRepertorio}` : 'Non vinculada');
+    text('#score-principal', partitura.principal ? 'Si' : 'Non');
+    if (repertorioLink instanceof HTMLAnchorElement) {
+      repertorioLink.hidden = !partitura.idRepertorio;
+      repertorioLink.href = partitura.idRepertorio ? `/portal/repertorio/?id=${encodeURIComponent(partitura.idRepertorio)}` : '/portal/repertorio/';
+    }
+  }
+
+  async function abrirPartitura() {
+    if (!partituraActiva || !(openScoreButton instanceof HTMLButtonElement)) return;
+    const previo = openScoreButton.textContent;
+    openScoreButton.disabled = true;
+    openScoreButton.textContent = 'Abrindo…';
     try {
-      const blob = await solicitar('obterFicheiroPartitura', { r2Key: partitura.r2Key });
+      const blob = await solicitar('obterFicheiroPartitura', { r2Key: partituraActiva.r2Key });
       if (ficheiroUrl) URL.revokeObjectURL(ficheiroUrl);
       ficheiroUrl = URL.createObjectURL(blob);
       window.open(ficheiroUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'Non foi posible abrir a partitura.');
     } finally {
-      button.disabled = false;
-      button.textContent = previo || 'Abrir partitura';
+      openScoreButton.disabled = false;
+      openScoreButton.textContent = previo || 'Abrir partitura';
     }
   }
 
-  function filtradas() {
-    const query = normalizar(search instanceof HTMLInputElement ? search.value : '');
-    if (!query) return partituras;
-    return partituras.filter((partitura) => normalizar([
-      partitura.nome,
-      partitura.voz,
-      partitura.tipo,
-      partitura.idRepertorio
-    ].join(' ')).includes(query));
-  }
-
-  function debuxarListado(items) {
-    if (!(scoreList instanceof HTMLElement)) return;
-    scoreList.replaceChildren();
-
-    items.forEach((partitura) => {
-      const card = crear('article', 'score-card');
-      const copy = crear('div', 'score-copy');
-      copy.append(crear('strong', '', partitura.nome || 'Partitura'));
-
-      const meta = [];
-      if (partitura.voz && partitura.voz !== 'General') meta.push(partitura.voz);
-      if (partitura.tipo) meta.push(partitura.tipo);
-      const size = formatSize(partitura.tamano);
-      if (size) meta.push(size);
-      if (meta.length) copy.append(crear('span', '', meta.join(' · ')));
-
-      if (partitura.idRepertorio) {
-        const repertorioLink = crear('a', 'repertorio-link', 'Ver en Repertorio');
-        repertorioLink.href = `/portal/repertorio/?id=${encodeURIComponent(partitura.idRepertorio)}`;
-        copy.append(repertorioLink);
-      }
-
-      const button = crear('button', 'score-open', 'Abrir partitura');
-      button.type = 'button';
-      button.addEventListener('click', () => abrirPartitura(partitura, button));
-      card.append(copy, button);
-      scoreList.append(card);
+  function ficheiroABase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Non foi posible ler o PDF.'));
+      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+      reader.readAsDataURL(file);
     });
-  }
-
-  function actualizarVista() {
-    const items = filtradas();
-    if (scoreCount instanceof HTMLElement) scoreCount.textContent = String(items.length);
-    if (filterSummary instanceof HTMLElement) {
-      filterSummary.textContent = items.length === partituras.length ? '' : `${items.length} de ${partituras.length}`;
-    }
-    if (noResults instanceof HTMLElement) noResults.hidden = items.length > 0;
-
-    if (select instanceof HTMLSelectElement) {
-      const anterior = select.value;
-      select.replaceChildren(new Option('Escolle unha partitura…', ''));
-      items.forEach((partitura) => select.add(new Option(partitura.nome || 'Partitura', partitura.r2Key)));
-      if (items.some((partitura) => partitura.r2Key === anterior)) select.value = anterior;
-    }
-    debuxarListado(items);
   }
 
   async function cargar() {
     if (loading instanceof HTMLElement) loading.hidden = false;
     if (app instanceof HTMLElement) app.hidden = true;
     if (errorState instanceof HTMLElement) errorState.hidden = true;
-
     try {
       const result = await solicitar('listarPartiturasPortal');
       partituras = Array.isArray(result.partituras) ? result.partituras : [];
-      actualizarVista();
+      limparSeleccion();
+      actualizarSelector();
       if (loading instanceof HTMLElement) loading.hidden = true;
       if (app instanceof HTMLElement) app.hidden = false;
     } catch (error) {
@@ -242,48 +284,95 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     }
   }
 
-  search?.addEventListener('input', actualizarVista);
+  search?.addEventListener('input', actualizarSelector);
   select?.addEventListener('change', () => {
-    if (!(select instanceof HTMLSelectElement) || !select.value) return;
+    if (!(select instanceof HTMLSelectElement) || !select.value) { limparSeleccion(); return; }
     const partitura = partituras.find((item) => item.r2Key === select.value);
-    const card = [...document.querySelectorAll('.score-card')].find((item) =>
-      item.querySelector('strong')?.textContent === partitura?.nome
-    );
-    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (partitura) mostrarPartitura(partitura);
   });
+  openScoreButton?.addEventListener('click', abrirPartitura);
+  newScoreButton?.addEventListener('click', () => { if (newDialog instanceof HTMLDialogElement) newDialog.showModal(); });
+  deleteScoreButton?.addEventListener('click', () => {
+    if (!partituraActiva) { window.alert('Selecciona primeiro a partitura que queres eliminar.'); return; }
+    if (deleteCopy instanceof HTMLElement) deleteCopy.textContent = `Vas eliminar “${partituraActiva.nome}”.`;
+    if (deleteDialog instanceof HTMLDialogElement) deleteDialog.showModal();
+  });
+
+  document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => {
+    const id = button.getAttribute('data-close');
+    const dialog = id ? document.getElementById(id) : null;
+    if (dialog instanceof HTMLDialogElement) dialog.close();
+  }));
+
+  newForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!(newForm instanceof HTMLFormElement)) return;
+    const form = new FormData(newForm);
+    const file = form.get('ficheiro');
+    if (!(file instanceof File) || !file.size) return;
+    const save = document.querySelector('#save-score-button');
+    if (save instanceof HTMLButtonElement) { save.disabled = true; save.textContent = 'Gardando…'; }
+    try {
+      const base64 = await ficheiroABase64(file);
+      await solicitar('altaPartituraPortal', {
+        nomepartitura: String(form.get('nomepartitura') || ''),
+        idRepertorio: String(form.get('idRepertorio') || ''),
+        voz: String(form.get('voz') || 'General'),
+        version: String(form.get('version') || '1.0'),
+        tipoPartitura: String(form.get('tipoPartitura') || 'Coral'),
+        publica: form.get('publica') === 'true',
+        principal: form.get('principal') !== 'false',
+        observacions: String(form.get('observacions') || ''),
+        ficheiro: { nome: file.name, mimeType: file.type || 'application/pdf', base64 }
+      });
+      if (newDialog instanceof HTMLDialogElement) newDialog.close();
+      newForm.reset();
+      await cargar();
+      window.alert('Partitura dada de alta correctamente.');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Non foi posible dar de alta a partitura.');
+    } finally {
+      if (save instanceof HTMLButtonElement) { save.disabled = false; save.textContent = 'Gardar partitura'; }
+    }
+  });
+
+  deleteForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!partituraActiva) return;
+    const confirmar = document.querySelector('#confirm-delete-button');
+    if (confirmar instanceof HTMLButtonElement) { confirmar.disabled = true; confirmar.textContent = 'Eliminando…'; }
+    try {
+      await solicitar('eliminarPartituraPortal', { idPartitura: partituraActiva.id });
+      if (deleteDialog instanceof HTMLDialogElement) deleteDialog.close();
+      await cargar();
+      window.alert('Partitura eliminada de Partituras_App.');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Non foi posible eliminar a partitura.');
+    } finally {
+      if (confirmar instanceof HTMLButtonElement) { confirmar.disabled = false; confirmar.textContent = 'Eliminar definitivamente'; }
+    }
+  });
+
   retryButton?.addEventListener('click', cargar);
-  logout?.addEventListener('click', async () => {
-    await signOut(auth).catch(() => {});
-    window.location.href = '/portal/';
-  });
+  logout?.addEventListener('click', async () => { await signOut(auth).catch(() => {}); window.location.href = '/portal/'; });
 
   onAuthStateChanged(auth, async (user) => {
-    if (!user?.email) {
-      window.location.href = '/portal/';
-      return;
-    }
+    if (!user?.email) { window.location.href = '/portal/'; return; }
     if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
     try {
-      if (!(await aceptacionVixente(user))) {
-        window.location.href = '/portal/';
-        return;
-      }
+      if (!(await aceptacionVixente(user))) { window.location.href = '/portal/'; return; }
       await cargar();
-    } catch {
-      window.location.href = '/portal/';
-    }
+    } catch { window.location.href = '/portal/'; }
   });
 
-  window.addEventListener('pagehide', () => {
-    if (ficheiroUrl) URL.revokeObjectURL(ficheiroUrl);
-  });
+  window.addEventListener('pagehide', () => { if (ficheiroUrl) URL.revokeObjectURL(ficheiroUrl); });
 </script>
 
 <style>
   .private-layout { min-height: 100vh; display: grid; grid-template-columns: 282px minmax(0, 1fr); background: #f7f5f2; }
   .partituras-main { min-width: 0; padding: 2.25rem clamp(1.25rem, 3vw, 3rem) 4rem; }
   .private-page-header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; max-width: 1180px; margin: 0 auto 1.5rem; }
-  .section-kicker, .score-tools-heading span, .list-heading span { color: var(--color-acento); font-size: .73rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+  .section-kicker, .score-tools-heading span, .dialog-heading span { color: var(--color-acento); font-size: .73rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
   h1 { margin: .35rem 0 .55rem; color: var(--color-principal); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2rem, 4vw, 3rem); }
   .private-page-header p { max-width: 760px; margin: 0; color: #5f5955; line-height: 1.65; }
   .account-card { padding: .75rem 1rem; border: 1px solid #e4dfda; border-radius: 7px; background: #fff; }
@@ -292,47 +381,60 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .account-card strong { color: #35312e; font-size: .78rem; }
   .portal-state, .partituras-app { max-width: 1180px; margin: 0 auto; }
   .portal-state { padding: 2rem; border: 1px solid #e6e0db; background: #fff; color: #5a5551; }
-  .error-state strong { color: var(--color-principal); }
-  .error-state button { margin-top: .75rem; }
-  .score-tools, .score-list-section { border: 1px solid #e3ddd8; border-radius: 8px; background: #fff; }
+  .score-tools, .score-detail, .empty-selection { border: 1px solid #e3ddd8; border-radius: 8px; background: #fff; }
   .score-tools { padding: 1.25rem; }
-  .score-tools-heading, .list-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; }
-  .score-tools-heading > div:first-child { display: grid; gap: .25rem; }
-  .score-tools-heading strong { color: #302c29; font-size: 1.05rem; }
-  .score-summary { display: grid; text-align: right; }
+  .score-tools-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; }
+  .score-tools-heading > div:first-child, .score-summary { display: grid; gap: .25rem; }
+  .score-summary { text-align: right; }
   .score-summary strong { color: var(--color-principal); font-size: 1.5rem; }
   .score-summary span { color: #77706b; font-size: .74rem; }
   .score-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); gap: 1rem; margin-top: 1.1rem; }
-  .search-field, .select-field { display: grid; gap: .4rem; color: #5c5652; font-size: .76rem; font-weight: 700; }
-  .search-box { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: .45rem; min-height: 45px; padding: 0 .75rem; border: 1px solid #d8d1cc; border-radius: 5px; background: #fff; }
+  .search-field, .select-field, .form-grid label { display: grid; gap: .4rem; color: #5c5652; font-size: .76rem; font-weight: 700; }
+  .search-box { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: .45rem; min-height: 45px; padding: 0 .75rem; border: 1px solid #d8d1cc; border-radius: 5px; }
   .search-box svg { width: 17px; height: 17px; fill: none; stroke: #776f69; stroke-width: 1.7; }
-  .search-box input { min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-weight: 400; }
-  .select-field select { min-height: 45px; padding: 0 .75rem; border: 1px solid #d8d1cc; border-radius: 5px; background: #fff; color: #393531; }
-  .no-results { margin: 1rem 0 0; color: #7b3737; }
-  .score-list-section { margin-top: 1rem; overflow: hidden; }
-  .list-heading { padding: 1.1rem 1.2rem; border-bottom: 1px solid #e7e1dc; }
-  .list-heading h2 { margin: .2rem 0 0; color: #302c29; font-family: Georgia, 'Times New Roman', serif; font-size: 1.25rem; }
-  .list-heading small { color: #756e69; }
-  .score-list { display: grid; }
-  .score-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: .9rem 1.2rem; border-bottom: 1px solid #eee9e5; }
-  .score-card:last-child { border-bottom: 0; }
-  .score-card:hover { background: #fbf9f7; }
-  .score-copy { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; }
-  .score-copy strong { color: #302c29; font-size: .94rem; }
-  .score-copy span { color: #817873; font-size: .76rem; }
-  .repertorio-link { color: #3e3935; font-size: .74rem; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
-  .score-open, .error-state button { min-height: 38px; padding: .55rem .85rem; border: 1px solid var(--color-principal); border-radius: 4px; background: var(--color-principal); color: #fff; font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
-  .score-open:disabled { opacity: .6; cursor: wait; }
+  .search-box input, .select-field select, .form-grid input, .form-grid select, .form-grid textarea { width: 100%; box-sizing: border-box; min-height: 45px; border: 1px solid #d8d1cc; border-radius: 5px; background: #fff; padding: .65rem .75rem; font: inherit; color: #35312e; }
+  .search-box input { min-height: auto; border: 0; padding: 0; outline: 0; }
+  .management-actions { display: flex; justify-content: flex-end; gap: .65rem; margin: 1rem 0; }
+  .action-button { min-height: 42px; border-radius: 5px; padding: .65rem 1rem; font-weight: 750; cursor: pointer; }
+  .action-button.primary { border: 1px solid var(--color-principal); background: var(--color-principal); color: #fff; }
+  .action-button.secondary { border: 1px solid #cfc7c1; background: #fff; color: #49433f; }
+  .action-button.danger { border: 1px solid #7d2633; background: #fff; color: #7d2633; }
+  .empty-selection { padding: 2rem; text-align: center; color: #77706b; }
+  .score-detail { padding: 1.4rem; }
+  .score-heading h2 { margin: .25rem 0 1rem; color: var(--color-principal); font-family: Georgia, 'Times New Roman', serif; font-size: 1.65rem; }
+  .score-id { color: #8b817a; font-size: .76rem; }
+  .score-metadata { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin: 0; }
+  .score-metadata div { padding: .85rem; background: #f8f6f3; border-radius: 5px; }
+  .score-metadata dt { color: #827871; font-size: .7rem; text-transform: uppercase; }
+  .score-metadata dd { margin: .25rem 0 0; color: #342f2c; font-weight: 700; }
+  .score-detail-actions { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+  .secondary-link { color: var(--color-principal); font-weight: 700; text-decoration: none; }
+  .score-dialog { width: min(760px, calc(100vw - 2rem)); border: 0; border-radius: 9px; padding: 0; box-shadow: 0 24px 70px rgba(0,0,0,.22); }
+  .score-dialog::backdrop { background: rgba(25,22,20,.45); }
+  .score-dialog form { padding: 1.4rem; }
+  .small-dialog { width: min(520px, calc(100vw - 2rem)); }
+  .dialog-heading { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+  .dialog-heading h2 { margin: .2rem 0 0; color: var(--color-principal); }
+  .dialog-close { border: 0; background: transparent; font-size: 1.8rem; cursor: pointer; color: #756d67; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+  .form-grid .wide { grid-column: 1 / -1; }
+  .form-grid textarea { resize: vertical; }
+  .form-note, .warning-copy { color: #746c66; font-size: .82rem; line-height: 1.5; }
+  .warning-copy { padding: .8rem; background: #faf1f2; border-left: 3px solid #7d2633; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1rem; }
+  .no-results { margin-bottom: 0; color: #7d2633; }
   @media (max-width: 900px) {
-    .private-layout { grid-template-columns: 1fr; }
+    .private-layout { display: block; }
     .partituras-main { padding-top: 1.25rem; }
-    .private-page-header { display: grid; }
-    .account-card { display: none; }
+    .private-page-header { display: block; }
+    .account-card { margin-top: 1rem; }
+    .score-controls, .score-metadata { grid-template-columns: 1fr; }
   }
   @media (max-width: 620px) {
-    .score-controls { grid-template-columns: 1fr; }
-    .score-tools-heading { align-items: flex-start; }
-    .score-card { grid-template-columns: 1fr; }
-    .score-open { width: 100%; }
+    .management-actions, .dialog-actions, .score-detail-actions { align-items: stretch; flex-direction: column; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .wide { grid-column: auto; }
+    .score-tools-heading { align-items: flex-start; flex-direction: column; }
+    .score-summary { text-align: left; }
   }
 </style>
