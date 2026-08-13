@@ -7,6 +7,8 @@ const LISTA_FRESH_MS = 5 * 60 * 1000;
 const LISTA_STALE_MS = 24 * 60 * 60 * 1000;
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 const AUTH_CACHE_VERSION = 2;
+const FIREBASE_TOKEN_CACHE_MS = 5 * 60 * 1000;
+const firebaseTokenCache = new Map();
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -17,22 +19,50 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
   }
 });
 
+function limparFirebaseTokenCache(maximo = 100) {
+  const agora = Date.now();
+  for (const [token, entrada] of firebaseTokenCache.entries()) {
+    if (!entrada || Number(entrada.expira || 0) <= agora) firebaseTokenCache.delete(token);
+  }
+  while (firebaseTokenCache.size > maximo) {
+    firebaseTokenCache.delete(firebaseTokenCache.keys().next().value);
+  }
+}
+
 async function verificarTokenFirebase(idToken, apiKey) {
+  const token = String(idToken || '').trim();
+  if (!token) return null;
+
+  const cached = firebaseTokenCache.get(token);
+  if (cached?.expira > Date.now()) return cached.usuario;
+
   const resposta = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
+      body: JSON.stringify({ idToken: token })
     }
   );
-  if (!resposta.ok) return null;
-  const usuario = (await resposta.json())?.users?.[0];
-  if (!usuario?.email || usuario.emailVerified !== true) return null;
-  return {
-    uid: String(usuario.localId || ''),
-    email: String(usuario.email).trim().toLowerCase()
+  if (!resposta.ok) {
+    firebaseTokenCache.delete(token);
+    return null;
+  }
+  const usuarioFirebase = (await resposta.json())?.users?.[0];
+  if (!usuarioFirebase?.email || usuarioFirebase.emailVerified !== true) {
+    firebaseTokenCache.delete(token);
+    return null;
+  }
+  const usuario = {
+    uid: String(usuarioFirebase.localId || ''),
+    email: String(usuarioFirebase.email).trim().toLowerCase()
   };
+  firebaseTokenCache.set(token, {
+    usuario,
+    expira: Date.now() + FIREBASE_TOKEN_CACHE_MS
+  });
+  limparFirebaseTokenCache();
+  return usuario;
 }
 
 async function claveCorreo(email) {
