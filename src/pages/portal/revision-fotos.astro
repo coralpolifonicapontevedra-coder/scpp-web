@@ -58,8 +58,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             </section>
 
             <section class="actions">
-              <button id="save-modified" type="button">Gardar modificada</button>
-              <button id="save-draft" type="button">Conservar sen publicar</button>
+              <button id="save-draft" type="button">Guardar borrador editado</button>
               <button id="publish" class="primary" type="button">Publicar edición</button>
               <button id="delete-photo" class="danger" type="button">Eliminar fotografía</button>
             </section>
@@ -319,6 +318,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       original=image;
       drawImage(image);resetCrop();
       setMessage(`Fotografía preparada en ${Math.round(performance.now()-started)} ms${originalCache.has(id)?' (caché activa)':''}.`);
+      preloadAround();
     } catch(error) {
       if(sequence===loadSequence)setMessage(error instanceof Error?error.message:'Non se puido abrir a fotografía.',true);
     } finally {
@@ -328,62 +328,23 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   function fieldValue(id){const e=document.querySelector(id);return e instanceof HTMLInputElement||e instanceof HTMLTextAreaElement?e.value:'';}
 
-  function editionBase64(){
-    if(!(canvas instanceof HTMLCanvasElement)||!canvas.width||!canvas.height)throw new Error('Carga primeiro a fotografía antes de gardar os cambios.');
-    return canvas.toDataURL('image/jpeg',.9).split(',')[1]||'';
-  }
-
-  async function saveModified(){
-    if(!actual)return setMessage('Non hai ningunha fotografía seleccionada.',true);
-    setMessage('Gardando a versión modificada en R2…');
-    if(r2Status instanceof HTMLElement)r2Status.textContent='Gardando';
-    if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='Sen cambios';
-    try{
-      const result=await api('/api/gardar-borrador-foto',{idFoto:idDaFoto(actual),mimeType:'image/jpeg',base64:editionBase64(),titulo:fieldValue('#title'),peFoto:fieldValue('#caption'),observacions:fieldValue('#notes')});
-      if(r2Status instanceof HTMLElement)r2Status.textContent='Gardada';
-      setMessage(result.mensaxe||'Versión modificada gardada. A fotografía continúa pendente de revisión.');
-    }catch(error){if(r2Status instanceof HTMLElement)r2Status.textContent='Erro';setMessage(error instanceof Error?error.message:'Non se puido gardar a modificación.',true);}
-  }
-
   async function save(publish) {
     if (!(canvas instanceof HTMLCanvasElement)||!actual)return;
     const publica=publish&&publishPublic instanceof HTMLInputElement&&publishPublic.checked;
     const privada=publish&&publishPrivate instanceof HTMLInputElement&&publishPrivate.checked;
     if(publish&&!publica&&!privada){setMessage('Selecciona a galería pública, a privada ou ambas.',true);return;}
-    if(!publish&&!window.confirm('Conservar esta fotografía no arquivo sen publicala?\n\nGardaranse as modificacións, pecharase a revisión e non se enviará a ningunha galería.'))return;
-    setMessage(publish?'Gardando e publicando a versión editada…':'Conservando a fotografía sen publicar…');
+    setMessage('Gardando a versión editada en R2…');
     if(r2Status instanceof HTMLElement)r2Status.textContent='Gardando';
     if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='En espera';
+    const base64=canvas.toDataURL('image/jpeg',.9).split(',')[1]||'';
     try{
-      const result=await api('/api/editor-fotos',{accion:'gardarEdicion',idFoto:idDaFoto(actual),mimeType:'image/jpeg',base64:editionBase64(),estado:'Aprobada',titulo:fieldValue('#title'),peFoto:fieldValue('#caption'),observacions:fieldValue('#notes'),publicarPublica:publica,publicarPrivada:privada,destacadaPublica:publica&&featuredPublic instanceof HTMLInputElement&&featuredPublic.checked,destacadaPrivada:privada&&featuredPrivate instanceof HTMLInputElement&&featuredPrivate.checked});
+      const result=await api('/api/editor-fotos',{accion:'gardarEdicion',idFoto:idDaFoto(actual),mimeType:'image/jpeg',base64,estado:'Aprobada',titulo:fieldValue('#title'),peFoto:fieldValue('#caption'),observacions:fieldValue('#notes'),publicarPublica:publica,publicarPrivada:privada,destacadaPublica:publica&&featuredPublic instanceof HTMLInputElement&&featuredPublic.checked,destacadaPrivada:privada&&featuredPrivate instanceof HTMLInputElement&&featuredPrivate.checked});
       if(r2Status instanceof HTMLElement)r2Status.textContent='Gardado';
       if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='Sincronizando';
       setMessage(result.mensaxe||'Edición gardada.');startPolling();
     }catch(error){if(r2Status instanceof HTMLElement)r2Status.textContent='Erro';setMessage(error instanceof Error?error.message:'Non se puido gardar.',true);}
   }
 
-  function removeCurrentPhoto(id) {
-    const index = fotos.findIndex(foto => idDaFoto(foto) === id);
-    if (index < 0) return;
-    const cached = originalCache.get(id);
-    if (cached) {
-      URL.revokeObjectURL(cached.url);
-      originalCache.delete(id);
-    }
-    fotos.splice(index, 1);
-    actual = null;
-    original = null;
-    if (select instanceof HTMLSelectElement) {
-      select.innerHTML = fotos.map((foto, i) => `<option value="${escapar(idDaFoto(foto))}">${escapar(texto(foto.titulo || foto.nomeFicheiro || `Fotografía ${i + 1}`))}</option>`).join('');
-      select.selectedIndex = Math.min(index, fotos.length - 1);
-    }
-    if (canvas instanceof HTMLCanvasElement && ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.width = 0;
-      canvas.height = 0;
-    }
-    updateNavigation();
-  }
 
   async function deletePhoto() {
     if (!actual) return setMessage('Non hai ningunha fotografía seleccionada.', true);
@@ -393,20 +354,31 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const button = document.querySelector('#delete-photo');
     if (button instanceof HTMLButtonElement) button.disabled = true;
     setMessage('Eliminando a fotografía de Sheet, Drive e R2…');
-    if (r2Status instanceof HTMLElement) r2Status.textContent = 'Eliminando';
-    if (sheetStatus instanceof HTMLElement) sheetStatus.textContent = 'Eliminando';
     try {
       const result = await api('/api/eliminar-foto-revision', { idFoto: id, rowId: id });
-      removeCurrentPhoto(id);
-      if (r2Status instanceof HTMLElement) r2Status.textContent = result.aviso ? 'Limpeza pendente' : 'Eliminada';
-      if (sheetStatus instanceof HTMLElement) sheetStatus.textContent = 'Eliminada';
-      setMessage(result.mensaxe || 'Fotografía eliminada correctamente.');
-      if (fotos.length && select instanceof HTMLSelectElement) {
-        loadFields();
+      fotos = fotos.filter((foto) => idDaFoto(foto) !== id);
+      const cached = originalCache.get(id);
+      if (cached) {
+        URL.revokeObjectURL(cached.url);
+        originalCache.delete(id);
       }
+      actual = null;
+      original = null;
+      if (select instanceof HTMLSelectElement) {
+        select.innerHTML = fotos.map((foto, i) => `<option value="${escapar(idDaFoto(foto))}">${escapar(texto(foto.titulo || foto.nomeFicheiro || `Fotografía ${i + 1}`))}</option>`).join('');
+      }
+      if (fotos.length) {
+        await loadSelected();
+      } else {
+        if (canvas instanceof HTMLCanvasElement && ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+        updateNavigation();
+      }
+      setMessage(result.mensaxe || 'Fotografía eliminada correctamente.');
     } catch (error) {
-      if (r2Status instanceof HTMLElement) r2Status.textContent = 'Erro';
-      if (sheetStatus instanceof HTMLElement) sheetStatus.textContent = 'Erro';
       setMessage(error instanceof Error ? error.message : 'Non se puido eliminar a fotografía.', true);
     } finally {
       if (button instanceof HTMLButtonElement) button.disabled = false;
@@ -437,7 +409,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       if(state instanceof HTMLElement)state.hidden=true;
       if(shell instanceof HTMLElement)shell.hidden=false;
       updateNavigation();
-      if(fotos.length){loadFields();setMessage(`Lista preparada en ${Math.round(performance.now()-started)} ms. Preme «Cargar fotografía» para abrir o orixinal.`);}else setMessage('Non hai fotografías pendentes de revisión.');
+      if(fotos.length){loadFields();setMessage(`Lista preparada en ${Math.round(performance.now()-started)} ms. Preme «Cargar fotografía» ou usa Anterior/Seguinte.`);preloadIndex(0);}else setMessage('Non hai fotografías pendentes de revisión.');
     }catch(error){if(state instanceof HTMLElement)state.textContent=error instanceof Error?error.message:'Non se puido abrir o módulo.';}
   });
 
@@ -453,7 +425,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   applyCrop?.addEventListener('click',()=>{if(!(canvas instanceof HTMLCanvasElement)||!ctx||!cropRect)return;const rect=canvas.getBoundingClientRect();const sx=canvas.width/rect.width,sy=canvas.height/rect.height;const x=Math.round(cropRect.x*sx),y=Math.round(cropRect.y*sy),w=Math.round(cropRect.w*sx),h=Math.round(cropRect.h*sy);const data=ctx.getImageData(x,y,w,h);canvas.width=w;canvas.height=h;ctx.putImageData(data,0,0);resetCrop();setMessage('Recorte aplicado.');});
   document.querySelector('#reset-photo')?.addEventListener('click',()=>{if(original){drawImage(original);resetCrop();setMessage('Recuperouse o orixinal.');}});
   publishPublic?.addEventListener('change',updateFeatured);publishPrivate?.addEventListener('change',updateFeatured);
-  document.querySelector('#save-modified')?.addEventListener('click',saveModified);
   document.querySelector('#save-draft')?.addEventListener('click',()=>save(false));
   document.querySelector('#publish')?.addEventListener('click',()=>save(true));
   document.querySelector('#delete-photo')?.addEventListener('click',deletePhoto);
@@ -462,5 +433,5 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 </script>
 
 <style>
-  :global(body){background:#f5f3f0}.private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh}.page-main{padding:2.5rem clamp(1rem,3.5vw,3.5rem) 5rem;font-family:Aptos,'Segoe UI',Arial,sans-serif}.page-header>span{color:var(--color-acento);font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.page-header h1{margin:.35rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,3.4vw,3rem);font-weight:400}.page-header p{max-width:760px;margin:0 0 1.5rem;color:#655f5b}.state,.selector-row,.image-column,.review-column{border:1px solid #ddd7d2;background:#fff}.state{padding:1rem}.selector-row{display:flex;gap:1rem;align-items:end;padding:1rem;margin-bottom:1rem}.selector-row label{display:grid;gap:.35rem;flex:1}.selector-row span,.field-group h2,.field-group label>span,.status-grid span{font-size:.67rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}.selector-row select,.selector-row button,input,textarea,.tools button,.actions button{font:inherit}.selector-row select,.selector-row button{min-height:2.6rem;padding:.6rem .75rem;border:1px solid #cfc7c1;background:#fff}.selector-row button:disabled{opacity:.45;cursor:not-allowed}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:1rem}.image-column{padding:1rem;background:#ebe7e2}.canvas-wrap{position:relative;display:grid;min-height:540px;place-items:center}.canvas-wrap canvas{display:block;max-width:100%;max-height:72vh;background:#fff;box-shadow:0 8px 28px rgba(30,24,20,.12);touch-action:none}.canvas-wrap.is-cropping canvas{cursor:crosshair}.crop-box{position:absolute;border:2px solid #fff;outline:1px solid #6d2032;background:rgba(109,32,50,.12);pointer-events:none}.tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin-top:1rem}.tools button,.actions button{min-height:2.6rem;padding:.55rem .7rem;border:1px solid #cfc7c1;background:#fff;color:#4b4642;cursor:pointer}.review-column{padding:1rem;align-self:start}.field-group+.field-group{margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid #e5e0dc}.field-group h2{margin:0 0 .8rem;color:var(--color-principal)}.field-group label:not(.check){display:grid;gap:.35rem;margin-bottom:.8rem}.field-group input,.field-group textarea{width:100%;padding:.65rem;border:1px solid #d4cec9;background:#fff}.check{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:start;padding:.65rem 0}.check input{margin-top:.18rem}.check span{display:grid;gap:.15rem;text-transform:none;letter-spacing:0}.check strong{font-weight:600}.check small{color:#6b6561}.check.secondary{padding:.25rem 0 .7rem 1.65rem}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin-top:1.2rem}.actions .primary{background:var(--color-principal);color:#fff;border-color:var(--color-principal)}.actions .danger{grid-column:1/-1;border-color:#a12b2b;color:#842323;background:#fff7f7}.actions .danger:hover{background:#a12b2b;color:#fff}.actions button:disabled{opacity:.55;cursor:wait}.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1rem}.status-grid div{display:grid;gap:.2rem;padding:.65rem;border:1px solid #e1dcd7;background:#faf8f6}.status-grid strong{font-size:.82rem;font-weight:600}.message{min-height:2.6rem;margin:1rem 0 0;padding:.7rem;border-left:3px solid var(--color-acento);background:#faf8f6;font-size:.82rem}.message[data-error='true']{border-left-color:#a12b2b;color:#842323}@media(max-width:1050px){.private-layout{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.review-column{width:100%}}@media(max-width:760px){.selector-row{display:grid;grid-template-columns:1fr 1fr}.selector-row label{grid-column:1/-1}.selector-row #load-photo{grid-column:1/-1}.tools{grid-template-columns:1fr 1fr}.actions{grid-template-columns:1fr}.canvas-wrap{min-height:320px}.status-grid{grid-template-columns:1fr}}
+  :global(body){background:#f5f3f0}.private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh}.page-main{padding:2.5rem clamp(1rem,3.5vw,3.5rem) 5rem;font-family:Aptos,'Segoe UI',Arial,sans-serif}.page-header>span{color:var(--color-acento);font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.page-header h1{margin:.35rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,3.4vw,3rem);font-weight:400}.page-header p{max-width:760px;margin:0 0 1.5rem;color:#655f5b}.state,.selector-row,.image-column,.review-column{border:1px solid #ddd7d2;background:#fff}.state{padding:1rem}.selector-row{display:flex;gap:1rem;align-items:end;padding:1rem;margin-bottom:1rem}.selector-row label{display:grid;gap:.35rem;flex:1}.selector-row span,.field-group h2,.field-group label>span,.status-grid span{font-size:.67rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}.selector-row select,.selector-row button,input,textarea,.tools button,.actions button{font:inherit}.selector-row select,.selector-row button{min-height:2.6rem;padding:.6rem .75rem;border:1px solid #cfc7c1;background:#fff}.selector-row button:disabled{opacity:.45;cursor:not-allowed}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:1rem}.image-column{padding:1rem;background:#ebe7e2}.canvas-wrap{position:relative;display:grid;min-height:540px;place-items:center}.canvas-wrap canvas{display:block;max-width:100%;max-height:72vh;background:#fff;box-shadow:0 8px 28px rgba(30,24,20,.12);touch-action:none}.canvas-wrap.is-cropping canvas{cursor:crosshair}.crop-box{position:absolute;border:2px solid #fff;outline:1px solid #6d2032;background:rgba(109,32,50,.12);pointer-events:none}.tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin-top:1rem}.tools button,.actions button{min-height:2.6rem;padding:.55rem .7rem;border:1px solid #cfc7c1;background:#fff;color:#4b4642;cursor:pointer}.review-column{padding:1rem;align-self:start}.field-group+.field-group{margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid #e5e0dc}.field-group h2{margin:0 0 .8rem;color:var(--color-principal)}.field-group label:not(.check){display:grid;gap:.35rem;margin-bottom:.8rem}.field-group input,.field-group textarea{width:100%;padding:.65rem;border:1px solid #d4cec9;background:#fff}.check{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:start;padding:.65rem 0}.check input{margin-top:.18rem}.check span{display:grid;gap:.15rem;text-transform:none;letter-spacing:0}.check strong{font-weight:600}.check small{color:#6b6561}.check.secondary{padding:.25rem 0 .7rem 1.65rem}.actions{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1.2rem}.actions .primary{background:var(--color-principal);color:#fff;border-color:var(--color-principal)}.actions .danger{grid-column:1/-1;border-color:#a12b2b;color:#842323;background:#fff7f7}.actions .danger:hover{background:#a12b2b;color:#fff}.actions button:disabled{opacity:.55;cursor:wait}.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1rem}.status-grid div{display:grid;gap:.2rem;padding:.65rem;border:1px solid #e1dcd7;background:#faf8f6}.status-grid strong{font-size:.82rem;font-weight:600}.message{min-height:2.6rem;margin:1rem 0 0;padding:.7rem;border-left:3px solid var(--color-acento);background:#faf8f6;font-size:.82rem}.message[data-error='true']{border-left-color:#a12b2b;color:#842323}@media(max-width:1050px){.private-layout{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.review-column{width:100%}}@media(max-width:760px){.selector-row{display:grid;grid-template-columns:1fr 1fr}.selector-row label{grid-column:1/-1}.selector-row #load-photo{grid-column:1/-1}.tools{grid-template-columns:1fr 1fr}.actions{grid-template-columns:1fr}.canvas-wrap{min-height:320px}.status-grid{grid-template-columns:1fr}}
 </style>

@@ -2,54 +2,11 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const TIPOS = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_BYTES = 8 * 1024 * 1024;
-const LISTA_INDEX_PATH = 'indices/revision-fotos-v1.json';
 const LISTA_CACHE_PATH = 'cache/fotos/listar-revision.json';
 const LISTA_FRESH_MS = 5 * 60 * 1000;
 const LISTA_STALE_MS = 24 * 60 * 60 * 1000;
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 const AUTH_CACHE_VERSION = 2;
-const FIREBASE_TOKEN_CACHE_MS = 5 * 60 * 1000;
-const FIREBASE_TIMEOUT_MS = 8 * 1000;
-const ADMIN_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const firebaseTokenCache = new Map();
-
-const CAMPOS_TEXTO_LISTA = [
-  'idFoto', 'rowId', 'filename', 'nomeFicheiro', 'titulo', 'peFoto',
-  'observacions', 'dataFoto', 'anoAproximado', 'lugar', 'autoria',
-  'procedencia', 'concerto', 'evento', 'estado', 'rutaR2Traballo',
-  'rutaMiniaturaRevision', 'mimeType'
-];
-const CAMPOS_BOOLEANOS_LISTA = [
-  'publicarPublica', 'publicarPrivada', 'destacadaPublica',
-  'destacadaPrivada', 'orixinalPreparado'
-];
-
-function sanearListaRevision(datos) {
-  if (!datos?.ok || !Array.isArray(datos?.fotos)) return datos;
-  const fotos = datos.fotos.slice(0, 5000).map((foto) => {
-    const limpa = {};
-    for (const campo of CAMPOS_TEXTO_LISTA) {
-      const valor = foto?.[campo];
-      if (valor != null && valor !== '') limpa[campo] = String(valor).slice(0, 2000);
-    }
-    for (const campo of CAMPOS_BOOLEANOS_LISTA) {
-      if (typeof foto?.[campo] === 'boolean') limpa[campo] = foto[campo];
-    }
-    return limpa;
-  });
-  const resultado = {
-    ok: true,
-    fotos,
-    total: fotos.length
-  };
-  if (Object.prototype.hasOwnProperty.call(datos, 'administrador')) {
-    resultado.administrador = datos.administrador === true;
-  }
-  for (const campo of ['xeradoEn', 'xeradoEnMs', 'orixe', 'version']) {
-    if (datos[campo] != null) resultado[campo] = datos[campo];
-  }
-  return resultado;
-}
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -60,58 +17,22 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
   }
 });
 
-function limparFirebaseTokenCache(maximo = 100) {
-  const agora = Date.now();
-  for (const [token, entrada] of firebaseTokenCache.entries()) {
-    if (!entrada || Number(entrada.expira || 0) <= agora) firebaseTokenCache.delete(token);
-  }
-  while (firebaseTokenCache.size > maximo) {
-    firebaseTokenCache.delete(firebaseTokenCache.keys().next().value);
-  }
-}
-
 async function verificarTokenFirebase(idToken, apiKey) {
-  const token = String(idToken || '').trim();
-  if (!token) return null;
-
-  const cached = firebaseTokenCache.get(token);
-  if (cached?.expira > Date.now()) return cached.usuario;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FIREBASE_TIMEOUT_MS);
-  let resposta;
-  try {
-    resposta = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: token }),
-        signal: controller.signal
-      }
-    );
-  } finally {
-    clearTimeout(timer);
-  }
-  if (!resposta.ok) {
-    firebaseTokenCache.delete(token);
-    return null;
-  }
-  const usuarioFirebase = (await resposta.json())?.users?.[0];
-  if (!usuarioFirebase?.email || usuarioFirebase.emailVerified !== true) {
-    firebaseTokenCache.delete(token);
-    return null;
-  }
-  const usuario = {
-    uid: String(usuarioFirebase.localId || ''),
-    email: String(usuarioFirebase.email).trim().toLowerCase()
+  const resposta = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    }
+  );
+  if (!resposta.ok) return null;
+  const usuario = (await resposta.json())?.users?.[0];
+  if (!usuario?.email || usuario.emailVerified !== true) return null;
+  return {
+    uid: String(usuario.localId || ''),
+    email: String(usuario.email).trim().toLowerCase()
   };
-  firebaseTokenCache.set(token, {
-    usuario,
-    expira: Date.now() + FIREBASE_TOKEN_CACHE_MS
-  });
-  limparFirebaseTokenCache();
-  return usuario;
 }
 
 async function claveCorreo(email) {
@@ -126,34 +47,12 @@ async function comprobarAutorizacionCache(env, usuario) {
   if (!env.R2_PRIVADO) return false;
   const clave = await claveCorreo(usuario.email);
   const obxecto = await env.R2_PRIVADO.get(`cache/autorizacion-fotos/${clave}.json`);
-  if (obxecto) {
-    const datos = await obxecto.json().catch(() => null);
-    const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
-    const versionCompatible = datos?.version == null || datos.version === AUTH_CACHE_VERSION;
-    const mesmoCorreo = !datos?.email ||
-      String(datos.email).trim().toLowerCase() === usuario.email;
-    if (
-      versionCompatible &&
-      mesmoCorreo &&
-      datos?.administrador === true &&
-      Number.isFinite(verificadaEn) &&
-      Date.now() - verificadaEn < AUTH_TTL_MS
-    ) {
-      return true;
-    }
-  }
-
-  const administracion = await env.R2_PRIVADO.get(
-    `persoas/cache/administracion/${clave}.json`
-  );
-  if (!administracion) return false;
-  const entrada = await administracion.json().catch(() => null);
-  const savedAt = Number(entrada?.savedAt || 0);
-  return entrada?.administrador === usuario.email &&
-    entrada?.payload?.ok === true &&
-    entrada?.payload?.perfil?.nivel === 'Administración' &&
-    Number.isFinite(savedAt) &&
-    Date.now() - savedAt < ADMIN_CACHE_MAX_AGE_MS;
+  if (!obxecto) return false;
+  const datos = await obxecto.json().catch(() => null);
+  const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
+  return datos?.version === AUTH_CACHE_VERSION &&
+    datos?.administrador === true && Number.isFinite(verificadaEn) &&
+    Date.now() - verificadaEn < AUTH_TTL_MS;
 }
 
 async function gardarAutorizacionCache(env, usuario) {
@@ -178,29 +77,14 @@ async function gardarAutorizacionCache(env, usuario) {
 
 async function lerListaCache(env) {
   if (!env.R2_PRIVADO) return null;
-
-  const indice = await env.R2_PRIVADO.get(LISTA_INDEX_PATH);
-  if (indice) {
-    const datos = await indice.json().catch(() => null);
-    const xeradaEn = Number(datos?.xeradoEnMs) || Date.parse(String(datos?.xeradoEn || ''));
-    if (datos?.ok === true && Array.isArray(datos?.fotos) && Number.isFinite(xeradaEn)) {
-      return {
-        resultado: sanearListaRevision(datos),
-        idadeMs: Math.max(0, Date.now() - xeradaEn),
-        fonte: 'INDICE-R2'
-      };
-    }
-  }
-
   const obxecto = await env.R2_PRIVADO.get(LISTA_CACHE_PATH);
   if (!obxecto) return null;
   const datos = await obxecto.json().catch(() => null);
   const gardadaEn = Date.parse(String(datos?.gardadaEn || ''));
   if (!datos?.resultado?.ok || !Number.isFinite(gardadaEn)) return null;
   return {
-    resultado: sanearListaRevision(datos.resultado),
-    idadeMs: Math.max(0, Date.now() - gardadaEn),
-    fonte: 'CACHE-R2'
+    resultado: datos.resultado,
+    idadeMs: Math.max(0, Date.now() - gardadaEn)
   };
 }
 
@@ -315,12 +199,11 @@ async function solicitarListaRevision(env, usuario) {
   if (Object.prototype.hasOwnProperty.call(resultado || {}, 'administrador') && resultado?.administrador !== true) {
     throw new Error('Administración non autorizada');
   }
-  const resultadoSeguro = sanearListaRevision(resultado);
   await Promise.all([
-    gardarListaCache(env, resultadoSeguro),
+    gardarListaCache(env, resultado),
     gardarAutorizacionCache(env, usuario)
   ]);
-  return { resultado: resultadoSeguro, usouRespaldo };
+  return { resultado, usouRespaldo };
 }
 
 export async function onRequest(context) {
@@ -349,55 +232,22 @@ export async function onRequest(context) {
   if (!accionsPermitidas.has(accion)) return json(400, { ok: false, erro: 'Acción non permitida' });
 
   if (accion === 'listarFotosRevision') {
-    const inicio = Date.now();
-    const [autorizadoEnCache, cache] = await Promise.all([
-      comprobarAutorizacionCache(env, usuario),
-      lerListaCache(env)
-    ]);
-
-    if (autorizadoEnCache && cache) {
-      const fresca = cache.idadeMs <= LISTA_FRESH_MS;
-      if (!fresca && typeof context.waitUntil === 'function') {
-        context.waitUntil(
-          solicitarListaRevision(env, usuario).catch((erro) => {
-            console.error('Non se puido actualizar en segundo plano a lista de fotografías:', erro);
-          })
-        );
-      }
-      return json(200, cache.resultado, {
-        'X-SCPP-Cache': fresca ? 'HIT' : 'STALE-WHILE-REVALIDATE',
-        'X-SCPP-Cache-Age': String(Math.round(cache.idadeMs / 1000)),
-        'X-SCPP-Storage': cache.fonte || 'R2',
-        'Warning': fresca ? '' : '110 - Response is stale',
-        'Server-Timing': `r2;dur=${Date.now() - inicio}`
-      });
-    }
-
     try {
+      const inicio = Date.now();
       const { resultado, usouRespaldo } = await solicitarListaRevision(env, usuario);
       return json(200, resultado, {
-        'X-SCPP-Cache': cache ? 'REFRESH' : 'MISS',
+        'X-SCPP-Cache': 'MISS',
         'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
         'Server-Timing': `appscript;dur=${Date.now() - inicio}`
       });
     } catch (erro) {
+      const cache = await lerListaCache(env);
       if (
         erro instanceof Error &&
         erro.message === 'Administración non autorizada'
       ) {
         return json(403, { ok: false, erro: 'Administración non autorizada' });
       }
-
-      if (autorizadoEnCache && cache && cache.idadeMs <= LISTA_STALE_MS) {
-        return json(200, cache.resultado, {
-          'X-SCPP-Cache': 'STALE',
-          'X-SCPP-Cache-Age': String(Math.round(cache.idadeMs / 1000)),
-          'X-SCPP-AppScript': 'ERROR',
-          'Warning': '110 - Response is stale',
-          'Server-Timing': `r2-stale;dur=${Date.now() - inicio}`
-        });
-      }
-
       const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
       return json(status, {
         ok: false,
