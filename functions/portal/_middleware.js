@@ -29,7 +29,7 @@ const PHOTO_MANAGER_SCRIPT = [
 ].join('');
 
 const ENSAIOS_DRAFT_SCRIPT = '<script src="/js/ensaios-borrador-r2.js?v=20260812-2" defer></script>';
-const ENSAIOS_DELETE_SCRIPT = '<script src="/js/ensaios-eliminar-ensaio.js?v=20260813-1" defer></script>';
+const ENSAIOS_DELETE_SCRIPT = '<script src="/js/ensaios-eliminar-ensaio.js?v=20260813-2" defer></script>';
 
 const ENSAIOS_SIMPLE_UI = `
 <style id="scpp-ensaios-simple-ui">
@@ -48,14 +48,52 @@ const ENSAIOS_SIMPLE_UI = `
   #repertoire-panel .work-link:hover,
   #repertoire-panel .work-link:focus { color:#24211f !important; text-decoration:none !important; }
   #repertoire-panel .work-link { display:flex !important; flex-direction:column; gap:.42rem !important; }
+
+  #calendar-list {
+    max-width:1040px;
+    gap:.8rem !important;
+  }
+  #calendar-list .calendar-rehearsal-item {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:.65rem;
+    align-items:center;
+  }
+  #calendar-list .rehearsal-card {
+    width:100%;
+    min-width:0;
+    padding:.95rem 1.05rem !important;
+    display:grid !important;
+    grid-template-columns:minmax(210px,.7fr) minmax(0,1.7fr);
+    gap:1.15rem;
+    align-items:center;
+    text-align:left !important;
+    box-sizing:border-box;
+  }
+  #calendar-list .rehearsal-card time {
+    display:block;
+    line-height:1.35;
+  }
+  #calendar-list .rehearsal-card-copy {
+    display:flex !important;
+    flex-direction:column;
+    gap:.38rem;
+    min-width:0;
+  }
+  #calendar-list .rehearsal-card-copy strong,
+  #calendar-list .rehearsal-card-copy span {
+    display:block;
+    line-height:1.35;
+  }
+  #calendar-list .rehearsal-card-copy span {
+    color:#6b645f;
+  }
   #calendar-list .delete-rehearsal {
-    justify-self:end;
-    margin-top:-.15rem;
-    margin-bottom:.35rem;
+    align-self:center;
     border:1px solid #b8aaa3;
     background:#fff;
     color:#6b201f;
-    padding:.45rem .7rem;
+    padding:.56rem .78rem;
     border-radius:3px;
     font:inherit;
     font-size:.76rem;
@@ -65,10 +103,16 @@ const ENSAIOS_SIMPLE_UI = `
   #calendar-list .delete-rehearsal:hover,
   #calendar-list .delete-rehearsal:focus { border-color:#6b201f; background:#fbf6f5; }
   #calendar-list .delete-rehearsal:disabled { opacity:.6; cursor:wait; }
+
+  @media(max-width:900px){
+    #calendar-list {max-width:none;}
+    #calendar-list .rehearsal-card {grid-template-columns:1fr;gap:.45rem;}
+  }
   @media(max-width:680px){
     #repertoire-panel .work-fields{grid-template-columns:1fr !important;}
     #repertoire-panel .save-work,
     #repertoire-panel .remove-work{width:100%;}
+    #calendar-list .calendar-rehearsal-item{grid-template-columns:1fr;}
     #calendar-list .delete-rehearsal{justify-self:stretch;width:100%;}
   }
 </style>
