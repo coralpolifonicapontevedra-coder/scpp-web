@@ -212,6 +212,19 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
       });
     }
 
+    // As páxinas protexidas comproban o seu propio acceso. Evitamos repetir aquí
+    // as mesmas chamadas pesadas mentres o módulo está intentando abrir.
+    const protectedPage = ['/portal/revision-fotos'].includes(
+      window.location.pathname.replace(/\/+$/, '')
+    );
+    if (protectedPage) {
+      syncProtectedNavigation({
+        reviewAllowed: true,
+        administrationAllowed: Boolean(cachedPermissions?.administrationAllowed)
+      });
+      return;
+    }
+
     const idToken = await user.getIdToken();
     const [reviewCheck, administrationCheck] = await Promise.all([
       canReviewPhotos(idToken).catch(() => ({ allowed: false, uncertain: true })),
