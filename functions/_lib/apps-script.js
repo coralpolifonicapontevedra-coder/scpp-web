@@ -5,6 +5,7 @@ const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 50
 const ACCIONS_SO_PRINCIPAL = new Set([
   'subirFoto',
   'actualizarRevisionFoto',
+  'eliminarFotoPortal',
   'actualizarPublicacionFoto',
   'obterFotoParaR2',
   'gardarRutasFotoR2',
