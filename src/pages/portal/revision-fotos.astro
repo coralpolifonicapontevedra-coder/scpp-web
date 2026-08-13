@@ -61,6 +61,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
               <button id="save-modified" type="button">Gardar modificada</button>
               <button id="save-draft" type="button">Conservar sen publicar</button>
               <button id="publish" class="primary" type="button">Publicar edición</button>
+              <button id="delete-photo" class="danger" type="button">Eliminar fotografía</button>
             </section>
 
             <div class="status-grid">
@@ -362,6 +363,58 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     }catch(error){if(r2Status instanceof HTMLElement)r2Status.textContent='Erro';setMessage(error instanceof Error?error.message:'Non se puido gardar.',true);}
   }
 
+  function removeCurrentPhoto(id) {
+    const index = fotos.findIndex(foto => idDaFoto(foto) === id);
+    if (index < 0) return;
+    const cached = originalCache.get(id);
+    if (cached) {
+      URL.revokeObjectURL(cached.url);
+      originalCache.delete(id);
+    }
+    fotos.splice(index, 1);
+    actual = null;
+    original = null;
+    if (select instanceof HTMLSelectElement) {
+      select.innerHTML = fotos.map((foto, i) => `<option value="${escapar(idDaFoto(foto))}">${escapar(texto(foto.titulo || foto.nomeFicheiro || `Fotografía ${i + 1}`))}</option>`).join('');
+      select.selectedIndex = Math.min(index, fotos.length - 1);
+    }
+    if (canvas instanceof HTMLCanvasElement && ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+    updateNavigation();
+  }
+
+  async function deletePhoto() {
+    if (!actual) return setMessage('Non hai ningunha fotografía seleccionada.', true);
+    const id = idDaFoto(actual);
+    const nome = texto(actual.titulo || actual.nomeFicheiro || 'esta fotografía');
+    if (!window.confirm(`Eliminar definitivamente «${nome}»?\n\nEliminarase o rexistro da Sheet, o orixinal de Drive e as copias asociadas de R2. Esta acción non se pode desfacer.`)) return;
+    const button = document.querySelector('#delete-photo');
+    if (button instanceof HTMLButtonElement) button.disabled = true;
+    setMessage('Eliminando a fotografía de Sheet, Drive e R2…');
+    if (r2Status instanceof HTMLElement) r2Status.textContent = 'Eliminando';
+    if (sheetStatus instanceof HTMLElement) sheetStatus.textContent = 'Eliminando';
+    try {
+      const result = await api('/api/eliminar-foto-revision', { idFoto: id, rowId: id });
+      removeCurrentPhoto(id);
+      if (r2Status instanceof HTMLElement) r2Status.textContent = result.aviso ? 'Limpeza pendente' : 'Eliminada';
+      if (sheetStatus instanceof HTMLElement) sheetStatus.textContent = 'Eliminada';
+      setMessage(result.mensaxe || 'Fotografía eliminada correctamente.');
+      if (fotos.length && select instanceof HTMLSelectElement) {
+        loadFields();
+        preloadIndex(select.selectedIndex);
+      }
+    } catch (error) {
+      if (r2Status instanceof HTMLElement) r2Status.textContent = 'Erro';
+      if (sheetStatus instanceof HTMLElement) sheetStatus.textContent = 'Erro';
+      setMessage(error instanceof Error ? error.message : 'Non se puido eliminar a fotografía.', true);
+    } finally {
+      if (button instanceof HTMLButtonElement) button.disabled = false;
+    }
+  }
+
   function startPolling(){
     if(polling)window.clearInterval(polling);
     const id=idDaFoto(actual);let tries=0;
@@ -405,10 +458,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   document.querySelector('#save-modified')?.addEventListener('click',saveModified);
   document.querySelector('#save-draft')?.addEventListener('click',()=>save(false));
   document.querySelector('#publish')?.addEventListener('click',()=>save(true));
+  document.querySelector('#delete-photo')?.addEventListener('click',deletePhoto);
   document.querySelector('#review-editor-logout')?.addEventListener('click',async()=>{originalCache.forEach(entry=>URL.revokeObjectURL(entry.url));await signOut(auth);window.location.href='/portal/';});
   window.addEventListener('pagehide',()=>originalCache.forEach(entry=>URL.revokeObjectURL(entry.url)));
 </script>
 
 <style>
-  :global(body){background:#f5f3f0}.private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh}.page-main{padding:2.5rem clamp(1rem,3.5vw,3.5rem) 5rem;font-family:Aptos,'Segoe UI',Arial,sans-serif}.page-header>span{color:var(--color-acento);font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.page-header h1{margin:.35rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,3.4vw,3rem);font-weight:400}.page-header p{max-width:760px;margin:0 0 1.5rem;color:#655f5b}.state,.selector-row,.image-column,.review-column{border:1px solid #ddd7d2;background:#fff}.state{padding:1rem}.selector-row{display:flex;gap:1rem;align-items:end;padding:1rem;margin-bottom:1rem}.selector-row label{display:grid;gap:.35rem;flex:1}.selector-row span,.field-group h2,.field-group label>span,.status-grid span{font-size:.67rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}.selector-row select,.selector-row button,input,textarea,.tools button,.actions button{font:inherit}.selector-row select,.selector-row button{min-height:2.6rem;padding:.6rem .75rem;border:1px solid #cfc7c1;background:#fff}.selector-row button:disabled{opacity:.45;cursor:not-allowed}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:1rem}.image-column{padding:1rem;background:#ebe7e2}.canvas-wrap{position:relative;display:grid;min-height:540px;place-items:center}.canvas-wrap canvas{display:block;max-width:100%;max-height:72vh;background:#fff;box-shadow:0 8px 28px rgba(30,24,20,.12);touch-action:none}.canvas-wrap.is-cropping canvas{cursor:crosshair}.crop-box{position:absolute;border:2px solid #fff;outline:1px solid #6d2032;background:rgba(109,32,50,.12);pointer-events:none}.tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin-top:1rem}.tools button,.actions button{min-height:2.6rem;padding:.55rem .7rem;border:1px solid #cfc7c1;background:#fff;color:#4b4642;cursor:pointer}.review-column{padding:1rem;align-self:start}.field-group+.field-group{margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid #e5e0dc}.field-group h2{margin:0 0 .8rem;color:var(--color-principal)}.field-group label:not(.check){display:grid;gap:.35rem;margin-bottom:.8rem}.field-group input,.field-group textarea{width:100%;padding:.65rem;border:1px solid #d4cec9;background:#fff}.check{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:start;padding:.65rem 0}.check input{margin-top:.18rem}.check span{display:grid;gap:.15rem;text-transform:none;letter-spacing:0}.check strong{font-weight:600}.check small{color:#6b6561}.check.secondary{padding:.25rem 0 .7rem 1.65rem}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin-top:1.2rem}.actions .primary{background:var(--color-principal);color:#fff;border-color:var(--color-principal)}.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1rem}.status-grid div{display:grid;gap:.2rem;padding:.65rem;border:1px solid #e1dcd7;background:#faf8f6}.status-grid strong{font-size:.82rem;font-weight:600}.message{min-height:2.6rem;margin:1rem 0 0;padding:.7rem;border-left:3px solid var(--color-acento);background:#faf8f6;font-size:.82rem}.message[data-error='true']{border-left-color:#a12b2b;color:#842323}@media(max-width:1050px){.private-layout{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.review-column{width:100%}}@media(max-width:760px){.selector-row{display:grid;grid-template-columns:1fr 1fr}.selector-row label{grid-column:1/-1}.selector-row #load-photo{grid-column:1/-1}.tools{grid-template-columns:1fr 1fr}.actions{grid-template-columns:1fr}.canvas-wrap{min-height:320px}.status-grid{grid-template-columns:1fr}}
+  :global(body){background:#f5f3f0}.private-layout{display:grid;grid-template-columns:282px minmax(0,1fr);min-height:100vh}.page-main{padding:2.5rem clamp(1rem,3.5vw,3.5rem) 5rem;font-family:Aptos,'Segoe UI',Arial,sans-serif}.page-header>span{color:var(--color-acento);font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.page-header h1{margin:.35rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,3.4vw,3rem);font-weight:400}.page-header p{max-width:760px;margin:0 0 1.5rem;color:#655f5b}.state,.selector-row,.image-column,.review-column{border:1px solid #ddd7d2;background:#fff}.state{padding:1rem}.selector-row{display:flex;gap:1rem;align-items:end;padding:1rem;margin-bottom:1rem}.selector-row label{display:grid;gap:.35rem;flex:1}.selector-row span,.field-group h2,.field-group label>span,.status-grid span{font-size:.67rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}.selector-row select,.selector-row button,input,textarea,.tools button,.actions button{font:inherit}.selector-row select,.selector-row button{min-height:2.6rem;padding:.6rem .75rem;border:1px solid #cfc7c1;background:#fff}.selector-row button:disabled{opacity:.45;cursor:not-allowed}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:1rem}.image-column{padding:1rem;background:#ebe7e2}.canvas-wrap{position:relative;display:grid;min-height:540px;place-items:center}.canvas-wrap canvas{display:block;max-width:100%;max-height:72vh;background:#fff;box-shadow:0 8px 28px rgba(30,24,20,.12);touch-action:none}.canvas-wrap.is-cropping canvas{cursor:crosshair}.crop-box{position:absolute;border:2px solid #fff;outline:1px solid #6d2032;background:rgba(109,32,50,.12);pointer-events:none}.tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin-top:1rem}.tools button,.actions button{min-height:2.6rem;padding:.55rem .7rem;border:1px solid #cfc7c1;background:#fff;color:#4b4642;cursor:pointer}.review-column{padding:1rem;align-self:start}.field-group+.field-group{margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid #e5e0dc}.field-group h2{margin:0 0 .8rem;color:var(--color-principal)}.field-group label:not(.check){display:grid;gap:.35rem;margin-bottom:.8rem}.field-group input,.field-group textarea{width:100%;padding:.65rem;border:1px solid #d4cec9;background:#fff}.check{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:start;padding:.65rem 0}.check input{margin-top:.18rem}.check span{display:grid;gap:.15rem;text-transform:none;letter-spacing:0}.check strong{font-weight:600}.check small{color:#6b6561}.check.secondary{padding:.25rem 0 .7rem 1.65rem}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin-top:1.2rem}.actions .primary{background:var(--color-principal);color:#fff;border-color:var(--color-principal)}.actions .danger{grid-column:1/-1;border-color:#a12b2b;color:#842323;background:#fff7f7}.actions .danger:hover{background:#a12b2b;color:#fff}.actions button:disabled{opacity:.55;cursor:wait}.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1rem}.status-grid div{display:grid;gap:.2rem;padding:.65rem;border:1px solid #e1dcd7;background:#faf8f6}.status-grid strong{font-size:.82rem;font-weight:600}.message{min-height:2.6rem;margin:1rem 0 0;padding:.7rem;border-left:3px solid var(--color-acento);background:#faf8f6;font-size:.82rem}.message[data-error='true']{border-left-color:#a12b2b;color:#842323}@media(max-width:1050px){.private-layout{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.review-column{width:100%}}@media(max-width:760px){.selector-row{display:grid;grid-template-columns:1fr 1fr}.selector-row label{grid-column:1/-1}.selector-row #load-photo{grid-column:1/-1}.tools{grid-template-columns:1fr 1fr}.actions{grid-template-columns:1fr}.canvas-wrap{min-height:320px}.status-grid{grid-template-columns:1fr}}
 </style>
