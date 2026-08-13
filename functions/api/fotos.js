@@ -13,6 +13,44 @@ const FIREBASE_TIMEOUT_MS = 8 * 1000;
 const ADMIN_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const firebaseTokenCache = new Map();
 
+const CAMPOS_TEXTO_LISTA = [
+  'idFoto', 'rowId', 'filename', 'nomeFicheiro', 'titulo', 'peFoto',
+  'observacions', 'dataFoto', 'anoAproximado', 'lugar', 'autoria',
+  'procedencia', 'concerto', 'evento', 'estado', 'rutaR2Traballo',
+  'rutaMiniaturaRevision', 'mimeType'
+];
+const CAMPOS_BOOLEANOS_LISTA = [
+  'publicarPublica', 'publicarPrivada', 'destacadaPublica',
+  'destacadaPrivada', 'orixinalPreparado'
+];
+
+function sanearListaRevision(datos) {
+  if (!datos?.ok || !Array.isArray(datos?.fotos)) return datos;
+  const fotos = datos.fotos.slice(0, 5000).map((foto) => {
+    const limpa = {};
+    for (const campo of CAMPOS_TEXTO_LISTA) {
+      const valor = foto?.[campo];
+      if (valor != null && valor !== '') limpa[campo] = String(valor).slice(0, 2000);
+    }
+    for (const campo of CAMPOS_BOOLEANOS_LISTA) {
+      if (typeof foto?.[campo] === 'boolean') limpa[campo] = foto[campo];
+    }
+    return limpa;
+  });
+  const resultado = {
+    ok: true,
+    fotos,
+    total: fotos.length
+  };
+  if (Object.prototype.hasOwnProperty.call(datos, 'administrador')) {
+    resultado.administrador = datos.administrador === true;
+  }
+  for (const campo of ['xeradoEn', 'xeradoEnMs', 'orixe', 'version']) {
+    if (datos[campo] != null) resultado[campo] = datos[campo];
+  }
+  return resultado;
+}
+
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -147,7 +185,7 @@ async function lerListaCache(env) {
     const xeradaEn = Number(datos?.xeradoEnMs) || Date.parse(String(datos?.xeradoEn || ''));
     if (datos?.ok === true && Array.isArray(datos?.fotos) && Number.isFinite(xeradaEn)) {
       return {
-        resultado: datos,
+        resultado: sanearListaRevision(datos),
         idadeMs: Math.max(0, Date.now() - xeradaEn),
         fonte: 'INDICE-R2'
       };
@@ -160,7 +198,7 @@ async function lerListaCache(env) {
   const gardadaEn = Date.parse(String(datos?.gardadaEn || ''));
   if (!datos?.resultado?.ok || !Number.isFinite(gardadaEn)) return null;
   return {
-    resultado: datos.resultado,
+    resultado: sanearListaRevision(datos.resultado),
     idadeMs: Math.max(0, Date.now() - gardadaEn),
     fonte: 'CACHE-R2'
   };
@@ -277,11 +315,12 @@ async function solicitarListaRevision(env, usuario) {
   if (Object.prototype.hasOwnProperty.call(resultado || {}, 'administrador') && resultado?.administrador !== true) {
     throw new Error('Administración non autorizada');
   }
+  const resultadoSeguro = sanearListaRevision(resultado);
   await Promise.all([
-    gardarListaCache(env, resultado),
+    gardarListaCache(env, resultadoSeguro),
     gardarAutorizacionCache(env, usuario)
   ]);
-  return { resultado, usouRespaldo };
+  return { resultado: resultadoSeguro, usouRespaldo };
 }
 
 export async function onRequest(context) {
