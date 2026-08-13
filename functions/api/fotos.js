@@ -9,6 +9,8 @@ const LISTA_STALE_MS = 24 * 60 * 60 * 1000;
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 const AUTH_CACHE_VERSION = 2;
 const FIREBASE_TOKEN_CACHE_MS = 5 * 60 * 1000;
+const FIREBASE_TIMEOUT_MS = 8 * 1000;
+const ADMIN_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const firebaseTokenCache = new Map();
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
@@ -37,14 +39,22 @@ async function verificarTokenFirebase(idToken, apiKey) {
   const cached = firebaseTokenCache.get(token);
   if (cached?.expira > Date.now()) return cached.usuario;
 
-  const resposta = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: token })
-    }
-  );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FIREBASE_TIMEOUT_MS);
+  let resposta;
+  try {
+    resposta = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+        signal: controller.signal
+      }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
   if (!resposta.ok) {
     firebaseTokenCache.delete(token);
     return null;
@@ -78,12 +88,34 @@ async function comprobarAutorizacionCache(env, usuario) {
   if (!env.R2_PRIVADO) return false;
   const clave = await claveCorreo(usuario.email);
   const obxecto = await env.R2_PRIVADO.get(`cache/autorizacion-fotos/${clave}.json`);
-  if (!obxecto) return false;
-  const datos = await obxecto.json().catch(() => null);
-  const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
-  return datos?.version === AUTH_CACHE_VERSION &&
-    datos?.administrador === true && Number.isFinite(verificadaEn) &&
-    Date.now() - verificadaEn < AUTH_TTL_MS;
+  if (obxecto) {
+    const datos = await obxecto.json().catch(() => null);
+    const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
+    const versionCompatible = datos?.version == null || datos.version === AUTH_CACHE_VERSION;
+    const mesmoCorreo = !datos?.email ||
+      String(datos.email).trim().toLowerCase() === usuario.email;
+    if (
+      versionCompatible &&
+      mesmoCorreo &&
+      datos?.administrador === true &&
+      Number.isFinite(verificadaEn) &&
+      Date.now() - verificadaEn < AUTH_TTL_MS
+    ) {
+      return true;
+    }
+  }
+
+  const administracion = await env.R2_PRIVADO.get(
+    `persoas/cache/administracion/${clave}.json`
+  );
+  if (!administracion) return false;
+  const entrada = await administracion.json().catch(() => null);
+  const savedAt = Number(entrada?.savedAt || 0);
+  return entrada?.administrador === usuario.email &&
+    entrada?.payload?.ok === true &&
+    entrada?.payload?.perfil?.nivel === 'Administración' &&
+    Number.isFinite(savedAt) &&
+    Date.now() - savedAt < ADMIN_CACHE_MAX_AGE_MS;
 }
 
 async function gardarAutorizacionCache(env, usuario) {
