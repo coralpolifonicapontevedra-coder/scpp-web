@@ -25,8 +25,33 @@ const PHOTO_MANAGER_SCRIPT = [
   '<script src="/js/xestor-fotos-publicacion.js?v=20260805-4" defer></script>',
   '<script src="/js/xestor-fotos-metadatos.js?v=20260805-4" defer></script>',
   '<script src="/js/borrador-fotos-pendente.js?v=20260805-4" defer></script>',
-  '<script src="/js/renovar-borrador-foto.js?v=20260805-4" defer></script>'
+  '<script src="/js/renovar-borrador-foto.js?v=20260805-4" defer></script>',
+  '<script src="/js/revision-fotos-eliminar.js?v=20260813-1" defer></script>'
 ].join('');
+
+const PHOTO_REVIEW_UI = `
+<style id="scpp-photo-review-delete-ui">
+  .review-column .actions {
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  }
+  #delete-photo-review {
+    border:1px solid #a56f6f !important;
+    background:#fff !important;
+    color:#7a2020 !important;
+  }
+  #delete-photo-review:hover,
+  #delete-photo-review:focus {
+    border-color:#7a2020 !important;
+    background:#fbf4f4 !important;
+  }
+  #delete-photo-review:disabled {
+    opacity:.6;
+    cursor:wait;
+  }
+  @media(max-width:760px){
+    .review-column .actions { grid-template-columns:1fr !important; }
+  }
+</style>`;
 
 const ENSAIOS_DRAFT_SCRIPT = '<script src="/js/ensaios-borrador-r2.js?v=20260812-2" defer></script>';
 const ENSAIOS_DELETE_SCRIPT = '<script src="/js/ensaios-eliminar-ensaio.js?v=20260813-2" defer></script>';
@@ -138,7 +163,7 @@ export async function onRequest(context) {
 
   const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '');
   let extra = '';
-  if (pathname === '/portal/revision-fotos') extra += PHOTO_MANAGER_SCRIPT;
+  if (pathname === '/portal/revision-fotos') extra += PHOTO_MANAGER_SCRIPT + PHOTO_REVIEW_UI;
   if (pathname === '/portal/ensaios') extra += ENSAIOS_DRAFT_SCRIPT + ENSAIOS_DELETE_SCRIPT + ENSAIOS_SIMPLE_UI;
 
   return new HTMLRewriter()
