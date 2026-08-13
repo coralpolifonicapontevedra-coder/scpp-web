@@ -76,3 +76,29 @@ Os listados poderán usar caché privada por usuario, con tempo fresco coñecido
 - **Estado:** aceptada
 
 A arquitectura, as convencións e as decisións relevantes manteranse en `docs/framework-scpp/`. Un cambio estrutural non se considera pechado ata actualizar a documentación correspondente.
+
+
+## ADR-009 · GitHub como fonte canónica de Apps Script
+
+- **Data:** 2026-08-13
+- **Estado:** aceptada
+
+### Contexto
+
+Os cambios editados directamente en Apps Script podían quedar gardados no editor
+sen actualizar a implementación web activa, dificultando as probas, a revisión
+e a recuperación dunha versión estable.
+
+### Decisión
+
+O código de Apps Script manterase en `apps-script/src/` dentro deste repositorio.
+`clasp` sincronizará o mesmo código con proxectos separados de probas e
+produción. As solicitudes de cambio executarán comprobacións estáticas; o
+despregue en probas será previo e o de produción requirirá aprobación manual.
+
+### Consecuencias
+
+- Non se editará produción manualmente salvo recuperación de emerxencia.
+- As credenciais OAuth, `.clasprc.json` e os mapas `.clasp.json` serán segredos.
+- Probas e produción usarán proxectos e propiedades de script diferentes.
+- Cada despregue rexistrará o commit e a versión de Apps Script.

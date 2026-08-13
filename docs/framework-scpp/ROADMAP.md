@@ -11,6 +11,10 @@ Estado: en curso.
 - [x] Establecer convencións.
 - [ ] Documentar a estrutura real de bindings e variables de Cloudflare.
 - [ ] Documentar o despachador principal de Apps Script.
+- [x] Importar e versionar o código completo de Apps Script en GitHub.
+- [x] Engadir comprobación automática de sintaxe para Apps Script.
+- [ ] Crear o proxecto e os datos illados de Apps Script para probas.
+- [ ] Automatizar o despregue en probas e a promoción manual a produción.
 - [ ] Crear unha táboa de módulos e o seu estado de migración.
 - [ ] Engadir procedemento de incidencias, recuperación e rollback.
 

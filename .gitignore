@@ -32,3 +32,11 @@ pnpm-debug.log*
 
 # Local Netlify folder
 .netlify
+
+
+# Google Apps Script / clasp
+.clasprc.json
+.clasp.json
+apps-script/.clasprc.json
+apps-script/.clasp.json
+apps-script/.clasp.*.json

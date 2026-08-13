@@ -103,6 +103,7 @@ src/                    Páxinas, compoñentes, layouts, estilos e lóxica Astro
 functions/              Cloudflare Pages Functions e utilidades de servidor
 public/                 Recursos estáticos
 scripts/                Xeración, migración, sincronización e auditoría
+apps-script/src/        Código fonte versionado de Google Apps Script
 docs/framework-scpp/    Arquitectura, decisións, convencións e folla de ruta
 ```
 
@@ -129,3 +130,11 @@ npm run build
 ```
 
 Para cambios da interface pública, revisa en escritorio e móbil as rutas indicadas na [guía de deseño](docs/GUIA-DESEÑO-WEB-PUBLICA.md). Para cambios de datos, caché o ficheiros, valida tamén os estados `MISS`, `HIT`, `STALE` e os fallos temporais dos servizos de Google.
+
+
+## Google Apps Script
+
+O código do proxecto principal de Apps Script está versionado en `apps-script/src/`.
+GitHub é a fonte canónica; as credenciais OAuth e os ficheiros `.clasp.json`
+de cada contorno non se versionan. Consulta
+[Apps Script con GitHub e clasp](docs/framework-scpp/APPS-SCRIPT-CICD.md).
