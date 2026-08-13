@@ -42,13 +42,43 @@ async function eliminarPorPrefix(bucket, prefix) {
   return total;
 }
 
+
+async function retirarDoIndiceRevision(env, idFoto) {
+  if (!env.R2_PRIVADO) return false;
+  const key = 'indices/revision-fotos-v1.json';
+  const object = await env.R2_PRIVADO.get(key);
+  if (!object) return false;
+  const index = await object.json().catch(() => null);
+  if (!index?.ok || !Array.isArray(index.fotos)) return false;
+
+  const fotos = index.fotos.filter((foto) =>
+    String(foto?.rowId || foto?.idFoto || '').trim() !== idFoto
+  );
+  if (fotos.length === index.fotos.length) return false;
+
+  await env.R2_PRIVADO.put(key, JSON.stringify({
+    ...index,
+    fotos,
+    total: fotos.length,
+    actualizadoEn: new Date().toISOString(),
+    actualizadoPor: 'eliminarFotoPortal'
+  }), {
+    httpMetadata: {
+      contentType: 'application/json; charset=utf-8',
+      cacheControl: 'private, max-age=300'
+    }
+  });
+  return true;
+}
+
 async function limparR2(env, idFoto) {
   const resumo = {
     privados: 0,
     publicos: 0,
     indiceTraballo: false,
     estadoEdicion: false,
-    cachePendentes: false
+    cachePendentes: false,
+    indiceRevision: false
   };
 
   if (env.R2_PRIVADO) {
@@ -56,20 +86,30 @@ async function limparR2(env, idFoto) {
     const indice = await env.R2_PRIVADO.get(indiceKey);
     if (indice) {
       const datos = await indice.json().catch(() => null);
-      const ruta = String(datos?.ruta || '').trim();
-      if (ruta) {
-        await env.R2_PRIVADO.delete(ruta);
-        resumo.privados += 1;
+      const rutas = new Set([
+        datos?.ruta,
+        datos?.rutaOrixinal,
+        datos?.rutaBorrador,
+        datos?.rutaMiniatura
+      ].map((ruta) => String(ruta || '').trim()).filter(Boolean));
+      if (rutas.size) {
+        await env.R2_PRIVADO.delete([...rutas]);
+        resumo.privados += rutas.size;
       }
       await env.R2_PRIVADO.delete(indiceKey);
       resumo.indiceTraballo = true;
     }
 
     resumo.privados += await eliminarPorPrefix(env.R2_PRIVADO, `fotos/editadas/${idFoto}-`);
+    await env.R2_PRIVADO.delete([
+      `fotos/borradores/${idFoto}`,
+      `fotos/traballo-miniaturas/${idFoto}.webp`
+    ]);
 
     await env.R2_PRIVADO.delete(`fotos/estado-edicion/${idFoto}.json`);
     resumo.estadoEdicion = true;
 
+    resumo.indiceRevision = await retirarDoIndiceRevision(env, idFoto);
     await env.R2_PRIVADO.delete('cache/fotos/listar-revision.json');
     resumo.cachePendentes = true;
   }
@@ -117,7 +157,7 @@ export async function onRequest({ request, env }) {
       uidFirebase: usuario.uid,
       idFoto,
       rowId: idFoto
-    }, { timeoutMs: 45_000, attemptTimeoutMs: 15_000 });
+    }, { timeoutMs: 60_000, attemptTimeoutMs: 55_000 });
 
     if (!resultado?.ok) {
       const forbidden = resultado?.codigo === 'FORBIDDEN' || /non autorizado/i.test(String(resultado?.erro || ''));
