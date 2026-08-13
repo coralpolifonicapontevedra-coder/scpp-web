@@ -1,6 +1,8 @@
 (() => {
   let lastIdToken = '';
   const nativeFetch = window.fetch.bind(window);
+  const VIEW_KEY = 'scpp-ensaios-view';
+  const MESSAGE_KEY = 'scpp-ensaios-message';
 
   // O módulo Ensaios xa autentica todas as chamadas con Firebase. Gardamos o
   // token da súa propia chamada para reutilizar exactamente a mesma sesión
@@ -21,6 +23,25 @@
     return button instanceof HTMLButtonElement && !button.hidden;
   }
 
+  function restoreCalendarView() {
+    if (sessionStorage.getItem(VIEW_KEY) !== 'calendario') return;
+    const calendarButton = document.querySelector('[data-view="calendario"]');
+    if (calendarButton instanceof HTMLButtonElement) {
+      calendarButton.click();
+      sessionStorage.removeItem(VIEW_KEY);
+    }
+
+    const message = sessionStorage.getItem(MESSAGE_KEY);
+    if (message) {
+      const source = document.querySelector('#data-source');
+      if (source instanceof HTMLElement) {
+        const original = source.textContent || '';
+        source.textContent = `${message}${original ? ` · ${original}` : ''}`;
+      }
+      sessionStorage.removeItem(MESSAGE_KEY);
+    }
+  }
+
   function addDeleteButtons() {
     if (!canEdit()) return;
     const list = document.querySelector('#calendar-list');
@@ -31,13 +52,18 @@
       const id = String(card.dataset.rehearsal || '').trim();
       if (!id || list.querySelector(`.delete-rehearsal[data-rehearsal="${CSS.escape(id)}"]`)) return;
 
+      const wrapper = document.createElement('div');
+      wrapper.className = 'calendar-rehearsal-item';
+      card.parentNode?.insertBefore(wrapper, card);
+      wrapper.appendChild(card);
+
       const action = document.createElement('button');
       action.type = 'button';
       action.className = 'delete-rehearsal';
       action.dataset.rehearsal = id;
       action.textContent = 'Eliminar';
       action.title = 'Eliminar este ensaio';
-      card.insertAdjacentElement('afterend', action);
+      wrapper.appendChild(action);
     });
   }
 
@@ -68,6 +94,8 @@
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro ${response.status}`);
+      sessionStorage.setItem(VIEW_KEY, 'calendario');
+      sessionStorage.setItem(MESSAGE_KEY, '✓ Ensaio eliminado correctamente');
       window.location.reload();
     } catch (error) {
       button.disabled = false;
@@ -80,12 +108,17 @@
     const target = event.target;
     if (!(target instanceof Element)) return;
     const button = target.closest('.delete-rehearsal');
-    if (button instanceof HTMLButtonElement) deleteRehearsal(button);
+    if (button instanceof HTMLButtonElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      deleteRehearsal(button);
+    }
   });
 
   const observer = new MutationObserver(addDeleteButtons);
   document.addEventListener('DOMContentLoaded', () => {
     addDeleteButtons();
+    restoreCalendarView();
     observer.observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['hidden'] });
   }, { once:true });
 })();
