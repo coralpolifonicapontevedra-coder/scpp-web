@@ -160,7 +160,8 @@ export async function onRequest({ request, env }) {
       rowId: idFoto
     }, { timeoutMs: 60_000, attemptTimeoutMs: 55_000 });
 
-    if (!resultado?.ok) {
+    const xaEliminada = resultado?.codigo === 'NOT_FOUND';
+    if (!resultado?.ok && !xaEliminada) {
       const forbidden = resultado?.codigo === 'FORBIDDEN' || /non autorizado/i.test(String(resultado?.erro || ''));
       return json(forbidden ? 403 : 400, {
         ok: false,
@@ -184,7 +185,9 @@ export async function onRequest({ request, env }) {
       resultado: resultado.resultado || null,
       limpezaR2,
       aviso,
-      mensaxe: aviso || resultado.mensaxe || 'Fotografía eliminada correctamente.'
+      mensaxe: aviso || resultado.mensaxe || (xaEliminada
+        ? 'A fotografía xa non estaba na Sheet; completouse a limpeza de R2.'
+        : 'Fotografía eliminada correctamente.')
     });
   } catch (erro) {
     console.error('Erro ao eliminar fotografía en revisión:', erro);
