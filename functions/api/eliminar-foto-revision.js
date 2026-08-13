@@ -5,7 +5,7 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    'X-SCPP-Delete-Version': 'apps-script-principal-r2-index-v2'
+    'X-SCPP-Delete-Version': 'apps-script-principal-r2-index-v3'
   }
 });
 
