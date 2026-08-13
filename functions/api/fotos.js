@@ -232,22 +232,45 @@ export async function onRequest(context) {
   if (!accionsPermitidas.has(accion)) return json(400, { ok: false, erro: 'Acción non permitida' });
 
   if (accion === 'listarFotosRevision') {
+    const inicio = Date.now();
+    const [autorizadoEnCache, cache] = await Promise.all([
+      comprobarAutorizacionCache(env, usuario),
+      lerListaCache(env)
+    ]);
+
+    if (autorizadoEnCache && cache && cache.idadeMs <= LISTA_FRESH_MS) {
+      return json(200, cache.resultado, {
+        'X-SCPP-Cache': 'HIT',
+        'X-SCPP-Cache-Age': String(Math.round(cache.idadeMs / 1000)),
+        'Server-Timing': `r2;dur=${Date.now() - inicio}`
+      });
+    }
+
     try {
-      const inicio = Date.now();
       const { resultado, usouRespaldo } = await solicitarListaRevision(env, usuario);
       return json(200, resultado, {
-        'X-SCPP-Cache': 'MISS',
+        'X-SCPP-Cache': cache ? 'REFRESH' : 'MISS',
         'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
         'Server-Timing': `appscript;dur=${Date.now() - inicio}`
       });
     } catch (erro) {
-      const cache = await lerListaCache(env);
       if (
         erro instanceof Error &&
         erro.message === 'Administración non autorizada'
       ) {
         return json(403, { ok: false, erro: 'Administración non autorizada' });
       }
+
+      if (autorizadoEnCache && cache && cache.idadeMs <= LISTA_STALE_MS) {
+        return json(200, cache.resultado, {
+          'X-SCPP-Cache': 'STALE',
+          'X-SCPP-Cache-Age': String(Math.round(cache.idadeMs / 1000)),
+          'X-SCPP-AppScript': 'ERROR',
+          'Warning': '110 - Response is stale',
+          'Server-Timing': `r2-stale;dur=${Date.now() - inicio}`
+        });
+      }
+
       const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
       return json(status, {
         ok: false,
