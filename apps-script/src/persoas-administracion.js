@@ -6,20 +6,13 @@
  * La web no descarga ningún PDF desde Drive ni usa Base64.
  */
 
-const PERSOAS_ADMIN_CONFIG = {
-  persoasSpreadsheetId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
-  persoasSheetId: 388888827,
-  usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
-  usuariosSheetId: 1291817000
-};
-
 const PERSOAS_ADMIN_CACHE_SEGUNDOS = 10 * 60;
 
 function probarPersoasAdministracion() {
   const inicio = Date.now();
 
   const resultado = listarPersoasAdministracion_({
-    email: 'jcuinas@gmail.com'
+    email: obterPropiedadeObrigatoria_('WEB_TEST_EMAIL')
   });
 
   const persoas = Array.isArray(resultado.persoas)
@@ -270,19 +263,17 @@ function obterFichaPersoaAdministracion_(datos) {
 function obterContextoPersoasAdmin_() {
   const persoas = SpreadsheetApp
     .openById(
-      PERSOAS_ADMIN_CONFIG.persoasSpreadsheetId
+      obterPropiedadeObrigatoria_('PERSOAS_SPREADSHEET_ID')
     )
-    .getSheetById(
-      PERSOAS_ADMIN_CONFIG.persoasSheetId
-    );
+    .getSheetByName('Persoas');
 
   const usuarios = SpreadsheetApp
     .openById(
-      PERSOAS_ADMIN_CONFIG.usuariosSpreadsheetId
+      obterPropiedadeObrigatoria_(
+        'USUARIOS_WEB_SPREADSHEET_ID'
+      )
     )
-    .getSheetById(
-      PERSOAS_ADMIN_CONFIG.usuariosSheetId
-    );
+    .getSheetByName('UsuariosWeb');
 
   if (!persoas || persoas.getName() !== 'Persoas') {
     throw new Error(
@@ -750,7 +741,7 @@ function probarFichaPersoaAdministracionR2() {
   const inicio = Date.now();
 
   const resultado = obterFichaPersoaAdministracion_({
-    email: 'jcuinas@gmail.com',
+    email: obterPropiedadeObrigatoria_('WEB_TEST_EMAIL'),
     idPersoa: '37'
   });
 

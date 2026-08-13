@@ -7,32 +7,11 @@
  */
 
 const DOC_PORTAL_CONFIG = {
-  documentosSpreadsheetId:
-    '1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8',
-
   sheetDocumentacion:
     'Documentación',
 
   sheetActas:
-    'Actas XD e AX',
-
-  usuariosSpreadsheetId:
-    '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
-
-  usuariosSheetId:
-    1291817000,
-
-  persoasSpreadsheetId:
-    '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
-
-  persoasSheetId:
-    388888827,
-
-  folderDocumentacionId:
-    '1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ',
-
-  folderActasId:
-    '1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR'
+    'Actas XD e AX'
 };
 
 const DOC_NIVEIS = {
@@ -43,7 +22,7 @@ const DOC_NIVEIS = {
 
 function probarDocumentacionPortal() {
   const resultado = listarDocumentacionPortal_({
-    email: 'jcuinas@gmail.com'
+    email: obterPropiedadeObrigatoria_('WEB_TEST_EMAIL')
   });
   console.log(JSON.stringify(resultado));
 }
@@ -145,8 +124,8 @@ function obterFicheiroDocumentacion_(datos) {
 
   const folderId =
     clase === 'acta'
-      ? DOC_PORTAL_CONFIG.folderActasId
-      : DOC_PORTAL_CONFIG.folderDocumentacionId;
+      ? obterPropiedadeObrigatoria_('ACTAS_FOLDER_ID')
+      : obterPropiedadeObrigatoria_('DOCUMENTACION_FOLDER_ID');
 
   const nome = ruta
     .replace(/\\/g, '/')
@@ -183,7 +162,7 @@ function obterFicheiroDocumentacion_(datos) {
 
 function obterContextoDocumentacion_() {
   const libroDocumentos = SpreadsheetApp.openById(
-    DOC_PORTAL_CONFIG.documentosSpreadsheetId
+    obterPropiedadeObrigatoria_('DOCUMENTACION_SPREADSHEET_ID')
   );
 
   const documentos = libroDocumentos.getSheetByName(
@@ -196,19 +175,17 @@ function obterContextoDocumentacion_() {
 
   const usuarios = SpreadsheetApp
     .openById(
-      DOC_PORTAL_CONFIG.usuariosSpreadsheetId
+      obterPropiedadeObrigatoria_(
+        'USUARIOS_WEB_SPREADSHEET_ID'
+      )
     )
-    .getSheetById(
-      DOC_PORTAL_CONFIG.usuariosSheetId
-    );
+    .getSheetByName('UsuariosWeb');
 
   const persoas = SpreadsheetApp
     .openById(
-      DOC_PORTAL_CONFIG.persoasSpreadsheetId
+      obterPropiedadeObrigatoria_('PERSOAS_SPREADSHEET_ID')
     )
-    .getSheetById(
-      DOC_PORTAL_CONFIG.persoasSheetId
-    );
+    .getSheetByName('Persoas');
 
   if (
     !documentos ||

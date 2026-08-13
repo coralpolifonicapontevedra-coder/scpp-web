@@ -1,11 +1,22 @@
 function configurarProba() {
   const propiedades = PropertiesService.getScriptProperties();
+  const ambienteActual = String(
+    propiedades.getProperty('SCPP_ENVIRONMENT') || ''
+  ).toLowerCase();
+
+  if (ambienteActual && ambienteActual !== 'test') {
+    throw new Error(
+      'Non se pode converter un ambiente existente en test'
+    );
+  }
 
   const token =
     Utilities.getUuid().replaceAll('-', '') +
     Utilities.getUuid().replaceAll('-', '');
 
   propiedades.setProperties({
+    SCPP_ENVIRONMENT: 'test',
+    SCPP_ALLOW_WRITES: 'false',
     WEB_WRITE_TOKEN: token,
     WEB_TEST_EMAIL: Session
       .getEffectiveUser()
@@ -65,24 +76,16 @@ function doGet(e) {
  * posteriores do Portal abren ambos os libros directamente polos seus IDs.
  */
 function configurarPortalSCPP() {
-  const propiedades =
-    PropertiesService.getScriptProperties();
-
-  const libroUsuarios =
-    SpreadsheetApp.getActiveSpreadsheet();
-
-  if (!libroUsuarios) {
-    throw new Error(
-      'Este proxecto debe estar vinculado ao arquivo que contén UsuariosWeb.'
-    );
-  }
+  const libroUsuarios = SpreadsheetApp.openById(
+    obterPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID')
+  );
 
   const follaUsuarios =
     libroUsuarios.getSheetByName('UsuariosWeb');
 
   if (!follaUsuarios) {
     throw new Error(
-      'O arquivo activo non contén a pestana UsuariosWeb.'
+      'O arquivo configurado non contén a pestana UsuariosWeb.'
     );
   }
 
@@ -103,11 +106,6 @@ function configurarPortalSCPP() {
     'UsuariosWeb'
   );
 
-  propiedades.setProperty(
-    'USUARIOS_WEB_SPREADSHEET_ID',
-    libroUsuarios.getId()
-  );
-
   const follaPersoas = obterFollaPersoas_();
 
   validarCabeceirasNormalizadasPortal_(
@@ -125,16 +123,8 @@ function configurarPortalSCPP() {
     'Persoas'
   );
 
-  propiedades.setProperty(
-    'PERSOAS_SPREADSHEET_ID',
-    follaPersoas.getParent().getId()
-  );
-
   console.log(
-    'Portal configurado correctamente. UsuariosWeb: ' +
-    libroUsuarios.getId() +
-    ' | Persoas: ' +
-    follaPersoas.getParent().getId()
+    'Portal configurado correctamente: UsuariosWeb e Persoas'
   );
 }
 
@@ -185,6 +175,8 @@ function doPost(e) {
         erro: 'Non autorizado'
       });
     }
+
+    validarAccionPermitidaEntorno_(accion);
 
     if (accion === 'rexistrarSolicitudeWeb') {
       bloqueo.waitLock(10000);
@@ -901,15 +893,15 @@ function listarRepertorioPortal_(datos) {
 
   const ids = {
     repertorio:
-      '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw',
+      obterPropiedadeObrigatoria_('REPERTORIO_SPREADSHEET_ID'),
     audios:
-      '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0',
+      obterPropiedadeObrigatoria_('AUDIOS_REPERTORIO_SPREADSHEET_ID'),
     partituras:
-      '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0',
+      obterPropiedadeObrigatoria_('PARTITURAS_SPREADSHEET_ID'),
     programas:
-      '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig',
+      obterPropiedadeObrigatoria_('CONCERTOS_REPERTORIO_SPREADSHEET_ID'),
     concertos:
-      '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU'
+      obterPropiedadeObrigatoria_('CONCERTOS_SPREADSHEET_ID')
   };
 
   const repertorio = lerFollaRepertorio_(
@@ -1076,144 +1068,6 @@ function listarRepertorioPortal_(datos) {
 }
 
 
-function listarAsistenciasConcertosPortal_(datos) {
-  const correo = String(datos.email || '')
-    .trim()
-    .toLowerCase();
-
-  const usuario = obterUsuarioWebPorEmail(correo);
-
-  if (!usuario) {
-    return {
-      ok: false,
-      erro: 'Usuario non autorizado'
-    };
-  }
-
-  const asistencias = lerFollaRepertorio_(
-    '1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0',
-    'AsistenciasConcertos'
-  );
-
-  const ordeVoces = {
-    Soprano: 1,
-    Contralto: 2,
-    Tenor: 3,
-    Baixo: 4
-  };
-
-  const porConcerto = {};
-
-  asistencias.forEach(function(asistencia) {
-    const idConcerto = String(
-      asistencia.Concerto || ''
-    ).trim();
-
-    const nome = String(
-      asistencia.Nome_Completo ||
-      asistencia['Nome e apelidos'] ||
-      ''
-    ).trim();
-
-    const voz = String(
-      asistencia.Voz || 'Sen voz indicada'
-    ).trim();
-
-    if (!idConcerto || !nome) {
-      return;
-    }
-
-    if (!porConcerto[idConcerto]) {
-      porConcerto[idConcerto] = [];
-    }
-
-    const repetida = porConcerto[idConcerto].some(
-      function(persoa) {
-        return (
-          persoa.nome === nome &&
-          persoa.voz === voz
-        );
-      }
-    );
-
-    if (!repetida) {
-      porConcerto[idConcerto].push({
-        nome: nome,
-        voz: voz
-      });
-    }
-  });
-
-  Object.keys(porConcerto).forEach(function(idConcerto) {
-    porConcerto[idConcerto].sort(function(a, b) {
-      const diferenzaVoz =
-        (ordeVoces[a.voz] || 99) -
-        (ordeVoces[b.voz] || 99);
-
-      if (diferenzaVoz !== 0) {
-        return diferenzaVoz;
-      }
-
-      return a.nome.localeCompare(
-        b.nome,
-        'gl',
-        { sensitivity: 'base' }
-      );
-    });
-  });
-
-  return {
-    ok: true,
-    asistenciasPorConcerto: porConcerto
-  };
-}
-
-
-function lerFollaRepertorio_(spreadsheetId, nomeFolla) {
-  const folla = SpreadsheetApp
-    .openById(spreadsheetId)
-    .getSheetByName(nomeFolla);
-
-  if (!folla) {
-    throw new Error(
-      'Non se atopou a folla ' + nomeFolla
-    );
-  }
-
-  const valores = folla
-    .getDataRange()
-    .getDisplayValues();
-
-  if (valores.length < 2) {
-    return [];
-  }
-
-  const cabeceiras = valores[0].map(function(valor) {
-    return String(valor || '').trim();
-  });
-
-  return valores
-    .slice(1)
-    .filter(function(fila) {
-      return fila.some(function(valor) {
-        return String(valor || '').trim();
-      });
-    })
-    .map(function(fila) {
-      const rexistro = {};
-
-      cabeceiras.forEach(function(cabeceira, indice) {
-        rexistro[cabeceira] =
-          fila[indice] === undefined
-            ? ''
-            : fila[indice];
-      });
-
-      return rexistro;
-    });
-}
-
-
 function obterFicheiroRepertorio_(datos) {
   const correo = String(datos.email || '')
     .trim()
@@ -1232,11 +1086,11 @@ function obterFicheiroRepertorio_(datos) {
 
   const carpetasPermitidas = {
     'Obras_Files_':
-      '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU',
+      obterPropiedadeObrigatoria_('OBRAS_FILES_FOLDER_ID'),
     'Partituras_Files_':
-      '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm',
+      obterPropiedadeObrigatoria_('PARTITURAS_FILES_FOLDER_ID'),
     'AudiosRepertorio_Files_':
-      '1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V'
+      obterPropiedadeObrigatoria_('AUDIOS_REPERTORIO_FILES_FOLDER_ID')
   };
 
   const partes = ruta.split('/');
@@ -1286,51 +1140,19 @@ function obterUsuarioWebPorEmail(correo) {
 }
 
 function obterFollaUsuariosWeb_() {
-  const propiedades =
-    PropertiesService.getScriptProperties();
-
-  const idConfigurado = String(
-    propiedades.getProperty(
-      'USUARIOS_WEB_SPREADSHEET_ID'
-    ) || ''
-  ).trim();
-
-  if (idConfigurado) {
-    const follaConfigurada = SpreadsheetApp
-      .openById(idConfigurado)
-      .getSheetByName('UsuariosWeb');
-
-    if (!follaConfigurada) {
-      throw new Error(
-        'O arquivo configurado non contén a pestana UsuariosWeb.'
-      );
-    }
-
-    return follaConfigurada;
-  }
-
-  const libroActivo =
-    SpreadsheetApp.getActiveSpreadsheet();
-
-  if (!libroActivo) {
-    throw new Error(
-      'UsuariosWeb non está configurada. Executa configurarPortalSCPP().'
-    );
-  }
-
-  const folla =
-    libroActivo.getSheetByName('UsuariosWeb');
+  const folla = SpreadsheetApp
+    .openById(
+      obterPropiedadeObrigatoria_(
+        'USUARIOS_WEB_SPREADSHEET_ID'
+      )
+    )
+    .getSheetByName('UsuariosWeb');
 
   if (!folla) {
     throw new Error(
-      'Non se atopou a pestana UsuariosWeb. Executa configurarPortalSCPP().'
+      'O arquivo configurado non contén a pestana UsuariosWeb.'
     );
   }
-
-  propiedades.setProperty(
-    'USUARIOS_WEB_SPREADSHEET_ID',
-    libroActivo.getId()
-  );
 
   return folla;
 }
@@ -1574,71 +1396,15 @@ function obterPersoaActivaPorEmail_(correo) {
 
 
 function obterFollaPersoas_() {
-  const libroActivo =
-    SpreadsheetApp.getActiveSpreadsheet();
-  const follaNoLibroActivo =
-    libroActivo
-      ? libroActivo.getSheetByName('Persoas')
-      : null;
-
-  if (follaNoLibroActivo) {
-    return follaNoLibroActivo;
-  }
-
-  const propiedades =
-    PropertiesService.getScriptProperties();
-  const idConfigurado = String(
-    propiedades.getProperty(
-      'PERSOAS_SPREADSHEET_ID'
-    ) || ''
-  ).trim();
-
-  if (idConfigurado) {
-    const follaConfigurada = SpreadsheetApp
-      .openById(idConfigurado)
-      .getSheetByName('Persoas');
-
-    if (!follaConfigurada) {
-      throw new Error(
-        'O arquivo configurado non contén a pestana Persoas'
-      );
-    }
-    return follaConfigurada;
-  }
-
-  const ficheiros = DriveApp.getFilesByName('Persoas');
-  const candidatas = [];
-
-  while (ficheiros.hasNext()) {
-    const ficheiro = ficheiros.next();
-    if (
-      ficheiro.getMimeType() ===
-      MimeType.GOOGLE_SHEETS
-    ) {
-      candidatas.push(ficheiro);
-    }
-  }
-
-  if (candidatas.length !== 1) {
-    throw new Error(
-      candidatas.length === 0
-        ? 'Non se atopou o arquivo Persoas. Configura PERSOAS_SPREADSHEET_ID.'
-        : 'Hai varios arquivos Persoas. Configura PERSOAS_SPREADSHEET_ID.'
-    );
-  }
-
-  propiedades.setProperty(
-    'PERSOAS_SPREADSHEET_ID',
-    candidatas[0].getId()
-  );
-
   const folla = SpreadsheetApp
-    .openById(candidatas[0].getId())
+    .openById(
+      obterPropiedadeObrigatoria_('PERSOAS_SPREADSHEET_ID')
+    )
     .getSheetByName('Persoas');
 
   if (!folla) {
     throw new Error(
-      'O arquivo localizado non contén a pestana Persoas'
+      'O arquivo configurado non contén a pestana Persoas'
     );
   }
 
@@ -1751,15 +1517,8 @@ function valorActivoPersoaPortal_(valor) {
 
 function configurarPersoasPortal() {
   const folla = obterFollaPersoas_();
-  PropertiesService.getScriptProperties().setProperty(
-    'PERSOAS_SPREADSHEET_ID',
-    folla.getParent().getId()
-  );
   console.log(
-    'Persoas configurada: ' +
-    folla.getParent().getId() +
-    ' | ' +
-    folla.getName()
+    'Persoas configurada: ' + folla.getName()
   );
 }
 
@@ -1816,17 +1575,15 @@ function rexistrarAcceso(datos) {
 
     // Arquivo independente RexistroAccesosWeb.
     const libroRexistro = SpreadsheetApp.openById(
-      '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU'
+      obterPropiedadeObrigatoria_('REXISTRO_ACCESOS_SPREADSHEET_ID')
     );
 
-    // Identificador interno da pestana.
     const follaRexistro =
-      libroRexistro.getSheetById(1291817000);
+      libroRexistro.getSheetByName('RexistroAccesosWeb');
 
     if (!follaRexistro) {
       throw new Error(
-        'Non se atopou a pestana co identificador ' +
-        '1291817000'
+        'Non se atopou a pestana RexistroAccesosWeb'
       );
     }
 
@@ -1872,8 +1629,9 @@ function respostaJSON(datos) {
 
 
 function autorizarAccesoUsuariosWeb() {
-  const libro =
-    SpreadsheetApp.getActiveSpreadsheet();
+  const libro = SpreadsheetApp.openById(
+    obterPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID')
+  );
 
   const nomes = libro
     .getSheets()
@@ -1887,16 +1645,15 @@ function autorizarAccesoUsuariosWeb() {
 
 function comprobarRexistroAccesosWeb() {
   const libroRexistro = SpreadsheetApp.openById(
-    '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU'
+    obterPropiedadeObrigatoria_('REXISTRO_ACCESOS_SPREADSHEET_ID')
   );
 
   const follaRexistro =
-    libroRexistro.getSheetById(1291817000);
+    libroRexistro.getSheetByName('RexistroAccesosWeb');
 
   if (!follaRexistro) {
     throw new Error(
-      'Non se atopou a pestana co identificador ' +
-      '1291817000'
+      'Non se atopou a pestana RexistroAccesosWeb'
     );
   }
 
@@ -1921,15 +1678,15 @@ function probarEscrituraRexistro() {
 }
 function comprobarFollaAceptacion() {
   const libroAceptacion = SpreadsheetApp.openById(
-    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+    obterPropiedadeObrigatoria_('ACEPTACION_SPREADSHEET_ID')
   );
 
   const follaAceptacion =
-    libroAceptacion.getSheetById(974695665);
+    libroAceptacion.getSheetByName('Aceptación');
 
   if (!follaAceptacion) {
     throw new Error(
-      'Non se atopou a pestana co identificador 974695665'
+      'Non se atopou a pestana Aceptación'
     );
   }
 
@@ -1956,11 +1713,11 @@ function comprobarFollaAceptacion() {
 
 function rexistrarAceptacion(datos) {
   const libroAceptacion = SpreadsheetApp.openById(
-    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+    obterPropiedadeObrigatoria_('ACEPTACION_SPREADSHEET_ID')
   );
 
   const follaAceptacion =
-    libroAceptacion.getSheetById(974695665);
+    libroAceptacion.getSheetByName('Aceptación');
 
   if (!follaAceptacion) {
     throw new Error(
@@ -1992,11 +1749,11 @@ function rexistrarAceptacion(datos) {
 
 function tenAceptacionVixente_(correo, version) {
   const libroAceptacion = SpreadsheetApp.openById(
-    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+    obterPropiedadeObrigatoria_('ACEPTACION_SPREADSHEET_ID')
   );
 
   const follaAceptacion =
-    libroAceptacion.getSheetById(974695665);
+    libroAceptacion.getSheetByName('Aceptación');
 
   if (!follaAceptacion) {
     throw new Error(
@@ -2068,49 +1825,6 @@ function tenAceptacionVixente_(correo, version) {
 }
 
 
-function probarEscrituraAceptacion() {
-  console.log(
-    'A función probarEscrituraAceptacion foi recoñecida correctamente'
-  );
-}
-function probarPostAceptacion() {
-  const propiedades =
-    PropertiesService.getScriptProperties();
-
-  const token =
-    propiedades.getProperty('WEB_WRITE_TOKEN');
-
-  const correo = String(
-    propiedades.getProperty('WEB_TEST_EMAIL') || ''
-  )
-    .trim()
-    .toLowerCase();
-
-  const eventoSimulado = {
-    postData: {
-      contents: JSON.stringify({
-        token: token,
-        accion: 'rexistrarAceptacion',
-        email: correo,
-        version: 'PRIVACIDADE-WEB-1.0',
-        textoLegal:
-          'Texto de proba da aceptación da política de privacidade.',
-        aceptaFines: true,
-        persoa: '',
-        usuarioWeb: '',
-        ambito:
-          'coralpolifonicapontevedra.org'
-      })
-    }
-  };
-
-  const resposta = doPost(eventoSimulado);
-
-  console.log(
-    resposta.getContent()
-  );
-}
-
 /**
  * Texto legal vixente do portal privado.
  *
@@ -2118,16 +1832,13 @@ function probarPostAceptacion() {
  * Tanto a comprobación como o rexistro resolven a fila activa directamente
  * desde TextosLegais.
  */
-const ACEPTACION_SPREADSHEET_ID_ =
-  '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k';
-const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208;
 const TEXTO_LEGAL_PORTAL_ID_ = 'PRIVACIDADE_WEB';
 
 function obterTextoLegalVixente_() {
   const libro = SpreadsheetApp.openById(
-    ACEPTACION_SPREADSHEET_ID_
+    obterPropiedadeObrigatoria_('ACEPTACION_SPREADSHEET_ID')
   );
-  const folla = libro.getSheetById(TEXTOS_LEGAIS_SHEET_ID_);
+  const folla = libro.getSheetByName('TextosLegais');
 
   if (!folla || folla.getName() !== 'TextosLegais') {
     throw new Error('Non se atopou a pestana TextosLegais configurada');

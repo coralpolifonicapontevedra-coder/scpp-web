@@ -13,6 +13,8 @@ Estado: en curso.
 - [ ] Documentar o despachador principal de Apps Script.
 - [x] Importar e versionar o código completo de Apps Script en GitHub.
 - [x] Engadir comprobación automática de sintaxe para Apps Script.
+- [x] Eliminar referencias directas a recursos de produción.
+- [x] Engadir bloqueo de escritura e auditoría de configuración por ambiente.
 - [ ] Crear o proxecto e os datos illados de Apps Script para probas.
 - [ ] Automatizar o despregue en probas e a promoción manual a produción.
 - [ ] Crear unha táboa de módulos e o seu estado de migración.

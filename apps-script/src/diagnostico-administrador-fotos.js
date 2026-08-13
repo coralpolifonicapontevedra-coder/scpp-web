@@ -1,5 +1,5 @@
 function comprobarAdministradorFotos() {
-  const correo = 'jcuinas@gmail.com';
+  const correo = obterPropiedadeObrigatoria_('WEB_TEST_EMAIL');
 
   console.log(
     'UsuarioWeb: ' +

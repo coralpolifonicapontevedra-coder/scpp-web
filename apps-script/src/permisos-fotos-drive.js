@@ -7,7 +7,7 @@
 
 function facerPublicasFotosDrive() {
   const folderId =
-    '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix';
+    obterPropiedadeObrigatoria_('FOTOS_FOLDER_ID');
 
   const carpeta =
     DriveApp.getFolderById(folderId);

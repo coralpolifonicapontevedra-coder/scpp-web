@@ -12,14 +12,6 @@
  */
 
 function configurarFotosPortal() {
-  PropertiesService.getScriptProperties().setProperties({
-    FOTOS_FOLDER_ID: '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',
-    FOTOS_SPREADSHEET_ID: '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w',
-    FOTOS_SHEET_ID: '1291817000',
-    FOTOS_APPSHEET_PATH: 'Fotos_Images/',
-    FOTOS_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
-  });
-
   const contexto = obterContextoFotos_();
   console.log(
     'Configuración correcta: ' +
@@ -30,7 +22,8 @@ function configurarFotosPortal() {
 }
 
 function probarPanelFotos() {
-  const email = 'jcuinas@gmail.com';
+  const email = obterPropiedadeObrigatoria_('WEB_TEST_EMAIL')
+    .toLowerCase();
 
   console.log('Correo utilizado na proba: ' + email);
 
@@ -139,11 +132,9 @@ function subirFotoPortal_(datos) {
     throw erro;
   }
 
-  const correoAviso = String(
-    PropertiesService.getScriptProperties()
-      .getProperty('FOTOS_NOTIFY_EMAIL') ||
-    'coralpolifonicapontevedra@gmail.com'
-  ).trim();
+  const correoAviso = obterPropiedadeObrigatoria_(
+    'FOTOS_NOTIFY_EMAIL'
+  );
 
   if (correoAviso) {
     try {
@@ -467,139 +458,6 @@ function actualizarPublicacionFotoPortal_(datos) {
   };
 }
 
-function obterFotoParaR2Portal_(datos) {
-  const email = String(datos.email || '').trim().toLowerCase();
-  const usuario = obterAdministradorFotosPortalV2_(email);
-
-  if (!usuario) {
-    return {
-      ok: false,
-      erro: 'Administración non autorizada'
-    };
-  }
-
-  const contexto = obterContextoFotos_();
-  const localizacion = localizarFilaFoto_(
-    contexto.folla,
-    String(datos.idFoto || datos.rowId || '').trim()
-  );
-
-  if (!localizacion) {
-    return { ok: false, erro: 'Non se atopou a fotografía' };
-  }
-
-  const foto = localizacion.rexistro;
-  const carpeta = DriveApp.getFolderById(contexto.folderId);
-  const ficheiro = localizarFicheiroFoto_(
-    carpeta,
-    String(foto.Foto || '')
-  );
-
-  if (!ficheiro) {
-    return {
-      ok: false,
-      erro: 'Non se atopou o ficheiro da fotografía en Drive'
-    };
-  }
-
-  const blob = ficheiro.getBlob();
-
-  return {
-    ok: true,
-    idFoto: String(foto.Id_Foto || '').trim(),
-    rowId: String(foto.Id_Foto || '').trim(),
-    nomeFicheiro: ficheiro.getName(),
-    mimeType:
-      blob.getContentType() || 'application/octet-stream',
-    base64: Utilities.base64Encode(blob.getBytes()),
-    publicarPublica:
-      valorBooleanoFotos_(foto.Publicar_Publica),
-    publicarPrivada:
-      valorBooleanoFotos_(foto.Publicar_Privada)
-  };
-}
-
-function listarFotosPendentesR2Portal_(datos) {
-  const email = String(datos.email || '').trim().toLowerCase();
-  const usuario = obterAdministradorFotosPortalV2_(email);
-
-  if (!usuario) {
-    return {
-      ok: false,
-      erro: 'Administración non autorizada'
-    };
-  }
-
-  const contexto = obterContextoFotos_();
-  const fotos = lerFotosComoObxectos_(contexto.folla)
-    .filter(function(foto) {
-      const publica = valorBooleanoFotos_(foto.Publicar_Publica);
-      const privada = valorBooleanoFotos_(foto.Publicar_Privada);
-      const faltaPublica =
-        publica && !String(foto.RutaR2_Publica || '').trim();
-      const faltaPrivada =
-        privada && !String(foto.RutaR2_Privada || '').trim();
-
-      return faltaPublica || faltaPrivada;
-    })
-    .map(function(foto) {
-      return {
-        idFoto: String(foto.Id_Foto || '').trim(),
-        rowId: String(foto.Id_Foto || '').trim(),
-        titulo: String(foto.Titulo || '').trim(),
-        publicarPublica:
-          valorBooleanoFotos_(foto.Publicar_Publica),
-        publicarPrivada:
-          valorBooleanoFotos_(foto.Publicar_Privada),
-        rutaPublica: String(foto.RutaR2_Publica || '').trim(),
-        rutaPrivada: String(foto.RutaR2_Privada || '').trim()
-      };
-    });
-
-  return { ok: true, fotos: fotos };
-}
-
-function gardarRutasFotoR2Portal_(datos) {
-  const email = String(datos.email || '').trim().toLowerCase();
-  const usuario = obterAdministradorFotosPortalV2_(email);
-
-  if (!usuario) {
-    return {
-      ok: false,
-      erro: 'Administración non autorizada'
-    };
-  }
-
-  const contexto = obterContextoFotos_();
-  const localizacion = localizarFilaFoto_(
-    contexto.folla,
-    String(datos.idFoto || datos.rowId || '').trim()
-  );
-
-  if (!localizacion) {
-    return { ok: false, erro: 'Non se atopou a fotografía' };
-  }
-
-  actualizarFilaPorCabeceiras_(
-    contexto.folla,
-    localizacion.numeroFila,
-    localizacion.cabeceiras,
-    {
-      RutaR2_Publica: String(datos.rutaPublica || '').trim(),
-      RutaR2_Privada: String(datos.rutaPrivada || '').trim()
-    }
-  );
-
-  SpreadsheetApp.flush();
-
-  return {
-    ok: true,
-    idFoto: localizacion.idFoto,
-    rowId: localizacion.idFoto,
-    mensaxe: 'Rutas R2 gardadas correctamente'
-  };
-}
-
 /* =========================
    FUNCIÓNS AUXILIARES
    ========================= */
@@ -608,38 +466,25 @@ function obterContextoFotos_() {
   const propiedades =
     PropertiesService.getScriptProperties();
 
-  const spreadsheetId = String(
-    propiedades.getProperty('FOTOS_SPREADSHEET_ID') ||
-    '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w'
-  ).trim();
-
-  const sheetId = Number(
-    propiedades.getProperty('FOTOS_SHEET_ID') ||
-    '1291817000'
+  const spreadsheetId = obterPropiedadeObrigatoria_(
+    'FOTOS_SPREADSHEET_ID'
   );
 
-  const folderId = String(
-    propiedades.getProperty('FOTOS_FOLDER_ID') ||
-    '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'
-  ).trim();
+  const folderId = obterPropiedadeObrigatoria_(
+    'FOTOS_FOLDER_ID'
+  );
 
   const appsheetPath = String(
     propiedades.getProperty('FOTOS_APPSHEET_PATH') ||
     'Fotos_Images/'
   ).trim();
 
-  if (!spreadsheetId || !sheetId || !folderId) {
-    throw new Error(
-      'Falta a configuración do módulo Fotos'
-    );
-  }
-
   const libro = SpreadsheetApp.openById(spreadsheetId);
-  const folla = libro.getSheetById(sheetId);
+  const folla = libro.getSheetByName('Fotos');
 
   if (!folla || folla.getName() !== 'Fotos') {
     throw new Error(
-      'Non se atopou a folla Fotos co ID configurado'
+      'Non se atopou a folla Fotos configurada'
     );
   }
 
@@ -897,4 +742,3 @@ function escaparHtmlFoto_(valor) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-

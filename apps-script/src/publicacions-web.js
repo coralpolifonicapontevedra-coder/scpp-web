@@ -3,7 +3,7 @@
  */
 function listarPublicacionsWeb_() {
   const spreadsheetId =
-    '1UjEvc2x6n2zmpXp6bgATTwAORbKPmI2zePdMTB5kmVU';
+    obterPropiedadeObrigatoria_('PUBLICACIONS_SPREADSHEET_ID');
 
   const folla = SpreadsheetApp
     .openById(spreadsheetId)

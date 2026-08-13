@@ -100,7 +100,7 @@ function listarAsistenciasConcertosPortal_(datos) {
 function lerFollaAsistenciasConcertos_() {
   const folla = SpreadsheetApp
     .openById(
-      '1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0'
+      obterPropiedadeObrigatoria_('ASISTENCIAS_CONCERTOS_SPREADSHEET_ID')
     )
     .getSheetByName('AsistenciasConcertos');
 

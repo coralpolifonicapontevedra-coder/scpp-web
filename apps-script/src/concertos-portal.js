@@ -22,15 +22,6 @@
  * }
  */
 function configurarConcertosPortal() {
-  PropertiesService.getScriptProperties().setProperties({
-    CONCERTOS_PORTAL_SPREADSHEET_ID: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU',
-    CONCERTOS_PORTAL_SHEET_ID: '1098509641',
-    CONCERTOS_PORTAL_USUARIOS_SPREADSHEET_ID: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
-    CONCERTOS_PORTAL_USUARIOS_SHEET_ID: '1291817000',
-    CONCERTOS_PORTAL_FILES_FOLDER_ID: '1H12S32zJzncJoXdUvbZx82CLFXvlhtd6',
-    CONCERTOS_PORTAL_IMAGES_FOLDER_ID: '1yvEWIatZIa3UnE71VQUb4LCvBZ6HLs6t'
-  });
-
   var contexto = obterContextoConcertosPortal_();
 
   console.log(
@@ -43,13 +34,8 @@ function configurarConcertosPortal() {
 }
 
 function probarDocumentoConcertoPortal() {
-  var propiedades = PropertiesService.getScriptProperties();
-
-  var email = String(
-    propiedades.getProperty('WEB_TEST_EMAIL') ||
-    Session.getEffectiveUser().getEmail() ||
-    ''
-  ).trim().toLowerCase();
+  var email = obterPropiedadeObrigatoria_('WEB_TEST_EMAIL')
+    .toLowerCase();
 
   var resultado = obterDocumentoConcerto_({
     email: email,
@@ -156,61 +142,26 @@ function obterDocumentoConcerto_(datos) {
 }
 
 function obterContextoConcertosPortal_() {
-  var propiedades =
-    PropertiesService.getScriptProperties();
-
-  var concertosSpreadsheetId =
-    propiedades.getProperty(
-      'CONCERTOS_PORTAL_SPREADSHEET_ID'
-    );
-
-  var concertosSheetId = Number(
-    propiedades.getProperty(
-      'CONCERTOS_PORTAL_SHEET_ID'
-    )
+  var concertosSpreadsheetId = obterPropiedadeObrigatoria_(
+    'CONCERTOS_SPREADSHEET_ID'
   );
-
-  var usuariosSpreadsheetId =
-    propiedades.getProperty(
-      'CONCERTOS_PORTAL_USUARIOS_SPREADSHEET_ID'
-    );
-
-  var usuariosSheetId = Number(
-    propiedades.getProperty(
-      'CONCERTOS_PORTAL_USUARIOS_SHEET_ID'
-    )
+  var usuariosSpreadsheetId = obterPropiedadeObrigatoria_(
+    'USUARIOS_WEB_SPREADSHEET_ID'
   );
-
-  var filesFolderId =
-    propiedades.getProperty(
-      'CONCERTOS_PORTAL_FILES_FOLDER_ID'
-    );
-
-  var imagesFolderId =
-    propiedades.getProperty(
-      'CONCERTOS_PORTAL_IMAGES_FOLDER_ID'
-    );
-
-  if (
-    !concertosSpreadsheetId ||
-    !concertosSheetId ||
-    !usuariosSpreadsheetId ||
-    !usuariosSheetId ||
-    !filesFolderId ||
-    !imagesFolderId
-  ) {
-    throw new Error(
-      'Falta configurar o módulo Concertos'
-    );
-  }
+  var filesFolderId = obterPropiedadeObrigatoria_(
+    'CONCERTOS_FILES_FOLDER_ID'
+  );
+  var imagesFolderId = obterPropiedadeObrigatoria_(
+    'CONCERTOS_IMAGES_FOLDER_ID'
+  );
 
   var follaConcertos = SpreadsheetApp
     .openById(concertosSpreadsheetId)
-    .getSheetById(concertosSheetId);
+    .getSheetByName('Concertos');
 
   var follaUsuarios = SpreadsheetApp
     .openById(usuariosSpreadsheetId)
-    .getSheetById(usuariosSheetId);
+    .getSheetByName('UsuariosWeb');
 
   if (
     !follaConcertos ||

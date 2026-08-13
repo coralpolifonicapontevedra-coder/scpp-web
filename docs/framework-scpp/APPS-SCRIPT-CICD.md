@@ -14,18 +14,25 @@ Rama / PR → comprobación estática → Apps Script de probas
 ## Estrutura
 
 ```text
-apps-script/src/                 Código e manifesto
-scripts/check-apps-script.mjs    Comprobación local e CI
+apps-script/src/                      Código e manifesto
+apps-script/src/configuracion-entorno.js
+scripts/check-apps-script.mjs         Sintaxe e manifesto
+scripts/audit-apps-script-config.mjs  Illamento e seguridade
 .github/workflows/check-apps-script.yml
 ```
 
-## Segredos
+## Segredos e configuración
 
 Nunca se versionan:
 
 - `.clasprc.json`: credencial OAuth de clasp.
 - `.clasp.json`: identificador do proxecto de destino.
-- Propiedades do script, tokens, credenciais ou IDs privados de datos.
+- Propiedades do script, tokens, credenciais, correos ou IDs de datos.
+
+Cada proxecto resolve Sheets, carpetas e destinatarios unicamente mediante
+Propiedades do script. A auditoría automática rexeita identificadores ou
+correos escritos no código, o uso do arquivo activo, procuras ambiguas en
+Drive, IDs numéricos de folla e funcións globais duplicadas.
 
 En GitHub Actions utilizaranse contornos protexidos e segredos separados:
 `CLASPRC_JSON`, `CLASP_JSON_TEST` e `CLASP_JSON_PROD`.
@@ -35,17 +42,20 @@ En GitHub Actions utilizaranse contornos protexidos e segredos separados:
 ### Probas
 
 - Proxecto Apps Script independente.
+- `SCPP_ENVIRONMENT=test`.
+- `SCPP_ALLOW_WRITES=false` ao crealo.
 - Copias de Sheets e carpetas de Drive.
-- Propiedades específicas de probas.
+- Propiedades e destinatarios específicos de probas.
 - Implementación web diferente da de produción.
-- Ningunha operación debe escribir sobre datos reais.
+- A escritura só se activa despois de validar todas as copias.
 
 ### Produción
 
 - Proxecto actual.
+- `SCPP_ENVIRONMENT=production`.
+- `SCPP_ALLOW_WRITES=true` só tras revisar a configuración.
 - Despregue exclusivamente manual e aprobado.
-- A implementación existente actualízase cunha nova versión; non se crea unha
-  URL distinta para cada cambio.
+- A implementación existente actualízase cunha nova versión.
 - O commit promovido queda indicado na descrición da versión.
 
 ## Recuperación

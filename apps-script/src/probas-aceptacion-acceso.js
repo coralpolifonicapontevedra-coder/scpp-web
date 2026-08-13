@@ -37,7 +37,7 @@ function probarPostAceptacion() {
 }
 
 function diagnosticarAccesoMhm() {
-  const correo = 'mhm36002@gmail.com';
+  const correo = obterPropiedadeObrigatoria_('WEB_TEST_EMAIL');
 
   console.log(
     'UsuariosWeb: ' +

@@ -14,7 +14,7 @@
     "test": "vitest run",
     "preview": "astro preview",
     "astro": "astro",
-    "check:apps-script": "node scripts/check-apps-script.mjs"
+    "check:apps-script": "node scripts/check-apps-script.mjs && node scripts/audit-apps-script-config.mjs"
   },
   "dependencies": {
     "astro": "^7.0.6",

@@ -16,12 +16,6 @@
  * Executar unha soa vez configurarSolicitudesWeb() para gardar as propiedades.
  */
 function configurarSolicitudesWeb() {
-  PropertiesService.getScriptProperties().setProperties({
-    SOLICITUDES_SPREADSHEET_ID: '1qWzgh84n6yI3mNt1OSWQiytOy1qt3NrLYb3cjQmYuDE',
-    SOLICITUDES_SHEET_ID: '2132656340',
-    SOLICITUDES_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
-  });
-
   var contexto = obterContextoSolicitudes_();
   console.log(
     'SolicitudesWeb configurada: ' + contexto.folla.getParent().getName() +
@@ -30,11 +24,14 @@ function configurarSolicitudesWeb() {
 }
 
 function probarSolicitudesWeb() {
+  var emailProba = obterPropiedadeObrigatoria_(
+    'WEB_TEST_EMAIL'
+  );
   var resultado = rexistrarSolicitudeWeb_({
     orixe: 'Contacto',
     tipoSolicitude: 'Consulta xeral',
     nomeCompleto: 'Proba técnica',
-    correoElectronico: 'coralpolifonicapontevedra@gmail.com',
+    correoElectronico: emailProba,
     telefono: '',
     entidade: '',
     cordaPreferente: '',
@@ -169,21 +166,16 @@ function rexistrarSolicitudeWeb_(datos) {
 
 function obterContextoSolicitudes_() {
   var propiedades = PropertiesService.getScriptProperties();
-  var spreadsheetId =
-    propiedades.getProperty('SOLICITUDES_SPREADSHEET_ID');
-  var sheetId =
-    Number(propiedades.getProperty('SOLICITUDES_SHEET_ID'));
-
-  if (!spreadsheetId || !sheetId) {
-    throw new Error('Falta configurar o módulo SolicitudesWeb');
-  }
+  var spreadsheetId = obterPropiedadeObrigatoria_(
+    'SOLICITUDES_SPREADSHEET_ID'
+  );
 
   var libro = SpreadsheetApp.openById(spreadsheetId);
-  var folla = libro.getSheetById(sheetId);
+  var folla = libro.getSheetByName('SolicitudesWeb');
 
   if (!folla || folla.getName() !== 'SolicitudesWeb') {
     throw new Error(
-      'Non se atopou a folla SolicitudesWeb co ID configurado'
+      'Non se atopou a folla SolicitudesWeb configurada'
     );
   }
 
@@ -195,9 +187,9 @@ function obterContextoSolicitudes_() {
 }
 
 function enviarAvisoSolicitude_(contexto, valores) {
-  var destino =
-    contexto.propiedades.getProperty('SOLICITUDES_NOTIFY_EMAIL') ||
-    'coralpolifonicapontevedra@gmail.com';
+  var destino = obterPropiedadeObrigatoria_(
+    'SOLICITUDES_NOTIFY_EMAIL'
+  );
 
   var asunto =
     'Nova solicitude web: ' + valores.TipoSolicitude;

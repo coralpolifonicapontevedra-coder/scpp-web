@@ -8,42 +8,26 @@
  *   obterSeguimentoEnsaiosPortal
  */
 
-var ENSAIOS_CONFIG_ = {
-  ensaiosId: '1YJkIH4DpuOQShAP8fcSq_TrLPDn08zv_tfKNjq297wc',
-  asistenciasId: '1yp0Gc_GaewODS6IaPB9p2cdKqeOCbnyehL_-HzpdUQI',
-  ensaiosRepertorioId: '155FLEl07h8LwlrSVLEhFsbkgJMqIf4E6k6lCXf8x_JE',
-  persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
-  concertosId: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU',
-  repertorioId: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw'
-};
-
 function configuracionEnsaiosPortal_() {
-  var props = PropertiesService.getScriptProperties();
-
   return {
-    ensaiosId:
-      props.getProperty('ENSAIOS_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.ensaiosId,
-
-    asistenciasId:
-      props.getProperty('ASISTENCIAS_ENSAIOS_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.asistenciasId,
-
-    ensaiosRepertorioId:
-      props.getProperty('ENSAIOS_REPERTORIO_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.ensaiosRepertorioId,
-
-    persoasId:
-      props.getProperty('PERSOAS_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.persoasId,
-
-    concertosId:
-      props.getProperty('CONCERTOS_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.concertosId,
-
-    repertorioId:
-      props.getProperty('REPERTORIO_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.repertorioId
+    ensaiosId: obterPropiedadeObrigatoria_(
+      'ENSAIOS_SPREADSHEET_ID'
+    ),
+    asistenciasId: obterPropiedadeObrigatoria_(
+      'ASISTENCIAS_ENSAIOS_SPREADSHEET_ID'
+    ),
+    ensaiosRepertorioId: obterPropiedadeObrigatoria_(
+      'ENSAIOS_REPERTORIO_SPREADSHEET_ID'
+    ),
+    persoasId: obterPropiedadeObrigatoria_(
+      'PERSOAS_SPREADSHEET_ID'
+    ),
+    concertosId: obterPropiedadeObrigatoria_(
+      'CONCERTOS_SPREADSHEET_ID'
+    ),
+    repertorioId: obterPropiedadeObrigatoria_(
+      'REPERTORIO_SPREADSHEET_ID'
+    )
   };
 }
 
