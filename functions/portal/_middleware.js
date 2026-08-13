@@ -29,6 +29,7 @@ const PHOTO_MANAGER_SCRIPT = [
 ].join('');
 
 const ENSAIOS_DRAFT_SCRIPT = '<script src="/js/ensaios-borrador-r2.js?v=20260812-2" defer></script>';
+const ENSAIOS_DELETE_SCRIPT = '<script src="/js/ensaios-eliminar-ensaio.js?v=20260813-1" defer></script>';
 
 const ENSAIOS_SIMPLE_UI = `
 <style id="scpp-ensaios-simple-ui">
@@ -47,10 +48,28 @@ const ENSAIOS_SIMPLE_UI = `
   #repertoire-panel .work-link:hover,
   #repertoire-panel .work-link:focus { color:#24211f !important; text-decoration:none !important; }
   #repertoire-panel .work-link { display:flex !important; flex-direction:column; gap:.42rem !important; }
+  #calendar-list .delete-rehearsal {
+    justify-self:end;
+    margin-top:-.15rem;
+    margin-bottom:.35rem;
+    border:1px solid #b8aaa3;
+    background:#fff;
+    color:#6b201f;
+    padding:.45rem .7rem;
+    border-radius:3px;
+    font:inherit;
+    font-size:.76rem;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #calendar-list .delete-rehearsal:hover,
+  #calendar-list .delete-rehearsal:focus { border-color:#6b201f; background:#fbf6f5; }
+  #calendar-list .delete-rehearsal:disabled { opacity:.6; cursor:wait; }
   @media(max-width:680px){
     #repertoire-panel .work-fields{grid-template-columns:1fr !important;}
     #repertoire-panel .save-work,
     #repertoire-panel .remove-work{width:100%;}
+    #calendar-list .delete-rehearsal{justify-self:stretch;width:100%;}
   }
 </style>
 <script>
@@ -76,7 +95,7 @@ export async function onRequest(context) {
   const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '');
   let extra = '';
   if (pathname === '/portal/revision-fotos') extra += PHOTO_MANAGER_SCRIPT;
-  if (pathname === '/portal/ensaios') extra += ENSAIOS_DRAFT_SCRIPT + ENSAIOS_SIMPLE_UI;
+  if (pathname === '/portal/ensaios') extra += ENSAIOS_DRAFT_SCRIPT + ENSAIOS_DELETE_SCRIPT + ENSAIOS_SIMPLE_UI;
 
   return new HTMLRewriter()
     .on('head', new PortalHeadRewriter(extra))
