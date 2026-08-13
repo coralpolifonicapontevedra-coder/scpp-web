@@ -268,10 +268,19 @@ export async function onRequest(context) {
       lerListaCache(env)
     ]);
 
-    if (autorizadoEnCache && cache && cache.idadeMs <= LISTA_FRESH_MS) {
+    if (autorizadoEnCache && cache) {
+      const fresca = cache.idadeMs <= LISTA_FRESH_MS;
+      if (!fresca && typeof context.waitUntil === 'function') {
+        context.waitUntil(
+          solicitarListaRevision(env, usuario).catch((erro) => {
+            console.error('Non se puido actualizar en segundo plano a lista de fotografías:', erro);
+          })
+        );
+      }
       return json(200, cache.resultado, {
-        'X-SCPP-Cache': 'HIT',
+        'X-SCPP-Cache': fresca ? 'HIT' : 'STALE-WHILE-REVALIDATE',
         'X-SCPP-Cache-Age': String(Math.round(cache.idadeMs / 1000)),
+        'Warning': fresca ? '' : '110 - Response is stale',
         'Server-Timing': `r2;dur=${Date.now() - inicio}`
       });
     }
