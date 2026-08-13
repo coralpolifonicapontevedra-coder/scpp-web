@@ -58,7 +58,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
             </section>
 
             <section class="actions">
-              <button id="save-draft" type="button">Guardar borrador editado</button>
+              <button id="save-draft" type="button">Guardar modificaciones</button>
               <button id="publish" class="primary" type="button">Publicar edición</button>
               <button id="delete-photo" class="danger" type="button">Eliminar fotografía</button>
             </section>
@@ -202,12 +202,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (cached) return cached;
     let response = await fetch(`/api/editor-fotos-original?idFoto=${encodeURIComponent(id)}`, {
       headers: { Authorization: `Bearer ${await token()}` },
-      cache: 'force-cache'
+      cache: 'no-store'
     });
     if (response.status === 401) {
       response = await fetch(`/api/editor-fotos-original?idFoto=${encodeURIComponent(id)}`, {
         headers: { Authorization: `Bearer ${await token(true)}` },
-        cache: 'force-cache'
+        cache: 'no-store'
       });
     }
     if (!response.ok) {
@@ -330,19 +330,57 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   async function save(publish) {
     if (!(canvas instanceof HTMLCanvasElement)||!actual)return;
-    const publica=publish&&publishPublic instanceof HTMLInputElement&&publishPublic.checked;
-    const privada=publish&&publishPrivate instanceof HTMLInputElement&&publishPrivate.checked;
-    if(publish&&!publica&&!privada){setMessage('Selecciona a galería pública, a privada ou ambas.',true);return;}
-    setMessage('Gardando a versión editada en R2…');
+    const publicaSeleccionada=publishPublic instanceof HTMLInputElement&&publishPublic.checked;
+    const privadaSeleccionada=publishPrivate instanceof HTMLInputElement&&publishPrivate.checked;
+    if(publish&&!publicaSeleccionada&&!privadaSeleccionada){setMessage('Selecciona a galería pública, a privada ou ambas.',true);return;}
+    setMessage(publish?'Gardando e publicando a versión editada…':'Gardando as modificacións en R2…');
     if(r2Status instanceof HTMLElement)r2Status.textContent='Gardando';
-    if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='En espera';
-    const base64=canvas.toDataURL('image/jpeg',.9).split(',')[1]||'';
+    if(sheetStatus instanceof HTMLElement)sheetStatus.textContent=publish?'En espera':'Sen cambios';
+    const dataUrl=canvas.toDataURL('image/jpeg',.9);
+    const base64=dataUrl.split(',')[1]||'';
+    const titulo=fieldValue('#title');
+    const peFoto=fieldValue('#caption');
+    const observacions=fieldValue('#notes');
+    const destacadaPublica=publicaSeleccionada&&featuredPublic instanceof HTMLInputElement&&featuredPublic.checked;
+    const destacadaPrivada=privadaSeleccionada&&featuredPrivate instanceof HTMLInputElement&&featuredPrivate.checked;
+    const payload={
+      idFoto:idDaFoto(actual),
+      mimeType:'image/jpeg',
+      base64,
+      estado:publish?'Aprobada':'Pendente',
+      titulo,
+      peFoto,
+      observacions,
+      publicarPublica:publicaSeleccionada,
+      publicarPrivada:privadaSeleccionada,
+      destacadaPublica,
+      destacadaPrivada
+    };
+    if(publish)payload.accion='gardarEdicion';
     try{
-      const result=await api('/api/editor-fotos',{accion:'gardarEdicion',idFoto:idDaFoto(actual),mimeType:'image/jpeg',base64,estado:'Aprobada',titulo:fieldValue('#title'),peFoto:fieldValue('#caption'),observacions:fieldValue('#notes'),publicarPublica:publica,publicarPrivada:privada,destacadaPublica:publica&&featuredPublic instanceof HTMLInputElement&&featuredPublic.checked,destacadaPrivada:privada&&featuredPrivate instanceof HTMLInputElement&&featuredPrivate.checked});
+      const result=await api(publish?'/api/editor-fotos':'/api/gardar-borrador-foto',payload);
+      const id=idDaFoto(actual);
+      const cached=originalCache.get(id);
+      if(cached?.url?.startsWith('blob:'))URL.revokeObjectURL(cached.url);
+      originalCache.set(id,{url:dataUrl,mimeType:'image/jpeg'});
+      original=await imageFromUrl(dataUrl);
+      Object.assign(actual,{titulo,peFoto,observacions,publicarPublica:publicaSeleccionada,publicarPrivada:privadaSeleccionada,destacadaPublica,destacadaPrivada});
+      if(select instanceof HTMLSelectElement&&select.selectedOptions[0]){
+        select.selectedOptions[0].textContent=texto(titulo||actual.nomeFicheiro||'Fotografía');
+      }
       if(r2Status instanceof HTMLElement)r2Status.textContent='Gardado';
-      if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='Sincronizando';
-      setMessage(result.mensaxe||'Edición gardada.');startPolling();
-    }catch(error){if(r2Status instanceof HTMLElement)r2Status.textContent='Erro';setMessage(error instanceof Error?error.message:'Non se puido gardar.',true);}
+      if(publish){
+        if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='Sincronizando';
+        setMessage(result.mensaxe||'Edición gardada e publicación en curso.');
+        startPolling();
+      }else{
+        if(sheetStatus instanceof HTMLElement)sheetStatus.textContent='Sen cambios';
+        setMessage(result.mensaxe||'Modificacións gardadas en R2.');
+      }
+    }catch(error){
+      if(r2Status instanceof HTMLElement)r2Status.textContent='Erro';
+      setMessage(error instanceof Error?error.message:'Non se puido gardar.',true);
+    }
   }
 
 
