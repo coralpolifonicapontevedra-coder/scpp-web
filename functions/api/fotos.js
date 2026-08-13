@@ -2,6 +2,7 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const TIPOS = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_BYTES = 8 * 1024 * 1024;
+const LISTA_INDEX_PATH = 'indices/revision-fotos-v1.json';
 const LISTA_CACHE_PATH = 'cache/fotos/listar-revision.json';
 const LISTA_FRESH_MS = 5 * 60 * 1000;
 const LISTA_STALE_MS = 24 * 60 * 60 * 1000;
@@ -107,6 +108,20 @@ async function gardarAutorizacionCache(env, usuario) {
 
 async function lerListaCache(env) {
   if (!env.R2_PRIVADO) return null;
+
+  const indice = await env.R2_PRIVADO.get(LISTA_INDEX_PATH);
+  if (indice) {
+    const datos = await indice.json().catch(() => null);
+    const xeradaEn = Number(datos?.xeradoEnMs) || Date.parse(String(datos?.xeradoEn || ''));
+    if (datos?.ok === true && Array.isArray(datos?.fotos) && Number.isFinite(xeradaEn)) {
+      return {
+        resultado: datos,
+        idadeMs: Math.max(0, Date.now() - xeradaEn),
+        fonte: 'INDICE-R2'
+      };
+    }
+  }
+
   const obxecto = await env.R2_PRIVADO.get(LISTA_CACHE_PATH);
   if (!obxecto) return null;
   const datos = await obxecto.json().catch(() => null);
@@ -114,7 +129,8 @@ async function lerListaCache(env) {
   if (!datos?.resultado?.ok || !Number.isFinite(gardadaEn)) return null;
   return {
     resultado: datos.resultado,
-    idadeMs: Math.max(0, Date.now() - gardadaEn)
+    idadeMs: Math.max(0, Date.now() - gardadaEn),
+    fonte: 'CACHE-R2'
   };
 }
 
@@ -280,6 +296,7 @@ export async function onRequest(context) {
       return json(200, cache.resultado, {
         'X-SCPP-Cache': fresca ? 'HIT' : 'STALE-WHILE-REVALIDATE',
         'X-SCPP-Cache-Age': String(Math.round(cache.idadeMs / 1000)),
+        'X-SCPP-Storage': cache.fonte || 'R2',
         'Warning': fresca ? '' : '110 - Response is stale',
         'Server-Timing': `r2;dur=${Date.now() - inicio}`
       });
