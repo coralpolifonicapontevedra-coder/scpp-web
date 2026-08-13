@@ -319,7 +319,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       original=image;
       drawImage(image);resetCrop();
       setMessage(`Fotografía preparada en ${Math.round(performance.now()-started)} ms${originalCache.has(id)?' (caché activa)':''}.`);
-      preloadAround();
     } catch(error) {
       if(sequence===loadSequence)setMessage(error instanceof Error?error.message:'Non se puido abrir a fotografía.',true);
     } finally {
@@ -404,7 +403,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       setMessage(result.mensaxe || 'Fotografía eliminada correctamente.');
       if (fotos.length && select instanceof HTMLSelectElement) {
         loadFields();
-        preloadIndex(select.selectedIndex);
       }
     } catch (error) {
       if (r2Status instanceof HTMLElement) r2Status.textContent = 'Erro';
@@ -439,7 +437,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       if(state instanceof HTMLElement)state.hidden=true;
       if(shell instanceof HTMLElement)shell.hidden=false;
       updateNavigation();
-      if(fotos.length){loadFields();setMessage(`Lista preparada en ${Math.round(performance.now()-started)} ms. Preme «Cargar fotografía» ou usa Anterior/Seguinte.`);preloadIndex(0);}else setMessage('Non hai fotografías pendentes de revisión.');
+      if(fotos.length){loadFields();setMessage(`Lista preparada en ${Math.round(performance.now()-started)} ms. Preme «Cargar fotografía» para abrir o orixinal.`);}else setMessage('Non hai fotografías pendentes de revisión.');
     }catch(error){if(state instanceof HTMLElement)state.textContent=error instanceof Error?error.message:'Non se puido abrir o módulo.';}
   });
 
