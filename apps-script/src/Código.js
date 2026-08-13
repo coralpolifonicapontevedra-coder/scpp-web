@@ -594,4 +594,1693 @@ if (accion === 'gardarEnsaioPortal') {
 
     if (accion === 'listarDocumentacionPortal') {
       const resultado =
-        listarDocumentacionPÔæª∂âûÀk∫wµÁE…≈’•ŸºÅAï…ÕΩÖÃ∏ÅΩπô•ù’…ÑÅAIM=M}MAIM!Q}%∏ú(ÄÄÄÄÄÄÄÄËÄù!Ö§ÅŸÖ…•ΩÃÅÖ…≈’•ŸΩÃÅAï…ÕΩÖÃ∏ÅΩπô•ù’…ÑÅAIM=M}MAIM!Q}%∏ú(ÄÄÄÄ§Ï(ÄÅÙ((ÄÅ¡…Ω¡•ïëÖëïÃπÕï—A…Ω¡ï…—‰†(ÄÄÄÄùAIM=M}MAIM!Q}%ú∞(ÄÄÄÅçÖπë•ëÖ—ÖÕl¡tπùï—%ê†§(ÄÄ§Ï((ÄÅçΩπÕ–ÅôΩ±±ÑÄÙÅM¡…ïÖëÕ°ïï—¡¿(ÄÄÄÄπΩ¡ïπ	Â%ê°çÖπë•ëÖ—ÖÕl¡tπùï—%ê†§§(ÄÄÄÄπùï—M°ïï—	Â9Öµî†ùAï…ÕΩÖÃú§Ï((ÄÅ•òÄ†ÖôΩ±±Ñ§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄù<ÅÖ…≈’•ŸºÅ±ΩçÖ±•ÈÖëºÅπΩ∏ÅçΩπ”•∏ÅÑÅ¡ïÕ—ÖπÑÅAï…ÕΩÖÃú(ÄÄÄÄ§Ï(ÄÅÙ((ÄÅ…ï—’…∏ÅôΩ±±ÑÏ)Ù(()ô’πç—•Ω∏ÅπΩ…µÖ±•ÈÖ…Öâïçï•…ÖAΩ…—Ö±|°ŸÖ±Ω»§ÅÏ(ÄÅ…ï—’…∏ÅM—…•πú°ŸÖ±Ω»ÅÒÄúú§(ÄÄÄÄππΩ…µÖ±•Èî†ù9ú§(ÄÄÄÄπ…ï¡±Öçî†Ωmq‘¿Ã¿¿µq‘¿ÃŸôtΩú∞Äúú§(ÄÄÄÄπ—Ω1Ω›ï…ÖÕî†§(ÄÄÄÄπ…ï¡±Öçî†ΩmyÑµË¿¥ÂtΩú∞Äúú§Ï)Ù(()ô’πç—•Ω∏Å•πë•çïÖâïçï•…ÖAΩ…—Ö±|†(ÄÅçÖâïçï•…ÖÃ∞(ÄÅÖ±—ï…πÖ—•ŸÖÃ(§ÅÏ(ÄÅôΩ»Ä°±ï–Å§ÄÙÄ¿ÏÅ§ÄÅÖ±—ï…πÖ—•ŸÖÃπ±ïπù—†ÏÅ§Ä¨ÙÄƒ§ÅÏ(ÄÄÄÅçΩπÕ–Å•πë•çîÄÙÅçÖâïçï•…ÖÃπ•πëï·=ò†(ÄÄÄÄÄÅÖ±—ï…πÖ—•ŸÖÕm•t(ÄÄÄÄ§Ï(ÄÄÄÅ•òÄ°•πë•çîÄÑÙÙÄ¥ƒ§Å…ï—’…∏Å•πë•çîÏ(ÄÅÙ(ÄÅ…ï—’…∏Ä¥ƒÏ)Ù()ô’πç—•Ω∏ÅŸÖ±•ëÖ…Öâïçï•…ÖÕAΩ…—Ö±|†(ÄÅôΩ±±Ñ∞(ÄÅΩâ…•ùÖ—Ω…•ÖÃ∞(ÄÅπΩµï1Ω·•çº(§ÅÏ(ÄÅçΩπÕ–ÅçÖâïçï•…ÖÃÄÙÅôΩ±±Ñ(ÄÄÄÄπùï—IÖπùî†ƒ∞Äƒ∞Äƒ∞ÅôΩ±±Ñπùï—1ÖÕ—Ω±’µ∏†§§(ÄÄÄÄπùï—•Õ¡±ÖÂYÖ±’ïÃ†•l¡t(ÄÄÄÄπµÖ¿°ô’πç—•Ω∏°ŸÖ±Ω»§ÅÏ(ÄÄÄÄÄÅ…ï—’…∏ÅM—…•πú°ŸÖ±Ω»ÅÒÄúú§π—…•¥†§Ï(ÄÄÄÅÙ§Ï((ÄÅçΩπÕ–ÅôÖ±—Ö∏ÄÙÅΩâ…•ùÖ—Ω…•ÖÃπô•±—ï»°ô’πç—•Ω∏°πΩµî§ÅÏ(ÄÄÄÅ…ï—’…∏ÅçÖâïçï•…ÖÃπ•πëï·=ò°πΩµî§ÄÙÙÙÄ¥ƒÏ(ÄÅÙ§Ï((ÄÅ•òÄ°ôÖ±—Ö∏π±ïπù—†§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄùÖ±—Ö∏ÅçΩ±’µπÖÃÅï∏ÄúÄ¨(ÄÄÄÄÄÅπΩµï1Ω·•çºÄ¨(ÄÄÄÄÄÄúËÄúÄ¨(ÄÄÄÄÄÅôÖ±—Ö∏π©Ω•∏†ú∞Äú§(ÄÄÄÄ§Ï(ÄÅÙ)Ù()ô’πç—•Ω∏ÅŸÖ±•ëÖ…Öâïçï•…ÖÕ9Ω…µÖ±•ÈÖëÖÕAΩ…—Ö±|†(ÄÅôΩ±±Ñ∞(ÄÅù…’¡ΩÃ∞(ÄÅπΩµï1Ω·•çº(§ÅÏ(ÄÅçΩπÕ–ÅçÖâïçï•…ÖÃÄÙÅôΩ±±Ñ(ÄÄÄÄπùï—IÖπùî†ƒ∞Äƒ∞Äƒ∞ÅôΩ±±Ñπùï—1ÖÕ—Ω±’µ∏†§§(ÄÄÄÄπùï—•Õ¡±ÖÂYÖ±’ïÃ†•l¡t(ÄÄÄÄπµÖ¿°πΩ…µÖ±•ÈÖ…Öâïçï•…ÖAΩ…—Ö±|§Ï((ÄÅçΩπÕ–ÅôÖ±—Ö∏ÄÙÅ=â©ïç–π≠ïÂÃ°ù…’¡ΩÃ§πô•±—ï»†(ÄÄÄÅô’πç—•Ω∏°πΩµî§ÅÏ(ÄÄÄÄÄÅ…ï—’…∏Å•πë•çïÖâïçï•…ÖAΩ…—Ö±|†(ÄÄÄÄÄÄÄÅçÖâïçï•…ÖÃ∞(ÄÄÄÄÄÄÄÅù…’¡ΩÕmπΩµït(ÄÄÄÄÄÄ§ÄÙÙÙÄ¥ƒÏ(ÄÄÄÅÙ(ÄÄ§Ï((ÄÅ•òÄ°ôÖ±—Ö∏π±ïπù—†§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄùÖ±—Ö∏ÅçÖµ¡ΩÃÅΩâ…•ùÖ—Ω…•ΩÃÅï∏ÄúÄ¨(ÄÄÄÄÄÅπΩµï1Ω·•çºÄ¨(ÄÄÄÄÄÄúËÄúÄ¨(ÄÄÄÄÄÅôÖ±—Ö∏π©Ω•∏†ú∞Äú§(ÄÄÄÄ§Ï(ÄÅÙ)Ù(()ô’πç—•Ω∏ÅŸÖ±Ω…	ΩΩ±ïÖπΩAΩ…—Ö±|°ŸÖ±Ω»§ÅÏ(ÄÅ•òÄ°ŸÖ±Ω»ÄÙÙÙÅ—…’î§Å…ï—’…∏Å—…’îÏ(ÄÅ…ï—’…∏Ål(ÄÄÄÄù—…’îú∞(ÄÄÄÄùŸï…ëÖëï…ºú∞(ÄÄÄÄùŸï…ëÖëï•…ºú∞(ÄÄÄÄùÕ§ú∞(ÄÄÄÄùœ¥ú∞(ÄÄÄÄùÂïÃú∞(ÄÄÄÄù‰ú∞(ÄÄÄÄúƒú(ÄÅtπ•πç±’ëïÃ†(ÄÄÄÅM—…•πú°ŸÖ±Ω»ÅÒÄúú§π—…•¥†§π—Ω1Ω›ï…ÖÕî†§(ÄÄ§Ï)Ù(()ô’πç—•Ω∏ÅŸÖ±Ω…ç—•ŸΩAï…ÕΩÖAΩ…—Ö±|°ŸÖ±Ω»§ÅÏ(ÄÅ•òÄ°ŸÖ±Ω…	ΩΩ±ïÖπΩAΩ…—Ö±|°ŸÖ±Ω»§§Å…ï—’…∏Å—…’îÏ(ÄÅ…ï—’…∏ÅlùÖç—•Ÿºú∞ÄùÖç—•ŸÑú∞ÄùÖ±—Ñùtπ•πç±’ëïÃ†(ÄÄÄÅM—…•πú°ŸÖ±Ω»ÅÒÄúú§π—…•¥†§π—Ω1Ω›ï…ÖÕî†§(ÄÄ§Ï)Ù(()ô’πç—•Ω∏ÅçΩπô•ù’…Ö…Aï…ÕΩÖÕAΩ…—Ö∞†§ÅÏ(ÄÅçΩπÕ–ÅôΩ±±ÑÄÙÅΩâ—ï…Ω±±ÖAï…ÕΩÖÕ|†§Ï(ÄÅA…Ω¡ï…—•ïÕMï…Ÿ•çîπùï—Mç…•¡—A…Ω¡ï…—•ïÃ†§πÕï—A…Ω¡ï…—‰†(ÄÄÄÄùAIM=M}MAIM!Q}%ú∞(ÄÄÄÅôΩ±±Ñπùï—AÖ…ïπ–†§πùï—%ê†§(ÄÄ§Ï(ÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÄùAï…ÕΩÖÃÅçΩπô•ù’…ÖëÑËÄúÄ¨(ÄÄÄÅôΩ±±Ñπùï—AÖ…ïπ–†§πùï—%ê†§Ä¨(ÄÄÄÄúÅÄúÄ¨(ÄÄÄÅôΩ±±Ñπùï—9Öµî†§(ÄÄ§Ï)Ù(()ô’πç—•Ω∏Å…ï·•Õ—…Ö…ççïÕº°ëÖ—ΩÃ§ÅÏ(ÄÅ—…‰ÅÏ(ÄÄÄÅëÖ—ΩÃÄÙÅëÖ—ΩÃÅÒÅÌÙÏ((ÄÄÄÅçΩπÕ–ÅïµÖ•∞ÄÙÅM—…•πú°ëÖ—ΩÃπïµÖ•∞ÅÒÄúú§(ÄÄÄÄÄÄπ—…•¥†§(ÄÄÄÄÄÄπ—Ω1Ω›ï…ÖÕî†§Ï((ÄÄÄÅ±ï–Å¡ï…ÕΩÑÄÙÅM—…•πú°ëÖ—ΩÃπ¡ï…ÕΩÑÅÒÄúú§π—…•¥†§Ï(ÄÄÄÅ±ï–Å’Õ’Ö…•Ω]ïàÄÙÅM—…•πú°ëÖ—ΩÃπ’Õ’Ö…•Ω]ïàÅÒÄúú§π—…•¥†§Ï((ÄÄÄÄº®(ÄÄÄÄÄ®ÅMîÅÑÅô’πçßÕ∏Å≈’îÅÕΩ±•ç•—ÑÅºÅ…ï·•Õ—…ºÅπΩ∏ÅïπŸ•Ω‘(ÄÄÄÄÄ®ÅAï…ÕΩÑÅΩ‘ÅUÕ’Ö…•Ω]ïà∞ÅãÈÕçÖπÕîÅÖ’—ΩµÖ—•çÖµïπ—î(ÄÄÄÄÄ®ÅπÑÅôΩ±±ÑÅUÕ’Ö…•ΩÕ]ïàÅÑÅ¡Ö…—•»ÅëºÅçΩ……ïº∏(ÄÄÄÄÄ®º(ÄÄÄÅ•òÄ°ïµÖ•∞ÄòòÄ†Ö¡ï…ÕΩÑÅÒÄÖ’Õ’Ö…•Ω]ïà§§ÅÏ(ÄÄÄÄÄÅ—…‰ÅÏ(ÄÄÄÄÄÄÄÅçΩπÕ–Å’Õ’Ö…•Ω%ëïπ—•ô•çÖëºÄÙ(ÄÄÄÄÄÄÄÄÄÅâ’ÕçÖ…UÕ’Ö…•Ω]ïâAΩ…µÖ•±|°ïµÖ•∞§Ï((ÄÄÄÄÄÄÄÅ•òÄ°’Õ’Ö…•Ω%ëïπ—•ô•çÖëº§ÅÏ(ÄÄÄÄÄÄÄÄÄÅ•òÄ†Ö¡ï…ÕΩÑ§ÅÏ(ÄÄÄÄÄÄÄÄÄÄÄÅ¡ï…ÕΩÑÄÙÅM—…•πú†(ÄÄÄÄÄÄÄÄÄÄÄÄÄÅ’Õ’Ö…•Ω%ëïπ—•ô•çÖëºπ¡ï…ÕΩÑÅÒÄúú(ÄÄÄÄÄÄÄÄÄÄÄÄ§π—…•¥†§Ï(ÄÄÄÄÄÄÄÄÄÅÙ((ÄÄÄÄÄÄÄÄÄÅ•òÄ†Ö’Õ’Ö…•Ω]ïà§ÅÏ(ÄÄÄÄÄÄÄÄÄÄÄÅ’Õ’Ö…•Ω]ïàÄÙÅM—…•πú†(ÄÄÄÄÄÄÄÄÄÄÄÄÄÅ’Õ’Ö…•Ω%ëïπ—•ô•çÖëºπ’Õ’Ö…•Ω]ïàÅÒÄúú(ÄÄÄÄÄÄÄÄÄÄÄÄ§π—…•¥†§Ï(ÄÄÄÄÄÄÄÄÄÅÙ(ÄÄÄÄÄÄÄÅÙ(ÄÄÄÄÄÅÙÅçÖ—ç†Ä°ï……Ω%ëïπ—•ëÖëî§ÅÏ(ÄÄÄÄÄÄÄÄº®(ÄÄÄÄÄÄÄÄÄ®ÅMîÅπΩ∏ÅÕîÅ¡ΩëîÅçΩπÕ’±—Ö»ÅUÕ’Ö…•ΩÕ]ïà∞(ÄÄÄÄÄÄÄÄÄ®ÅºÅ…ï·•Õ—…ºÅïÕçÀµâïÕîÅ•ù’Ö±µïπ—îÅçºÅçΩ……ïº∏(ÄÄÄÄÄÄÄÄÄ®º(ÄÄÄÄÄÄÄÅçΩπÕΩ±îπ›Ö…∏†(ÄÄÄÄÄÄÄÄÄÄù9Ω∏ÅôΩ§Å¡ΩÕ•â±îÅçΩµ¡±ï—Ö»ÅAï…ÕΩÑÅîÅUÕ’Ö…•Ω]ïàËÄúÄ¨(ÄÄÄÄÄÄÄÄÄÄ†(ÄÄÄÄÄÄÄÄÄÄÄÅï……Ω%ëïπ—•ëÖëîÄòòÅï……Ω%ëïπ—•ëÖëîπµïÕÕÖùî(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¸Åï……Ω%ëïπ—•ëÖëîπµïÕÕÖùî(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄËÅï……Ω%ëïπ—•ëÖëî(ÄÄÄÄÄÄÄÄÄÄ§(ÄÄÄÄÄÄÄÄ§Ï(ÄÄÄÄÄÅÙ(ÄÄÄÅÙ((ÄÄÄÄººÅ…≈’•ŸºÅ•πëï¡ïπëïπ—îÅIï·•Õ—…ΩççïÕΩÕ]ïà∏(ÄÄÄÅçΩπÕ–Å±•â…ΩIï·•Õ—…ºÄÙÅM¡…ïÖëÕ°ïï—¡¿πΩ¡ïπ	Â%ê†(ÄÄÄÄÄÄú≈π°Ω@·ïÑ≈IÂi•hÂMÖQÂ©π!Â5	=¨µQ5îƒ’ï!ŸŸ≠açëTú(ÄÄÄÄ§Ï((ÄÄÄÄººÅ%ëïπ—•ô•çÖëΩ»Å•π—ï…πºÅëÑÅ¡ïÕ—ÖπÑ∏(ÄÄÄÅçΩπÕ–ÅôΩ±±ÖIï·•Õ—…ºÄÙ(ÄÄÄÄÄÅ±•â…ΩIï·•Õ—…ºπùï—M°ïï—	Â%ê†ƒ»‰ƒ‡ƒ‹¿¿¿§Ï((ÄÄÄÅ•òÄ†ÖôΩ±±ÖIï·•Õ—…º§ÅÏ(ÄÄÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄÄÄù9Ω∏ÅÕîÅÖ—Ω¡Ω‘ÅÑÅ¡ïÕ—ÖπÑÅçºÅ•ëïπ—•ô•çÖëΩ»ÄúÄ¨(ÄÄÄÄÄÄÄÄúƒ»‰ƒ‡ƒ‹¿¿¿ú(ÄÄÄÄÄÄ§Ï(ÄÄÄÅÙ((ÄÄÄÅôΩ±±ÖIï·•Õ—…ºπÖ¡¡ïπëIΩ‹°l(ÄÄÄÄÄÅU—•±•—•ïÃπùï—U’•ê†§∞(ÄÄÄÄÄÅ¡ï…ÕΩÑ∞(ÄÄÄÄÄÅ’Õ’Ö…•Ω]ïà∞(ÄÄÄÄÄÅïµÖ•∞∞(ÄÄÄÄÄÅπï‹ÅÖ—î†§∞(ÄÄÄÄÄÅM—…•πú°ëÖ—ΩÃπ—•¡ΩŸïπ—ºÅÒÄúú§π—…•¥†§∞(ÄÄÄÄÄÅM—…•πú°ëÖ—ΩÃπµΩë’±ºÅÒÄúú§π—…•¥†§∞(ÄÄÄÄÄÅM—…•πú°ëÖ—ΩÃπ…ïÕ’±—ÖëºÅÒÄúú§π—…•¥†§∞(ÄÄÄÄÄÅM—…•πú°ëÖ—ΩÃπëï—Ö±±îÅÒÄúú§π—…•¥†§(ÄÄÄÅt§Ï((ÄÄÄÅM¡…ïÖëÕ°ïï—¡¿πô±’Õ††§Ï((ÄÄÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÄÄÄùIï·•Õ—…ºÅïÕç…•—ºÅçΩ……ïç—Öµïπ—îÅπÑÅ¡ïÕ—ÖπÑËÄúÄ¨(ÄÄÄÄÄÅôΩ±±ÖIï·•Õ—…ºπùï—9Öµî†§(ÄÄÄÄ§Ï((ÄÅÙÅçÖ—ç†Ä°ï……º§ÅÏ(ÄÄÄÅçΩπÕΩ±îπï……Ω»†(ÄÄÄÄÄÄù……ºÅÖºÅ…ï·•Õ—…Ö»ÅºÅÖççïÕºËÄúÄ¨(ÄÄÄÄÄÄ†(ÄÄÄÄÄÄÄÅï……ºÄòòÅï……ºπµïÕÕÖùî(ÄÄÄÄÄÄÄÄÄÄ¸Åï……ºπµïÕÕÖùî(ÄÄÄÄÄÄÄÄÄÄËÅï……º(ÄÄÄÄÄÄ§(ÄÄÄÄ§Ï(ÄÅÙ)Ù(()ô’πç—•Ω∏Å…ïÕ¡ΩÕ—Ö)M=8°ëÖ—ΩÃ§ÅÏ(ÄÅ…ï—’…∏ÅΩπ—ïπ—Mï…Ÿ•çî(ÄÄÄÄπç…ïÖ—ïQï·—=’—¡’–°)M=8πÕ—…•πù•ô‰°ëÖ—ΩÃ§§(ÄÄÄÄπÕï—5•µïQÂ¡î†(ÄÄÄÄÄÅΩπ—ïπ—Mï…Ÿ•çîπ5•µïQÂ¡îπ)M=8(ÄÄÄÄ§Ï)Ù(()ô’πç—•Ω∏ÅÖ’—Ω…•ÈÖ…ççïÕΩUÕ’Ö…•ΩÕ]ïà†§ÅÏ(ÄÅçΩπÕ–Å±•â…ºÄÙ(ÄÄÄÅM¡…ïÖëÕ°ïï—¡¿πùï—ç—•ŸïM¡…ïÖëÕ°ïï–†§Ï((ÄÅçΩπÕ–ÅπΩµïÃÄÙÅ±•â…º(ÄÄÄÄπùï—M°ïï—Ã†§(ÄÄÄÄπµÖ¿°ôΩ±±ÑÄÙ¯ÅôΩ±±Ñπùï—9Öµî†§§Ï((ÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÄùAïÕ—ÖπÖÃÅÖ—Ω¡ÖëÖÃËÄúÄ¨ÅπΩµïÃπ©Ω•∏†úÅÄú§(ÄÄ§Ï)Ù(()ô’πç—•Ω∏ÅçΩµ¡…ΩâÖ…Iï·•Õ—…ΩççïÕΩÕ]ïà†§ÅÏ(ÄÅçΩπÕ–Å±•â…ΩIï·•Õ—…ºÄÙÅM¡…ïÖëÕ°ïï—¡¿πΩ¡ïπ	Â%ê†(ÄÄÄÄú≈π°Ω@·ïÑ≈IÂi•hÂMÖQÂ©π!Â5	=¨µQ5îƒ’ï!ŸŸ≠açëTú(ÄÄ§Ï((ÄÅçΩπÕ–ÅôΩ±±ÖIï·•Õ—…ºÄÙ(ÄÄÄÅ±•â…ΩIï·•Õ—…ºπùï—M°ïï—	Â%ê†ƒ»‰ƒ‡ƒ‹¿¿¿§Ï((ÄÅ•òÄ†ÖôΩ±±ÖIï·•Õ—…º§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄù9Ω∏ÅÕîÅÖ—Ω¡Ω‘ÅÑÅ¡ïÕ—ÖπÑÅçºÅ•ëïπ—•ô•çÖëΩ»ÄúÄ¨(ÄÄÄÄÄÄúƒ»‰ƒ‡ƒ‹¿¿¿ú(ÄÄÄÄ§Ï(ÄÅÙ((ÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÄùççïÕºÅçΩ……ïç—ºÉÑÅ¡ïÕ—ÖπÑËÄúÄ¨(ÄÄÄÅôΩ±±ÖIï·•Õ—…ºπùï—9Öµî†§(ÄÄ§Ï)Ù(()ô’πç—•Ω∏Å¡…ΩâÖ…Õç…•—’…ÖIï·•Õ—…º†§ÅÏ(ÄÅ…ï·•Õ—…Ö…ççïÕº°Ï(ÄÄÄÅ¡ï…ÕΩÑËÄúú∞(ÄÄÄÅ’Õ’Ö…•Ω]ïàËÄúú∞(ÄÄÄÅïµÖ•∞ËÄùAI=	ú∞(ÄÄÄÅ—•¡ΩŸïπ—ºËÄùA…ΩâÑÅµÖπ’Ö∞ú∞(ÄÄÄÅµΩë’±ºËÄùUÕ’Ö…•ΩÕ]ïàú∞(ÄÄÄÅ…ïÕ’±—ÖëºËÄùΩ……ïç—ºú∞(ÄÄÄÅëï—Ö±±îË(ÄÄÄÄÄÄùA…ΩâÑÅë•…ïç—ÑÅëïÕëîÅ¡¡ÃÅMç…•¡–ú(ÄÅÙ§Ï)Ù)ô’πç—•Ω∏ÅçΩµ¡…ΩâÖ…Ω±±Öçï¡—Öç•Ω∏†§ÅÏ(ÄÅçΩπÕ–Å±•â…Ωçï¡—Öç•Ω∏ÄÙÅM¡…ïÖëÕ°ïï—¡¿πΩ¡ïπ	Â%ê†(ÄÄÄÄú≈ùπëED≈E1—ú…±UT·9Ñ’≠ÕTÕTŸ›i9·)$…eîŸË›5‘›¨ú(ÄÄ§Ï((ÄÅçΩπÕ–ÅôΩ±±Öçï¡—Öç•Ω∏ÄÙ(ÄÄÄÅ±•â…Ωçï¡—Öç•Ω∏πùï—M°ïï—	Â%ê†‰‹–ÿ‰‘ÿÿ‘§Ï((ÄÅ•òÄ†ÖôΩ±±Öçï¡—Öç•Ω∏§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄù9Ω∏ÅÕîÅÖ—Ω¡Ω‘ÅÑÅ¡ïÕ—ÖπÑÅçºÅ•ëïπ—•ô•çÖëΩ»Ä‰‹–ÿ‰‘ÿÿ‘ú(ÄÄÄÄ§Ï(ÄÅÙ((ÄÅçΩπÕ–ÅçÖâïçï•…ÖÃÄÙÅôΩ±±Öçï¡—Öç•Ω∏(ÄÄÄÄπùï—IÖπùî†(ÄÄÄÄÄÄƒ∞(ÄÄÄÄÄÄƒ∞(ÄÄÄÄÄÄƒ∞(ÄÄÄÄÄÅôΩ±±Öçï¡—Öç•Ω∏πùï—1ÖÕ—Ω±’µ∏†§(ÄÄÄÄ§(ÄÄÄÄπùï—YÖ±’ïÃ†•l¡tÏ((ÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÄùAïÕ—ÖπÑÅçΩ……ïç—ÑËÄúÄ¨(ÄÄÄÅôΩ±±Öçï¡—Öç•Ω∏πùï—9Öµî†§(ÄÄ§Ï((ÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÄùÖâïçï•…ÖÃËÄúÄ¨(ÄÄÄÅçÖâïçï•…ÖÃπ©Ω•∏†úÅÄú§(ÄÄ§Ï)Ù(()ô’πç—•Ω∏Å…ï·•Õ—…Ö…çï¡—Öç•Ω∏°ëÖ—ΩÃ§ÅÏ(ÄÅçΩπÕ–Å±•â…Ωçï¡—Öç•Ω∏ÄÙÅM¡…ïÖëÕ°ïï—¡¿πΩ¡ïπ	Â%ê†(ÄÄÄÄú≈ùπëED≈E1—ú…±UT·9Ñ’≠ÕTÕTŸ›i9·)$…eîŸË›5‘›¨ú(ÄÄ§Ï((ÄÅçΩπÕ–ÅôΩ±±Öçï¡—Öç•Ω∏ÄÙ(ÄÄÄÅ±•â…Ωçï¡—Öç•Ω∏πùï—M°ïï—	Â%ê†‰‹–ÿ‰‘ÿÿ‘§Ï((ÄÅ•òÄ†ÖôΩ±±Öçï¡—Öç•Ω∏§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄù9Ω∏ÅÕîÅÖ—Ω¡Ω‘ÅÑÅ¡ïÕ—ÖπÑÅçï¡—ÖçßÕ∏ú(ÄÄÄÄ§Ï(ÄÅÙ((ÄÅôΩ±±Öçï¡—Öç•Ω∏πÖ¡¡ïπëIΩ‹°l(ÄÄÄÅU—•±•—•ïÃπùï—U’•ê†§∞(ÄÄÄÅëÖ—ΩÃπïµÖ•∞ÅÒÄúú∞(ÄÄÄÅπï‹ÅÖ—î†§∞(ÄÄÄÅëÖ—ΩÃπŸï…Õ•Ω∏ÅÒÄúú∞(ÄÄÄÅëÖ—ΩÃπ—ï·—Ω1ïùÖ∞ÅÒÄúú∞(ÄÄÄÅëÖ—ΩÃπÖçï¡—Ö•πïÃÄÙÙÙÅ—…’î∞(ÄÄÄÅëÖ—ΩÃπ¡ï…ÕΩÑÅÒÄúú∞(ÄÄÄÅëÖ—ΩÃπ’Õ’Ö…•Ω]ïàÅÒÄúú∞(ÄÄÄÅëÖ—ΩÃπÖµâ•—ºÅÒÄúú∞(ÄÄÄÅëÖ—ΩÃπçÖπ±îÅÒÄúú∞(ÄÄÄÅëÖ—ΩÃπëÖ—ÖIï—•…ÖëÑÅÒÄúú(ÄÅt§Ï((ÄÅM¡…ïÖëÕ°ïï—¡¿πô±’Õ††§Ï((ÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÄùçï¡—ÖçßÕ∏ÅïÕç…•—ÑÅçΩ……ïç—Öµïπ—îú(ÄÄ§Ï)Ù(()ô’πç—•Ω∏Å—ïπçï¡—Öç•ΩπY•·ïπ—ï|°çΩ……ïº∞ÅŸï…Õ•Ω∏§ÅÏ(ÄÅçΩπÕ–Å±•â…Ωçï¡—Öç•Ω∏ÄÙÅM¡…ïÖëÕ°ïï—¡¿πΩ¡ïπ	Â%ê†(ÄÄÄÄú≈ùπëED≈E1—ú…±UT·9Ñ’≠ÕTÕTŸ›i9·)$…eîŸË›5‘›¨ú(ÄÄ§Ï((ÄÅçΩπÕ–ÅôΩ±±Öçï¡—Öç•Ω∏ÄÙ(ÄÄÄÅ±•â…Ωçï¡—Öç•Ω∏πùï—M°ïï—	Â%ê†‰‹–ÿ‰‘ÿÿ‘§Ï((ÄÅ•òÄ†ÖôΩ±±Öçï¡—Öç•Ω∏§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄù9Ω∏ÅÕîÅÖ—Ω¡Ω‘ÅÑÅ¡ïÕ—ÖπÑÅçï¡—ÖçßÕ∏ú(ÄÄÄÄ§Ï(ÄÅÙ((ÄÅçΩπÕ–ÅŸÖ±Ω…ïÃÄÙ(ÄÄÄÅôΩ±±Öçï¡—Öç•Ω∏πùï—Ö—ÖIÖπùî†§πùï—YÖ±’ïÃ†§Ï(ÄÅ•òÄ°ŸÖ±Ω…ïÃπ±ïπù—†ÄÄ»§Å…ï—’…∏ÅôÖ±ÕîÏ((ÄÅçΩπÕ–ÅçÖâïçï•…ÖÃÄÙÅŸÖ±Ω…ïÕl¡tπµÖ¿°ô’πç—•Ω∏°ŸÖ±Ω»§ÅÏ(ÄÄÄÅ…ï—’…∏ÅπΩ…µÖ±•ÈÖ…Öâïçï•…ÖAΩ…—Ö±|°ŸÖ±Ω»§Ï(ÄÅÙ§Ï((ÄÅçΩπÕ–ÅçΩ±’µπÖµÖ•∞ÄÙÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|†(ÄÄÄÅçÖâïçï•…ÖÃ∞(ÄÄÄÅlùçΩ……ïΩï±ïç—…Ωπ•çºú∞ÄùïµÖ•∞ú∞ÄùçΩ……ïºùt(ÄÄ§Ï(ÄÅçΩπÕ–ÅçΩ±’µπÖYï…Õ•Ω∏ÄÙÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|†(ÄÄÄÅçÖâïçï•…ÖÃ∞(ÄÄÄÅlùŸï…Õ•Ω∏ùt(ÄÄ§Ï(ÄÅçΩπÕ–ÅçΩ±’µπÖçï¡—ÑÄÙÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|†(ÄÄÄÅçÖâïçï•…ÖÃ∞(ÄÄÄÅlùÖçï¡—Öô•πïÃú∞ÄùÖçï¡—Ñùt(ÄÄ§Ï(ÄÅçΩπÕ–ÅçΩ±’µπÖIï—•…ÖëÑÄÙÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|†(ÄÄÄÅçÖâïçï•…ÖÃ∞(ÄÄÄÅlùëÖ—Ö…ï—•…ÖëÑú∞Äùôïç°Ö…ï—•…ÖëÑùt(ÄÄ§Ï((ÄÅ•òÄ†(ÄÄÄÅçΩ±’µπÖµÖ•∞ÄÙÙÙÄ¥ƒÅÒ(ÄÄÄÅçΩ±’µπÖYï…Õ•Ω∏ÄÙÙÙÄ¥ƒÅÒ(ÄÄÄÅçΩ±’µπÖçï¡—ÑÄÙÙÙÄ¥ƒ(ÄÄ§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄùÖ±—Ö∏ÅçΩ±’µπÖÃÅΩâ…•ùÖ—Ω…•ÖÃÅπÑÅôΩ±±ÑÅçï¡—ÖçßÕ∏ú(ÄÄÄÄ§Ï(ÄÅÙ((ÄÅôΩ»Ä°±ï–Å§ÄÙÅŸÖ±Ω…ïÃπ±ïπù—†Ä¥ÄƒÏÅ§Ä¯Ä¿ÏÅ§Ä¥ÙÄƒ§ÅÏ(ÄÄÄÅçΩπÕ–Åô•±ÑÄÙÅŸÖ±Ω…ïÕm•tÏ(ÄÄÄÅçΩπÕ–ÅµïÕµΩΩ……ïºÄÙ(ÄÄÄÄÄÅM—…•πú°ô•±ÖmçΩ±’µπÖµÖ•±tÅÒÄúú§(ÄÄÄÄÄÄÄÄπ—…•¥†§(ÄÄÄÄÄÄÄÄπ—Ω1Ω›ï…ÖÕî†§ÄÙÙÙÅçΩ……ïºÏ(ÄÄÄÅçΩπÕ–ÅµïÕµÖYï…Õ•Ω∏ÄÙ(ÄÄÄÄÄÅM—…•πú°ô•±ÖmçΩ±’µπÖYï…Õ•ΩπtÅÒÄúú§π—…•¥†§ÄÙÙÙ(ÄÄÄÄÄÅŸï…Õ•Ω∏Ï(ÄÄÄÅçΩπÕ–ÅÖçï¡—ÖëÑÄÙ(ÄÄÄÄÄÅŸÖ±Ω…	ΩΩ±ïÖπΩAΩ…—Ö±|°ô•±ÖmçΩ±’µπÖçï¡—Öt§Ï(ÄÄÄÅçΩπÕ–Å…ï—•…ÖëÑÄÙ(ÄÄÄÄÄÅçΩ±’µπÖIï—•…ÖëÑÄÑÙÙÄ¥ƒÄòò(ÄÄÄÄÄÅM—…•πú°ô•±ÖmçΩ±’µπÖIï—•…ÖëÖtÅÒÄúú§π—…•¥†§ÄÑÙÙÄúúÏ((ÄÄÄÅ•òÄ†(ÄÄÄÄÄÅµïÕµΩΩ……ïºÄòò(ÄÄÄÄÄÅµïÕµÖYï…Õ•Ω∏Äòò(ÄÄÄÄÄÅÖçï¡—ÖëÑÄòò(ÄÄÄÄÄÄÖ…ï—•…ÖëÑ(ÄÄÄÄ§ÅÏ(ÄÄÄÄÄÅ…ï—’…∏Å—…’îÏ(ÄÄÄÅÙ(ÄÅÙ((ÄÅ…ï—’…∏ÅôÖ±ÕîÏ)Ù(()ô’πç—•Ω∏Å¡…ΩâÖ…Õç…•—’…Öçï¡—Öç•Ω∏†§ÅÏ(ÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÄùÅô’πçßÕ∏Å¡…ΩâÖ…Õç…•—’…Öçï¡—Öç•Ω∏ÅôΩ§Å…ïçø≈ïç•ëÑÅçΩ……ïç—Öµïπ—îú(ÄÄ§Ï)Ù)ô’πç—•Ω∏Å¡…ΩâÖ…AΩÕ—çï¡—Öç•Ω∏†§ÅÏ(ÄÅçΩπÕ–Å¡…Ω¡•ïëÖëïÃÄÙ(ÄÄÄÅA…Ω¡ï…—•ïÕMï…Ÿ•çîπùï—Mç…•¡—A…Ω¡ï…—•ïÃ†§Ï((ÄÅçΩπÕ–Å—Ω≠ï∏ÄÙ(ÄÄÄÅ¡…Ω¡•ïëÖëïÃπùï—A…Ω¡ï…—‰†ù]	}]I%Q}Q=-8ú§Ï((ÄÅçΩπÕ–ÅçΩ……ïºÄÙÅM—…•πú†(ÄÄÄÅ¡…Ω¡•ïëÖëïÃπùï—A…Ω¡ï…—‰†ù]	}QMQ}5%0ú§ÅÒÄúú(ÄÄ§(ÄÄÄÄπ—…•¥†§(ÄÄÄÄπ—Ω1Ω›ï…ÖÕî†§Ï((ÄÅçΩπÕ–ÅïŸïπ—ΩM•µ’±ÖëºÄÙÅÏ(ÄÄÄÅ¡ΩÕ—Ö—ÑËÅÏ(ÄÄÄÄÄÅçΩπ—ïπ—ÃËÅ)M=8πÕ—…•πù•ô‰°Ï(ÄÄÄÄÄÄÄÅ—Ω≠ï∏ËÅ—Ω≠ï∏∞(ÄÄÄÄÄÄÄÅÖçç•Ω∏ËÄù…ï·•Õ—…Ö…çï¡—Öç•Ω∏ú∞(ÄÄÄÄÄÄÄÅïµÖ•∞ËÅçΩ……ïº∞(ÄÄÄÄÄÄÄÅŸï…Õ•Ω∏ËÄùAI%Y%µ]¥ƒ∏¿ú∞(ÄÄÄÄÄÄÄÅ—ï·—Ω1ïùÖ∞Ë(ÄÄÄÄÄÄÄÄÄÄùQï·—ºÅëîÅ¡…ΩâÑÅëÑÅÖçï¡—ÖçßÕ∏ÅëÑÅ¡Ω≥µ—•çÑÅëîÅ¡…•ŸÖç•ëÖëî∏ú∞(ÄÄÄÄÄÄÄÅÖçï¡—Ö•πïÃËÅ—…’î∞(ÄÄÄÄÄÄÄÅ¡ï…ÕΩÑËÄúú∞(ÄÄÄÄÄÄÄÅ’Õ’Ö…•Ω]ïàËÄúú∞(ÄÄÄÄÄÄÄÅÖµâ•—ºË(ÄÄÄÄÄÄÄÄÄÄùçΩ…Ö±¡Ω±•ôΩπ•çÖ¡Ωπ—ïŸïë…ÑπΩ…úú(ÄÄÄÄÄÅÙ§(ÄÄÄÅÙ(ÄÅÙÏ((ÄÅçΩπÕ–Å…ïÕ¡ΩÕ—ÑÄÙÅëΩAΩÕ–°ïŸïπ—ΩM•µ’±Öëº§Ï((ÄÅçΩπÕΩ±îπ±Ωú†(ÄÄÄÅ…ïÕ¡ΩÕ—Ñπùï—Ωπ—ïπ–†§(ÄÄ§Ï)Ù((º®®(Ä®ÅQï·—ºÅ±ïùÖ∞ÅŸ•·ïπ—îÅëºÅ¡Ω…—Ö∞Å¡…•ŸÖëº∏(Ä®(Ä®ÅÕ—îÅ∑Õë’±ºÅïŸ•—ÑÅ≈’îÅºÅπÖŸïùÖëΩ»Åëïç•ëÑÅÑÅŸï…ÕßÕ∏ÅΩ‘ÅºÅçΩπ—•ëºÅÖçï¡—Öëº∏(Ä®ÅQÖπ—ºÅÑÅçΩµ¡…ΩâÖçßÕ∏ÅçΩµºÅºÅ…ï·•Õ—…ºÅ…ïÕΩ±Ÿï∏ÅÑÅô•±ÑÅÖç—•ŸÑÅë•…ïç—Öµïπ—î(Ä®ÅëïÕëîÅQï·—ΩÕ1ïùÖ•Ã∏(Ä®º)çΩπÕ–ÅAQ%=9}MAIM!Q}%|ÄÙ(ÄÄú≈ùπëED≈E1—ú…±UT·9Ñ’≠ÕTÕTŸ›i9·)$…eîŸË›5‘›¨úÏ)çΩπÕ–ÅQaQ=M}1%M}M!Q}%|ÄÙÄ»¿»‘–ƒ»»¿‡Ï)çΩπÕ–ÅQaQ=}11}A=IQ1}%|ÄÙÄùAI%Y%}]úÏ()ô’πç—•Ω∏ÅΩâ—ï…Qï·—Ω1ïùÖ±Y•·ïπ—ï|†§ÅÏ(ÄÅçΩπÕ–Å±•â…ºÄÙÅM¡…ïÖëÕ°ïï—¡¿πΩ¡ïπ	Â%ê†(ÄÄÄÅAQ%=9}MAIM!Q}%|(ÄÄ§Ï(ÄÅçΩπÕ–ÅôΩ±±ÑÄÙÅ±•â…ºπùï—M°ïï—	Â%ê°QaQ=M}1%M}M!Q}%|§Ï((ÄÅ•òÄ†ÖôΩ±±ÑÅÒÅôΩ±±Ñπùï—9Öµî†§ÄÑÙÙÄùQï·—ΩÕ1ïùÖ•Ãú§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†ù9Ω∏ÅÕîÅÖ—Ω¡Ω‘ÅÑÅ¡ïÕ—ÖπÑÅQï·—ΩÕ1ïùÖ•ÃÅçΩπô•ù’…ÖëÑú§Ï(ÄÅÙ((ÄÅçΩπÕ–ÅŸÖ±Ω…ïÃÄÙÅôΩ±±Ñπùï—Ö—ÖIÖπùî†§πùï—YÖ±’ïÃ†§Ï(ÄÅ•òÄ°ŸÖ±Ω…ïÃπ±ïπù—†ÄÄ»§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†ùQï·—ΩÕ1ïùÖ•ÃÅπΩ∏ÅçΩπ”•∏Åπ•πüÈ∏Å—ï·—ºÅ±ïùÖ∞ú§Ï(ÄÅÙ((ÄÅçΩπÕ–ÅçÖâïçï•…ÖÃÄÙÅŸÖ±Ω…ïÕl¡tπµÖ¿°ô’πç—•Ω∏°ŸÖ±Ω»§ÅÏ(ÄÄÄÅ…ï—’…∏ÅπΩ…µÖ±•ÈÖ…Öâïçï•…ÖAΩ…—Ö±|°ŸÖ±Ω»§Ï(ÄÅÙ§Ï(ÄÅçΩπÕ–ÅçΩ±’µπÖÃÄÙÅÏ(ÄÄÄÅ•êËÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|°çÖâïçï•…ÖÃ∞Ålù•êùt§∞(ÄÄÄÅŸï…Õ•Ω∏ËÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|°çÖâïçï•…ÖÃ∞ÅlùŸï…Õ•Ω∏ùt§∞(ÄÄÄÅ—•—’±ºËÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|°çÖâïçï•…ÖÃ∞Ålù—•—’±ºùt§∞(ÄÄÄÅ—ï·—ºËÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|°çÖâïçï•…ÖÃ∞Ålù—ï·—ºùt§∞(ÄÄÄÅëÖ—ÖY•·ïπç•ÑËÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|†(ÄÄÄÄÄÅçÖâïçï•…ÖÃ∞(ÄÄÄÄÄÅlùëÖ—ÖŸ•·ïπç•Ñú∞Äùôïç°ÖŸ•ùïπç•Ñùt(ÄÄÄÄ§∞(ÄÄÄÅÖç—•ŸºËÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|°çÖâïçï•…ÖÃ∞ÅlùÖç—•Ÿºùt§∞(ÄÄÄÅÖµâ•—ºËÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|°çÖâïçï•…ÖÃ∞ÅlùÖµâ•—ºùt§∞(ÄÄÄÅ•ëQï·—Ω1ïùÖ∞ËÅ•πë•çïÖâïçï•…ÖAΩ…—Ö±|†(ÄÄÄÄÄÅçÖâïçï•…ÖÃ∞(ÄÄÄÄÄÅlù•ë—ï·—Ω±ïùÖ∞ùt(ÄÄÄÄ§(ÄÅÙÏ((ÄÅ=â©ïç–π≠ïÂÃ°çΩ±’µπÖÃ§πôΩ…Öç†°ô’πç—•Ω∏°πΩµî§ÅÏ(ÄÄÄÅ•òÄ°çΩ±’µπÖÕmπΩµïtÄÙÙÙÄ¥ƒ§ÅÏ(ÄÄÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄÄÄùÖ±—ÑÅÑÅçΩ±’µπÑÅΩâ…•ùÖ—Ω…•ÑÄúÄ¨ÅπΩµîÄ¨ÄúÅï∏ÅQï·—ΩÕ1ïùÖ•Ãú(ÄÄÄÄÄÄ§Ï(ÄÄÄÅÙ(ÄÅÙ§Ï((ÄÅçΩπÕ–ÅÖùΩ…ÑÄÙÅπï‹ÅÖ—î†§Ï(ÄÅçΩπÕ–ÅçÖπë•ëÖ—ÖÃÄÙÅŸÖ±Ω…ïÃ(ÄÄÄÄπÕ±•çî†ƒ§(ÄÄÄÄπµÖ¿°ô’πç—•Ω∏°ô•±Ñ∞Å•πë•çî§ÅÏ(ÄÄÄÄÄÅçΩπÕ–ÅëÖ—ÑÄÙÅπΩ…µÖ±•ÈÖ…Ö—ÖQï·—Ω1ïùÖ±|†(ÄÄÄÄÄÄÄÅô•±ÖmçΩ±’µπÖÃπëÖ—ÖY•·ïπç•Öt(ÄÄÄÄÄÄ§Ï(ÄÄÄÄÄÅ…ï—’…∏ÅÏÅô•±ÑËÅô•±Ñ∞Å•πë•çîËÅ•πë•çî∞ÅëÖ—ÑËÅëÖ—ÑÅÙÏ(ÄÄÄÅÙ§(ÄÄÄÄπô•±—ï»°ô’πç—•Ω∏°çÖπë•ëÖ—Ñ§ÅÏ(ÄÄÄÄÄÅçΩπÕ–Åô•±ÑÄÙÅçÖπë•ëÖ—Ñπô•±ÑÏ(ÄÄÄÄÄÅ…ï—’…∏Ä†(ÄÄÄÄÄÄÄÅM—…•πú°ô•±ÖmçΩ±’µπÖÃπ•ëtÅÒÄúú§π—…•¥†§ÄÙÙÙ(ÄÄÄÄÄÄÄÄÄÅQaQ=}11}A=IQ1}%|Äòò(ÄÄÄÄÄÄÄÅŸÖ±Ω…	ΩΩ±ïÖπΩAΩ…—Ö±|°ô•±ÖmçΩ±’µπÖÃπÖç—•ŸΩt§Äòò(ÄÄÄÄÄÄÄÅçÖπë•ëÖ—ÑπëÖ—ÑÄòò(ÄÄÄÄÄÄÄÅçÖπë•ëÖ—ÑπëÖ—Ñπùï—Q•µî†§ÄÙÅÖùΩ…Ñπùï—Q•µî†§(ÄÄÄÄÄÄ§Ï(ÄÄÄÅÙ§(ÄÄÄÄπÕΩ…–°ô’πç—•Ω∏°Ñ∞Åà§ÅÏ(ÄÄÄÄÄÅ…ï—’…∏Ä†(ÄÄÄÄÄÄÄÅàπëÖ—Ñπùï—Q•µî†§Ä¥ÅÑπëÖ—Ñπùï—Q•µî†§ÅÒ(ÄÄÄÄÄÄÄÅàπ•πë•çîÄ¥ÅÑπ•πë•çî(ÄÄÄÄÄÄ§Ï(ÄÄÄÅÙ§Ï((ÄÅ•òÄ†ÖçÖπë•ëÖ—ÖÃπ±ïπù—†§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†(ÄÄÄÄÄÄù9Ω∏Å°Ö§Å’∏Å—ï·—ºÅ±ïùÖ∞ÅÖç—•ŸºÅîÅŸ•·ïπ—îÅ¡Ö…ÑÅºÅ¡Ω…—Ö∞Å¡…•ŸÖëºú(ÄÄÄÄ§Ï(ÄÅÙ((ÄÅçΩπÕ–Åô•±ÑÄÙÅçÖπë•ëÖ—ÖÕl¡tπô•±ÑÏ(ÄÅçΩπÕ–Å…ïÕ’±—ÖëºÄÙÅÏ(ÄÄÄÅ•êËÅM—…•πú°ô•±ÖmçΩ±’µπÖÃπ•ëtÅÒÄúú§π—…•¥†§∞(ÄÄÄÅ•ëQï·—Ω1ïùÖ∞ËÅM—…•πú†(ÄÄÄÄÄÅô•±ÖmçΩ±’µπÖÃπ•ëQï·—Ω1ïùÖ±tÅÒÄúú(ÄÄÄÄ§π—…•¥†§∞(ÄÄÄÅŸï…Õ•Ω∏ËÅM—…•πú°ô•±ÖmçΩ±’µπÖÃπŸï…Õ•ΩπtÅÒÄúú§π—…•¥†§∞(ÄÄÄÅ—•—’±ºËÅM—…•πú°ô•±ÖmçΩ±’µπÖÃπ—•—’±ΩtÅÒÄúú§π—…•¥†§∞(ÄÄÄÅ—ï·—ºËÅM—…•πú°ô•±ÖmçΩ±’µπÖÃπ—ï·—ΩtÅÒÄúú§π—…•¥†§∞(ÄÄÄÅÖµâ•—ºËÅM—…•πú°ô•±ÖmçΩ±’µπÖÃπÖµâ•—ΩtÅÒÄúú§π—…•¥†§∞(ÄÄÄÅëÖ—ÖY•·ïπç•ÑËÅU—•±•—•ïÃπôΩ…µÖ—Ö—î†(ÄÄÄÄÄÅçÖπë•ëÖ—ÖÕl¡tπëÖ—Ñ∞(ÄÄÄÄÄÄù’…Ω¡îΩ5Öë…•êú∞(ÄÄÄÄÄÄùÂÂÂ‰µ54µëêú(ÄÄÄÄ§(ÄÅÙÏ((ÄÅ•òÄ†Ö…ïÕ’±—ÖëºπŸï…Õ•Ω∏ÅÒÄÖ…ïÕ’±—Öëºπ—•—’±ºÅÒÄÖ…ïÕ’±—Öëºπ—ï·—º§ÅÏ(ÄÄÄÅ—°…Ω‹Åπï‹Å……Ω»†ù<Å—ï·—ºÅ±ïùÖ∞ÅŸ•·ïπ—îÅïÕ”ÑÅ•πçΩµ¡±ï—ºú§Ï(ÄÅÙ(ÄÅ…ï—’…∏Å…ïÕ’±—ÖëºÏ)Ù()ô’πç—•Ω∏ÅπΩ…µÖ±•ÈÖ…Ö—ÖQï·—Ω1ïùÖ±|°ŸÖ±Ω»§ÅÏ(ÄÅ•òÄ†(ÄÄÄÅ=â©ïç–π¡…Ω—Ω—Â¡îπ—ΩM—…•πúπçÖ±∞°ŸÖ±Ω»§ÄÙÙÙÄùmΩâ©ïç–ÅÖ—ïtúÄòò(ÄÄÄÄÖ•Õ9Ö8°ŸÖ±Ω»πùï—Q•µî†§§(ÄÄ§ÅÏ(ÄÄÄÅ…ï—’…∏ÅŸÖ±Ω»Ï(ÄÅÙ((ÄÅçΩπÕ–Å—ï·—ºÄÙÅM—…•πú°ŸÖ±Ω»ÅÒÄúú§π—…•¥†§Ï(ÄÅçΩπÕ–Å¡Ö…—ïÃÄÙÅ—ï·—ºπµÖ—ç††Ωx°qëÏƒ∞…Ù•mpº∏µt°qëÏƒ∞…Ù•mpº∏µt°qëÏ—Ù§êº§Ï(ÄÅ•òÄ†Ö¡Ö…—ïÃ§Å…ï—’…∏Åπ’±∞Ï((ÄÅçΩπÕ–ÅëÖ—ÑÄÙÅπï‹ÅÖ—î†(ÄÄÄÅ9’µâï»°¡Ö…—ïÕlÕt§∞(ÄÄÄÅ9’µâï»°¡Ö…—ïÕl…t§Ä¥Äƒ∞(ÄÄÄÅ9’µâï»°¡Ö…—ïÕl≈t§(ÄÄ§Ï(ÄÅ…ï—’…∏Å•Õ9Ö8°ëÖ—Ñπùï—Q•µî†§§Ä¸Åπ’±∞ÄËÅëÖ—ÑÏ)Ù()ô’πç—•Ω∏ÅçΩµ¡…ΩâÖ…çï¡—Öç•ΩπAΩ…—Ö±|°çΩ……ïº§ÅÏ(ÄÅçΩπÕ–Å—ï·—Ω1ïùÖ∞ÄÙÅΩâ—ï…Qï·—Ω1ïùÖ±Y•·ïπ—ï|†§Ï(ÄÅ…ï—’…∏ÅÏ(ÄÄÄÅΩ¨ËÅ—…’î∞(ÄÄÄÅÖçï¡—Öç•ΩπY•·ïπ—îËÅ—ïπçï¡—Öç•ΩπY•·ïπ—ï|†(ÄÄÄÄÄÅçΩ……ïº∞(ÄÄÄÄÄÅ—ï·—Ω1ïùÖ∞πŸï…Õ•Ω∏(ÄÄÄÄ§∞(ÄÄÄÅ—ï·—Ω1ïùÖ∞ËÅ—ï·—Ω1ïùÖ∞(ÄÅÙÏ)Ù()ô’πç—•Ω∏Å…ï·•Õ—…Ö…çï¡—Öç•ΩπAΩ…—Ö±|°çΩ……ïº§ÅÏ(ÄÅçΩπÕ–Å’Õ’Ö…•ºÄÙÅΩâ—ï…=’…ïÖ…UÕ’Ö…•Ω]ïâAΩ…µÖ•±|°çΩ……ïº§Ï(ÄÅ•òÄ†Ö’Õ’Ö…•º§ÅÏ(ÄÄÄÅ…ï—’…∏ÅÏÅΩ¨ËÅôÖ±Õî∞Åï……ºËÄùUÕ’Ö…•ºÅπΩ∏ÅÖ’—Ω…•ÈÖëºúÅÙÏ(ÄÅÙ((ÄÅçΩπÕ–Å—ï·—Ω1ïùÖ∞ÄÙÅΩâ—ï…Qï·—Ω1ïùÖ±Y•·ïπ—ï|†§Ï(ÄÅ…ï·•Õ—…Ö…çï¡—Öç•Ω∏°Ï(ÄÄÄÅïµÖ•∞ËÅçΩ……ïº∞(ÄÄÄÅŸï…Õ•Ω∏ËÅ—ï·—Ω1ïùÖ∞πŸï…Õ•Ω∏∞(ÄÄÄÅ—ï·—Ω1ïùÖ∞ËÅ—ï·—Ω1ïùÖ∞π—ï·—º∞(ÄÄÄÅÖçï¡—Ö•πïÃËÅ—…’î∞(ÄÄÄÅ¡ï…ÕΩÑËÅ’Õ’Ö…•ºπ¡ï…ÕΩÑ∞(ÄÄÄÅ’Õ’Ö…•Ω]ïàËÅ’Õ’Ö…•ºπ’Õ’Ö…•Ω]ïà∞(ÄÄÄÅÖµâ•—ºËÅ—ï·—Ω1ïùÖ∞πÖµâ•—º∞(ÄÄÄÅçÖπ±îËÄù]ïàú∞(ÄÄÄÅëÖ—ÖIï—•…ÖëÑËÄúú(ÄÅÙ§Ï((ÄÅ…ï—’…∏ÅÏ(ÄÄÄÅΩ¨ËÅ—…’î∞(ÄÄÄÅµïπÕÖ·îËÄùçï¡—ÖçßÕ∏Å…ï·•Õ—…ÖëÑÅçΩ……ïç—Öµïπ—îú∞(ÄÄÄÅŸï…Õ•Ω∏ËÅ—ï·—Ω1ïùÖ∞πŸï…Õ•Ω∏∞(ÄÄÄÅ—ï·—Ω1ïùÖ±%êËÅ—ï·—Ω1ïùÖ∞π•ëQï·—Ω1ïùÖ∞∞(ÄÄÄÅ’Õ’Ö…•ºËÅ’Õ’Ö…•º(ÄÅÙÏ)Ù()ô’πç—•Ω∏Å¡…ΩâÖ…Qï·—Ω1ïùÖ±Y•·ïπ—î†§ÅÏ(ÄÅçΩπÕΩ±îπ±Ωú°)M=8πÕ—…•πù•ô‰°Ωâ—ï…Qï·—Ω1ïùÖ±Y•·ïπ—ï|†§§§Ï)Ù(
+        listarDocumentacionPortal_(datos);
+
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: 'Consultar documentaci√≥n',
+        modulo: 'Documentaci√≥n',
+        resultado: resultado.ok
+          ? 'Correcto'
+          : 'Rexeitado',
+        detalle: resultado.ok
+          ? 'Documentaci√≥n consultada desde o Portal'
+          : String(resultado.erro || '')
+      });
+
+      return respostaJSON(resultado);
+    }
+
+    if (accion === 'obterFicheiroDocumentacion') {
+      const resultado =
+        obterFicheiroDocumentacion_(datos);
+
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: 'Abrir documento',
+        modulo: 'Documentaci√≥n',
+        resultado: resultado.ok
+          ? 'Correcto'
+          : 'Rexeitado',
+        detalle: resultado.ok
+          ? String(resultado.nomeFicheiro || '')
+          : String(resultado.erro || '')
+      });
+
+      return respostaJSON(resultado);
+    }
+
+    if (accion === 'listarPersoasAdministracion') {
+      const resultado =
+        listarPersoasAdministracion_(datos);
+
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: 'Consultar persoas',
+        modulo: 'Administraci√≥n',
+        resultado: resultado.ok
+          ? 'Correcto'
+          : 'Rexeitado',
+        detalle: resultado.ok
+          ? 'Listaxe de persoas consultada'
+          : String(resultado.erro || '')
+      });
+
+      return respostaJSON(resultado);
+    }
+
+    if (accion === 'obterFichaPersoaAdministracion') {
+      const resultado =
+        obterFichaPersoaAdministracion_(datos);
+
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: 'Abrir ficha persoal',
+        modulo: 'Administraci√≥n',
+        resultado: resultado.ok
+          ? 'Correcto'
+          : 'Rexeitado',
+        detalle: resultado.ok
+          ? String(resultado.nomeFicheiro || '')
+          : String(resultado.erro || '')
+      });
+
+      return respostaJSON(resultado);
+    }
+
+    if (accion === 'actualizarObservacions') {
+      const observacions = String(
+        datos.observacions || ''
+      ).trim();
+
+      if (!correo || correo !== correoPermitido) {
+        rexistrarAcceso({
+          email: correo,
+          tipoEvento: 'Actualizar observaci√≥ns',
+          modulo: 'UsuariosWeb',
+          resultado: 'Rexeitado',
+          detalle: 'Usuario non autorizado para esta proba'
+        });
+
+        return respostaJSON({
+          ok: false,
+          erro: 'Usuario non autorizado para esta proba'
+        });
+      }
+
+      if (!observacions || observacions.length > 500) {
+        rexistrarAcceso({
+          email: correo,
+          tipoEvento: 'Actualizar observaci√≥ns',
+          modulo: 'UsuariosWeb',
+          resultado: 'Rexeitado',
+          detalle:
+            'Contido baleiro ou superior a 500 caracteres'
+        });
+
+        return respostaJSON({
+          ok: false,
+          erro:
+            'As observaci√≥ns deben ter entre 1 e 500 caracteres'
+        });
+      }
+
+      bloqueo.waitLock(10000);
+
+      const follaUsuarios =
+        obterFollaUsuariosWeb_();
+
+      if (!follaUsuarios) {
+        throw new Error(
+          'Non se atopou a pestana UsuariosWeb'
+        );
+      }
+
+      const valores =
+        follaUsuarios.getDataRange().getValues();
+
+      if (valores.length < 2) {
+        rexistrarAcceso({
+          email: correo,
+          tipoEvento: 'Actualizar observaci√≥ns',
+          modulo: 'UsuariosWeb',
+          resultado: 'Erro',
+          detalle: 'Non hai usuarios rexistrados'
+        });
+
+        return respostaJSON({
+          ok: false,
+          erro: 'Non hai usuarios rexistrados'
+        });
+      }
+
+      const cabeceiras = valores[0].map(function(valor) {
+        return String(valor).trim();
+      });
+
+      const columnaRowId =
+        cabeceiras.indexOf('Row ID');
+      const columnaPersoa =
+        cabeceiras.indexOf('Persoa');
+      const columnaEmail =
+        cabeceiras.indexOf('Email');
+      const columnaObservacions =
+        cabeceiras.indexOf('Observacions');
+
+      if (
+        columnaRowId === -1 ||
+        columnaPersoa === -1 ||
+        columnaEmail === -1 ||
+        columnaObservacions === -1
+      ) {
+        throw new Error(
+          'Non se atoparon as columnas Row ID, Persoa, ' +
+          'Email ou Observacions en UsuariosWeb'
+        );
+      }
+
+      const indiceFila = valores.findIndex(
+        function(fila, indice) {
+          return (
+            indice > 0 &&
+            String(fila[columnaEmail])
+              .trim()
+              .toLowerCase() === correo
+          );
+        }
+      );
+
+      if (indiceFila === -1) {
+        rexistrarAcceso({
+          email: correo,
+          tipoEvento: 'Actualizar observaci√≥ns',
+          modulo: 'UsuariosWeb',
+          resultado: 'Rexeitado',
+          detalle: 'Non se atopou o usuario autorizado'
+        });
+
+        return respostaJSON({
+          ok: false,
+          erro: 'Non se atopou o usuario autorizado'
+        });
+      }
+
+      const filaUsuario = valores[indiceFila];
+
+      const usuarioWebId = String(
+        filaUsuario[columnaRowId] || ''
+      ).trim();
+
+      const persoaId = String(
+        filaUsuario[columnaPersoa] || ''
+      ).trim();
+
+      follaUsuarios
+        .getRange(
+          indiceFila + 1,
+          columnaObservacions + 1
+        )
+        .setValue(observacions);
+
+      rexistrarAcceso({
+        persoa: persoaId,
+        usuarioWeb: usuarioWebId,
+        email: correo,
+        tipoEvento: 'Actualizar observaci√≥ns',
+        modulo: 'UsuariosWeb',
+        resultado: 'Correcto',
+        detalle:
+          'Observaci√≥ns actualizadas desde a web de proba'
+      });
+
+      SpreadsheetApp.flush();
+
+      return respostaJSON({
+        ok: true,
+        mensaxe:
+          'Observaci√≥ns actualizadas correctamente'
+      });
+    }
+
+    rexistrarAcceso({
+      email: correo,
+      tipoEvento: String(
+        accion || 'Acci√≥n desco√±ecida'
+      ),
+      modulo: 'UsuariosWeb',
+      resultado: 'Rexeitado',
+      detalle: 'Acci√≥n non permitida'
+    });
+
+    return respostaJSON({
+      ok: false,
+      erro: 'Acci√≥n non permitida'
+    });
+
+  } catch (erro) {
+    console.error(
+      erro && erro.stack ? erro.stack : erro
+    );
+
+    rexistrarAcceso({
+      email: correo,
+      tipoEvento:
+        accion === 'rexistrarAceptacion'
+          ? 'Aceptar protecci√≥n de datos'
+          : (
+            accion === 'comprobarAceptacion'
+              ? 'Comprobar acceso ao portal'
+              : 'Erro no Portal'
+          ),
+      modulo:
+        accion === 'rexistrarAceptacion' ||
+        accion === 'comprobarAceptacion'
+          ? 'Portal'
+          : 'UsuariosWeb',
+      resultado: 'Erro',
+      detalle: String(
+        erro && erro.message
+          ? erro.message
+          : erro
+      )
+    });
+
+    return respostaJSON({
+      ok: false,
+      erro: String(
+        erro && erro.message
+          ? erro.message
+          : 'Non foi posible completar o acceso'
+      ),
+      detalle: String(
+        erro && erro.message
+          ? erro.message
+          : erro
+      )
+    });
+
+  } finally {
+    if (bloqueo.hasLock()) {
+      bloqueo.releaseLock();
+    }
+  }
+}
+function listarRepertorioPortal_(datos) {
+  const correo = String(datos.email || '')
+    .trim()
+    .toLowerCase();
+
+  const usuario = obterUsuarioWebPorEmail(correo);
+
+  if (!usuario) {
+    return {
+      ok: false,
+      erro: 'Usuario non autorizado'
+    };
+  }
+
+  const ids = {
+    repertorio:
+      '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw',
+    audios:
+      '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0',
+    partituras:
+      '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0',
+    programas:
+      '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig',
+    concertos:
+      '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU'
+  };
+
+  const repertorio = lerFollaRepertorio_(
+    ids.repertorio,
+    'Repertorio'
+  );
+
+  const audios = lerFollaRepertorio_(
+    ids.audios,
+    'AudiosRepertorio'
+  );
+
+  const partituras = lerFollaRepertorio_(
+    ids.partituras,
+    'Partituras'
+  );
+
+  const programas = lerFollaRepertorio_(
+    ids.programas,
+    'ConcertosRepertorio'
+  );
+
+  const concertos = lerFollaRepertorio_(
+    ids.concertos,
+    'Concertos'
+  );
+
+  const concertosPorId = {};
+
+  concertos.forEach(function(concerto) {
+    concertosPorId[String(concerto.Id || '').trim()] =
+      concerto;
+  });
+
+  const ordeVoces = {
+    Soprano: 1,
+    Soprano2: 2,
+    Contraalto: 3,
+    Contraalto2: 4,
+    Tenor: 5,
+    Tenor2: 6,
+    Baixo: 7,
+    Audioxeral: 8
+  };
+
+  const obras = repertorio
+    .filter(function(obra) {
+      return String(obra.Id || '').trim();
+    })
+    .map(function(obra) {
+      const idObra = String(obra.Id || '').trim();
+
+      const partiturasObra = partituras
+        .filter(function(partitura) {
+          return (
+            String(partitura.Id_Repertorio || '').trim() ===
+              idObra &&
+            valorBooleanoPortal_(partitura.Activa)
+          );
+        })
+        .map(function(partitura) {
+          return {
+            id: String(
+              partitura.Id_Partitura || ''
+            ).trim(),
+            nome: String(
+              partitura.Nomepartitura || ''
+            ).trim(),
+            voz: String(partitura.Voz || '').trim(),
+            version: String(
+              partitura['Versi√≥n'] || ''
+            ).trim(),
+            ruta: String(partitura.PDF || '').trim()
+          };
+        });
+
+      const audiosObra = audios
+        .filter(function(audio) {
+          return (
+            String(audio.NomeObra || '').trim() ===
+              idObra &&
+            valorBooleanoPortal_(audio.Activo)
+          );
+        })
+        .map(function(audio) {
+          return {
+            id: String(audio.Id_Audio || '').trim(),
+            voz: String(audio.Voz || '').trim(),
+            tipo: String(
+              audio.TipoAudio || ''
+            ).trim(),
+            ruta: String(
+              audio.AudioFile || ''
+            ).trim(),
+            observacions: String(
+              audio['Observaci√≥ns'] || ''
+            ).trim()
+          };
+        })
+        .sort(function(a, b) {
+          return (
+            (ordeVoces[a.voz] || 99) -
+            (ordeVoces[b.voz] || 99)
+          );
+        });
+
+      const concertosObra = programas
+        .filter(function(programa) {
+          return String(
+            programa.Id_Obras || ''
+          ).trim() === idObra;
+        })
+        .map(function(programa) {
+          const idConcerto = String(
+            programa.Id_Conciertos || ''
+          ).trim();
+
+          const concerto =
+            concertosPorId[idConcerto] || {};
+
+          return {
+            id: idConcerto,
+            data: String(concerto.Data || '').trim(),
+            nome: String(concerto.Nome || '').trim(),
+            cidade: String(
+              concerto.Cidade || ''
+            ).trim(),
+            lugar: String(concerto.Lugar || '').trim(),
+            orde: String(programa.Orde || '').trim(),
+            solista: String(
+              programa.Solista || ''
+            ).trim(),
+            notas: String(programa.Notas || '').trim()
+          };
+        });
+
+      return {
+        id: idObra,
+        nomeObra: String(
+          obra.NomeObra || ''
+        ).trim(),
+        autorLetra: String(
+          obra.AutorLetra || ''
+        ).trim(),
+        compositor: String(
+          obra.Compositor || ''
+        ).trim(),
+        datas: String(
+          obra['Nac/fall'] || ''
+        ).trim(),
+        comentarios: String(
+          obra.Comentarios || ''
+        ).trim(),
+        partituras: partiturasObra,
+        audios: audiosObra,
+        concertos: concertosObra
+      };
+    });
+
+  return {
+    ok: true,
+    obras: obras
+  };
+}
+
+
+function listarAsistenciasConcertosPortal_(datos) {
+  const correo = String(datos.email || '')
+    .trim()
+    .toLowerCase();
+
+  const usuario = obterUsuarioWebPorEmail(correo);
+
+  if (!usuario) {
+    return {
+      ok: false,
+      erro: 'Usuario non autorizado'
+    };
+  }
+
+  const asistencias = lerFollaRepertorio_(
+    '1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0',
+    'AsistenciasConcertos'
+  );
+
+  const ordeVoces = {
+    Soprano: 1,
+    Contralto: 2,
+    Tenor: 3,
+    Baixo: 4
+  };
+
+  const porConcerto = {};
+
+  asistencias.forEach(function(asistencia) {
+    const idConcerto = String(
+      asistencia.Concerto || ''
+    ).trim();
+
+    const nome = String(
+      asistencia.Nome_Completo ||
+      asistencia['Nome e apelidos'] ||
+      ''
+    ).trim();
+
+    const voz = String(
+      asistencia.Voz || 'Sen voz indicada'
+    ).trim();
+
+    if (!idConcerto || !nome) {
+      return;
+    }
+
+    if (!porConcerto[idConcerto]) {
+      porConcerto[idConcerto] = [];
+    }
+
+    const repetida = porConcerto[idConcerto].some(
+      function(persoa) {
+        return (
+          persoa.nome === nome &&
+          persoa.voz === voz
+        );
+      }
+    );
+
+    if (!repetida) {
+      porConcerto[idConcerto].push({
+        nome: nome,
+        voz: voz
+      });
+    }
+  });
+
+  Object.keys(porConcerto).forEach(function(idConcerto) {
+    porConcerto[idConcerto].sort(function(a, b) {
+      const diferenzaVoz =
+        (ordeVoces[a.voz] || 99) -
+        (ordeVoces[b.voz] || 99);
+
+      if (diferenzaVoz !== 0) {
+        return diferenzaVoz;
+      }
+
+      return a.nome.localeCompare(
+        b.nome,
+        'gl',
+        { sensitivity: 'base' }
+      );
+    });
+  });
+
+  return {
+    ok: true,
+    asistenciasPorConcerto: porConcerto
+  };
+}
+
+
+function lerFollaRepertorio_(spreadsheetId, nomeFolla) {
+  const folla = SpreadsheetApp
+    .openById(spreadsheetId)
+    .getSheetByName(nomeFolla);
+
+  if (!folla) {
+    throw new Error(
+      'Non se atopou a folla ' + nomeFolla
+    );
+  }
+
+  const valores = folla
+    .getDataRange()
+    .getDisplayValues();
+
+  if (valores.length < 2) {
+    return [];
+  }
+
+  const cabeceiras = valores[0].map(function(valor) {
+    return String(valor || '').trim();
+  });
+
+  return valores
+    .slice(1)
+    .filter(function(fila) {
+      return fila.some(function(valor) {
+        return String(valor || '').trim();
+      });
+    })
+    .map(function(fila) {
+      const rexistro = {};
+
+      cabeceiras.forEach(function(cabeceira, indice) {
+        rexistro[cabeceira] =
+          fila[indice] === undefined
+            ? ''
+            : fila[indice];
+      });
+
+      return rexistro;
+    });
+}
+
+
+function obterFicheiroRepertorio_(datos) {
+  const correo = String(datos.email || '')
+    .trim()
+    .toLowerCase();
+
+  const usuario = obterUsuarioWebPorEmail(correo);
+
+  if (!usuario) {
+    return {
+      ok: false,
+      erro: 'Usuario non autorizado'
+    };
+  }
+
+  const ruta = String(datos.ruta || '').trim();
+
+  const carpetasPermitidas = {
+    'Obras_Files_':
+      '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU',
+    'Partituras_Files_':
+      '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm',
+    'AudiosRepertorio_Files_':
+      '1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V'
+  };
+
+  const partes = ruta.split('/');
+
+  if (
+    partes.length !== 2 ||
+    !carpetasPermitidas[partes[0]] ||
+    !partes[1]
+  ) {
+    return {
+      ok: false,
+      erro: 'Ruta de ficheiro non permitida'
+    };
+  }
+
+  const carpeta = DriveApp.getFolderById(
+    carpetasPermitidas[partes[0]]
+  );
+
+  const ficheiros = carpeta.getFilesByName(partes[1]);
+
+  if (!ficheiros.hasNext()) {
+    return {
+      ok: false,
+      erro: 'Non se atopou o ficheiro solicitado'
+    };
+  }
+
+  const ficheiro = ficheiros.next();
+  const blob = ficheiro.getBlob();
+
+  return {
+    ok: true,
+    nomeFicheiro: ficheiro.getName(),
+    mimeType:
+      blob.getContentType() ||
+      'application/octet-stream',
+    base64: Utilities.base64Encode(
+      blob.getBytes()
+    )
+  };
+}
+
+function obterUsuarioWebPorEmail(correo) {
+  const usuario = buscarUsuarioWebPorEmail_(correo);
+  return usuario && usuario.activo ? usuario : null;
+}
+
+function obterFollaUsuariosWeb_() {
+  const propiedades =
+    PropertiesService.getScriptProperties();
+
+  const idConfigurado = String(
+    propiedades.getProperty(
+      'USUARIOS_WEB_SPREADSHEET_ID'
+    ) || ''
+  ).trim();
+
+  if (idConfigurado) {
+    const follaConfigurada = SpreadsheetApp
+      .openById(idConfigurado)
+      .getSheetByName('UsuariosWeb');
+
+    if (!follaConfigurada) {
+      throw new Error(
+        'O arquivo configurado non cont√©n a pestana UsuariosWeb.'
+      );
+    }
+
+    return follaConfigurada;
+  }
+
+  const libroActivo =
+    SpreadsheetApp.getActiveSpreadsheet();
+
+  if (!libroActivo) {
+    throw new Error(
+      'UsuariosWeb non est√° configurada. Executa configurarPortalSCPP().'
+    );
+  }
+
+  const folla =
+    libroActivo.getSheetByName('UsuariosWeb');
+
+  if (!folla) {
+    throw new Error(
+      'Non se atopou a pestana UsuariosWeb. Executa configurarPortalSCPP().'
+    );
+  }
+
+  propiedades.setProperty(
+    'USUARIOS_WEB_SPREADSHEET_ID',
+    libroActivo.getId()
+  );
+
+  return folla;
+}
+
+
+function buscarUsuarioWebPorEmail_(correo) {
+  correo = String(correo || '')
+    .trim()
+    .toLowerCase();
+
+  if (!correo) {
+    return null;
+  }
+
+  const follaUsuarios =
+    obterFollaUsuariosWeb_();
+
+  const valores =
+    follaUsuarios.getDataRange().getValues();
+
+  if (valores.length < 2) {
+    return null;
+  }
+
+  const cabeceiras = valores[0].map(valor =>
+    String(valor).trim()
+  );
+
+  const columnaRowId =
+    cabeceiras.indexOf('Row ID');
+  const columnaPersoa =
+    cabeceiras.indexOf('Persoa');
+  const columnaEmail =
+    cabeceiras.indexOf('Email');
+  const columnaNome =
+    cabeceiras.indexOf('Nome');
+  const columnaActivo =
+    cabeceiras.indexOf('Activo');
+  const columnaAdministrador =
+    cabeceiras.indexOf('Administrador');
+  const columnaModulos =
+    cabeceiras.indexOf('ModulosPermitidos');
+
+  if (
+    columnaRowId === -1 ||
+    columnaPersoa === -1 ||
+    columnaEmail === -1 ||
+    columnaActivo === -1
+  ) {
+    throw new Error(
+      'Faltan columnas obrigatorias en UsuariosWeb'
+    );
+  }
+
+  const filaUsuario = valores.find(
+    (fila, indice) =>
+      indice > 0 &&
+      String(fila[columnaEmail] || '')
+        .trim()
+        .toLowerCase() === correo
+  );
+
+  if (!filaUsuario) {
+    return null;
+  }
+
+  return {
+    usuarioWeb: String(
+      filaUsuario[columnaRowId] || ''
+    ).trim(),
+    persoa: String(
+      filaUsuario[columnaPersoa] || ''
+    ).trim(),
+    nome:
+      columnaNome === -1
+        ? ''
+        : String(filaUsuario[columnaNome] || '').trim(),
+    administrador:
+      columnaAdministrador === -1
+        ? false
+        : (
+          filaUsuario[columnaAdministrador] === true ||
+          [
+            'true',
+            'verdadero',
+            'verdadeiro',
+            'si',
+            's√≠',
+            'yes',
+            'y',
+            '1'
+          ].includes(
+            String(filaUsuario[columnaAdministrador] || '')
+              .trim()
+              .toLowerCase()
+          )
+        ),
+    modulosPermitidos:
+      columnaModulos === -1
+        ? ''
+        : String(filaUsuario[columnaModulos] || '').trim(),
+    activo: valorBooleanoPortal_(
+      filaUsuario[columnaActivo]
+    )
+  };
+}
+
+
+/**
+ * Crea UsuariosWeb s√≥ no primeiro acceso e unicamente cando o correo
+ * pertence a unha persoa activa. Activo concede os m√≥dulos ordinarios.
+ * ModulosPermitidos queda baleiro e res√©rvase para m√≥dulos restrinxidos.
+ */
+function obterOuCrearUsuarioWebPorEmail_(correo) {
+  correo = String(correo || '').trim().toLowerCase();
+
+  const usuarioExistente =
+    buscarUsuarioWebPorEmail_(correo);
+
+  if (usuarioExistente) {
+    return usuarioExistente.activo
+      ? usuarioExistente
+      : null;
+  }
+
+  const persoa = obterPersoaActivaPorEmail_(correo);
+  if (!persoa) {
+    return null;
+  }
+
+  const folla = obterFollaUsuariosWeb_();
+
+  const cabeceiras = folla
+    .getRange(1, 1, 1, folla.getLastColumn())
+    .getDisplayValues()[0]
+    .map(function(valor) {
+      return String(valor || '').trim();
+    });
+
+  const agora = new Date();
+  const rowId = Utilities.getUuid();
+  const valores = {
+    'Row ID': rowId,
+    'Persoa': persoa.rowId,
+    'Email': correo,
+    'Nome': persoa.nome,
+    'Activo': true,
+    'Administrador': false,
+    'ModulosPermitidos': '',
+    'DataAlta': agora,
+    'DataBaixa': '',
+    'Observacions':
+      'Alta autom√°tica desde o Portal do Coralista'
+  };
+
+  ['Row ID', 'Persoa', 'Email', 'Activo'].forEach(
+    function(nome) {
+      if (cabeceiras.indexOf(nome) === -1) {
+        throw new Error(
+          'Falta a columna ' + nome + ' en UsuariosWeb'
+        );
+      }
+    }
+  );
+
+  folla.appendRow(cabeceiras.map(function(cabeceira) {
+    return Object.prototype.hasOwnProperty.call(
+      valores,
+      cabeceira
+    )
+      ? valores[cabeceira]
+      : '';
+  }));
+
+  SpreadsheetApp.flush();
+
+  return buscarUsuarioWebPorEmail_(correo);
+}
+
+
+function obterPersoaActivaPorEmail_(correo) {
+  correo = String(correo || '').trim().toLowerCase();
+  if (!correo) return null;
+
+  const folla = obterFollaPersoas_();
+  const valores = folla.getDataRange().getValues();
+  if (valores.length < 2) return null;
+
+  const cabeceiras = valores[0].map(function(valor) {
+    return normalizarCabeceiraPortal_(valor);
+  });
+
+  const columnaEmail = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['email', 'correoelectronico', 'correo', 'mail']
+  );
+  const columnaActivo = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['activo', 'activa', 'estado']
+  );
+  const columnaRowId = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['rowid', 'idpersoa', 'id']
+  );
+  const columnaNome = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['nome', 'nombre', 'nomecompleto', 'nombrecompleto']
+  );
+
+  if (
+    columnaEmail === -1 ||
+    columnaActivo === -1 ||
+    columnaRowId === -1
+  ) {
+    throw new Error(
+      'Faltan as columnas Email, Activo e Row ID en Persoas'
+    );
+  }
+
+  const fila = valores.find(function(fila, indice) {
+    if (indice === 0) return false;
+    return String(fila[columnaEmail] || '')
+      .trim()
+      .toLowerCase() === correo;
+  });
+
+  if (
+    !fila ||
+    !valorActivoPersoaPortal_(fila[columnaActivo])
+  ) {
+    return null;
+  }
+
+  return {
+    rowId: String(fila[columnaRowId] || '').trim(),
+    nome: columnaNome === -1
+      ? ''
+      : String(fila[columnaNome] || '').trim()
+  };
+}
+
+
+function obterFollaPersoas_() {
+  const libroActivo =
+    SpreadsheetApp.getActiveSpreadsheet();
+  const follaNoLibroActivo =
+    libroActivo
+      ? libroActivo.getSheetByName('Persoas')
+      : null;
+
+  if (follaNoLibroActivo) {
+    return follaNoLibroActivo;
+  }
+
+  const propiedades =
+    PropertiesService.getScriptProperties();
+  const idConfigurado = String(
+    propiedades.getProperty(
+      'PERSOAS_SPREADSHEET_ID'
+    ) || ''
+  ).trim();
+
+  if (idConfigurado) {
+    const follaConfigurada = SpreadsheetApp
+      .openById(idConfigurado)
+      .getSheetByName('Persoas');
+
+    if (!follaConfigurada) {
+      throw new Error(
+        'O arquivo configurado non cont√©n a pestana Persoas'
+      );
+    }
+    return follaConfigurada;
+  }
+
+  const ficheiros = DriveApp.getFilesByName('Persoas');
+  const candidatas = [];
+
+  while (ficheiros.hasNext()) {
+    const ficheiro = ficheiros.next();
+    if (
+      ficheiro.getMimeType() ===
+      MimeType.GOOGLE_SHEETS
+    ) {
+      candidatas.push(ficheiro);
+    }
+  }
+
+  if (candidatas.length !== 1) {
+    throw new Error(
+      candidatas.length === 0
+        ? 'Non se atopou o arquivo Persoas. Configura PERSOAS_SPREADSHEET_ID.'
+        : 'Hai varios arquivos Persoas. Configura PERSOAS_SPREADSHEET_ID.'
+    );
+  }
+
+  propiedades.setProperty(
+    'PERSOAS_SPREADSHEET_ID',
+    candidatas[0].getId()
+  );
+
+  const folla = SpreadsheetApp
+    .openById(candidatas[0].getId())
+    .getSheetByName('Persoas');
+
+  if (!folla) {
+    throw new Error(
+      'O arquivo localizado non cont√©n a pestana Persoas'
+    );
+  }
+
+  return folla;
+}
+
+
+function normalizarCabeceiraPortal_(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+
+function indiceCabeceiraPortal_(
+  cabeceiras,
+  alternativas
+) {
+  for (let i = 0; i < alternativas.length; i += 1) {
+    const indice = cabeceiras.indexOf(
+      alternativas[i]
+    );
+    if (indice !== -1) return indice;
+  }
+  return -1;
+}
+
+function validarCabeceirasPortal_(
+  folla,
+  obrigatorias,
+  nomeLoxico
+) {
+  const cabeceiras = folla
+    .getRange(1, 1, 1, folla.getLastColumn())
+    .getDisplayValues()[0]
+    .map(function(valor) {
+      return String(valor || '').trim();
+    });
+
+  const faltan = obrigatorias.filter(function(nome) {
+    return cabeceiras.indexOf(nome) === -1;
+  });
+
+  if (faltan.length) {
+    throw new Error(
+      'Faltan columnas en ' +
+      nomeLoxico +
+      ': ' +
+      faltan.join(', ')
+    );
+  }
+}
+
+function validarCabeceirasNormalizadasPortal_(
+  folla,
+  grupos,
+  nomeLoxico
+) {
+  const cabeceiras = folla
+    .getRange(1, 1, 1, folla.getLastColumn())
+    .getDisplayValues()[0]
+    .map(normalizarCabeceiraPortal_);
+
+  const faltan = Object.keys(grupos).filter(
+    function(nome) {
+      return indiceCabeceiraPortal_(
+        cabeceiras,
+        grupos[nome]
+      ) === -1;
+    }
+  );
+
+  if (faltan.length) {
+    throw new Error(
+      'Faltan campos obrigatorios en ' +
+      nomeLoxico +
+      ': ' +
+      faltan.join(', ')
+    );
+  }
+}
+
+
+function valorBooleanoPortal_(valor) {
+  if (valor === true) return true;
+  return [
+    'true',
+    'verdadero',
+    'verdadeiro',
+    'si',
+    's√≠',
+    'yes',
+    'y',
+    '1'
+  ].includes(
+    String(valor || '').trim().toLowerCase()
+  );
+}
+
+
+function valorActivoPersoaPortal_(valor) {
+  if (valorBooleanoPortal_(valor)) return true;
+  return ['activo', 'activa', 'alta'].includes(
+    String(valor || '').trim().toLowerCase()
+  );
+}
+
+
+function configurarPersoasPortal() {
+  const folla = obterFollaPersoas_();
+  PropertiesService.getScriptProperties().setProperty(
+    'PERSOAS_SPREADSHEET_ID',
+    folla.getParent().getId()
+  );
+  console.log(
+    'Persoas configurada: ' +
+    folla.getParent().getId() +
+    ' | ' +
+    folla.getName()
+  );
+}
+
+
+function rexistrarAcceso(datos) {
+  try {
+    datos = datos || {};
+
+    const email = String(datos.email || '')
+      .trim()
+      .toLowerCase();
+
+    let persoa = String(datos.persoa || '').trim();
+    let usuarioWeb = String(datos.usuarioWeb || '').trim();
+
+    /*
+     * Se a funci√≥n que solicita o rexistro non enviou
+     * Persoa ou UsuarioWeb, b√∫scanse automaticamente
+     * na folla UsuariosWeb a partir do correo.
+     */
+    if (email && (!persoa || !usuarioWeb)) {
+      try {
+        const usuarioIdentificado =
+          buscarUsuarioWebPorEmail_(email);
+
+        if (usuarioIdentificado) {
+          if (!persoa) {
+            persoa = String(
+              usuarioIdentificado.persoa || ''
+            ).trim();
+          }
+
+          if (!usuarioWeb) {
+            usuarioWeb = String(
+              usuarioIdentificado.usuarioWeb || ''
+            ).trim();
+          }
+        }
+      } catch (erroIdentidade) {
+        /*
+         * Se non se pode consultar UsuariosWeb,
+         * o rexistro escr√≠bese igualmente co correo.
+         */
+        console.warn(
+          'Non foi posible completar Persoa e UsuarioWeb: ' +
+          (
+            erroIdentidade && erroIdentidade.message
+              ? erroIdentidade.message
+              : erroIdentidade
+          )
+        );
+      }
+    }
+
+    // Arquivo independente RexistroAccesosWeb.
+    const libroRexistro = SpreadsheetApp.openById(
+      '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU'
+    );
+
+    // Identificador interno da pestana.
+    const follaRexistro =
+      libroRexistro.getSheetById(1291817000);
+
+    if (!follaRexistro) {
+      throw new Error(
+        'Non se atopou a pestana co identificador ' +
+        '1291817000'
+      );
+    }
+
+    follaRexistro.appendRow([
+      Utilities.getUuid(),
+      persoa,
+      usuarioWeb,
+      email,
+      new Date(),
+      String(datos.tipoEvento || '').trim(),
+      String(datos.modulo || '').trim(),
+      String(datos.resultado || '').trim(),
+      String(datos.detalle || '').trim()
+    ]);
+
+    SpreadsheetApp.flush();
+
+    console.log(
+      'Rexistro escrito correctamente na pestana: ' +
+      follaRexistro.getName()
+    );
+
+  } catch (erro) {
+    console.error(
+      'Erro ao rexistrar o acceso: ' +
+      (
+        erro && erro.message
+          ? erro.message
+          : erro
+      )
+    );
+  }
+}
+
+
+function respostaJSON(datos) {
+  return ContentService
+    .createTextOutput(JSON.stringify(datos))
+    .setMimeType(
+      ContentService.MimeType.JSON
+    );
+}
+
+
+function autorizarAccesoUsuariosWeb() {
+  const libro =
+    SpreadsheetApp.getActiveSpreadsheet();
+
+  const nomes = libro
+    .getSheets()
+    .map(folla => folla.getName());
+
+  console.log(
+    'Pestanas atopadas: ' + nomes.join(' | ')
+  );
+}
+
+
+function comprobarRexistroAccesosWeb() {
+  const libroRexistro = SpreadsheetApp.openById(
+    '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU'
+  );
+
+  const follaRexistro =
+    libroRexistro.getSheetById(1291817000);
+
+  if (!follaRexistro) {
+    throw new Error(
+      'Non se atopou a pestana co identificador ' +
+      '1291817000'
+    );
+  }
+
+  console.log(
+    'Acceso correcto √° pestana: ' +
+    follaRexistro.getName()
+  );
+}
+
+
+function probarEscrituraRexistro() {
+  rexistrarAcceso({
+    persoa: '',
+    usuarioWeb: '',
+    email: 'PROBA',
+    tipoEvento: 'Proba manual',
+    modulo: 'UsuariosWeb',
+    resultado: 'Correcto',
+    detalle:
+      'Proba directa desde Apps Script'
+  });
+}
+function comprobarFollaAceptacion() {
+  const libroAceptacion = SpreadsheetApp.openById(
+    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+  );
+
+  const follaAceptacion =
+    libroAceptacion.getSheetById(974695665);
+
+  if (!follaAceptacion) {
+    throw new Error(
+      'Non se atopou a pestana co identificador 974695665'
+    );
+  }
+
+  const cabeceiras = follaAceptacion
+    .getRange(
+      1,
+      1,
+      1,
+      follaAceptacion.getLastColumn()
+    )
+    .getValues()[0];
+
+  console.log(
+    'Pestana correcta: ' +
+    follaAceptacion.getName()
+  );
+
+  console.log(
+    'Cabeceiras: ' +
+    cabeceiras.join(' | ')
+  );
+}
+
+
+function rexistrarAceptacion(datos) {
+  const libroAceptacion = SpreadsheetApp.openById(
+    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+  );
+
+  const follaAceptacion =
+    libroAceptacion.getSheetById(974695665);
+
+  if (!follaAceptacion) {
+    throw new Error(
+      'Non se atopou a pestana Aceptaci√≥n'
+    );
+  }
+
+  follaAceptacion.appendRow([
+    Utilities.getUuid(),
+    datos.email || '',
+    new Date(),
+    datos.version || '',
+    datos.textoLegal || '',
+    datos.aceptaFines === true,
+    datos.persoa || '',
+    datos.usuarioWeb || '',
+    datos.ambito || '',
+    datos.canle || '',
+    datos.dataRetirada || ''
+  ]);
+
+  SpreadsheetApp.flush();
+
+  console.log(
+    'Aceptaci√≥n escrita correctamente'
+  );
+}
+
+
+function tenAceptacionVixente_(correo, version) {
+  const libroAceptacion = SpreadsheetApp.openById(
+    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+  );
+
+  const follaAceptacion =
+    libroAceptacion.getSheetById(974695665);
+
+  if (!follaAceptacion) {
+    throw new Error(
+      'Non se atopou a pestana Aceptaci√≥n'
+    );
+  }
+
+  const valores =
+    follaAceptacion.getDataRange().getValues();
+  if (valores.length < 2) return false;
+
+  const cabeceiras = valores[0].map(function(valor) {
+    return normalizarCabeceiraPortal_(valor);
+  });
+
+  const columnaEmail = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['correoelectronico', 'email', 'correo']
+  );
+  const columnaVersion = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['version']
+  );
+  const columnaAcepta = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['aceptafines', 'acepta']
+  );
+  const columnaRetirada = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['dataretirada', 'fecharetirada']
+  );
+
+  if (
+    columnaEmail === -1 ||
+    columnaVersion === -1 ||
+    columnaAcepta === -1
+  ) {
+    throw new Error(
+      'Faltan columnas obrigatorias na folla Aceptaci√≥n'
+    );
+  }
+
+  for (let i = valores.length - 1; i > 0; i -= 1) {
+    const fila = valores[i];
+    const mesmoCorreo =
+      String(fila[columnaEmail] || '')
+        .trim()
+        .toLowerCase() === correo;
+    const mesmaVersion =
+      String(fila[columnaVersion] || '').trim() ===
+      version;
+    const aceptada =
+      valorBooleanoPortal_(fila[columnaAcepta]);
+    const retirada =
+      columnaRetirada !== -1 &&
+      String(fila[columnaRetirada] || '').trim() !== '';
+
+    if (
+      mesmoCorreo &&
+      mesmaVersion &&
+      aceptada &&
+      !retirada
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+function probarEscrituraAceptacion() {
+  console.log(
+    'A funci√≥n probarEscrituraAceptacion foi reco√±ecida correctamente'
+  );
+}
+function probarPostAceptacion() {
+  const propiedades =
+    PropertiesService.getScriptProperties();
+
+  const token =
+    propiedades.getProperty('WEB_WRITE_TOKEN');
+
+  const correo = String(
+    propiedades.getProperty('WEB_TEST_EMAIL') || ''
+  )
+    .trim()
+    .toLowerCase();
+
+  const eventoSimulado = {
+    postData: {
+      contents: JSON.stringify({
+        token: token,
+        accion: 'rexistrarAceptacion',
+        email: correo,
+        version: 'PRIVACIDADE-WEB-1.0',
+        textoLegal:
+          'Texto de proba da aceptaci√≥n da pol√≠tica de privacidade.',
+        aceptaFines: true,
+        persoa: '',
+        usuarioWeb: '',
+        ambito:
+          'coralpolifonicapontevedra.org'
+      })
+    }
+  };
+
+  const resposta = doPost(eventoSimulado);
+
+  console.log(
+    resposta.getContent()
+  );
+}
+
+/**
+ * Texto legal vixente do portal privado.
+ *
+ * Este m√≥dulo evita que o navegador decida a versi√≥n ou o contido aceptado.
+ * Tanto a comprobaci√≥n como o rexistro resolven a fila activa directamente
+ * desde TextosLegais.
+ */
+const ACEPTACION_SPREADSHEET_ID_ =
+  '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k';
+const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208;
+const TEXTO_LEGAL_PORTAL_ID_ = 'PRIVACIDADE_WEB';
+
+function obterTextoLegalVixente_() {
+  const libro = SpreadsheetApp.openById(
+    ACEPTACION_SPREADSHEET_ID_
+  );
+  const folla = libro.getSheetById(TEXTOS_LEGAIS_SHEET_ID_);
+
+  if (!folla || folla.getName() !== 'TextosLegais') {
+    throw new Error('Non se atopou a pestana TextosLegais configurada');
+  }
+
+  const valores = folla.getDataRange().getValues();
+  if (valores.length < 2) {
+    throw new Error('TextosLegais non cont√©n ning√∫n texto legal');
+  }
+
+  const cabeceiras = valores[0].map(function(valor) {
+    return normalizarCabeceiraPortal_(valor);
+  });
+  const columnas = {
+    id: indiceCabeceiraPortal_(cabeceiras, ['id']),
+    version: indiceCabeceiraPortal_(cabeceiras, ['version']),
+    titulo: indiceCabeceiraPortal_(cabeceiras, ['titulo']),
+    texto: indiceCabeceiraPortal_(cabeceiras, ['texto']),
+    dataVixencia: indiceCabeceiraPortal_(
+      cabeceiras,
+      ['datavixencia', 'fechavigencia']
+    ),
+    activo: indiceCabeceiraPortal_(cabeceiras, ['activo']),
+    ambito: indiceCabeceiraPortal_(cabeceiras, ['ambito']),
+    idTextoLegal: indiceCabeceiraPortal_(
+      cabeceiras,
+      ['idtextolegal']
+    )
+  };
+
+  Object.keys(columnas).forEach(function(nome) {
+    if (columnas[nome] === -1) {
+      throw new Error(
+        'Falta a columna obrigatoria ' + nome + ' en TextosLegais'
+      );
+    }
+  });
+
+  const agora = new Date();
+  const candidatas = valores
+    .slice(1)
+    .map(function(fila, indice) {
+      const data = normalizarDataTextoLegal_(
+        fila[columnas.dataVixencia]
+      );
+      return { fila: fila, indice: indice, data: data };
+    })
+    .filter(function(candidata) {
+      const fila = candidata.fila;
+      return (
+        String(fila[columnas.id] || '').trim() ===
+          TEXTO_LEGAL_PORTAL_ID_ &&
+        valorBooleanoPortal_(fila[columnas.activo]) &&
+        candidata.data &&
+        candidata.data.getTime() <= agora.getTime()
+      );
+    })
+    .sort(function(a, b) {
+      return (
+        b.data.getTime() - a.data.getTime() ||
+        b.indice - a.indice
+      );
+    });
+
+  if (!candidatas.length) {
+    throw new Error(
+      'Non hai un texto legal activo e vixente para o portal privado'
+    );
+  }
+
+  const fila = candidatas[0].fila;
+  const resultado = {
+    id: String(fila[columnas.id] || '').trim(),
+    idTextoLegal: String(
+      fila[columnas.idTextoLegal] || ''
+    ).trim(),
+    version: String(fila[columnas.version] || '').trim(),
+    titulo: String(fila[columnas.titulo] || '').trim(),
+    texto: String(fila[columnas.texto] || '').trim(),
+    ambito: String(fila[columnas.ambito] || '').trim(),
+    dataVixencia: Utilities.formatDate(
+      candidatas[0].data,
+      'Europe/Madrid',
+      'yyyy-MM-dd'
+    )
+  };
+
+  if (!resultado.version || !resultado.titulo || !resultado.texto) {
+    throw new Error('O texto legal vixente est√° incompleto');
+  }
+  return resultado;
+}
+
+function normalizarDataTextoLegal_(valor) {
+  if (
+    Object.prototype.toString.call(valor) === '[object Date]' &&
+    !isNaN(valor.getTime())
+  ) {
+    return valor;
+  }
+
+  const texto = String(valor || '').trim();
+  const partes = texto.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (!partes) return null;
+
+  const data = new Date(
+    Number(partes[3]),
+    Number(partes[2]) - 1,
+    Number(partes[1])
+  );
+  return isNaN(data.getTime()) ? null : data;
+}
+
+function comprobarAceptacionPortal_(correo) {
+  const textoLegal = obterTextoLegalVixente_();
+  return {
+    ok: true,
+    aceptacionVixente: tenAceptacionVixente_(
+      correo,
+      textoLegal.version
+    ),
+    textoLegal: textoLegal
+  };
+}
+
+function rexistrarAceptacionPortal_(correo) {
+  const usuario = obterOuCrearUsuarioWebPorEmail_(correo);
+  if (!usuario) {
+    return { ok: false, erro: 'Usuario non autorizado' };
+  }
+
+  const textoLegal = obterTextoLegalVixente_();
+  rexistrarAceptacion({
+    email: correo,
+    version: textoLegal.version,
+    textoLegal: textoLegal.texto,
+    aceptaFines: true,
+    persoa: usuario.persoa,
+    usuarioWeb: usuario.usuarioWeb,
+    ambito: textoLegal.ambito,
+    canle: 'Web',
+    dataRetirada: ''
+  });
+
+  return {
+    ok: true,
+    mensaxe: 'Aceptaci√≥n rexistrada correctamente',
+    version: textoLegal.version,
+    textoLegalId: textoLegal.idTextoLegal,
+    usuario: usuario
+  };
+}
+
+function probarTextoLegalVixente() {
+  console.log(JSON.stringify(obterTextoLegalVixente_()));
+}
