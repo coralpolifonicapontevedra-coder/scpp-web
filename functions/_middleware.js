@@ -1,6 +1,7 @@
 const IDS_AUDIO_DESACTIVADOS = new Set(['18', '35', '52', '67']);
 const REVISION_INDEX_PATH = 'indices/revision-fotos-v1.json';
-const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
+const AUTH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const FIREBASE_TIMEOUT_MS = 8 * 1000;
 const AUTH_CACHE_VERSION = 2;
 
 function filtrarAudiosDesactivados(resultado) {
@@ -46,14 +47,22 @@ const json = (status, body, headers = {}) => new Response(JSON.stringify(body), 
 
 async function verificarTokenFirebase(idToken, apiKey) {
   if (!idToken || !apiKey) return null;
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
-    }
-  );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FIREBASE_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+        signal: controller.signal
+      }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
   if (!response.ok) return null;
   const user = (await response.json())?.users?.[0];
   if (!user?.email || user.emailVerified !== true) return null;
@@ -75,7 +84,9 @@ async function administracionCacheada(env, email) {
   if (!object) return false;
   const data = await object.json().catch(() => null);
   const verifiedAt = Date.parse(String(data?.verificadaEn || ''));
-  return data?.version === AUTH_CACHE_VERSION &&
+  const versionCompatible = data?.version == null || data.version === AUTH_CACHE_VERSION;
+  const sameEmail = !data?.email || String(data.email).trim().toLowerCase() === email;
+  return versionCompatible && sameEmail &&
     data?.administrador === true && Number.isFinite(verifiedAt) &&
     Date.now() - verifiedAt < AUTH_TTL_MS;
 }
@@ -102,14 +113,29 @@ async function intentarRevisionR2(context, url) {
   ).catch(() => null);
   if (!email) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
-  // Na primeira entrada deixamos que o endpoint actual valide o permiso e garde
-  // a autorización. As seguintes entradas xa non dependen de Google.
-  if (!(await administracionCacheada(context.env, email))) return null;
+  // A apertura nunca consulta Sheets nin Apps Script. A autorización xa
+  // verificada consérvase en R2; se non existe, fallamos de forma explícita.
+  if (!(await administracionCacheada(context.env, email))) {
+    return json(403, {
+      ok: false,
+      erro: 'O permiso de revisión non está preparado na caché R2.'
+    });
+  }
 
   const object = await context.env.R2_PRIVADO.get(REVISION_INDEX_PATH);
-  if (!object) return null;
+  if (!object) {
+    return json(503, {
+      ok: false,
+      erro: 'O índice de fotografías aínda non está preparado en R2.'
+    });
+  }
   const index = await object.json().catch(() => null);
-  if (!index?.ok || !Array.isArray(index.fotos)) return null;
+  if (!index?.ok || !Array.isArray(index.fotos)) {
+    return json(503, {
+      ok: false,
+      erro: 'O índice de fotografías de R2 non é válido.'
+    });
+  }
 
   return json(200, {
     ok: true,
@@ -128,8 +154,8 @@ async function intentarRevisionR2(context, url) {
 export async function onRequest(context) {
   const url = new URL(context.request.url);
 
-  // Seguridade: a revisión de fotos debe validar permisos no endpoint principal
-  // en cada petición, sen atallos de caché no middleware.
+  const revisionR2 = await intentarRevisionR2(context, url);
+  if (revisionR2) return revisionR2;
 
   const response = await context.next();
 

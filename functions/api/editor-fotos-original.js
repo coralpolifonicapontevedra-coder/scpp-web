@@ -1,6 +1,8 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 
-const AUTH_TTL_MS = 15 * 60 * 1000;
+const AUTH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const AUTH_CACHE_VERSION = 2;
+const FIREBASE_TIMEOUT_MS = 8 * 1000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -11,14 +13,22 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 });
 
 async function verificarTokenFirebase(idToken, apiKey) {
-  const resposta = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
-    }
-  );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FIREBASE_TIMEOUT_MS);
+  let resposta;
+  try {
+    resposta = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+        signal: controller.signal
+      }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
   if (!resposta.ok) return null;
   const usuario = (await resposta.json())?.users?.[0];
   if (!usuario?.email || usuario.emailVerified !== true) return null;
@@ -40,35 +50,17 @@ async function comprobarAdministracion(env, usuario) {
   const clave = await claveCorreo(usuario.email);
   const ruta = `cache/autorizacion-fotos/${clave}.json`;
   const gardada = await env.R2_PRIVADO.get(ruta);
+  if (!gardada) return false;
 
-  if (gardada) {
-    const datos = await gardada.json().catch(() => null);
-    const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
-    if (datos?.administrador === true && Number.isFinite(verificadaEn) && Date.now() - verificadaEn < AUTH_TTL_MS) {
-      return true;
-    }
-  }
-
-  if (!env.WEB_WRITE_TOKEN) return false;
-  const { resultado } = await obterJsonAppsScript(env, {
-    token: env.WEB_WRITE_TOKEN,
-    accion: 'listarFotosRevision',
-    email: usuario.email,
-    uidFirebase: usuario.uid
-  }, { timeoutMs: 35_000, attemptTimeoutMs: 12_000 });
-
-  if (!resultado?.ok) return false;
-  await env.R2_PRIVADO.put(ruta, JSON.stringify({
-    administrador: true,
-    email: usuario.email,
-    verificadaEn: new Date().toISOString()
-  }), {
-    httpMetadata: {
-      contentType: 'application/json; charset=utf-8',
-      cacheControl: 'private, max-age=900'
-    }
-  });
-  return true;
+  const datos = await gardada.json().catch(() => null);
+  const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
+  const versionCompatible = datos?.version == null || datos.version === AUTH_CACHE_VERSION;
+  const mesmoCorreo = !datos?.email ||
+    String(datos.email).trim().toLowerCase() === usuario.email;
+  return versionCompatible && mesmoCorreo &&
+    datos?.administrador === true &&
+    Number.isFinite(verificadaEn) &&
+    Date.now() - verificadaEn < AUTH_TTL_MS;
 }
 
 async function resolverRutaActual(env, idFoto) {
