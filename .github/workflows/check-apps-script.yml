@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps-script/**'
       - 'scripts/check-apps-script.mjs'
+      - 'scripts/audit-apps-script-config.mjs'
       - '.github/workflows/check-apps-script.yml'
       - 'package.json'
   push:
@@ -13,6 +14,7 @@ on:
     paths:
       - 'apps-script/**'
       - 'scripts/check-apps-script.mjs'
+      - 'scripts/audit-apps-script-config.mjs'
       - '.github/workflows/check-apps-script.yml'
       - 'package.json'
   workflow_dispatch:
@@ -34,4 +36,4 @@ jobs:
           node-version: '24'
 
       - name: Comprobar Apps Script
-        run: node scripts/check-apps-script.mjs
+        run: npm run check:apps-script
