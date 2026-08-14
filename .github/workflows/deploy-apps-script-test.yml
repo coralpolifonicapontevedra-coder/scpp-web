@@ -1,0 +1,58 @@
+name: Desplegar Apps Script en pruebas
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps-script/src/**'
+      - 'scripts/check-apps-script.mjs'
+      - 'scripts/audit-apps-script-config.mjs'
+      - '.github/workflows/deploy-apps-script-test.yml'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-test
+  cancel-in-progress: true
+
+jobs:
+  deploy-test:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APPS_SCRIPT_TEST_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_TEST_SCRIPT_ID }}
+      CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Comprobar Apps Script
+        run: npm run check:apps-script
+
+      - name: Verificar secretos de pruebas
+        shell: bash
+        run: |
+          test -n "$APPS_SCRIPT_TEST_SCRIPT_ID" || { echo 'Falta APPS_SCRIPT_TEST_SCRIPT_ID'; exit 1; }
+          test -n "$CLASPRC_JSON" || { echo 'Falta CLASPRC_JSON'; exit 1; }
+
+      - name: Configurar clasp para SCPP Script - Pruebas
+        shell: bash
+        run: |
+          mkdir -p "$HOME"
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+          node -e "require('fs').writeFileSync('apps-script/.clasp.json', JSON.stringify({scriptId: process.env.APPS_SCRIPT_TEST_SCRIPT_ID, rootDir: 'src'}, null, 2) + '\n')"
+
+      - name: Enviar código al proyecto de pruebas
+        working-directory: apps-script
+        run: npx --yes @google/clasp@3.3.0 push --force
