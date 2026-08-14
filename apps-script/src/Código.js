@@ -1525,6 +1525,19 @@ function configurarPersoasPortal() {
 
 function rexistrarAcceso(datos) {
   try {
+    const permiteEscritura = String(
+      PropertiesService.getScriptProperties().getProperty(
+        'SCPP_ALLOW_WRITES'
+      ) || ''
+    ).toLowerCase() === 'true';
+
+    if (!permiteEscritura) {
+      console.log(
+        'Rexistro de acceso omitido: SCPP_ALLOW_WRITES=false'
+      );
+      return;
+    }
+
     datos = datos || {};
 
     const email = String(datos.email || '')

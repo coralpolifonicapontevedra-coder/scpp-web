@@ -109,6 +109,10 @@ if (!codeFile.includes('validarAccionPermitidaEntorno_(accion);')) {
   errors.push('Código.js does not enforce the environment write guard');
 }
 
+if (!codeFile.includes('Rexistro de acceso omitido: SCPP_ALLOW_WRITES=false')) {
+  errors.push('Código.js does not disable access-log writes when writes are disabled');
+}
+
 if (!files.includes('configuracion-entorno.js')) {
   errors.push('missing configuracion-entorno.js');
 }
