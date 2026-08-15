@@ -2,12 +2,14 @@
 import io
 import json
 import os
+import time
 from datetime import datetime, timezone
 
 import boto3
 from botocore.exceptions import ClientError
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from PIL import Image, ImageOps
 
 SPREADSHEET_ID = "1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w"
@@ -15,9 +17,35 @@ RANGE = "Fotos!A1:AC5000"
 INDEX_KEY = "indices/galeria-privada.json"
 BUCKET = "scpp-privado"
 
+RETRYABLE_GOOGLE_STATUS = {429, 500, 502, 503, 504}
+GOOGLE_MAX_ATTEMPTS = 5
+
 
 def truthy(value):
     return str(value or "").strip().lower() in {"true", "verdadero", "verdadeiro", "si", "sí", "yes", "1", "y"}
+
+
+def read_sheet_values(sheets):
+    for attempt in range(1, GOOGLE_MAX_ATTEMPTS + 1):
+        try:
+            return (
+                sheets.spreadsheets()
+                .values()
+                .get(spreadsheetId=SPREADSHEET_ID, range=RANGE)
+                .execute()
+                .get("values", [])
+            )
+        except HttpError as exc:
+            status = getattr(exc.resp, "status", None)
+            if status not in RETRYABLE_GOOGLE_STATUS or attempt == GOOGLE_MAX_ATTEMPTS:
+                raise
+
+            wait_seconds = 2 ** attempt
+            print(
+                f"Google Sheets respondeu HTTP {status}. "
+                f"Reintento {attempt}/{GOOGLE_MAX_ATTEMPTS - 1} en {wait_seconds}s..."
+            )
+            time.sleep(wait_seconds)
 
 
 def main():
@@ -31,7 +59,7 @@ def main():
         info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
     )
     sheets = build("sheets", "v4", credentials=credentials, cache_discovery=False)
-    values = sheets.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range=RANGE).execute().get("values", [])
+    values = read_sheet_values(sheets)
     if not values:
         raise SystemExit("La hoja Fotos está vacía")
 
