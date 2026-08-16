@@ -43,7 +43,13 @@ jobs:
         shell: bash
         run: |
           set -u
-          BASE="https://scpp-web.pages.dev"
+          # En pull_request usamos deliberadamente unha URL inexistente para validar
+          # o camiño de fallo sen afectar nin simular unha caída en produción.
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            BASE="https://scpp-monitor-fallo-controlado.invalid"
+          else
+            BASE="https://scpp-web.pages.dev"
+          fi
           EXPECTED="Sociedade Coral Polifónica de Pontevedra"
           SUCCESS=0
 
@@ -138,39 +144,11 @@ jobs:
             const title = 'INCIDENCIA AUTOMÁTICA: web SCPP non dispoñible';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const timestamp = new Date().toISOString();
-            const { data: issues } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              per_page: 100
-            });
+            const { data: issues } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 });
             const existing = issues.find(i => i.title === title && !i.pull_request);
-            const body = [
-              `Detectada unha caída persistente da web SCPP ás **${timestamp}**.`,
-              '',
-              '- Fallaron 3 comprobacións consecutivas.',
-              '- Comprobáronse a portada e `/actualidade/`.',
-              '- O workflow gardou DNS, IP remota, TLS, tempos HTTP, cabeceiras Cloudflare e corpos de resposta nun artefacto de diagnóstico.',
-              `- Execución: ${runUrl}`,
-              '',
-              'Esta incidencia é automática e debe investigarse antes de dala por resolta.'
-            ].join('\n');
-            if (existing) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: existing.number,
-                body
-              });
-            } else {
-              await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title,
-                body,
-                assignees: [context.repo.owner]
-              });
-            }
+            const body = [`Detectada unha caída persistente da web SCPP ás **${timestamp}**.`, '', '- Fallaron 3 comprobacións consecutivas.', '- Comprobáronse a portada e `/actualidade/`.', '- O workflow gardou DNS, IP remota, TLS, tempos HTTP, cabeceiras Cloudflare e corpos de resposta nun artefacto de diagnóstico.', `- Execución: ${runUrl}`, '', 'Esta incidencia é automática e debe investigarse antes de dala por resolta.'].join('\n');
+            if (existing) await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
+            else await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, assignees: [context.repo.owner] });
 
       - name: Pechar incidencia ao recuperarse
         if: steps.probe.outputs.site_ok == 'true' && github.event_name != 'pull_request'
@@ -179,26 +157,11 @@ jobs:
           script: |
             const title = 'INCIDENCIA AUTOMÁTICA: web SCPP non dispoñible';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const { data: issues } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              per_page: 100
-            });
+            const { data: issues } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 });
             const existing = issues.find(i => i.title === title && !i.pull_request);
             if (existing) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: existing.number,
-                body: `Recuperación automática confirmada ás **${new Date().toISOString()}**. Portada e Actualidade volveron responder correctamente. Execución: ${runUrl}`
-              });
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: existing.number,
-                state: 'closed'
-              });
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: `Recuperación automática confirmada ás **${new Date().toISOString()}**. Portada e Actualidade volveron responder correctamente. Execución: ${runUrl}` });
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
             }
 
       - name: Marcar a execución como fallo
