@@ -43,59 +43,34 @@ jobs:
         shell: bash
         run: |
           set -u
-          # En pull_request usamos deliberadamente unha URL inexistente para validar
-          # o camiño de fallo sen afectar nin simular unha caída en produción.
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            BASE="https://scpp-monitor-fallo-controlado.invalid"
-          else
-            BASE="https://scpp-web.pages.dev"
-          fi
+          BASE="https://scpp-web.pages.dev"
           EXPECTED="Sociedade Coral Polifónica de Pontevedra"
           SUCCESS=0
-
           : > diagnostico/resumo.txt
 
           probe_url() {
-            local url="$1"
-            local name="$2"
-            local attempt="$3"
+            local url="$1" name="$2" attempt="$3"
             local body="diagnostico/${name}-intento-${attempt}.body"
             local headers="diagnostico/${name}-intento-${attempt}.headers"
             local metrics="diagnostico/${name}-intento-${attempt}.metrics"
-
             echo "[$(date -u --iso-8601=seconds)] ${name} intento ${attempt}: ${url}" | tee -a diagnostico/resumo.txt
-
-            curl --location --silent --show-error \
-              --connect-timeout 10 --max-time 30 \
-              --dump-header "$headers" \
-              --output "$body" \
+            curl --location --silent --show-error --connect-timeout 10 --max-time 30 \
+              --dump-header "$headers" --output "$body" \
               --write-out 'http_code=%{http_code}\nremote_ip=%{remote_ip}\nremote_port=%{remote_port}\nlocal_ip=%{local_ip}\nhttp_version=%{http_version}\nssl_verify_result=%{ssl_verify_result}\ntime_namelookup=%{time_namelookup}\ntime_connect=%{time_connect}\ntime_appconnect=%{time_appconnect}\ntime_starttransfer=%{time_starttransfer}\ntime_total=%{time_total}\nurl_effective=%{url_effective}\n' \
               "$url" > "$metrics" 2>"diagnostico/${name}-intento-${attempt}.stderr"
             local rc=$?
-
-            local code
+            local code remote total cf_ray server
             code="$(awk -F= '$1=="http_code" {print $2}' "$metrics" 2>/dev/null | tail -1)"
-            local remote
             remote="$(awk -F= '$1=="remote_ip" {print $2}' "$metrics" 2>/dev/null | tail -1)"
-            local total
             total="$(awk -F= '$1=="time_total" {print $2}' "$metrics" 2>/dev/null | tail -1)"
-            local cf_ray
             cf_ray="$(grep -i '^cf-ray:' "$headers" 2>/dev/null | tail -1 | tr -d '\r' || true)"
-            local server
             server="$(grep -i '^server:' "$headers" 2>/dev/null | tail -1 | tr -d '\r' || true)"
-
             echo "curl_rc=${rc} HTTP=${code:-sin-respuesta} remote_ip=${remote:-?} total=${total:-?} ${cf_ray:-sin-cf-ray} ${server:-sin-server}" | tee -a diagnostico/resumo.txt
-
-            if [[ "$rc" -ne 0 || "$code" != "200" ]]; then
-              return 1
-            fi
-            return 0
+            [[ "$rc" -eq 0 && "$code" == "200" ]]
           }
 
           for attempt in 1 2 3; do
-            root_ok=0
-            actualidade_ok=0
-
+            root_ok=0; actualidade_ok=0
             if probe_url "$BASE/" "raiz" "$attempt"; then
               if grep -Fqi "$EXPECTED" "diagnostico/raiz-intento-${attempt}.body"; then
                 root_ok=1
@@ -104,29 +79,15 @@ jobs:
                 echo "HTTP 200, pero non aparece o texto esperado da SCPP." | tee -a diagnostico/resumo.txt
               fi
             fi
-
-            if probe_url "$BASE/actualidade/" "actualidade" "$attempt"; then
-              actualidade_ok=1
-            fi
-
+            if probe_url "$BASE/actualidade/" "actualidade" "$attempt"; then actualidade_ok=1; fi
             if [[ "$root_ok" -eq 1 && "$actualidade_ok" -eq 1 ]]; then
               SUCCESS=1
               echo "Web dispoñible: portada e Actualidade correctas no intento ${attempt}." | tee -a diagnostico/resumo.txt
               break
             fi
-
-            if [[ "$attempt" -lt 3 ]]; then
-              echo "Novo intento en 20 segundos." | tee -a diagnostico/resumo.txt
-              sleep 20
-            fi
+            if [[ "$attempt" -lt 3 ]]; then echo "Novo intento en 20 segundos." | tee -a diagnostico/resumo.txt; sleep 20; fi
           done
-
-          if [[ "$SUCCESS" -eq 1 ]]; then
-            echo "site_ok=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "site_ok=false" >> "$GITHUB_OUTPUT"
-            echo "A web non superou tres comprobacións consecutivas." | tee -a diagnostico/resumo.txt
-          fi
+          if [[ "$SUCCESS" -eq 1 ]]; then echo "site_ok=true" >> "$GITHUB_OUTPUT"; else echo "site_ok=false" >> "$GITHUB_OUTPUT"; echo "A web non superou tres comprobacións consecutivas." | tee -a diagnostico/resumo.txt; fi
 
       - name: Gardar caixa negra de diagnóstico
         if: always()
