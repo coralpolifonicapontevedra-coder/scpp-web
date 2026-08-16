@@ -2,6 +2,12 @@ name: Auditar sistema de archivos
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/audit-file-systems.py"
+      - ".github/workflows/audit-file-systems.yml"
   schedule:
     - cron: "15 5 * * 1"
 
@@ -9,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: scpp-files-audit
+  group: scpp-files-audit-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
