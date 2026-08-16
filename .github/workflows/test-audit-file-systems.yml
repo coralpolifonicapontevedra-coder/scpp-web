@@ -1,0 +1,28 @@
+name: Probar auditoría de arquivos
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/audit-file-systems.py"
+      - "tests/test_audit_file_systems.py"
+      - ".github/workflows/test-audit-file-systems.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v5
+
+      - name: Preparar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Executar probas unitarias
+        run: python -m unittest tests/test_audit_file_systems.py
