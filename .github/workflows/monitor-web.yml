@@ -6,42 +6,128 @@ on:
     paths:
       - ".github/workflows/monitor-web.yml"
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
-      - name: Comprobar a web con reintentos
+      - name: Preparar diagnóstico
         shell: bash
         run: |
-          set -euo pipefail
-          URL="https://scpp-web.pages.dev/"
+          mkdir -p diagnostico
+          {
+            echo "SCPP monitor web"
+            echo "UTC: $(date -u --iso-8601=seconds)"
+            echo "Runner: $RUNNER_OS / $RUNNER_ARCH"
+            echo "Commit workflow: $GITHUB_SHA"
+            echo
+            echo "=== DNS getent ==="
+            getent ahosts scpp-web.pages.dev || true
+            echo
+            echo "=== DNS dig A ==="
+            dig +time=5 +tries=1 scpp-web.pages.dev A || true
+            echo
+            echo "=== DNS dig AAAA ==="
+            dig +time=5 +tries=1 scpp-web.pages.dev AAAA || true
+          } | tee diagnostico/entorno.txt
+
+      - name: Comprobar web e recoller evidencia
+        id: probe
+        shell: bash
+        run: |
+          set -u
+          BASE="https://scpp-web.pages.dev"
           EXPECTED="Sociedade Coral Polifónica de Pontevedra"
-          TMP="$(mktemp)"
+          SUCCESS=0
+          : > diagnostico/resumo.txt
+
+          probe_url() {
+            local url="$1" name="$2" attempt="$3"
+            local body="diagnostico/${name}-intento-${attempt}.body"
+            local headers="diagnostico/${name}-intento-${attempt}.headers"
+            local metrics="diagnostico/${name}-intento-${attempt}.metrics"
+            echo "[$(date -u --iso-8601=seconds)] ${name} intento ${attempt}: ${url}" | tee -a diagnostico/resumo.txt
+            curl --location --silent --show-error --connect-timeout 10 --max-time 30 \
+              --dump-header "$headers" --output "$body" \
+              --write-out 'http_code=%{http_code}\nremote_ip=%{remote_ip}\nremote_port=%{remote_port}\nlocal_ip=%{local_ip}\nhttp_version=%{http_version}\nssl_verify_result=%{ssl_verify_result}\ntime_namelookup=%{time_namelookup}\ntime_connect=%{time_connect}\ntime_appconnect=%{time_appconnect}\ntime_starttransfer=%{time_starttransfer}\ntime_total=%{time_total}\nurl_effective=%{url_effective}\n' \
+              "$url" > "$metrics" 2>"diagnostico/${name}-intento-${attempt}.stderr"
+            local rc=$?
+            local code remote total cf_ray server
+            code="$(awk -F= '$1=="http_code" {print $2}' "$metrics" 2>/dev/null | tail -1)"
+            remote="$(awk -F= '$1=="remote_ip" {print $2}' "$metrics" 2>/dev/null | tail -1)"
+            total="$(awk -F= '$1=="time_total" {print $2}' "$metrics" 2>/dev/null | tail -1)"
+            cf_ray="$(grep -i '^cf-ray:' "$headers" 2>/dev/null | tail -1 | tr -d '\r' || true)"
+            server="$(grep -i '^server:' "$headers" 2>/dev/null | tail -1 | tr -d '\r' || true)"
+            echo "curl_rc=${rc} HTTP=${code:-sin-respuesta} remote_ip=${remote:-?} total=${total:-?} ${cf_ray:-sin-cf-ray} ${server:-sin-server}" | tee -a diagnostico/resumo.txt
+            [[ "$rc" -eq 0 && "$code" == "200" ]]
+          }
 
           for attempt in 1 2 3; do
-            echo "Intento ${attempt}/3"
-            code="$(curl --location --silent --show-error \
-              --connect-timeout 10 --max-time 30 \
-              --retry 1 --retry-delay 3 \
-              --output "$TMP" --write-out "%{http_code}" "$URL" || true)"
-
-            if [[ "$code" == "200" ]] && grep -Fqi "$EXPECTED" "$TMP"; then
-              echo "Web dispoñible e contido SCPP verificado."
-              exit 0
+            root_ok=0; actualidade_ok=0
+            if probe_url "$BASE/" "raiz" "$attempt"; then
+              if grep -Fqi "$EXPECTED" "diagnostico/raiz-intento-${attempt}.body"; then
+                root_ok=1
+                echo "Contido SCPP verificado na portada." | tee -a diagnostico/resumo.txt
+              else
+                echo "HTTP 200, pero non aparece o texto esperado da SCPP." | tee -a diagnostico/resumo.txt
+              fi
             fi
-
-            echo "Comprobación fallida: HTTP=${code:-sen resposta}"
-            if [[ "$attempt" -lt 3 ]]; then
-              sleep 20
+            if probe_url "$BASE/actualidade/" "actualidade" "$attempt"; then actualidade_ok=1; fi
+            if [[ "$root_ok" -eq 1 && "$actualidade_ok" -eq 1 ]]; then
+              SUCCESS=1
+              echo "Web dispoñible: portada e Actualidade correctas no intento ${attempt}." | tee -a diagnostico/resumo.txt
+              break
             fi
+            if [[ "$attempt" -lt 3 ]]; then echo "Novo intento en 20 segundos." | tee -a diagnostico/resumo.txt; sleep 20; fi
           done
+          if [[ "$SUCCESS" -eq 1 ]]; then echo "site_ok=true" >> "$GITHUB_OUTPUT"; else echo "site_ok=false" >> "$GITHUB_OUTPUT"; echo "A web non superou tres comprobacións consecutivas." | tee -a diagnostico/resumo.txt; fi
 
-          echo "A web non superou 3 comprobacións consecutivas."
+      - name: Gardar caixa negra de diagnóstico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostico-web-${{ github.run_id }}
+          path: diagnostico/
+          retention-days: 30
+
+      - name: Abrir ou actualizar incidencia automática
+        if: steps.probe.outputs.site_ok == 'false' && github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'INCIDENCIA AUTOMÁTICA: web SCPP non dispoñible';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const timestamp = new Date().toISOString();
+            const { data: issues } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 });
+            const existing = issues.find(i => i.title === title && !i.pull_request);
+            const body = [`Detectada unha caída persistente da web SCPP ás **${timestamp}**.`, '', '- Fallaron 3 comprobacións consecutivas.', '- Comprobáronse a portada e `/actualidade/`.', '- O workflow gardou DNS, IP remota, TLS, tempos HTTP, cabeceiras Cloudflare e corpos de resposta nun artefacto de diagnóstico.', `- Execución: ${runUrl}`, '', 'Esta incidencia é automática e debe investigarse antes de dala por resolta.'].join('\n');
+            if (existing) await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
+            else await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, assignees: [context.repo.owner] });
+
+      - name: Pechar incidencia ao recuperarse
+        if: steps.probe.outputs.site_ok == 'true' && github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'INCIDENCIA AUTOMÁTICA: web SCPP non dispoñible';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: issues } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 });
+            const existing = issues.find(i => i.title === title && !i.pull_request);
+            if (existing) {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: `Recuperación automática confirmada ás **${new Date().toISOString()}**. Portada e Actualidade volveron responder correctamente. Execución: ${runUrl}` });
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
+            }
+
+      - name: Marcar a execución como fallo
+        if: steps.probe.outputs.site_ok == 'false'
+        shell: bash
+        run: |
+          echo "Incidencia real: a web non está dispoñible tras tres intentos."
           exit 1
