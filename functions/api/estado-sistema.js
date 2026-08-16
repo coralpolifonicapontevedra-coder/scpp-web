@@ -82,13 +82,13 @@ async function comprobarAdministracion(env, user) {
 }
 
 function workflowState(run) {
-  if (!run) return { state: 'unknown', label: 'Sen datos' };
-  if (run.status !== 'completed') return { state: 'running', label: 'En execución' };
-  if (run.conclusion === 'success') return { state: 'ok', label: 'Correcto' };
+  if (!run) return { state: 'unknown', labelState: 'Sen datos' };
+  if (run.status !== 'completed') return { state: 'running', labelState: 'En execución' };
+  if (run.conclusion === 'success') return { state: 'ok', labelState: 'Correcto' };
   if (run.conclusion === 'cancelled' || run.conclusion === 'skipped') {
-    return { state: 'warning', label: run.conclusion === 'cancelled' ? 'Cancelado' : 'Omitido' };
+    return { state: 'warning', labelState: run.conclusion === 'cancelled' ? 'Cancelado' : 'Omitido' };
   }
-  return { state: 'error', label: 'Con incidencias' };
+  return { state: 'error', labelState: 'Con incidencias' };
 }
 
 async function latestWorkflowRun(file, label, githubToken) {
@@ -108,11 +108,10 @@ async function latestWorkflowRun(file, label, githubToken) {
     if (!response.ok) throw new Error(`GitHub HTTP ${response.status}`);
 
     const run = (await response.json())?.workflow_runs?.[0] || null;
-    const normalized = workflowState(run);
     return {
       id: file.replace(/\.yml$/, ''),
       label,
-      ...normalized,
+      ...workflowState(run),
       updatedAt: run?.updated_at || run?.created_at || null,
       url: run?.html_url || null,
       runNumber: run?.run_number || null
