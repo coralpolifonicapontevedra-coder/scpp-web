@@ -1,0 +1,44 @@
+name: Vixiar dispoñibilidade web
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Comprobar a web con reintentos
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://scpp-web.pages.dev/"
+          EXPECTED="Sociedade Coral Polifónica de Pontevedra"
+          TMP="$(mktemp)"
+
+          for attempt in 1 2 3; do
+            echo "Intento ${attempt}/3"
+            code="$(curl --location --silent --show-error \
+              --connect-timeout 10 --max-time 30 \
+              --retry 1 --retry-delay 3 \
+              --output "$TMP" --write-out "%{http_code}" "$URL" || true)"
+
+            if [[ "$code" == "200" ]] && grep -Fqi "$EXPECTED" "$TMP"; then
+              echo "Web dispoñible e contido SCPP verificado."
+              exit 0
+            fi
+
+            echo "Comprobación fallida: HTTP=${code:-sen resposta}"
+            if [[ "$attempt" -lt 3 ]]; then
+              sleep 20
+            fi
+          done
+
+          echo "A web non superou 3 comprobacións consecutivas."
+          exit 1
