@@ -1,0 +1,73 @@
+name: Auditar medios de conciertos
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/audit-concert-media.py"
+      - ".github/workflows/audit-concert-media.yml"
+  schedule:
+    - cron: "30 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-concert-media-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: r2-migration
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v5
+
+      - name: Preparar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            boto3==1.40.1 \
+            google-api-python-client==2.177.0 \
+            google-auth==2.40.3
+
+      - name: Ejecutar auditoría de solo lectura
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python scripts/audit-concert-media.py 2>&1 | tee concert-media-audit.log
+
+      - name: Publicar resumen
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f concert-media-audit.md ]]; then
+            cat concert-media-audit.md
+            cat concert-media-audit.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Guardar informes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: concert-media-audit-${{ github.run_number }}
+          path: |
+            concert-media-audit.csv
+            concert-media-audit.json
+            concert-media-audit.md
+            concert-media-audit.log
+          if-no-files-found: error
+          retention-days: 90
