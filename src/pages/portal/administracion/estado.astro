@@ -1,0 +1,416 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+import AdministracionNav from '../../../components/AdministracionNav.astro';
+---
+
+<BaseLayout title="Estado do sistema" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="administracion" logoutId="estado-sistema-logout" />
+
+    <main class="status-main">
+      <header class="private-page-header">
+        <div>
+          <span class="section-kicker">Administración</span>
+          <h1>Estado do sistema</h1>
+          <p>Resumo de dispoñibilidade e das últimas comprobacións automáticas da web e dos arquivos.</p>
+        </div>
+        <div class="account-card">
+          <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
+          <span><small>Nivel de acceso</small><strong id="user-level">Comprobando…</strong></span>
+        </div>
+      </header>
+
+      <AdministracionNav active="estado" />
+
+      <section id="loading" class="state-box">Comprobando permisos e estado do sistema…</section>
+
+      <section id="error-state" class="state-box error-box" hidden>
+        <strong>Non foi posible consultar o estado do sistema</strong>
+        <p id="error-message"></p>
+        <button id="retry-button" type="button">Tentar de novo</button>
+      </section>
+
+      <section id="status-app" hidden>
+        <article class="overview-card">
+          <div>
+            <span class="overview-kicker">Estado xeral</span>
+            <strong id="overall-label">—</strong>
+            <p id="overall-text"></p>
+          </div>
+          <div class="overview-meta">
+            <span>Última consulta</span>
+            <strong id="generated-at">—</strong>
+            <small id="cache-label"></small>
+          </div>
+        </article>
+
+        <div class="status-toolbar">
+          <p>As comprobacións son de só lectura. Esta pantalla non modifica datos nin arquivos.</p>
+          <button id="refresh-button" type="button">Actualizar</button>
+        </div>
+
+        <section id="checks-grid" class="checks-grid" aria-live="polite"></section>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+
+  const q = (selector) => document.querySelector(selector);
+  const loading = q('#loading');
+  const errorState = q('#error-state');
+  const errorMessage = q('#error-message');
+  const retryButton = q('#retry-button');
+  const refreshButton = q('#refresh-button');
+  const app = q('#status-app');
+  const grid = q('#checks-grid');
+  const overallLabel = q('#overall-label');
+  const overallText = q('#overall-text');
+  const generatedAt = q('#generated-at');
+  const cacheLabel = q('#cache-label');
+  const emailNode = q('#user-email');
+  const levelNode = q('#user-level');
+  const logout = q('#estado-sistema-logout');
+
+  const labels = {
+    ok: 'Correcto',
+    warning: 'Revisar',
+    error: 'Incidencia',
+    running: 'En execución',
+    unknown: 'Sen datos'
+  };
+
+  const formatDate = (value) => {
+    if (!value) return 'Sen data';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Sen data';
+    return new Intl.DateTimeFormat('gl-ES', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    }).format(date);
+  };
+
+  function showError(error) {
+    if (loading instanceof HTMLElement) loading.hidden = true;
+    if (app instanceof HTMLElement) app.hidden = true;
+    if (errorState instanceof HTMLElement) errorState.hidden = false;
+    if (errorMessage instanceof HTMLElement) {
+      errorMessage.textContent = error instanceof Error
+        ? error.message
+        : 'Produciuse un erro inesperado.';
+    }
+  }
+
+  function cardFor(check) {
+    const article = document.createElement('article');
+    article.className = `check-card is-${check.state || 'unknown'}`;
+
+    const head = document.createElement('div');
+    head.className = 'check-head';
+
+    const title = document.createElement('h2');
+    title.textContent = check.label || 'Comprobación';
+
+    const badge = document.createElement('span');
+    badge.className = 'check-badge';
+    badge.textContent = check.labelState || labels[check.state] || 'Sen datos';
+
+    head.append(title, badge);
+
+    const meta = document.createElement('dl');
+    const values = [
+      ['Última comprobación', formatDate(check.updatedAt)],
+      check.runNumber ? ['Execución', `#${check.runNumber}`] : null,
+      Number.isFinite(check.durationMs) ? ['Resposta', `${check.durationMs} ms`] : null
+    ].filter(Boolean);
+
+    values.forEach(([term, value]) => {
+      const row = document.createElement('div');
+      const dt = document.createElement('dt');
+      const dd = document.createElement('dd');
+      dt.textContent = term;
+      dd.textContent = value;
+      row.append(dt, dd);
+      meta.append(row);
+    });
+
+    article.append(head, meta);
+
+    if (check.error) {
+      const detail = document.createElement('p');
+      detail.className = 'check-error';
+      detail.textContent = check.error;
+      article.append(detail);
+    }
+
+    if (check.url) {
+      const link = document.createElement('a');
+      link.href = check.url;
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      link.textContent = check.id === 'web-publica' ? 'Abrir web' : 'Ver comprobación';
+      article.append(link);
+    }
+
+    return article;
+  }
+
+  function draw(result) {
+    if (!(grid instanceof HTMLElement)) return;
+    grid.replaceChildren(...(result.checks || []).map(cardFor));
+
+    const state = result.overall || 'unknown';
+    if (overallLabel instanceof HTMLElement) {
+      overallLabel.textContent = labels[state] || 'Sen datos';
+      overallLabel.className = `overall-state is-${state}`;
+    }
+    if (overallText instanceof HTMLElement) {
+      const counts = result.counts || {};
+      const total = Array.isArray(result.checks) ? result.checks.length : 0;
+      const ok = counts.ok || 0;
+      overallText.textContent = state === 'ok'
+        ? `${ok} de ${total} comprobacións están correctas.`
+        : `${ok} de ${total} comprobacións están correctas. Revisa as tarxetas marcadas.`;
+    }
+    if (generatedAt instanceof HTMLElement) generatedAt.textContent = formatDate(result.generatedAt);
+    if (cacheLabel instanceof HTMLElement) cacheLabel.textContent = result.cached ? 'Resultado recente en caché' : 'Consulta realizada agora';
+  }
+
+  async function loadStatus() {
+    if (loading instanceof HTMLElement) loading.hidden = false;
+    if (errorState instanceof HTMLElement) errorState.hidden = true;
+    if (app instanceof HTMLElement) app.hidden = true;
+
+    const user = auth.currentUser || await waitForPortalUser();
+    if (!user?.email) {
+      window.location.href = '/portal/';
+      return;
+    }
+
+    if (emailNode instanceof HTMLElement) emailNode.textContent = user.email;
+    const idToken = await user.getIdToken();
+
+    const response = await fetch('/api/estado-sistema', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok || !result?.ok) {
+      throw new Error(result?.erro || `Erro HTTP ${response.status}`);
+    }
+
+    if (levelNode instanceof HTMLElement) levelNode.textContent = 'Administración';
+    draw(result);
+    if (loading instanceof HTMLElement) loading.hidden = true;
+    if (app instanceof HTMLElement) app.hidden = false;
+  }
+
+  retryButton?.addEventListener('click', () => loadStatus().catch(showError));
+  refreshButton?.addEventListener('click', () => loadStatus().catch(showError));
+  logout?.addEventListener('click', async () => {
+    await closePortalSession();
+    window.location.href = '/portal/';
+  });
+
+  loadStatus().catch(showError);
+</script>
+
+<style>
+  .status-main {
+    min-width: 0;
+    padding: clamp(1.2rem, 3vw, 2.6rem);
+  }
+
+  .state-box,
+  .overview-card,
+  .check-card {
+    border: 1px solid rgba(93, 20, 43, .13);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(44, 27, 32, .05);
+  }
+
+  .state-box {
+    padding: 1.2rem;
+  }
+
+  .error-box {
+    border-color: rgba(145, 35, 35, .3);
+  }
+
+  .error-box button,
+  .status-toolbar button {
+    border: 0;
+    border-radius: 999px;
+    padding: .65rem 1rem;
+    background: #5d142b;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .overview-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.4rem;
+    border-top: 4px solid #5d142b;
+  }
+
+  .overview-kicker,
+  .overview-meta span {
+    display: block;
+    margin-bottom: .25rem;
+    color: #755e65;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .overview-state {
+    display: block;
+    font-size: clamp(1.6rem, 4vw, 2.5rem);
+    line-height: 1.05;
+  }
+
+  .overview-state.is-ok { color: #306545; }
+  .overview-state.is-warning,
+  .overview-state.is-running { color: #8a6717; }
+  .overview-state.is-error { color: #8b2d36; }
+  .overview-state.is-unknown { color: #666; }
+
+  .overview-card p {
+    margin: .5rem 0 0;
+    color: #68575d;
+  }
+
+  .overview-meta {
+    min-width: 12rem;
+    text-align: right;
+  }
+
+  .overview-meta strong,
+  .overview-meta small {
+    display: block;
+  }
+
+  .overview-meta small {
+    margin-top: .3rem;
+    color: #806f74;
+  }
+
+  .status-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.1rem 0;
+  }
+
+  .status-toolbar p {
+    margin: 0;
+    color: #6b5b60;
+    font-size: .92rem;
+  }
+
+  .checks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 1rem;
+  }
+
+  .check-card {
+    position: relative;
+    overflow: hidden;
+    padding: 1.1rem;
+  }
+
+  .check-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: #777;
+  }
+
+  .check-card.is-ok::before { background: #4b7c5d; }
+  .check-card.is-warning::before,
+  .check-card.is-running::before { background: #a37a24; }
+  .check-card.is-error::before { background: #9a3944; }
+
+  .check-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+  }
+
+  .check-head h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .check-badge {
+    flex: 0 0 auto;
+    padding: .3rem .55rem;
+    border-radius: 999px;
+    background: #f2eeee;
+    color: #49383e;
+    font-size: .74rem;
+    font-weight: 800;
+  }
+
+  .check-card dl {
+    margin: 1rem 0 .8rem;
+  }
+
+  .check-card dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .38rem 0;
+    border-bottom: 1px solid #eee8ea;
+  }
+
+  .check-card dt {
+    color: #7a686e;
+  }
+
+  .check-card dd {
+    margin: 0;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .check-card a {
+    color: #3e252d;
+    font-weight: 700;
+    text-decoration-color: rgba(93, 20, 43, .35);
+  }
+
+  .check-error {
+    color: #8b2d36;
+    font-size: .84rem;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 700px) {
+    .overview-card,
+    .status-toolbar {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .overview-meta {
+      min-width: 0;
+      text-align: left;
+    }
+  }
+</style>
