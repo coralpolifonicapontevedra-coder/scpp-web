@@ -10,6 +10,14 @@ import unicodedata
 BASE_SCRIPT = pathlib.Path(__file__).with_name("audit-repertorio.py")
 
 
+def canon(value) -> str:
+    text = str(value or "").strip()
+    try:
+        return str(int(float(text.replace(",", "."))))
+    except (TypeError, ValueError):
+        return text
+
+
 def basename(value) -> str:
     return pathlib.PurePosixPath(str(value or "").replace("\\", "/")).name
 
@@ -36,12 +44,12 @@ def derive_audio_key(row) -> str:
     if explicit:
         return explicit
 
-    raw_work_id = str(row.get("NomeObra") or "").strip()
+    work_id = canon(row.get("NomeObra"))
     source_name = basename(row.get("AudioFile"))
-    if not raw_work_id or not source_name:
+    if not work_id or not source_name:
         return ""
 
-    return f"repertorio/audios/{raw_work_id}/{slug_filename(source_name)}"
+    return f"repertorio/audios/{work_id}/{slug_filename(source_name)}"
 
 
 def load_base_module():
@@ -56,7 +64,8 @@ def load_base_module():
 
 def main() -> int:
     module = load_base_module()
-    # A mesma regra que usa scripts/build-r2-index.py para os audios sen R2Key.
+    # Mesma regra empregada na migración e na xeración do índice R2:
+    # R2Key explícita ten prioridade; en caso contrario, ID de obra canonizado.
     module.derive_audio_key = derive_audio_key
     return module.main()
 
