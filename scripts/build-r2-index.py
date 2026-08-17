@@ -44,7 +44,7 @@ def rows(sheets, spreadsheet_id: str, tab: str):
 def canon(value: str) -> str:
     value = str(value or "").strip()
     try:
-        return str(int(float(value)))
+        return str(int(float(value.replace(",", "."))))
     except (TypeError, ValueError):
         return value
 
@@ -79,6 +79,17 @@ def slug_filename(filename: str) -> str:
             previous_dash = True
     slug = "".join(chars).strip("-")
     return f"{slug}{path.suffix.lower()}"
+
+
+def derive_audio_key(row) -> str:
+    explicit = str(row.get("R2Key") or "").strip().lstrip("/")
+    if explicit:
+        return explicit
+    work_id = canon(row.get("NomeObra"))
+    source_name = basename(row.get("AudioFile"))
+    if not work_id or not source_name:
+        return ""
+    return f"repertorio/audios/{work_id}/{slug_filename(source_name)}"
 
 
 def r2_client():
@@ -116,12 +127,9 @@ def main():
         record_id = canon(row.get("Id_Audio"))
         if not record_id or not truthy(row.get("Activo")):
             continue
-        raw_work_id = str(row.get("NomeObra") or "").strip()
-        work_id = canon(raw_work_id)
+        work_id = canon(row.get("NomeObra"))
         source_name = basename(row.get("AudioFile"))
-        key = str(row.get("R2Key") or "").strip().lstrip("/")
-        if not key:
-            key = f"repertorio/audios/{raw_work_id}/{slug_filename(source_name)}"
+        key = derive_audio_key(row)
         obj = head(client, bucket, key)
         if obj is None:
             missing.append(f"audio {record_id}: {key}")
