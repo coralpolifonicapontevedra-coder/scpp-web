@@ -19,12 +19,32 @@ const items = [
   ))}
 </nav>
 
-<style>
+<style is:global>
+  body.portal-private-body {
+    background: #f5f3f1;
+  }
+
+  body.portal-private-body .private-layout {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  body.portal-private-body .private-layout > .private-sidebar {
+    flex: 0 0 282px;
+  }
+
+  body.portal-private-body .private-layout > .status-main {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
   .admin-nav {
     display: flex;
     flex-wrap: wrap;
     gap: .55rem;
-    margin: 0 0 1.25rem;
+    margin: 0 0 1.5rem;
   }
 
   .admin-nav-link {
@@ -50,5 +70,335 @@ const items = [
     background: #5d142b;
     border-color: #5d142b;
     color: #fff;
+  }
+
+  /* Estado do sistema: estas regras son globais porque as tarxetas créanse con JavaScript. */
+  body.portal-private-body .status-main {
+    padding: clamp(1.6rem, 3vw, 3rem) clamp(1.4rem, 3vw, 3.5rem) 4rem;
+  }
+
+  body.portal-private-body .status-main .private-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 1.8rem;
+    padding-bottom: 1.35rem;
+    border-bottom: 1px solid #ded8d3;
+  }
+
+  body.portal-private-body .status-main .private-page-header > div:first-child {
+    min-width: 0;
+  }
+
+  body.portal-private-body .status-main .private-page-header h1 {
+    margin: .25rem 0 .55rem;
+  }
+
+  body.portal-private-body .status-main .private-page-header p {
+    max-width: 760px;
+    margin: 0;
+    color: #625c58;
+  }
+
+  body.portal-private-body .status-main .account-card {
+    display: grid;
+    flex: 0 0 min(310px, 32vw);
+    gap: .85rem;
+    min-width: 260px;
+    padding: 1rem 1.15rem;
+    border: 1px solid #ded8d3;
+    border-radius: 6px;
+    background: #fff;
+  }
+
+  body.portal-private-body .status-main .account-card span {
+    display: grid;
+    gap: .22rem;
+  }
+
+  body.portal-private-body .status-main .account-card span + span {
+    padding-top: .75rem;
+    border-top: 1px solid #eee8e5;
+  }
+
+  body.portal-private-body .status-main .account-card small {
+    color: #7c726d;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  body.portal-private-body .status-main .account-card strong {
+    overflow-wrap: anywhere;
+    color: #34312f;
+    font-size: .9rem;
+  }
+
+  body.portal-private-body .status-main .state-box,
+  body.portal-private-body .status-main .overview-card {
+    border: 1px solid #ded8d3;
+    border-radius: 7px;
+    background: #fff;
+    box-shadow: none;
+  }
+
+  body.portal-private-body .status-main .state-box {
+    padding: 1.2rem 1.3rem;
+  }
+
+  body.portal-private-body .status-main .overview-card {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 1.75rem;
+    padding: 1.45rem 1.55rem;
+    border-top: 4px solid #5d142b;
+  }
+
+  body.portal-private-body .status-main .overview-card > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  body.portal-private-body .status-main .overview-kicker,
+  body.portal-private-body .status-main .overview-meta span {
+    display: block;
+    margin-bottom: .35rem;
+    color: #755e65;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+
+  body.portal-private-body .status-main .overall-state {
+    display: block;
+    margin-bottom: .55rem;
+    font-size: clamp(1.65rem, 3vw, 2.35rem);
+    line-height: 1.08;
+  }
+
+  body.portal-private-body .status-main .overview-card p {
+    margin: 0;
+    color: #68575d;
+  }
+
+  body.portal-private-body .status-main .overview-meta {
+    display: grid;
+    align-content: center;
+    min-width: 220px;
+    padding-left: 1.35rem;
+    border-left: 1px solid #eee8e5;
+    text-align: left;
+  }
+
+  body.portal-private-body .status-main .overview-meta strong,
+  body.portal-private-body .status-main .overview-meta small {
+    display: block;
+  }
+
+  body.portal-private-body .status-main .overview-meta small {
+    margin-top: .35rem;
+    color: #806f74;
+  }
+
+  body.portal-private-body .status-main .status-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin: 1.35rem 0 1.6rem;
+    padding: .95rem 1.05rem;
+    border: 1px solid #e1dbd6;
+    border-radius: 6px;
+    background: #faf9f7;
+  }
+
+  body.portal-private-body .status-main .status-toolbar p {
+    margin: 0;
+    color: #6b5b60;
+    font-size: .9rem;
+    line-height: 1.5;
+  }
+
+  body.portal-private-body .status-main .checks-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  body.portal-private-body .status-main .check-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 210px;
+    overflow: hidden;
+    padding: 1.25rem 1.3rem 1.2rem;
+    border: 1px solid #dcd6d1;
+    border-radius: 7px;
+    background: #fff;
+    box-shadow: 0 5px 18px rgba(54, 42, 45, .045);
+  }
+
+  body.portal-private-body .status-main .check-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: #777;
+  }
+
+  body.portal-private-body .status-main .check-card.is-ok::before { background: #4b7c5d; }
+  body.portal-private-body .status-main .check-card.is-warning::before,
+  body.portal-private-body .status-main .check-card.is-running::before { background: #a37a24; }
+  body.portal-private-body .status-main .check-card.is-error::before { background: #9a3944; }
+
+  body.portal-private-body .status-main .check-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: .9rem;
+    border-bottom: 1px solid #eee8e5;
+  }
+
+  body.portal-private-body .status-main .check-head h2 {
+    margin: 0;
+    color: #4e2833;
+    font-size: 1.02rem;
+    line-height: 1.35;
+  }
+
+  body.portal-private-body .status-main .check-badge {
+    flex: 0 0 auto;
+    padding: .34rem .62rem;
+    border: 1px solid #e4dcdf;
+    border-radius: 999px;
+    background: #f7f3f4;
+    color: #49383e;
+    font-size: .72rem;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  body.portal-private-body .status-main .check-card dl {
+    display: grid;
+    gap: 0;
+    margin: .85rem 0 1rem;
+  }
+
+  body.portal-private-body .status-main .check-card dl div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 1rem;
+    padding: .62rem 0;
+    border-bottom: 1px solid #f0ebe8;
+  }
+
+  body.portal-private-body .status-main .check-card dl div:last-child {
+    border-bottom: 0;
+  }
+
+  body.portal-private-body .status-main .check-card dt {
+    color: #7a686e;
+    font-size: .8rem;
+  }
+
+  body.portal-private-body .status-main .check-card dd {
+    margin: 0;
+    color: #3e3638;
+    font-size: .84rem;
+    font-weight: 700;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  body.portal-private-body .status-main .check-card a {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: auto;
+    padding-top: .25rem;
+    color: #5d142b;
+    font-size: .84rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  body.portal-private-body .status-main .check-card a:hover {
+    text-decoration: underline;
+  }
+
+  body.portal-private-body .status-main .check-error {
+    margin: 0 0 .9rem;
+    padding: .65rem .75rem;
+    border: 1px solid #ead3d6;
+    border-radius: 4px;
+    background: #fff8f8;
+    color: #8b2d36;
+    font-size: .8rem;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 980px) {
+    body.portal-private-body .status-main .checks-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 900px) {
+    body.portal-private-body .private-layout {
+      display: block;
+    }
+
+    body.portal-private-body .private-layout > .private-sidebar,
+    body.portal-private-body .private-layout > .status-main {
+      width: 100%;
+    }
+
+    body.portal-private-body .status-main .private-page-header,
+    body.portal-private-body .status-main .overview-card,
+    body.portal-private-body .status-main .status-toolbar {
+      display: grid;
+    }
+
+    body.portal-private-body .status-main .account-card {
+      min-width: 0;
+      width: 100%;
+    }
+
+    body.portal-private-body .status-main .overview-meta {
+      min-width: 0;
+      padding: 1rem 0 0;
+      border-top: 1px solid #eee8e5;
+      border-left: 0;
+    }
+  }
+
+  @media (max-width: 620px) {
+    body.portal-private-body .status-main {
+      padding: 1.15rem .9rem 2.5rem;
+    }
+
+    body.portal-private-body .status-main .check-head {
+      display: grid;
+      gap: .65rem;
+    }
+
+    body.portal-private-body .status-main .check-badge {
+      justify-self: start;
+    }
+
+    body.portal-private-body .status-main .check-card dl div {
+      grid-template-columns: 1fr;
+      gap: .25rem;
+    }
+
+    body.portal-private-body .status-main .check-card dd {
+      text-align: left;
+    }
   }
 </style>
