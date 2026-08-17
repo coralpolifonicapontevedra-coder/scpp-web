@@ -28,25 +28,26 @@
     .finish-rehearsal{border:0;background:var(--color-principal,#6b1d2f);color:#fff;padding:.72rem 1rem;font-weight:700;cursor:pointer}
     .finish-rehearsal:disabled{opacity:.55;cursor:wait}
     .finish-status{grid-column:1/-1;font-size:.78rem;color:#6f665f;text-align:right}
-    #repertoire-panel .repertoire-list{gap:.75rem}
-    #repertoire-panel .work-row{display:grid;grid-template-columns:2.2rem minmax(180px,.75fr) minmax(360px,1.55fr) auto;gap:.9rem;align-items:start;padding:1rem;border:1px solid #ded8d2;border-radius:5px;background:#fff;box-shadow:0 4px 14px rgba(60,42,35,.035)}
-    #repertoire-panel .work-bullet{display:grid;place-items:center;width:2rem;height:2rem;margin-top:.08rem;border-radius:999px;background:var(--color-principal,#6b1d2f);color:#fff;font-weight:800;font-size:.8rem}
-    #repertoire-panel .work-main{min-width:0;padding-top:.05rem}
-    #repertoire-panel .work-link,#repertoire-panel .work-link:visited{display:grid;gap:.15rem;color:#24211f;text-decoration:none}
-    #repertoire-panel .work-link strong{color:var(--color-principal,#6b1d2f);font-size:.98rem;line-height:1.3}
-    #repertoire-panel .work-link small{color:#665f5a;font-size:.78rem;line-height:1.35}
-    #repertoire-panel .work-fields{display:grid;grid-template-columns:minmax(150px,.9fr) minmax(85px,.45fr) minmax(85px,.45fr);gap:.55rem;margin:0;min-width:0}
-    #repertoire-panel .work-fields select,#repertoire-panel .work-fields input,#repertoire-panel .work-fields textarea{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d8d1cb;border-radius:3px;background:#faf9f7;padding:.58rem .65rem;font:inherit;color:#35302d}
-    #repertoire-panel .work-fields textarea{grid-column:1/-1;min-height:4.25rem;resize:vertical;line-height:1.4}
+    #repertoire-panel .repertoire-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem!important;align-items:stretch}
+    #repertoire-panel .repertoire-list>.empty-state{grid-column:1/-1}
+    #repertoire-panel .work-row{display:grid;grid-template-columns:2rem minmax(0,1fr);grid-template-rows:auto auto auto;gap:.65rem .7rem;align-content:start;min-width:0;padding:.9rem;border:1px solid #ded8d2;border-radius:5px;background:#fff;box-shadow:0 4px 14px rgba(60,42,35,.035)}
+    #repertoire-panel .work-bullet{display:grid;place-items:center;width:1.8rem;height:1.8rem;margin-top:.05rem;border-radius:999px;background:var(--color-principal,#6b1d2f);color:#fff;font-weight:800;font-size:.76rem}
+    #repertoire-panel .work-main{min-width:0;padding-top:.02rem}
+    #repertoire-panel .work-link,#repertoire-panel .work-link:visited{display:grid;gap:.12rem;color:#24211f;text-decoration:none}
+    #repertoire-panel .work-link strong{color:var(--color-principal,#6b1d2f);font-size:.94rem;line-height:1.25}
+    #repertoire-panel .work-link small{color:#665f5a;font-size:.75rem;line-height:1.3}
+    #repertoire-panel .work-fields{grid-column:1/-1;display:grid;grid-template-columns:minmax(135px,1fr) minmax(70px,.42fr) minmax(70px,.42fr);gap:.48rem;margin:0;min-width:0}
+    #repertoire-panel .work-fields select,#repertoire-panel .work-fields input,#repertoire-panel .work-fields textarea{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d8d1cb;border-radius:3px;background:#faf9f7;padding:.5rem .56rem;font:inherit;font-size:.82rem;color:#35302d}
+    #repertoire-panel .work-fields textarea{grid-column:1/-1;min-height:3.35rem;max-height:7rem;resize:vertical;line-height:1.35}
     #repertoire-panel .work-fields select:focus,#repertoire-panel .work-fields input:focus,#repertoire-panel .work-fields textarea:focus{outline:2px solid rgba(107,29,47,.08);outline-offset:1px;border-color:var(--color-principal,#6b1d2f)}
-    #repertoire-panel .work-actions{display:grid;grid-template-columns:1fr;gap:.45rem;min-width:78px}
-    #repertoire-panel .save-work,#repertoire-panel .remove-work{min-height:2.35rem;padding:.48rem .72rem;cursor:pointer;font-weight:700;border-radius:3px}
+    #repertoire-panel .work-actions{grid-column:1/-1;display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:.45rem;align-items:center;min-width:0}
+    #repertoire-panel .save-work,#repertoire-panel .remove-work{min-height:2.15rem;padding:.42rem .65rem;cursor:pointer;font-weight:700;border-radius:3px;font-size:.79rem}
     #repertoire-panel .save-work{border:1px solid var(--color-principal,#6b1d2f);background:var(--color-principal,#6b1d2f);color:#fff}
     #repertoire-panel .remove-work{border:1px solid #cdbfc1;background:#fff;color:#6a1b29}
     #repertoire-panel .remove-work:hover{background:#f8f1f2}
-    #repertoire-panel .save-status{min-height:1rem;text-align:center;white-space:nowrap}
-    @media(max-width:1100px){#repertoire-panel .work-row{grid-template-columns:2.2rem minmax(180px,.65fr) minmax(300px,1.35fr)}#repertoire-panel .work-actions{grid-column:2/-1;display:flex;justify-content:flex-end}.rehearsal-final-actions{grid-template-columns:1fr auto}}
-    @media(max-width:760px){#repertoire-panel .work-row{grid-template-columns:2.2rem minmax(0,1fr)}#repertoire-panel .work-fields,#repertoire-panel .work-actions{grid-column:1/-1}#repertoire-panel .work-actions{display:grid;grid-template-columns:1fr 1fr}.rehearsal-final-actions{grid-template-columns:1fr}.finish-rehearsal{width:100%}.finish-status{text-align:left}}
+    #repertoire-panel .save-status{min-height:1rem;text-align:right;white-space:nowrap;font-size:.72rem;color:#6f665f}
+    @media(max-width:1050px){#repertoire-panel .repertoire-list{grid-template-columns:1fr}.rehearsal-final-actions{grid-template-columns:1fr auto}}
+    @media(max-width:760px){#repertoire-panel .work-row{padding:.8rem}#repertoire-panel .work-actions{grid-template-columns:1fr 1fr}#repertoire-panel .save-status{grid-column:1/-1;text-align:left}.rehearsal-final-actions{grid-template-columns:1fr}.finish-rehearsal{width:100%}.finish-status{text-align:left}}
     @media(max-width:520px){#repertoire-panel .work-fields{grid-template-columns:1fr 1fr}#repertoire-panel .work-type{grid-column:1/-1}#repertoire-panel .work-fields textarea{grid-column:1/-1}}
   `;
   document.head.append(style);
