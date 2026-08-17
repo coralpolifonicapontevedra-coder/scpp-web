@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/audit-repertorio.py"
       - "scripts/audit-repertorio-r2.py"
+      - "scripts/build-r2-index.py"
       - "tests/test_audit_repertorio_r2.py"
       - ".github/workflows/audit-repertorio.yml"
   schedule:
