@@ -16,6 +16,8 @@
   const norm = (value = '') => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
   const compactNorm = (value = '') => norm(value).replace(/[^a-z0-9]/g, '');
   const personName = (person) => person?.nomeCompleto || [person?.nome, person?.primeiroApelido, person?.segundoApelido].filter(Boolean).join(' ');
+  const surnameKey = (person) => [person?.primeiroApelido, person?.segundoApelido, person?.nome, personName(person)].filter(Boolean).join(' ');
+  const sortPeopleBySurname = (a, b) => surnameKey(a).localeCompare(surnameKey(b), 'gl', { sensitivity:'base' });
   const rehearsalId = (item) => String(item?.idEnsaio || item?.id || '').trim();
   const workId = (row) => String(row?.repertorio || row?.idRepertorio || '').trim();
   const personId = (row) => String(row?.persoa || row?.idPersoa || '').trim();
@@ -28,6 +30,8 @@
     .finish-rehearsal{border:0;background:var(--color-principal,#6b1d2f);color:#fff;padding:.72rem 1rem;font-weight:700;cursor:pointer}
     .finish-rehearsal:disabled{opacity:.55;cursor:wait}
     .finish-status{grid-column:1/-1;font-size:.78rem;color:#6f665f;text-align:right}
+    #attendance-panel .attendance-actions button.is-selected,#attendance-panel .attendance-actions button.is-selected.negative{background:var(--color-principal,#6b1d2f)!important;border-color:var(--color-principal,#6b1d2f)!important;color:#fff!important}
+    #attendance-panel .attendance-actions button.is-selected:hover,#attendance-panel .attendance-actions button.is-selected.negative:hover{background:#53131f!important;border-color:#53131f!important;color:#fff!important}
     #repertoire-panel .repertoire-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem!important;align-items:stretch}
     #repertoire-panel .repertoire-list>.empty-state{grid-column:1/-1}
     #repertoire-panel .work-row{display:grid;grid-template-columns:2rem minmax(0,1fr);grid-template-rows:auto auto auto;gap:.65rem .7rem;align-content:start;min-width:0;padding:.9rem;border:1px solid #ded8d2;border-radius:5px;background:#fff;box-shadow:0 4px 14px rgba(60,42,35,.035)}
@@ -188,7 +192,7 @@
       let total = 0;
       const sections = ['Soprano','Contralto','Tenor','Baixo'].map((name) => {
         const present = people.filter((person) => norm(person.voz) === norm(name) && norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste')
-          .sort((a,b) => personName(a).localeCompare(personName(b), 'gl', { sensitivity:'base' }));
+          .sort(sortPeopleBySurname);
         total += present.length;
         const label = name === 'Baixo' ? 'Baixos' : `${name}s`;
         return `<section class="attendance-group"><header><h3>${esc(label)}</h3><strong>${present.length}</strong></header>${present.length ? `<div class="attendee-names">${present.map((person) => `<span>${esc(personName(person))}</span>`).join('')}</div>` : '<p class="helper group-empty">Sen asistentes rexistrados.</p>'}</section>`;
@@ -199,7 +203,7 @@
       return;
     }
 
-    const filtered = people.filter((person) => norm(person.voz) === norm(voice)).sort((a,b) => personName(a).localeCompare(personName(b), 'gl', { sensitivity:'base' }));
+    const filtered = people.filter((person) => norm(person.voz) === norm(voice)).sort(sortPeopleBySurname);
     const present = filtered.filter((person) => norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste').length;
     const decided = filtered.filter((person) => ['asiste','non asiste'].includes(norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia))).length;
     if (title) title.textContent = voice === 'Baixo' ? 'Baixos' : `${voice}s`;
