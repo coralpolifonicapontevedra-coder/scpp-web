@@ -147,7 +147,9 @@
     }
   }
 
-  document.addEventListener('click', async (event) => {
+  // O controlador principal de Ensaios escoita en document e detén a propagación.
+  // Capturamos desde window para que esta sexa a lóxica autoritativa da asistencia.
+  window.addEventListener('click', async (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const button = target.closest('#attendance-panel .person-row [data-state]');
@@ -184,13 +186,14 @@
     await saveAttendance(idPersoa, values, row);
   }, true);
 
-  document.addEventListener('change', async (event) => {
+  window.addEventListener('change', async (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
     const checkbox = target.closest('#attendance-panel .person-row .justify input[type="checkbox"]');
     if (checkbox instanceof HTMLInputElement) {
       event.stopPropagation();
+      event.stopImmediatePropagation();
       const row = checkbox.closest('.person-row');
       const idPersoa = String(row?.dataset?.person || '');
       if (!row || !idPersoa) return;
@@ -222,6 +225,7 @@
     const reason = target.closest('#attendance-panel .person-row .justification-reason');
     if (reason instanceof HTMLInputElement) {
       event.stopPropagation();
+      event.stopImmediatePropagation();
       const row = reason.closest('.person-row');
       const idPersoa = String(row?.dataset?.person || '');
       if (!row || !idPersoa) return;
