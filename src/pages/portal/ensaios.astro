@@ -115,8 +115,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
               </div>
               <div class="attendance-heading">
                 <div><span>Control de presenza</span><h2 id="attendance-title">Asistentes</h2></div>
-                <strong id="attendance-summary">—</strong>
+                <div class="attendance-header-actions">
+                  <strong id="attendance-summary">—</strong>
+                  <button id="finalize-rehearsal-btn" type="button" class="primary-button finalize-btn">Finalizar ensaio</button>
+                </div>
               </div>
+              <p id="finalize-status" class="form-status" role="status" aria-live="polite"></p>
               <div id="attendance-list" class="attendance-list"></div>
             </div>
 
@@ -192,6 +196,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     appId: '1:506857659587:web:a7ed36b22f044f5f639676'
   };
 
+  // Esta páxina é o controlador único de Ensaios.
+  // Os antigos parches auxiliares deben quedar desactivados no Preview.
+  window.__SCPP_ENSAIOS_INLINE_CONTROLLER__ = true;
+
   const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
   const $ = (selector) => document.querySelector(selector);
   const loading = $('#loading');
@@ -205,9 +213,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const newForm = $('#new-rehearsal-form');
   const newStatus = $('#new-rehearsal-status');
   const programDialog = $('#program-dialog');
+  
   let payload = null;
   let selectedRehearsal = null;
   let selectedVoice = 'Asistentes';
+  let draft = null;
+  let draftLoadSeq = 0;
 
   const esc = (value = '') => String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
   const norm = (value = '') => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
@@ -226,7 +237,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   };
   const fmtTime = (value) => String(value || '').trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1');
   const personName = (person) => person.nomeCompleto || [person.nome, person.primeiroApelido, person.segundoApelido].filter(Boolean).join(' ');
-  const alpha = (a, b) => personName(a).localeCompare(personName(b), 'gl', { sensitivity:'base' });
+  const surnameKey = (person) => [person.primeiroApelido, person.segundoApelido, person.nome, personName(person)].filter(Boolean).join(' ');
+  const alpha = (a, b) => surnameKey(a).localeCompare(surnameKey(b), 'gl', { sensitivity:'base' });
 
   async function api(accion, extra = {}) {
     const user = auth.currentUser;
@@ -240,6 +252,45 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const result = await response.json().catch(() => null);
     if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro ${response.status}`);
     return result;
+  }
+
+  async function apiDraft(accion, extra = {}, idEnsaio = rehearsalId(selectedRehearsal)) {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('A sesión non está dispoñible.');
+    if (!idEnsaio) throw new Error('Non se puido identificar o ensaio.');
+    const idToken = await user.getIdToken();
+    const response = await fetch('/api/ensaios-borrador', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body:JSON.stringify({ idToken, accion, idEnsaio, ...extra })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro ${response.status}`);
+    return result;
+  }
+
+  async function loadDraftForSelected() {
+    const idEnsaio = rehearsalId(selectedRehearsal);
+    if (!idEnsaio) {
+      draft = null;
+      renderAttendance();
+      renderRepertoire();
+      return;
+    }
+
+    const seq = ++draftLoadSeq;
+    try {
+      const result = await apiDraft('obter', {}, idEnsaio);
+      if (seq !== draftLoadSeq || rehearsalId(selectedRehearsal) !== idEnsaio) return;
+      draft = result.draft;
+      renderAttendance();
+      renderRepertoire();
+    } catch (error) {
+      if (seq !== draftLoadSeq || rehearsalId(selectedRehearsal) !== idEnsaio) return;
+      console.error('Erro ao cargar o borrador do ensaio:', error);
+      const status = $('#finalize-status');
+      if (status) status.textContent = '⚠ Non se puido cargar o borrador do ensaio.';
+    }
   }
 
   function rehearsalId(item) { return String(item?.idEnsaio || item?.id || '').trim(); }
@@ -260,7 +311,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       .sort((a,b) => (toDate(a.data)?.getTime() || 0) - (toDate(b.data)?.getTime() || 0))[0] || null;
   }
   function concertById(id) { return (payload?.concertos || []).find((concert) => String(concert.id || '') === String(id || '')) || null; }
-  function selectedConcert() { return concertById(selectedRehearsal?.concerto); }
 
   function renderHero() {
     selectedRehearsal = selectedRehearsal || nextRehearsal();
@@ -278,27 +328,41 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     box.innerHTML = `<div class="hero-date"><span>${cancelled ? 'Ensaio cancelado' : 'Próximo ensaio'}</span><h2>${esc(fmtDate(rehearsal.data))}</h2>${situacion ? `<p>${esc(situacion)}</p>` : ''}</div><div class="hero-meta"><p class="hero-classification">${esc(clasificacion)}</p>${rehearsal.descricion ? `<p>${esc(rehearsal.descricion)}</p>` : ''}</div>`;
     $('#work-panel').hidden = false;
     selectedVoice = 'Asistentes';
+    draft = null;
     document.querySelectorAll('[data-voice]').forEach((button) => button.classList.toggle('is-active', button.dataset.voice === 'Asistentes'));
     renderAttendance();
     renderRepertoire();
+    void loadDraftForSelected();
   }
 
   function attendanceForSelected() {
-    const id = rehearsalId(selectedRehearsal);
-    return (payload?.asistencias || []).filter((attendance) => String(attendance.ensaio || attendance.idEnsaio || '') === id);
+    return Array.isArray(draft?.asistencias) ? draft.asistencias : [];
   }
+
   function attendanceMap() {
     return new Map(attendanceForSelected().map((attendance) => [String(attendance.persoa || attendance.idPersoa || ''), attendance]));
   }
+
   function renderAttendance() {
     const people = [...(payload?.persoas || [])];
     const map = attendanceMap();
     const title = $('#attendance-title');
+
+    if (!draft) {
+      if (title) title.textContent = selectedVoice === 'Asistentes' ? 'Asistentes' : (selectedVoice === 'Baixo' ? 'Baixos' : `${selectedVoice}s`);
+      $('#attendance-summary').textContent = 'Cargando…';
+      $('#attendance-list').innerHTML = '<p class="empty-state">Cargando asistencia do borrador…</p>';
+      return;
+    }
+
     if (selectedVoice === 'Asistentes') {
       const voices = ['Soprano','Contralto','Tenor','Baixo'];
       let total = 0;
       const sections = voices.map((voice) => {
-        const present = people.filter((person) => norm(person.voz) === norm(voice) && norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste').sort(alpha);
+        const present = people.filter((person) => {
+          if (norm(person.voz) !== norm(voice)) return false;
+          return norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste';
+        }).sort(alpha);
         total += present.length;
         const label = voice === 'Baixo' ? 'Baixos' : `${voice}s`;
         return `<section class="attendance-group"><header><h3>${esc(label)}</h3><strong>${present.length}</strong></header>${present.length ? `<div class="attendee-names">${present.map((person) => `<span>${esc(personName(person))}</span>`).join('')}</div>` : '<p class="helper group-empty">Sen asistentes rexistrados.</p>'}</section>`;
@@ -310,24 +374,45 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     }
 
     const filtered = people.filter((person) => norm(person.voz) === norm(selectedVoice)).sort(alpha);
+    const present = filtered.filter((person) => norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste').length;
     const decided = filtered.filter((person) => {
       const state = norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia);
       return state === 'asiste' || state === 'non asiste';
     }).length;
-    const present = filtered.filter((person) => norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste').length;
+
     if (title) title.textContent = selectedVoice === 'Baixo' ? 'Baixos' : `${selectedVoice}s`;
     $('#attendance-summary').textContent = `${present} asisten · ${decided}/${filtered.length} rexistrados`;
+
     $('#attendance-list').innerHTML = filtered.map((person) => {
       const id = String(person.idPersoa || person.id || '');
       const attendance = map.get(id) || {};
       const state = norm(attendance.estadoAsistencia);
-      return `<article class="person-row" data-person="${esc(id)}"><strong>${esc(personName(person))}</strong><div class="attendance-actions"><button type="button" class="${state === 'asiste' ? 'is-selected' : ''}" data-state="Asiste">✓ Asiste</button><button type="button" class="${state === 'non asiste' ? 'is-selected negative' : ''}" data-state="Non asiste">× Non asiste</button></div><label class="justify"><input type="checkbox" ${truthy(attendance.xustificada) ? 'checked' : ''} disabled /> Xustificada</label><span class="save-status" aria-live="polite"></span></article>`;
+      const isAbsent = state === 'non asiste';
+      const justified = isAbsent && truthy(attendance.xustificada);
+
+      return `
+        <article class="person-row" data-person="${esc(id)}">
+          <strong>${esc(personName(person))}</strong>
+          <div class="attendance-actions">
+            <button type="button" class="${state === 'asiste' ? 'is-selected' : ''}" data-state="Asiste" aria-pressed="${state === 'asiste' ? 'true' : 'false'}">✓ Asiste</button>
+            <button type="button" class="${isAbsent ? 'is-selected negative' : ''}" data-state="Non asiste" aria-pressed="${isAbsent ? 'true' : 'false'}">× Non asiste</button>
+          </div>
+          <label class="justify">
+            <input type="checkbox" class="justified-checkbox" data-person="${esc(id)}" ${justified ? 'checked' : ''} ${isAbsent ? '' : 'disabled'} />
+            Xustificada
+          </label>
+          <span class="save-status" aria-live="polite"></span>
+          ${justified ? `
+            <label class="justification-container">
+              <span>Motivo da xustificación</span>
+              <input type="text" class="justification-input" maxlength="240" placeholder="Indica o motivo…" value="${esc(attendance.motivo || '')}" data-person="${esc(id)}" />
+            </label>` : ''}
+        </article>`;
     }).join('') || '<p class="empty-state">Non hai persoas nesta corda.</p>';
   }
 
   function workedForSelected() {
-    const id = rehearsalId(selectedRehearsal);
-    return (payload?.ensaiosRepertorio || []).filter((row) => String(row.ensaio || row.idEnsaio || '') === id);
+    return Array.isArray(draft?.repertorio) ? draft.repertorio : [];
   }
   function workById(id) { return (payload?.repertorio || []).find((work) => String(work.idRepertorio || work.id || '') === String(id || '')); }
   function resolveProgramWorkId(item) {
@@ -357,12 +442,38 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   }
   function renderRepertoire() {
     const worked = workedForSelected().sort((a,b) => Number(a.orde || 999) - Number(b.orde || 999));
-    $('#repertoire-summary').textContent = `${worked.length} traballadas`;
-    $('#repertoire-list').innerHTML = worked.map((row) => {
+    $('#repertoire-summary').textContent = draft ? `${worked.length} traballadas` : 'Cargando…';
+
+    if (!draft) {
+      $('#repertoire-list').innerHTML = '<p class="empty-state">Cargando repertorio do borrador…</p>';
+      return;
+    }
+
+    $('#repertoire-list').innerHTML = worked.map((row, index) => {
       const id = String(row.repertorio || row.idRepertorio || '');
       const work = workById(id) || {};
-      return `<article class="work-row" data-work-id="${esc(id)}"><div class="work-main"><a class="work-link" href="/portal/repertorio/?id=${encodeURIComponent(id)}"><strong>${esc(work.nomeObra || work.nome || id)}</strong>${work.compositor ? `<small>${esc(work.compositor)}</small>` : ''}</a></div><div class="work-fields"><select class="work-type"><option value="">Tipo de traballo</option>${['Lectura','Montaxe','Repaso','Perfeccionamento','Interpretación completa'].map((value) => `<option ${row.tipoTraballo === value ? 'selected' : ''}>${value}</option>`).join('')}</select><input class="work-from" placeholder="Desde" value="${esc(row.desde || '')}"/><input class="work-to" placeholder="Ata" value="${esc(row.ata || '')}"/><input class="work-notes" placeholder="Observacións" value="${esc(row.observacions || '')}"/><button class="save-work" type="button">Gardar</button><span class="save-status"></span></div></article>`;
+      return `<article class="work-row" data-work-id="${esc(id)}">
+        <span class="work-bullet" aria-hidden="true">${index + 1}</span>
+        <div class="work-main">
+          <a class="work-link" href="/portal/repertorio/?id=${encodeURIComponent(id)}">
+            <strong>${esc(work.nomeObra || work.nome || id)}</strong>
+            ${work.compositor ? `<small>${esc(work.compositor)}</small>` : ''}
+          </a>
+        </div>
+        <div class="work-fields">
+          <select class="work-type"><option value="">Tipo de traballo</option>${['Lectura','Montaxe','Repaso','Perfeccionamento','Interpretación completa'].map((value) => `<option ${row.tipoTraballo === value ? 'selected' : ''}>${value}</option>`).join('')}</select>
+          <input class="work-from" placeholder="Desde" value="${esc(row.desde || '')}"/>
+          <input class="work-to" placeholder="Ata" value="${esc(row.ata || '')}"/>
+          <textarea class="work-notes" rows="2" placeholder="Observacións">${esc(row.observacions || '')}</textarea>
+        </div>
+        <div class="work-actions">
+          <button class="save-work" type="button">Gardar</button>
+          <button class="remove-work" type="button">Eliminar</button>
+          <span class="save-status"></span>
+        </div>
+      </article>`;
     }).join('') || '<p class="empty-state">Aínda non se rexistraron obras neste ensaio.</p>';
+
     const include = $('#include-program');
     if (include instanceof HTMLButtonElement) {
       include.disabled = !(payload?.concertos || []).some((concert) => Array.isArray(concert.programa) && concert.programa.length);
@@ -474,11 +585,21 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const message = $('#repertoire-message');
     const id = select?.value || '';
     if (!id) { if (message) message.textContent = 'Escolle primeiro unha obra.'; return; }
-    if (message) message.textContent = 'Engadindo obra…';
+    if (!draft) { if (message) message.textContent = 'Agarda a que cargue o borrador.'; return; }
+
+    if (message) message.textContent = 'Engadindo obra ao borrador…';
     try {
-      await api('gardarEnsaioRepertorio', { idEnsaio:rehearsalId(selectedRehearsal), idRepertorio:id, tipoTraballo:'', desde:'', ata:'', observacions:'' });
-      payload = await api('listarEnsaiosPortal', { forzar:true });
-      if (message) message.textContent = '✓ Obra engadida.';
+      const result = await apiDraft('gardarObra', {
+        idRepertorio:id,
+        orde:(draft.repertorio?.length || 0) + 1,
+        tipoTraballo:'',
+        desde:'',
+        ata:'',
+        observacions:''
+      });
+      draft = result.draft;
+      if (select instanceof HTMLSelectElement) select.value = '';
+      if (message) message.textContent = '✓ Obra engadida ao borrador.';
       renderRepertoire();
     } catch (error) {
       if (message) message.textContent = error instanceof Error ? `⚠ ${error.message}` : '⚠ Non se puido engadir a obra.';
@@ -507,18 +628,21 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const message = $('#program-dialog-message');
     const concert = concertById(select?.value || '');
     if (!concert) { if (message) message.textContent = 'Escolle primeiro un concerto.'; return; }
+    if (!draft) { if (message) message.textContent = 'Agarda a que cargue o borrador.'; return; }
+
     const existing = new Set(workedForSelected().map((row) => String(row.repertorio || row.idRepertorio || '')));
     const ids = [...new Set((concert.programa || []).map(resolveProgramWorkId).filter((id) => id && !existing.has(String(id))))];
     if (!ids.length) {
-      if (message) message.textContent = concert.programa?.length ? 'Non se puideron relacionar obras novas do programa co Repertorio.' : 'Ese concerto non ten programa cargado.';
+      if (message) message.textContent = concert.programa?.length ? 'Non hai obras novas dese programa para incluír.' : 'Ese concerto non ten programa cargado.';
       return;
     }
-    if (message) message.textContent = `Incluíndo ${ids.length} obras…`;
+
+    if (message) message.textContent = `Incluíndo ${ids.length} obras no borrador…`;
     try {
-      const result = await api('incluírProgramaEnsaio', { idEnsaio:rehearsalId(selectedRehearsal), idsRepertorio:ids });
-      payload = result.payload || await api('listarEnsaiosPortal', { forzar:true });
+      const result = await apiDraft('incluírPrograma', { idsRepertorio:ids });
+      draft = result.draft;
       const mainMessage = $('#repertoire-message');
-      if (mainMessage) mainMessage.textContent = `✓ ${result.engadidas || ids.length} obras incluídas desde o programa.`;
+      if (mainMessage) mainMessage.textContent = `✓ ${result.engadidas ?? ids.length} obras incluídas desde o programa.`;
       renderRepertoire();
       closeProgramDialog();
     } catch (error) {
@@ -558,43 +682,187 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       window.scrollTo({ top:0, behavior:'smooth' });
       return;
     }
-    const stateButton = target.closest('[data-state]');
+
+    // Asistencia: tres estados reais: sen marcar / Asiste / Non asiste.
+    const stateButton = target.closest('.person-row [data-state]');
     if (stateButton) {
       const row = stateButton.closest('.person-row');
       const status = row?.querySelector('.save-status');
-      if (!row) return;
-      stateButton.setAttribute('disabled','');
-      if (status) status.textContent = 'Gardando…';
+      if (!row || !draft) return;
+
+      const idPersoa = String(row.dataset.person || '');
+      const current = attendanceMap().get(idPersoa) || {};
+      const clickedState = String(stateButton.dataset.state || '');
+      const sameState = norm(current.estadoAsistencia) === norm(clickedState);
+
+      const values = {
+        estadoAsistencia:sameState ? '' : clickedState,
+        xustificada:false,
+        motivo:'',
+        observacions:String(current.observacions || '')
+      };
+
+      const previousDraft = structuredClone(draft);
+      const map = attendanceMap();
+      map.set(idPersoa, { ...current, ensaio:rehearsalId(selectedRehearsal), persoa:idPersoa, ...values });
+      draft = { ...draft, asistencias:[...map.values()] };
+      renderAttendance();
+
       try {
-        await api('gardarAsistenciaEnsaio', { idEnsaio:rehearsalId(selectedRehearsal), idPersoa:row.dataset.person, estadoAsistencia:stateButton.dataset.state, xustificada:false });
-        payload = await api('listarEnsaiosPortal', { forzar:true });
+        const result = await apiDraft('gardarAsistencia', { idPersoa, ...values });
+        draft = result.draft;
         renderAttendance();
-      } catch {
-        if (status) status.textContent = '⚠ Non se puido gardar';
-        stateButton.removeAttribute('disabled');
+      } catch (error) {
+        draft = previousDraft;
+        renderAttendance();
+        const freshRow = document.querySelector(`.person-row[data-person="${CSS.escape(idPersoa)}"]`);
+        const freshStatus = freshRow?.querySelector('.save-status');
+        if (freshStatus) freshStatus.textContent = error instanceof Error ? `⚠ ${error.message}` : '⚠ Non se puido gardar';
       }
       return;
     }
+
+    // Finalizar ensaio: consolida o borrador R2 nas Sheets.
+    if (target.closest('#finalize-rehearsal-btn')) {
+      const statusEl = $('#finalize-status');
+      const btn = $('#finalize-rehearsal-btn');
+      if (btn) btn.disabled = true;
+      if (statusEl) statusEl.textContent = 'Gardando o resultado definitivo nas Sheets…';
+
+      try {
+        const result = await apiDraft('finalizar');
+        draft = result.draft;
+        payload = await api('listarEnsaiosPortal', { forzar:true });
+        if (statusEl) statusEl.textContent = '✓ Ensaio finalizado e gardado definitivamente.';
+        renderAttendance();
+        renderRepertoire();
+        renderLists();
+        renderTracking();
+      } catch (err) {
+        if (statusEl) statusEl.textContent = err instanceof Error ? `⚠ ${err.message}` : '⚠ Erro ao finalizar o ensaio.';
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+      return;
+    }
+
+    const removeWork = target.closest('.remove-work');
+    if (removeWork) {
+      const row = removeWork.closest('.work-row');
+      const idRepertorio = String(row?.dataset.workId || '');
+      if (!row || !idRepertorio || !draft) return;
+      if (!window.confirm('Eliminar esta obra do ensaio? A obra seguirá existindo en Repertorio.')) return;
+
+      const previousDraft = structuredClone(draft);
+      draft = { ...draft, repertorio:draft.repertorio.filter((item) => String(item.repertorio || item.idRepertorio || '') !== idRepertorio) };
+      renderRepertoire();
+
+      try {
+        const result = await apiDraft('eliminarObra', { idRepertorio });
+        draft = result.draft;
+        renderRepertoire();
+      } catch (error) {
+        draft = previousDraft;
+        renderRepertoire();
+        const message = $('#repertoire-message');
+        if (message) message.textContent = error instanceof Error ? `⚠ ${error.message}` : '⚠ Non se puido eliminar a obra.';
+      }
+      return;
+    }
+
     const saveWork = target.closest('.save-work');
     if (saveWork) {
       const row = saveWork.closest('.work-row');
       const status = row?.querySelector('.save-status');
-      if (!row) return;
+      if (!row || !draft) return;
       if (status) status.textContent = 'Gardando…';
+
       try {
-        await api('gardarEnsaioRepertorio', {
-          idEnsaio:rehearsalId(selectedRehearsal),
+        const result = await apiDraft('gardarObra', {
           idRepertorio:row.dataset.workId,
           tipoTraballo:row.querySelector('.work-type')?.value || '',
           desde:row.querySelector('.work-from')?.value || '',
           ata:row.querySelector('.work-to')?.value || '',
           observacions:row.querySelector('.work-notes')?.value || ''
         });
-        payload = await api('listarEnsaiosPortal', { forzar:true });
-        if (status) status.textContent = '✓ Gardado';
+        draft = result.draft;
         renderRepertoire();
-      } catch {
-        if (status) status.textContent = '⚠ Non se puido gardar';
+        const fresh = document.querySelector(`.work-row[data-work-id="${CSS.escape(String(row.dataset.workId || ''))}"] .save-status`);
+        if (fresh) fresh.textContent = '✓ Gardado';
+      } catch (error) {
+        if (status) status.textContent = error instanceof Error ? `⚠ ${error.message}` : '⚠ Non se puido gardar';
+      }
+      return;
+    }
+  });
+
+  document.addEventListener('change', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !draft) return;
+
+    if (target.classList.contains('justified-checkbox')) {
+      const row = target.closest('.person-row');
+      const idPersoa = String(target.dataset.person || row?.dataset.person || '');
+      if (!row || !idPersoa) return;
+
+      const current = attendanceMap().get(idPersoa) || {};
+      if (norm(current.estadoAsistencia) !== 'non asiste') {
+        target.checked = false;
+        target.disabled = true;
+        return;
+      }
+
+      const values = {
+        estadoAsistencia:'Non asiste',
+        xustificada:target.checked,
+        motivo:target.checked ? String(current.motivo || '') : '',
+        observacions:String(current.observacions || '')
+      };
+
+      const previousDraft = structuredClone(draft);
+      const map = attendanceMap();
+      map.set(idPersoa, { ...current, ...values });
+      draft = { ...draft, asistencias:[...map.values()] };
+      renderAttendance();
+
+      try {
+        const result = await apiDraft('gardarAsistencia', { idPersoa, ...values });
+        draft = result.draft;
+        renderAttendance();
+        if (target.checked) {
+          document.querySelector(`.person-row[data-person="${CSS.escape(idPersoa)}"] .justification-input`)?.focus();
+        }
+      } catch (error) {
+        draft = previousDraft;
+        renderAttendance();
+      }
+      return;
+    }
+
+    if (target.classList.contains('justification-input')) {
+      const row = target.closest('.person-row');
+      const idPersoa = String(target.dataset.person || row?.dataset.person || '');
+      if (!row || !idPersoa) return;
+
+      const current = attendanceMap().get(idPersoa) || {};
+      if (norm(current.estadoAsistencia) !== 'non asiste' || !truthy(current.xustificada)) return;
+
+      const status = row.querySelector('.save-status');
+      if (status) status.textContent = 'Gardando motivo…';
+      try {
+        const result = await apiDraft('gardarAsistencia', {
+          idPersoa,
+          estadoAsistencia:'Non asiste',
+          xustificada:true,
+          motivo:target.value.trim(),
+          observacions:String(current.observacions || '')
+        });
+        draft = result.draft;
+        renderAttendance();
+        const fresh = document.querySelector(`.person-row[data-person="${CSS.escape(idPersoa)}"] .save-status`);
+        if (fresh) fresh.textContent = '✓ Gardado';
+      } catch (error) {
+        if (status) status.textContent = error instanceof Error ? `⚠ ${error.message}` : '⚠ Erro';
       }
     }
   });
@@ -647,17 +915,36 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .hero-date span{color:var(--color-principal);font-size:.72rem;font-weight:800;text-transform:uppercase}.hero-date h2{margin:.35rem 0;font-family:Georgia,'Times New Roman',serif;font-size:1.8rem}
   .hero-date p,.hero-meta p{color:#6d655f}.hero-meta{padding-left:1.5rem;border-left:1px solid #e4ded8;min-width:0}.hero-classification{margin:.2rem 0;font-weight:700;color:#302b27!important}
   .work-panel{margin-top:1.2rem;padding:1.3rem;background:#fff;border:1px solid #e2ddd8;min-width:0}.attendance-heading,.section-heading{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin:1rem 0}
+  .attendance-header-actions{display:flex;align-items:center;gap:1rem}
+  .finalize-btn{font-size:.8rem;padding:.5rem .85rem}
   .attendance-heading h2,.section-heading h2{margin:.18rem 0;font-family:Georgia,'Times New Roman',serif}.attendance-list,.repertoire-list,.rehearsal-list{display:grid;gap:.55rem;min-width:0}
   .attendance-group{border:1px solid #e5dfda;background:#faf9f7;min-width:0}.attendance-group header{display:flex;justify-content:space-between;align-items:center;padding:.7rem .85rem;border-bottom:1px solid #e5dfda}
   .attendance-group h3{margin:0;font-size:.95rem}.attendance-group header strong{color:var(--color-principal)}.group-empty{padding:0 .85rem .75rem}
   .attendee-names{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.45rem .8rem;padding:.8rem}.attendee-names span{padding:.35rem .45rem;background:#fff;border:1px solid #eee8e3;min-width:0;overflow-wrap:anywhere}
-  .person-row{display:grid;grid-template-columns:minmax(180px,1fr) auto auto minmax(80px,auto);gap:.8rem;align-items:center;padding:.8rem;border:1px solid #e7e1dc;background:#fff;min-width:0}
-  .attendance-actions{display:flex;gap:.35rem}.attendance-actions button{border:1px solid #d6d0ca;background:#fff;padding:.5rem .65rem;cursor:pointer}.attendance-actions button.is-selected{background:#eef3ed;border-color:#78906f}.attendance-actions button.negative{background:#f6eded;border-color:#b98282}
-  .justify{font-size:.78rem}.save-status{font-size:.72rem;color:#6f665f}.helper,.data-source{color:#817872;font-size:.78rem}
+
+  .person-row{display:grid;grid-template-columns:minmax(180px,1.2fr) auto auto minmax(60px,auto);gap:.8rem;align-items:center;padding:.8rem;border:1px solid #e7e1dc;background:#fff;min-width:0}
+  .attendance-actions{display:flex;gap:.35rem}.attendance-actions button{border:1px solid #d6d0ca;background:#fff;padding:.5rem .65rem;cursor:pointer}
+  .attendance-actions button.is-selected,.attendance-actions button.negative.is-selected{background:var(--color-principal);border-color:var(--color-principal);color:#fff;font-weight:700}
+  .justify{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;white-space:nowrap}
+  .justify input{accent-color:var(--color-principal)}
+  .justify input:disabled{opacity:.45;cursor:not-allowed}
+  .justification-container{grid-column:1/-1;display:grid;grid-template-columns:minmax(160px,220px) minmax(0,1fr);gap:.55rem;align-items:center;padding:.6rem .7rem;border:1px solid #e4ded8;background:#faf9f7}
+  .justification-container span{font-size:.76rem;font-weight:700;color:#4f4945}
+  .justification-input{width:100%;box-sizing:border-box;border:1px solid #d9d2cc;background:#fff;padding:.5rem .6rem;font-size:.8rem}
+
+  .save-status{font-size:.72rem;color:#6f665f}.helper,.data-source{color:#817872;font-size:.78rem}
   .repertoire-tools{display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:.7rem}.work-search{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.4fr) auto;gap:.45rem;flex:1;min-width:0}
-  .work-search input,.work-search select,.work-fields input,.work-fields select,.tracking-filters input,.tracking-filters select{min-width:0;max-width:100%;box-sizing:border-box;border:1px solid #d9d2cc;background:#fff;padding:.58rem}
-  .work-row{padding:.9rem;border:1px solid #e7e1dc;background:#fff;min-width:0}.work-link{display:inline-flex;flex-direction:column;gap:.15rem;color:#27221f;text-decoration:none;max-width:100%}.work-link:hover strong{text-decoration:underline}.work-link small{color:#817872}
-  .work-fields{display:grid;grid-template-columns:1fr .7fr .7fr 2fr auto auto;gap:.5rem;margin-top:.8rem;min-width:0}.save-work{border:0;background:var(--color-principal);color:#fff;padding:.55rem .8rem}
+  .work-search input,.work-search select,.work-fields input,.work-fields select,.work-fields textarea,.tracking-filters input,.tracking-filters select{min-width:0;max-width:100%;box-sizing:border-box;border:1px solid #d9d2cc;background:#fff;padding:.58rem;font:inherit}
+  .repertoire-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+  .repertoire-list>.empty-state{grid-column:1/-1}
+  .work-row{display:grid;grid-template-columns:2rem minmax(0,1fr);gap:.65rem .7rem;align-content:start;padding:.9rem;border:1px solid #e7e1dc;background:#fff;min-width:0}
+  .work-bullet{display:grid;place-items:center;width:1.8rem;height:1.8rem;border-radius:999px;background:var(--color-principal);color:#fff;font-weight:800;font-size:.76rem}
+  .work-link{display:inline-flex;flex-direction:column;gap:.15rem;color:#27221f;text-decoration:none;max-width:100%}.work-link:hover strong{text-decoration:underline}.work-link small{color:#817872}
+  .work-fields{grid-column:1/-1;display:grid;grid-template-columns:minmax(135px,1fr) minmax(70px,.45fr) minmax(70px,.45fr);gap:.5rem;min-width:0}
+  .work-notes{grid-column:1/-1;min-height:3.2rem;resize:vertical}
+  .work-actions{grid-column:1/-1;display:grid;grid-template-columns:auto auto 1fr;gap:.45rem;align-items:center}
+  .save-work{border:0;background:var(--color-principal);color:#fff;padding:.55rem .8rem}
+  .remove-work{border:1px solid #cdbfc1;background:#fff;color:var(--color-principal);padding:.5rem .75rem;cursor:pointer}
   .rehearsal-card{display:grid;grid-template-columns:minmax(170px,.8fr) minmax(0,2fr);gap:1rem;align-items:center;width:100%;max-width:100%;box-sizing:border-box;text-align:left;padding:.9rem 1rem;border:1px solid #e4ded8;background:#fff;cursor:pointer;min-width:0}
   .rehearsal-card time{font-weight:700;color:#3d3733}.rehearsal-card-copy{display:flex;flex-wrap:wrap;gap:.35rem .75rem;align-items:baseline;min-width:0}.rehearsal-card-copy strong{flex:0 0 auto}.rehearsal-card-copy span{color:#6d655f;min-width:0;overflow-wrap:anywhere}.rehearsal-card.is-cancelled{opacity:.55;text-decoration:line-through}
   .tracking-filters{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr)) auto;gap:.75rem;align-items:end;padding:1rem;background:#fff;border:1px solid #e2ddd8;min-width:0}.tracking-filters label{display:grid;gap:.35rem;font-size:.74rem;font-weight:700}
@@ -668,7 +955,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     :global(.private-layout){display:block!important;width:100%!important;max-width:100vw!important;overflow-x:hidden!important}
     .ensaios-main{width:100%;max-width:100vw;padding:1.35rem 1rem 3rem}
     .private-page-header{display:block}.header-actions{margin-top:1rem;flex-wrap:wrap}.account-card{margin-top:0}.hero-card,.tracking-grid{grid-template-columns:1fr}.hero-meta{padding-left:0;border-left:0;border-top:1px solid #e4ded8;padding-top:1rem}
-    .person-row{grid-template-columns:1fr}.work-fields{grid-template-columns:1fr 1fr}.work-search{grid-template-columns:1fr}.tracking-filters{grid-template-columns:1fr 1fr}.kpi-grid{grid-template-columns:1fr 1fr}.rehearsal-card{grid-template-columns:1fr;gap:.35rem}
+    .person-row{grid-template-columns:1fr}.repertoire-list{grid-template-columns:1fr}.work-fields{grid-template-columns:1fr 1fr}.work-type,.work-notes{grid-column:1/-1}.work-search{grid-template-columns:1fr}.tracking-filters{grid-template-columns:1fr 1fr}.kpi-grid{grid-template-columns:1fr 1fr}.rehearsal-card{grid-template-columns:1fr;gap:.35rem}
   }
   @media(max-width:560px){
     .ensaios-main{padding:1rem .75rem 2.5rem}.view-switch{display:grid;grid-template-columns:1fr 1fr}.view-switch button{width:100%}.voice-tabs{display:grid;grid-template-columns:1fr 1fr}.voice-tabs button{width:100%}.voice-tabs button:first-child{grid-column:1/-1}
