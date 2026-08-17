@@ -216,7 +216,8 @@
 (() => {
   if (!window.location.pathname.startsWith('/portal/ensaios')) return;
   const script = document.createElement('script');
-  script.src = '/js/ensaios-asistencia-fix.js';
+  script.src = '/js/ensaios-asistencia-fix.js?v=20260817-1405';
+  script.dataset.scppAttendanceController = '20260817-1405';
   script.defer = true;
   document.head.append(script);
 })();
