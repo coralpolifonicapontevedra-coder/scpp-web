@@ -19,7 +19,27 @@ const items = [
   ))}
 </nav>
 
-<style>
+<style is:global>
+  body.portal-private-body {
+    background: #f5f3f1;
+  }
+
+  body.portal-private-body .private-layout {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  body.portal-private-body .private-layout > .private-sidebar {
+    flex: 0 0 282px;
+  }
+
+  body.portal-private-body .private-layout > .status-main {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
   .admin-nav {
     display: flex;
     flex-wrap: wrap;
@@ -50,5 +70,16 @@ const items = [
     background: #5d142b;
     border-color: #5d142b;
     color: #fff;
+  }
+
+  @media (max-width: 900px) {
+    body.portal-private-body .private-layout {
+      display: block;
+    }
+
+    body.portal-private-body .private-layout > .private-sidebar,
+    body.portal-private-body .private-layout > .status-main {
+      width: 100%;
+    }
   }
 </style>
