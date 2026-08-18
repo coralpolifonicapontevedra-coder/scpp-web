@@ -25,29 +25,12 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           <select id="ensaio-select"></select>
           <div class="selector-actions">
             <button id="open-attendance" class="secondary only-board" type="button">Ver lista de asistentes</button>
+            <button id="open-analysis" class="secondary only-board" type="button">Análise de asistencias</button>
             <button id="finalize" class="primary only-board" type="button">Finalizar ensaio</button>
           </div>
         </section>
 
         <article id="ensaio-resumo" class="summary-card"></article>
-
-        <section id="absence-card" class="absence-card only-coralist" hidden>
-          <div>
-            <span class="kicker">A miña asistencia</span>
-            <h2>Avisar dunha ausencia</h2>
-            <p>Podes comunicar que non asistirás. Se queres xustificalo, engade o motivo.</p>
-          </div>
-          <div class="absence-actions">
-            <button id="absence-simple" type="button" class="secondary">Non asistirei</button>
-            <button id="absence-justify" type="button" class="secondary">Non asistirei e quero xustificalo</button>
-          </div>
-          <div id="absence-reason-wrap" class="absence-reason" hidden>
-            <label for="absence-reason">Motivo da xustificación</label>
-            <textarea id="absence-reason" rows="2" maxlength="240" placeholder="Indica o motivo…"></textarea>
-            <button id="absence-send" type="button" class="primary">Enviar aviso</button>
-          </div>
-          <p id="absence-status" class="status"></p>
-        </section>
 
         <section id="works-panel" class="panel">
           <header class="section-heading">
@@ -57,10 +40,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
           <div class="works-toolbar only-board">
             <button id="load-program" type="button" class="secondary">Cargar desde programa</button>
-            <input id="work-search" type="search" placeholder="Buscar obra ou compositor…" autocomplete="off" />
+            <div class="work-search-box">
+              <input id="work-search" type="search" placeholder="Buscar obra ou compositor…" autocomplete="off" />
+              <button id="work-search-btn" type="button" class="search-button" aria-label="Buscar obra" title="Buscar obra">⌕</button>
+            </div>
             <select id="work-select"><option value="">Escolle unha obra…</option></select>
             <button id="add-work" type="button" class="primary">Engadir obra</button>
           </div>
+          <p id="work-search-result" class="search-result only-board"></p>
           <p id="works-status" class="status"></p>
           <div id="works-list" class="works-grid"></div>
         </section>
@@ -69,10 +56,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           <header class="attendance-header">
             <div>
               <span class="kicker">Control de asistencia</span>
-              <h2>Lista de coralistas</h2>
-              <p>Selecciona unha corda ou consulta todos os coralistas agrupados por corda.</p>
+              <h2>Lista de asistentes</h2>
+              <p>En «Todos» móstranse unicamente os asistentes. Por corda podes realizar o control de asistencia.</p>
             </div>
-            <button id="close-attendance" type="button" class="secondary">Volver a obras</button>
+            <button class="secondary back-home" type="button">Volver ao inicio do módulo</button>
           </header>
 
           <div class="attendance-toolbar">
@@ -94,6 +81,29 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
           <div id="attendance-list" class="attendance-list"></div>
         </section>
 
+        <section id="analysis-panel" class="panel only-board" hidden>
+          <header class="attendance-header">
+            <div>
+              <span class="kicker">Seguimento</span>
+              <h2>Análise de asistencias</h2>
+              <p>Consulta histórica por período, persoa, corda ou conxunto da coral.</p>
+            </div>
+            <button class="secondary back-home" type="button">Volver ao inicio do módulo</button>
+          </header>
+
+          <div class="analysis-filters">
+            <label><span>Desde</span><input id="analysis-from" type="date" /></label>
+            <label><span>Ata</span><input id="analysis-to" type="date" /></label>
+            <label><span>Consulta</span><select id="analysis-scope"><option value="general">Xeral</option><option value="voice">Por corda</option><option value="person">Por persoa</option></select></label>
+            <label id="analysis-voice-wrap" hidden><span>Corda</span><select id="analysis-voice"><option value="Soprano">Sopranos</option><option value="Contralto">Contraltos</option><option value="Tenor">Tenores</option><option value="Baixo">Baixos</option></select></label>
+            <label id="analysis-person-wrap" hidden><span>Coralista</span><select id="analysis-person"></select></label>
+            <button id="run-analysis" type="button" class="primary">Consultar</button>
+          </div>
+
+          <div id="analysis-summary" class="analysis-summary"></div>
+          <div id="analysis-results" class="analysis-results"></div>
+        </section>
+
         <p id="finalize-status" class="status only-board"></p>
       </section>
 
@@ -113,193 +123,88 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   import { getApp, getApps, initializeApp } from 'firebase/app';
   import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
-  const firebaseConfig = {
-    apiKey:'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
-    authDomain:'scpp-portal-privado.firebaseapp.com',
-    projectId:'scpp-portal-privado',
-    storageBucket:'scpp-portal-privado.firebasestorage.app',
-    messagingSenderId:'506857659587',
-    appId:'1:506857659587:web:a7ed36b22f044f5f639676'
-  };
-  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
-  const $ = (selector) => document.querySelector(selector);
-  const esc = (v='') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-  const norm = (v='') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-  const truthy = (v) => v === true || ['true','1','si','sí','yes','x'].includes(norm(v));
-  const rid = (r) => String(r?.idEnsaio || r?.id || '').trim();
-  const pid = (p) => String(p?.idPersoa || p?.id || '').trim();
-  const wid = (w) => String(w?.idRepertorio || w?.id || '').trim();
-  const first = (p) => String(p?.nome || '').trim();
-  const s1 = (p) => String(p?.primeiroApelido || '').trim();
-  const s2 = (p) => String(p?.segundoApelido || '').trim();
-  const displayName = (p) => [s1(p), s2(p), first(p)].filter(Boolean).join(' ') || String(p?.nomeCompleto || '').trim();
-  const surnameKey = (p) => [s1(p), s2(p), first(p)].map(norm).join('|');
-  const sortPeople = (a,b) => surnameKey(a).localeCompare(surnameKey(b),'gl',{sensitivity:'base',numeric:true});
-  const VOICES = ['Soprano','Contralto','Tenor','Baixo'];
-  const voiceLabel = (v) => v === 'Baixo' ? 'Baixos' : `${v}s`;
+  const firebaseConfig={apiKey:'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',authDomain:'scpp-portal-privado.firebaseapp.com',projectId:'scpp-portal-privado',storageBucket:'scpp-portal-privado.firebasestorage.app',messagingSenderId:'506857659587',appId:'1:506857659587:web:a7ed36b22f044f5f639676'};
+  const auth=getAuth(getApps().length?getApp():initializeApp(firebaseConfig));
+  const $=(s)=>document.querySelector(s);
+  const esc=(v='')=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const norm=(v='')=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  const truthy=(v)=>v===true||['true','1','si','sí','yes','x'].includes(norm(v));
+  const rid=(r)=>String(r?.idEnsaio||r?.id||'').trim();
+  const pid=(p)=>String(p?.idPersoa||p?.id||'').trim();
+  const wid=(w)=>String(w?.idRepertorio||w?.id||'').trim();
+  const first=(p)=>String(p?.nome||'').trim(); const s1=(p)=>String(p?.primeiroApelido||'').trim(); const s2=(p)=>String(p?.segundoApelido||'').trim();
+  const displayName=(p)=>[s1(p),s2(p),first(p)].filter(Boolean).join(' ')||String(p?.nomeCompleto||'').trim();
+  const sortPeople=(a,b)=>[s1(a),s2(a),first(a)].map(norm).join('|').localeCompare([s1(b),s2(b),first(b)].map(norm).join('|'),'gl',{sensitivity:'base',numeric:true});
+  const VOICES=['Soprano','Contralto','Tenor','Baixo']; const voiceLabel=(v)=>v==='Baixo'?'Baixos':`${v}s`;
+  const toDate=(v='')=>{const t=String(v).trim();if(!t)return null;const iso=/^\d{4}-\d{2}-\d{2}/.test(t)?t.slice(0,10):t.split(/[\/-]/).reverse().join('-');const d=new Date(`${iso}T12:00:00`);return Number.isNaN(d.getTime())?null:d;};
+  const fmtDate=(v)=>{const d=toDate(v);return d?new Intl.DateTimeFormat('gl-ES',{day:'2-digit',month:'2-digit',year:'numeric'}).format(d):String(v||'');};
+  const fmtLongDate=(v)=>{const d=toDate(v);return d?new Intl.DateTimeFormat('gl-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d):String(v||'');};
+  const fmtTime=(v='')=>String(v).trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/,'$1');
 
-  const toDate = (v='') => {
-    const t = String(v).trim(); if (!t) return null;
-    const iso = /^\d{4}-\d{2}-\d{2}/.test(t) ? t.slice(0,10) : t.split(/[\/-]/).reverse().join('-');
-    const d = new Date(`${iso}T12:00:00`); return Number.isNaN(d.getTime()) ? null : d;
-  };
-  const fmtDate = (v) => { const d=toDate(v); return d ? new Intl.DateTimeFormat('gl-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d) : String(v||''); };
-  const fmtTime = (v='') => String(v).trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/,'$1');
+  let payload=null,selected=null,draft=null,board=false,voice='Todos',loadSeq=0;
 
-  let payload = null;
-  let selected = null;
-  let draft = null;
-  let board = false;
-  let voice = 'Todos';
-  let loadSeq = 0;
+  async function call(url,accion,extra={}){const user=auth.currentUser;if(!user)throw new Error('A sesión non está dispoñible.');const idToken=await user.getIdToken();const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,accion,...extra})});const result=await response.json().catch(()=>null);if(!response.ok||!result?.ok)throw new Error(result?.erro||`Erro ${response.status}`);return result;}
+  const apiMain=(accion,extra={})=>call('/api/ensaios',accion,extra); const apiDraft=(accion,extra={})=>call('/api/ensaios-borrador',accion,{idEnsaio:rid(selected),...extra});
 
-  async function call(url, accion, extra={}) {
-    const user = auth.currentUser;
-    if (!user) throw new Error('A sesión non está dispoñible.');
-    const idToken = await user.getIdToken();
-    const response = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,accion,...extra})});
-    const result = await response.json().catch(()=>null);
-    if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro ${response.status}`);
-    return result;
-  }
-  const apiMain = (accion,extra={}) => call('/api/ensaios',accion,extra);
-  const apiDraft = (accion,extra={}) => call('/api/ensaios-borrador',accion,{idEnsaio:rid(selected),...extra});
+  function rehearsals(){const today=new Date();today.setHours(0,0,0,0);const map=new Map();(payload?.ensaios||[]).forEach((r)=>{const id=rid(r);if(id&&!map.has(id))map.set(id,r);});return[...map.values()].filter((r)=>!truthy(r.cancelado)&&(!toDate(r.data)||toDate(r.data)>=today)).sort((a,b)=>(toDate(a.data)?.getTime()||0)-(toDate(b.data)?.getTime()||0));}
+  function renderSelector(){const rows=rehearsals();if(!selected)selected=rows[0]||null;$('#ensaio-select').innerHTML=rows.map((r)=>`<option value="${esc(rid(r))}">${esc(fmtLongDate(r.data))}${r.horaInicio?` · ${esc(fmtTime(r.horaInicio))}`:''}${r.lugar?` · ${esc(r.lugar)}`:''}</option>`).join('');if(selected)$('#ensaio-select').value=rid(selected);}
+  function renderSummary(){const box=$('#ensaio-resumo');if(!selected){box.innerHTML='<p>Non hai próximos ensaios.</p>';return;}const horario=[fmtTime(selected.horaInicio),selected.horaFin?fmtTime(selected.horaFin):''].filter(Boolean).join(' – ');box.innerHTML=`<div><span class="summary-label">Ensaio seleccionado</span><h2>${esc(fmtLongDate(selected.data))}</h2></div><div class="summary-meta">${selected.tipoEnsaio?`<span>${esc(selected.tipoEnsaio)}</span>`:''}${horario?`<span>${esc(horario)}</span>`:''}${selected.lugar?`<span>${esc(selected.lugar)}</span>`:''}${selected.concertoNome?`<span>${esc(selected.concertoNome)}</span>`:''}</div>`;}
 
-  function rehearsals() {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const map = new Map();
-    (payload?.ensaios || []).forEach((r)=>{ const id=rid(r); if(id && !map.has(id)) map.set(id,r); });
-    return [...map.values()].filter((r)=>!truthy(r.cancelado) && (!toDate(r.data) || toDate(r.data)>=today)).sort((a,b)=>(toDate(a.data)?.getTime()||0)-(toDate(b.data)?.getTime()||0));
-  }
+  function attendanceMap(){return new Map((draft?.asistencias||[]).map((a)=>[String(a.persoa||a.idPersoa||''),a]));}
+  function kind(a={}){const s=norm(a.estadoAsistencia);if(s==='asiste')return'asiste';if(s==='non asiste'&&truthy(a.xustificada))return'xustificada';if(s==='non asiste')return'non';return'';}
+  function updateCounts(){if(!draft||!board)return;const map=attendanceMap();let p=0,n=0,j=0;(payload?.persoas||[]).forEach((x)=>{const k=kind(map.get(pid(x)));if(k==='asiste')p++;else if(k==='xustificada')j++;else if(k==='non')n++;});$('#count-present').textContent=String(p);$('#count-absent').textContent=String(n);$('#count-justified').textContent=String(j);}
+  function renderControlRow(p){const id=pid(p),a=attendanceMap().get(id)||{},k=kind(a);return `<article class="person-row" data-person="${esc(id)}"><div class="person-main"><strong>${esc(displayName(p))}</strong></div><div class="attendance-buttons"><button type="button" data-kind="asiste" class="${k==='asiste'?'selected':''}">Asiste</button><button type="button" data-kind="non" class="${k==='non'?'selected':''}">Non asiste</button><button type="button" data-kind="xustificada" class="${k==='xustificada'?'selected':''}">Non asiste con xustificación</button></div>${k==='xustificada'?`<label class="reason"><span>Motivo da xustificación</span><input type="text" data-reason maxlength="240" value="${esc(a.motivo||'')}" placeholder="Indica o motivo…" /></label>`:''}<span class="row-status"></span></article>`;}
+  function renderAttendance(){if(!board||!draft)return;const q=norm($('#people-search')?.value||''),map=attendanceMap(),people=(payload?.persoas||[]).filter((p)=>!q||norm(displayName(p)).includes(q));const list=$('#attendance-list');if(voice==='Todos'){list.innerHTML=VOICES.map((v)=>{const rows=people.filter((p)=>norm(p.voz)===norm(v)&&kind(map.get(pid(p)))==='asiste').sort(sortPeople);return `<section class="voice-group"><header><h3>${voiceLabel(v)}</h3><strong>${rows.length}</strong></header><div class="attendee-names">${rows.map((p)=>`<span>${esc(displayName(p))}</span>`).join('')||'<p class="empty">Sen asistentes rexistrados.</p>'}</div></section>`;}).join('');}else{const rows=people.filter((p)=>norm(p.voz)===norm(voice)).sort(sortPeople);list.innerHTML=`<section class="voice-group"><header><h3>${voiceLabel(voice)}</h3><strong>${rows.length}</strong></header><div class="voice-people">${rows.map(renderControlRow).join('')||'<p class="empty">Sen coralistas.</p>'}</div></section>`;}updateCounts();}
+  async function saveAttendance(id,k,motivo){const map=attendanceMap(),current=map.get(id)||{},values=k==='asiste'?{estadoAsistencia:'Asiste',xustificada:false,motivo:''}:k==='xustificada'?{estadoAsistencia:'Non asiste',xustificada:true,motivo:String(motivo??current.motivo??'')}:{estadoAsistencia:'Non asiste',xustificada:false,motivo:''};const previous=structuredClone(draft);map.set(id,{...current,ensaio:rid(selected),persoa:id,...values});draft={...draft,asistencias:[...map.values()]};renderAttendance();try{const out=await apiDraft('gardarAsistencia',{idPersoa:id,...values,observacions:String(current.observacions||'')});draft=out.draft;renderAttendance();}catch(e){draft=previous;renderAttendance();const st=document.querySelector(`.person-row[data-person="${CSS.escape(id)}"] .row-status`);if(st)st.textContent=`⚠ ${e instanceof Error?e.message:'Erro ao gardar'}`;}}
 
-  function renderSelector() {
-    const rows = rehearsals(); if (!selected) selected = rows[0] || null;
-    $('#ensaio-select').innerHTML = rows.map((r)=>`<option value="${esc(rid(r))}">${esc(fmtDate(r.data))}${r.horaInicio?` · ${esc(fmtTime(r.horaInicio))}`:''}${r.lugar?` · ${esc(r.lugar)}`:''}</option>`).join('');
-    if (selected) $('#ensaio-select').value = rid(selected);
-  }
+  function workById(id){return(payload?.repertorio||[]).find((w)=>wid(w)===String(id||''))||null;} function works(){return Array.isArray(draft?.repertorio)?draft.repertorio:[];}
+  function filteredWorks(){const q=norm($('#work-search')?.value||''),used=new Set(works().map((r)=>String(r.repertorio||r.idRepertorio||'')));return(payload?.repertorio||[]).filter((w)=>!used.has(wid(w))&&(!q||norm([w.nomeObra,w.nome,w.compositor].join(' ')).includes(q))).sort((a,b)=>String(a.nomeObra||a.nome||'').localeCompare(String(b.nomeObra||b.nome||''),'gl',{sensitivity:'base'})).slice(0,100);}
+  function renderWorkPicker(selectFirst=false){if(!board)return;const rows=filteredWorks();$('#work-select').innerHTML='<option value="">Escolle unha obra…</option>'+rows.map((w)=>`<option value="${esc(wid(w))}">${esc([w.nomeObra||w.nome,w.compositor].filter(Boolean).join(' — '))}</option>`).join('');const q=String($('#work-search')?.value||'').trim();$('#work-search-result').textContent=q?`${rows.length} resultado${rows.length===1?'':'s'} para «${q}»`:'';if(selectFirst&&rows.length){$('#work-select').value=wid(rows[0]);$('#work-select').focus();}}
+  function renderWorks(){const list=$('#works-list');if(!draft){$('#works-summary').textContent='Cargando…';list.innerHTML='<p class="empty">Cargando obras do borrador R2…</p>';return;}const rows=[...works()].sort((a,b)=>Number(a.orde||999)-Number(b.orde||999));$('#works-summary').textContent=`${rows.length} obras`;list.innerHTML=rows.map((r,i)=>{const id=String(r.repertorio||r.idRepertorio||''),w=workById(id)||{};return `<article class="work-card" data-work="${esc(id)}"><header><span class="work-number">${i+1}</span><div><a class="work-title" href="/portal/repertorio/?id=${encodeURIComponent(id)}">${esc(w.nomeObra||w.nome||id)}</a>${w.compositor?`<small>${esc(w.compositor)}</small>`:''}</div>${board?'<button type="button" class="remove-work" aria-label="Eliminar obra">×</button>':''}</header>${board?`<label><span>Observacións</span><textarea class="work-notes" rows="2">${esc(r.observacions||'')}</textarea></label><footer><span class="work-status"></span><button type="button" class="save-work secondary">Gardar</button></footer>`:(r.observacions?`<p class="work-observations">${esc(r.observacions)}</p>`:'')}</article>`;}).join('')||'<p class="empty">Aínda non hai obras neste ensaio.</p>';renderWorkPicker();}
+  async function loadDraft(){if(!selected)return;const n=++loadSeq;draft=null;renderWorks();try{const out=await apiDraft('obter');if(n!==loadSeq)return;draft=out.draft;renderWorks();renderAttendance();}catch(e){if(n!==loadSeq)return;$('#works-status').textContent=`⚠ ${e instanceof Error?e.message:'Non se puido cargar o borrador.'}`;}}
 
-  function renderSummary() {
-    const box = $('#ensaio-resumo');
-    if (!selected) { box.innerHTML='<p>Non hai próximos ensaios.</p>'; return; }
-    const horario = [fmtTime(selected.horaInicio),selected.horaFin?fmtTime(selected.horaFin):''].filter(Boolean).join(' – ');
-    box.innerHTML = `<div><span class="summary-label">Ensaio seleccionado</span><h2>${esc(fmtDate(selected.data))}</h2></div><div class="summary-meta">${selected.tipoEnsaio?`<span>${esc(selected.tipoEnsaio)}</span>`:''}${horario?`<span>${esc(horario)}</span>`:''}${selected.lugar?`<span>${esc(selected.lugar)}</span>`:''}${selected.concertoNome?`<span>${esc(selected.concertoNome)}</span>`:''}</div>`;
-  }
+  function historicalRehearsals(){const today=new Date();return(payload?.ensaios||[]).filter((e)=>!truthy(e.cancelado)&&toDate(e.data)&&toDate(e.data)<=today).sort((a,b)=>(toDate(a.data)?.getTime()||0)-(toDate(b.data)?.getTime()||0));}
+  function fillAnalysisPeople(){const rows=[...(payload?.persoas||[])].sort(sortPeople);$('#analysis-person').innerHTML=rows.map((p)=>`<option value="${esc(pid(p))}">${esc(displayName(p))} · ${esc(voiceLabel(p.voz||''))}</option>`).join('');}
+  function attendanceHistoricalMap(){const map=new Map();(payload?.asistencias||[]).forEach((a)=>map.set(`${a.ensaio}|${a.persoa}`,a));return map;}
+  function analysisPeople(){const scope=$('#analysis-scope')?.value||'general';if(scope==='person'){const id=$('#analysis-person')?.value||'';return(payload?.persoas||[]).filter((p)=>pid(p)===id);}if(scope==='voice'){const v=$('#analysis-voice')?.value||'';return(payload?.persoas||[]).filter((p)=>norm(p.voz)===norm(v));}return payload?.persoas||[];}
+  function runAnalysis(){const from=toDate($('#analysis-from')?.value||''),to=toDate($('#analysis-to')?.value||''),scope=$('#analysis-scope')?.value||'general',people=analysisPeople(),peopleIds=new Set(people.map(pid)),map=attendanceHistoricalMap();const ensaios=historicalRehearsals().filter((e)=>{const d=toDate(e.data);return(!from||d>=from)&&(!to||d<=to);});let present=0,absent=0,justified=0,decided=0;ensaios.forEach((e)=>people.forEach((p)=>{const a=map.get(`${rid(e)}|${pid(p)}`),k=kind(a);if(k){decided++;if(k==='asiste')present++;else if(k==='xustificada')justified++;else absent++;}}));const pct=decided?Math.round(present*100/decided):0;$('#analysis-summary').innerHTML=`<div><strong>${ensaios.length}</strong><span>ensaios</span></div><div><strong>${present}</strong><span>asistencias</span></div><div><strong>${absent+justified}</strong><span>ausencias</span></div><div><strong>${justified}</strong><span>xustificadas</span></div><div><strong>${pct}%</strong><span>asistencia</span></div>`;if(scope==='person'){const p=people[0];$('#analysis-results').innerHTML=`<div class="analysis-title">${p?esc(displayName(p)):'Coralista'}</div><div class="analysis-table"><div class="analysis-row head"><span>Data</span><span>Estado</span><span>Motivo</span></div>${ensaios.map((e)=>{const a=map.get(`${rid(e)}|${p?pid(p):''}`),k=kind(a),label=k==='asiste'?'Asiste':k==='xustificada'?'Non asiste con xustificación':k==='non'?'Non asiste':'Sen rexistro';return `<div class="analysis-row"><span>${esc(fmtDate(e.data))}</span><span>${esc(label)}</span><span>${esc(a?.motivo||'')}</span></div>`;}).join('')}</div>`;return;}$('#analysis-results').innerHTML=`<div class="analysis-table"><div class="analysis-row head"><span>Data</span><span>Asisten</span><span>Non asisten</span><span>Xustificadas</span><span>%</span></div>${ensaios.map((e)=>{let p=0,n=0,j=0,d=0;people.forEach((person)=>{if(!peopleIds.has(pid(person)))return;const k=kind(map.get(`${rid(e)}|${pid(person)}`));if(k){d++;if(k==='asiste')p++;else if(k==='xustificada')j++;else n++;}});return `<div class="analysis-row"><span>${esc(fmtDate(e.data))}</span><span>${p}</span><span>${n}</span><span>${j}</span><span>${d?Math.round(p*100/d):0}%</span></div>`;}).join('')}</div>`;}
 
-  function attendanceMap() { return new Map((draft?.asistencias || []).map((a)=>[String(a.persoa || a.idPersoa || ''),a])); }
-  function kind(a={}) { const s=norm(a.estadoAsistencia); if(s==='asiste')return'asiste'; if(s==='non asiste'&&truthy(a.xustificada))return'xustificada'; if(s==='non asiste')return'non'; return''; }
+  function fillPrograms(){const rows=[...(payload?.concertos||[])].sort((a,b)=>String(a.data||'').localeCompare(String(b.data||'')));$('#program-select').innerHTML='<option value="">Escolle un concerto…</option>'+rows.map((c)=>`<option value="${esc(c.id||'')}">${esc([c.data,c.nome].filter(Boolean).join(' · '))}</option>`).join('');}
+  function concertById(id){return(payload?.concertos||[]).find((c)=>String(c.id||'')===String(id||''))||null;} function resolveProgramId(item){if(item?.idRepertorio&&workById(item.idRepertorio))return String(item.idRepertorio);const target=norm(item?.obra||'');if(!target)return'';const exact=(payload?.repertorio||[]).find((w)=>norm(w.nomeObra||w.nome||'')===target);return exact?wid(exact):'';}
+  function showPanel(name){$('#works-panel').hidden=name!=='works';$('#attendance-panel').hidden=name!=='attendance';$('#analysis-panel').hidden=name!=='analysis';window.scrollTo({top:0,behavior:'smooth'});}
+  function applyRole(){board=payload?.perfil?.podeEditar===true;document.querySelectorAll('.only-board').forEach((el)=>{if(el instanceof HTMLElement)el.hidden=!board;});showPanel('works');}
+  async function load(){ $('#loading').hidden=false;$('#error').hidden=true;$('#app').hidden=true;try{payload=await apiMain('listarEnsaiosPortal');selected=rehearsals()[0]||null;renderSelector();renderSummary();fillPrograms();fillAnalysisPeople();applyRole();$('#loading').hidden=true;$('#app').hidden=false;await loadDraft();}catch(e){$('#loading').hidden=true;$('#error').hidden=false;$('#error').textContent=e instanceof Error?e.message:'Non foi posible cargar os ensaios.';}}
 
-  function updateCounts() {
-    if (!draft || !board) return;
-    const map=attendanceMap(); let present=0, absent=0, justified=0;
-    (payload?.persoas||[]).forEach((p)=>{ const k=kind(map.get(pid(p))); if(k==='asiste')present++; else if(k==='xustificada')justified++; else if(k==='non')absent++; });
-    $('#count-present').textContent=String(present); $('#count-absent').textContent=String(absent); $('#count-justified').textContent=String(justified);
-  }
-
-  function renderPersonRow(p) {
-    const id=pid(p), a=attendanceMap().get(id)||{}, k=kind(a);
-    return `<article class="person-row" data-person="${esc(id)}"><div class="person-main"><strong>${esc(displayName(p))}</strong><a href="/portal/administracion/persoas/?id=${encodeURIComponent(id)}">Ver ficha</a></div><div class="attendance-buttons"><button type="button" data-kind="asiste" class="${k==='asiste'?'selected':''}">Asiste</button><button type="button" data-kind="non" class="${k==='non'?'selected':''}">Non asiste</button><button type="button" data-kind="xustificada" class="${k==='xustificada'?'selected':''}">Non asiste con xustificación</button></div>${k==='xustificada'?`<label class="reason"><span>Motivo da xustificación</span><input type="text" data-reason maxlength="240" value="${esc(a.motivo||'')}" placeholder="Indica o motivo…" /></label>`:''}<span class="row-status"></span></article>`;
-  }
-
-  function renderAttendance() {
-    if (!board || !draft) return;
-    const q=norm($('#people-search')?.value||'');
-    const people=(payload?.persoas||[]).filter((p)=>!q || norm(displayName(p)).includes(q));
-    const list=$('#attendance-list');
-    if (voice==='Todos') {
-      list.innerHTML=VOICES.map((v)=>{ const rows=people.filter((p)=>norm(p.voz)===norm(v)).sort(sortPeople); return `<section class="voice-group"><header><h3>${voiceLabel(v)}</h3><strong>${rows.length}</strong></header><div class="voice-people">${rows.map(renderPersonRow).join('')||'<p class="empty">Sen coralistas.</p>'}</div></section>`; }).join('');
-    } else {
-      const rows=people.filter((p)=>norm(p.voz)===norm(voice)).sort(sortPeople);
-      list.innerHTML=`<section class="voice-group"><header><h3>${voiceLabel(voice)}</h3><strong>${rows.length}</strong></header><div class="voice-people">${rows.map(renderPersonRow).join('')||'<p class="empty">Sen coralistas.</p>'}</div></section>`;
-    }
-    updateCounts();
-  }
-
-  async function saveAttendance(id,k,motivo) {
-    const map=attendanceMap(), current=map.get(id)||{};
-    const values=k==='asiste'?{estadoAsistencia:'Asiste',xustificada:false,motivo:''}:k==='xustificada'?{estadoAsistencia:'Non asiste',xustificada:true,motivo:String(motivo??current.motivo??'')}:{estadoAsistencia:'Non asiste',xustificada:false,motivo:''};
-    const previous=structuredClone(draft); map.set(id,{...current,ensaio:rid(selected),persoa:id,...values}); draft={...draft,asistencias:[...map.values()]}; renderAttendance();
-    try { const out=await apiDraft('gardarAsistencia',{idPersoa:id,...values,observacions:String(current.observacions||'')}); draft=out.draft; renderAttendance(); }
-    catch(e) { draft=previous; renderAttendance(); const st=document.querySelector(`.person-row[data-person="${CSS.escape(id)}"] .row-status`); if(st)st.textContent=`⚠ ${e instanceof Error?e.message:'Erro ao gardar'}`; }
-  }
-
-  function workById(id){ return (payload?.repertorio||[]).find((w)=>wid(w)===String(id||''))||null; }
-  function works(){ return Array.isArray(draft?.repertorio)?draft.repertorio:[]; }
-  function renderWorkPicker(){
-    if(!board)return;
-    const q=norm($('#work-search')?.value||''), used=new Set(works().map((r)=>String(r.repertorio||r.idRepertorio||'')));
-    const rows=(payload?.repertorio||[]).filter((w)=>!used.has(wid(w))&&(!q||norm([w.nomeObra,w.nome,w.compositor].join(' ')).includes(q))).sort((a,b)=>String(a.nomeObra||a.nome||'').localeCompare(String(b.nomeObra||b.nome||''),'gl',{sensitivity:'base'})).slice(0,100);
-    $('#work-select').innerHTML='<option value="">Escolle unha obra…</option>'+rows.map((w)=>`<option value="${esc(wid(w))}">${esc([w.nomeObra||w.nome,w.compositor].filter(Boolean).join(' — '))}</option>`).join('');
-  }
-
-  function renderWorks(){
-    const list=$('#works-list');
-    if(!draft){ $('#works-summary').textContent='Cargando…'; list.innerHTML='<p class="empty">Cargando obras do borrador R2…</p>'; return; }
-    const rows=[...works()].sort((a,b)=>Number(a.orde||999)-Number(b.orde||999)); $('#works-summary').textContent=`${rows.length} obras`;
-    list.innerHTML=rows.map((r,i)=>{ const id=String(r.repertorio||r.idRepertorio||''), w=workById(id)||{}; return `<article class="work-card" data-work="${esc(id)}"><header><span class="work-number">${i+1}</span><div><a class="work-title" href="/portal/repertorio/?id=${encodeURIComponent(id)}">${esc(w.nomeObra||w.nome||id)}</a>${w.compositor?`<small>${esc(w.compositor)}</small>`:''}</div>${board?'<button type="button" class="remove-work" aria-label="Eliminar obra">×</button>':''}</header>${board?`<label><span>Observacións</span><textarea class="work-notes" rows="2">${esc(r.observacions||'')}</textarea></label><footer><span class="work-status"></span><button type="button" class="save-work secondary">Gardar</button></footer>`:(r.observacions?`<p class="work-observations">${esc(r.observacions)}</p>`:'')}</article>`; }).join('')||'<p class="empty">Aínda non hai obras neste ensaio.</p>';
-    renderWorkPicker();
-  }
-
-  async function loadDraft(){
-    if(!selected)return; const n=++loadSeq; draft=null; renderWorks();
-    try { const out=await apiDraft('obter'); if(n!==loadSeq)return; draft=out.draft; renderWorks(); renderAttendance(); }
-    catch(e){ if(n!==loadSeq)return; $('#works-status').textContent=`⚠ ${e instanceof Error?e.message:'Non se puido cargar o borrador.'}`; }
-  }
-
-  function fillPrograms(){ const rows=[...(payload?.concertos||[])].sort((a,b)=>String(a.data||'').localeCompare(String(b.data||''))); $('#program-select').innerHTML='<option value="">Escolle un concerto…</option>'+rows.map((c)=>`<option value="${esc(c.id||'')}">${esc([c.data,c.nome].filter(Boolean).join(' · '))}</option>`).join(''); }
-  function concertById(id){return(payload?.concertos||[]).find((c)=>String(c.id||'')===String(id||''))||null;}
-  function resolveProgramId(item){ if(item?.idRepertorio&&workById(item.idRepertorio))return String(item.idRepertorio); const target=norm(item?.obra||''); if(!target)return''; const exact=(payload?.repertorio||[]).find((w)=>norm(w.nomeObra||w.nome||'')===target); return exact?wid(exact):''; }
-
-  function applyRole(){
-    board=payload?.perfil?.podeEditar===true;
-    document.querySelectorAll('.only-board').forEach((el)=>{ if(el instanceof HTMLElement)el.hidden=!board; });
-    document.querySelectorAll('.only-coralist').forEach((el)=>{ if(el instanceof HTMLElement)el.hidden=board; });
-    $('#works-panel').hidden=false;
-    $('#attendance-panel').hidden=true;
-  }
-
-  async function load(){
-    $('#loading').hidden=false; $('#error').hidden=true; $('#app').hidden=true;
-    try { payload=await apiMain('listarEnsaiosPortal'); selected=rehearsals()[0]||null; renderSelector(); renderSummary(); fillPrograms(); applyRole(); $('#loading').hidden=true; $('#app').hidden=false; await loadDraft(); }
-    catch(e){ $('#loading').hidden=true; $('#error').hidden=false; $('#error').textContent=e instanceof Error?e.message:'Non foi posible cargar os ensaios.'; }
-  }
-
-  $('#ensaio-select')?.addEventListener('change',(e)=>{ selected=rehearsals().find((r)=>rid(r)===String(e.target?.value||''))||null; renderSummary(); void loadDraft(); });
-  $('#work-search')?.addEventListener('input',renderWorkPicker);
+  $('#ensaio-select')?.addEventListener('change',(e)=>{selected=rehearsals().find((r)=>rid(r)===String(e.target?.value||''))||null;renderSummary();void loadDraft();});
+  $('#work-search')?.addEventListener('input',()=>renderWorkPicker(false));
+  $('#work-search')?.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();renderWorkPicker(true);}});
+  $('#work-search-btn')?.addEventListener('click',()=>renderWorkPicker(true));
   $('#people-search')?.addEventListener('input',renderAttendance);
-  $('#open-attendance')?.addEventListener('click',()=>{ $('#works-panel').hidden=true; $('#attendance-panel').hidden=false; renderAttendance(); window.scrollTo({top:0,behavior:'smooth'}); });
-  $('#close-attendance')?.addEventListener('click',()=>{ $('#attendance-panel').hidden=true; $('#works-panel').hidden=false; });
+  $('#open-attendance')?.addEventListener('click',()=>{voice='Todos';document.querySelectorAll('[data-voice]').forEach((b)=>b.classList.toggle('is-active',b.dataset.voice==='Todos'));renderAttendance();showPanel('attendance');});
+  $('#open-analysis')?.addEventListener('click',()=>{runAnalysis();showPanel('analysis');});
+  document.querySelectorAll('.back-home').forEach((b)=>b.addEventListener('click',()=>showPanel('works')));
+  $('#analysis-scope')?.addEventListener('change',(e)=>{const v=e.target?.value||'general';$('#analysis-voice-wrap').hidden=v!=='voice';$('#analysis-person-wrap').hidden=v!=='person';});
+  $('#run-analysis')?.addEventListener('click',runAnalysis);
 
-  document.addEventListener('click',async(e)=>{
-    const t=e.target; if(!(t instanceof HTMLElement))return;
-    const vb=t.closest('[data-voice]'); if(vb){ voice=vb.dataset.voice||'Todos'; document.querySelectorAll('[data-voice]').forEach((b)=>b.classList.toggle('is-active',b===vb)); renderAttendance(); return; }
-    const ab=t.closest('[data-kind]'); if(ab){ const row=ab.closest('.person-row'); if(!row||!draft||!board)return; await saveAttendance(String(row.dataset.person||''),String(ab.dataset.kind||'')); return; }
-    const rm=t.closest('.remove-work'); if(rm){ const row=rm.closest('.work-card'),id=String(row?.dataset.work||''); if(!id||!draft||!board)return; const prev=structuredClone(draft); draft={...draft,repertorio:draft.repertorio.filter((r)=>String(r.repertorio||r.idRepertorio||'')!==id)}; renderWorks(); try{const out=await apiDraft('eliminarObra',{idRepertorio:id});draft=out.draft;renderWorks();}catch(err){draft=prev;renderWorks();$('#works-status').textContent=`⚠ ${err instanceof Error?err.message:'Erro ao eliminar'}`;} return; }
-    const sw=t.closest('.save-work'); if(sw){ const row=sw.closest('.work-card'),id=String(row?.dataset.work||''),st=row?.querySelector('.work-status'); if(!row||!id||!draft||!board)return; try{if(st)st.textContent='Gardando…';const old=works().find((r)=>String(r.repertorio||r.idRepertorio||'')===id)||{};const out=await apiDraft('gardarObra',{idRepertorio:id,orde:old.orde||1,tipoTraballo:'',desde:'',ata:'',observacions:row.querySelector('.work-notes')?.value||''});draft=out.draft;renderWorks();const fresh=document.querySelector(`.work-card[data-work="${CSS.escape(id)}"] .work-status`);if(fresh)fresh.textContent='✓ Gardado';}catch(err){if(st)st.textContent=`⚠ ${err instanceof Error?err.message:'Erro ao gardar'}`;} return; }
-  });
+  document.addEventListener('click',async(e)=>{const t=e.target;if(!(t instanceof HTMLElement))return;const vb=t.closest('[data-voice]');if(vb){voice=vb.dataset.voice||'Todos';document.querySelectorAll('[data-voice]').forEach((b)=>b.classList.toggle('is-active',b===vb));renderAttendance();return;}const ab=t.closest('[data-kind]');if(ab){const row=ab.closest('.person-row');if(!row||!draft||!board||voice==='Todos')return;await saveAttendance(String(row.dataset.person||''),String(ab.dataset.kind||''));return;}const rm=t.closest('.remove-work');if(rm){const row=rm.closest('.work-card'),id=String(row?.dataset.work||'');if(!id||!draft||!board)return;const prev=structuredClone(draft);draft={...draft,repertorio:draft.repertorio.filter((r)=>String(r.repertorio||r.idRepertorio||'')!==id)};renderWorks();try{const out=await apiDraft('eliminarObra',{idRepertorio:id});draft=out.draft;renderWorks();}catch(err){draft=prev;renderWorks();$('#works-status').textContent=`⚠ ${err instanceof Error?err.message:'Erro ao eliminar'}`;}return;}const sw=t.closest('.save-work');if(sw){const row=sw.closest('.work-card'),id=String(row?.dataset.work||''),st=row?.querySelector('.work-status');if(!row||!id||!draft||!board)return;try{if(st)st.textContent='Gardando…';const old=works().find((r)=>String(r.repertorio||r.idRepertorio||'')===id)||{};const out=await apiDraft('gardarObra',{idRepertorio:id,orde:old.orde||1,tipoTraballo:'',desde:'',ata:'',observacions:row.querySelector('.work-notes')?.value||''});draft=out.draft;renderWorks();}catch(err){if(st)st.textContent=`⚠ ${err instanceof Error?err.message:'Erro ao gardar'}`;}return;}});
+  document.addEventListener('change',async(e)=>{const input=e.target;if(!(input instanceof HTMLInputElement)||!input.matches('[data-reason]')||!board)return;const row=input.closest('.person-row');if(row&&draft)await saveAttendance(String(row.dataset.person||''),'xustificada',input.value);});
 
-  document.addEventListener('change',async(e)=>{ const input=e.target; if(!(input instanceof HTMLInputElement)||!input.matches('[data-reason]')||!board)return; const row=input.closest('.person-row'); if(row&&draft)await saveAttendance(String(row.dataset.person||''),'xustificada',input.value); });
+  $('#add-work')?.addEventListener('click',async()=>{const id=$('#work-select')?.value||'',st=$('#works-status');if(!id){st.textContent='Escolle unha obra.';return;}if(!board)return;try{st.textContent='Engadindo ao borrador R2…';const out=await apiDraft('gardarObra',{idRepertorio:id,orde:(draft?.repertorio?.length||0)+1,tipoTraballo:'',desde:'',ata:'',observacions:''});draft=out.draft;st.textContent='✓ Obra engadida.';$('#work-search').value='';renderWorks();}catch(e){st.textContent=`⚠ ${e instanceof Error?e.message:'Erro ao engadir'}`;}});
 
-  $('#add-work')?.addEventListener('click',async()=>{ const id=$('#work-select')?.value||'',st=$('#works-status'); if(!id){st.textContent='Escolle unha obra.';return;} if(!board)return; try{st.textContent='Engadindo ao borrador R2…';const out=await apiDraft('gardarObra',{idRepertorio:id,orde:(draft?.repertorio?.length||0)+1,tipoTraballo:'',desde:'',ata:'',observacions:''});draft=out.draft;st.textContent='✓ Obra engadida.';renderWorks();}catch(e){st.textContent=`⚠ ${e instanceof Error?e.message:'Erro ao engadir'}`;} });
-
-  const dialog=$('#program-dialog'); const closeDialog=()=>{if(dialog instanceof HTMLDialogElement)dialog.close();$('#program-status').textContent='';};
+  const dialog=$('#program-dialog');const closeDialog=()=>{if(dialog instanceof HTMLDialogElement)dialog.close();$('#program-status').textContent='';};
   $('#load-program')?.addEventListener('click',()=>{if(!(dialog instanceof HTMLDialogElement)||!board)return;const s=$('#program-select');if(s instanceof HTMLSelectElement)s.value=selected?.concerto||'';dialog.showModal();});
-  $('#close-program')?.addEventListener('click',closeDialog); $('#cancel-program')?.addEventListener('click',closeDialog);
+  $('#close-program')?.addEventListener('click',closeDialog);$('#cancel-program')?.addEventListener('click',closeDialog);
   $('#program-form')?.addEventListener('submit',async(e)=>{e.preventDefault();if(!board)return;const c=concertById($('#program-select')?.value||''),st=$('#program-status');if(!c){st.textContent='Escolle un concerto.';return;}const used=new Set(works().map((r)=>String(r.repertorio||r.idRepertorio||'')));const ids=[...new Set((c.programa||[]).map(resolveProgramId).filter((id)=>id&&!used.has(id)))];if(!ids.length){st.textContent='Non hai obras novas dese programa.';return;}try{st.textContent=`Incluíndo ${ids.length} obras…`;const out=await apiDraft('incluírPrograma',{idsRepertorio:ids});draft=out.draft;renderWorks();$('#works-status').textContent=`✓ ${out.engadidas??ids.length} obras incluídas.`;closeDialog();}catch(err){st.textContent=`⚠ ${err instanceof Error?err.message:'Erro ao cargar programa'}`;}});
-
   $('#finalize')?.addEventListener('click',async()=>{if(!board||!draft||!selected)return;if(!window.confirm('Finalizar o ensaio e gravar definitivamente asistencia e obras nas Sheets?'))return;const btn=$('#finalize'),st=$('#finalize-status');btn.disabled=true;st.textContent='Gravando resultado definitivo nas Sheets…';try{const out=await apiDraft('finalizar');draft=out.draft;st.textContent='✓ Ensaio finalizado e gardado definitivamente.';renderWorks();renderAttendance();}catch(e){st.textContent=`⚠ ${e instanceof Error?e.message:'Erro ao finalizar'}`;}finally{btn.disabled=false;}});
-
-  $('#absence-simple')?.addEventListener('click',()=>{ $('#absence-reason-wrap').hidden=true; $('#absence-status').textContent='O aviso simple estará dispoñible cando se active o permiso persoal do coralista.'; });
-  $('#absence-justify')?.addEventListener('click',()=>{ $('#absence-reason-wrap').hidden=false; $('#absence-status').textContent=''; });
-  $('#absence-send')?.addEventListener('click',()=>{ $('#absence-status').textContent='O aviso persoal está preparado na interface; falta activar a validación segura do propio usuario na API.'; });
-
   onAuthStateChanged(auth,(user)=>{if(!user){window.location.href='/portal/';return;}void load();});
 </script>
 
 <style>
-  .private-layout{display:flex;min-height:100vh;background:#fff}.private-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,2.5rem) 4rem}.app,.page-header,.state-card{max-width:1180px}.app{display:grid;gap:1rem}.page-header{display:flex;justify-content:space-between;gap:1.5rem;align-items:flex-start;margin-bottom:1.3rem;padding-bottom:1rem;border-bottom:1px solid #e7e2de}.page-header h1{margin:.2rem 0 .35rem}.page-header p{margin:0;color:#68625e}.kicker,.summary-label{color:#6f1d2b;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.storage{display:grid;gap:.2rem;min-width:170px;padding:.8rem 1rem;border:1px solid #e4dfdb;border-radius:8px;background:#faf9f8}.storage small{color:#777}.storage strong{color:#6f1d2b}.state-card,.selector-card,.summary-card,.panel,.absence-card{border:1px solid #e5e0dc;border-radius:8px;background:#fff;box-shadow:0 2px 8px rgb(35 28 24 / 4%)}.state-card{padding:1rem}.error{color:#8b1e2d}.selector-card{display:grid;grid-template-columns:auto minmax(260px,1fr) auto;gap:.8rem;align-items:center;padding:.9rem 1rem}.selector-card label{font-weight:700}.selector-card select,.works-toolbar input,.works-toolbar select,.attendance-toolbar input,.absence-reason textarea,:global(.reason input),:global(.work-card textarea),dialog select{width:100%;padding:.62rem .72rem;border:1px solid #d8d1cc;border-radius:6px;background:#fff;font:inherit}.selector-actions{display:flex;gap:.5rem}.primary,.secondary{min-height:2.35rem;padding:.55rem .85rem;border-radius:6px;font:inherit;font-weight:700;cursor:pointer}.primary{border:1px solid #6f1d2b;background:#6f1d2b;color:#fff}.secondary{border:1px solid #d1c9c4;background:#fff;color:#514a46}.summary-card{display:flex;justify-content:space-between;gap:1.2rem;padding:1rem 1.15rem}.summary-card h2{margin:.2rem 0 0;color:#6f1d2b}.summary-meta{display:flex;align-items:center;justify-content:flex-end;gap:.55rem;flex-wrap:wrap}.summary-meta span{padding-left:.55rem;border-left:1px solid #ddd5d0;color:#5d5753}.summary-meta span:first-child{border-left:0}.panel,.absence-card{padding:1rem}.section-heading,.attendance-header{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin-bottom:1rem}.section-heading h2,.attendance-header h2,.absence-card h2{margin:.15rem 0}.section-heading strong{color:#6f1d2b}.works-toolbar{display:grid;grid-template-columns:auto minmax(180px,1fr) minmax(220px,1.2fr) auto;gap:.5rem;margin-bottom:.75rem}.works-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.status{min-height:1.1rem;margin:.35rem 0;color:#7a313d;font-size:.84rem}.absence-card{display:grid;grid-template-columns:1fr auto;gap:.8rem 1.2rem;align-items:center}.absence-card p{margin:.2rem 0 0;color:#68625e}.absence-actions{display:flex;gap:.45rem;flex-wrap:wrap}.absence-reason{grid-column:1/-1;display:grid;grid-template-columns:180px 1fr auto;gap:.6rem;align-items:center}.attendance-toolbar{display:flex;justify-content:space-between;gap:.8rem;align-items:center;margin-bottom:.8rem}.voice-tabs{display:flex;gap:.35rem;flex-wrap:wrap}.voice-tabs button{padding:.52rem .75rem;border:1px solid #d7cfca;border-radius:6px;background:#fff;color:#4f4945;font:inherit;cursor:pointer}.voice-tabs button.is-active{border-color:#6f1d2b;background:#6f1d2b;color:#fff}.attendance-toolbar input{max-width:280px}.attendance-overview{display:flex;gap:1rem;flex-wrap:wrap;padding:.65rem .8rem;margin-bottom:.8rem;border-radius:6px;background:#faf8f7;color:#5f5955}.attendance-overview strong{color:#6f1d2b}.attendance-list{display:grid;gap:1rem}
-  :global(.voice-group){display:grid;gap:.55rem}:global(.voice-group>header){display:flex;justify-content:space-between;align-items:center;padding:.25rem .1rem;border-bottom:1px solid #e5ded9}:global(.voice-group h3){margin:0;color:#6f1d2b}:global(.voice-people){display:grid;gap:.45rem}:global(.person-row){display:grid;grid-template-columns:minmax(190px,1fr) minmax(430px,auto);gap:.55rem 1rem;align-items:center;padding:.7rem .75rem;border:1px solid #e7e1dd;border-radius:7px;background:#fff}:global(.person-main){display:flex;align-items:baseline;justify-content:space-between;gap:.65rem}:global(.person-main strong){color:#302b28}:global(.person-main a){color:#6f1d2b;font-size:.78rem;text-decoration:none}:global(.attendance-buttons){display:grid;grid-template-columns:1fr 1fr 1.45fr;gap:.35rem}:global(.attendance-buttons button){min-height:2.2rem;padding:.4rem .55rem;border:1px solid #d8d0cb;border-radius:6px;background:#fff;color:#4c4642;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}:global(.attendance-buttons button.selected){border-color:#6f1d2b;background:#6f1d2b;color:#fff}:global(.reason){grid-column:1/-1;display:grid;grid-template-columns:190px 1fr;gap:.75rem;align-items:center}:global(.reason span){font-size:.8rem;font-weight:700;color:#655e5a}:global(.row-status){grid-column:1/-1;color:#8b1e2d;font-size:.78rem}
+  .private-layout{display:flex;min-height:100vh;background:#fff}.private-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,2.5rem) 4rem}.app,.page-header,.state-card{max-width:1180px}.app{display:grid;gap:1rem}.page-header{display:flex;justify-content:space-between;gap:1.5rem;align-items:flex-start;margin-bottom:1.3rem;padding-bottom:1rem;border-bottom:1px solid #e7e2de}.page-header h1{margin:.2rem 0 .35rem}.page-header p{margin:0;color:#68625e}.kicker,.summary-label{color:#6f1d2b;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.storage{display:grid;gap:.2rem;min-width:170px;padding:.8rem 1rem;border:1px solid #e4dfdb;border-radius:8px;background:#faf9f8}.storage small{color:#777}.storage strong{color:#6f1d2b}.state-card,.selector-card,.summary-card,.panel{border:1px solid #e5e0dc;border-radius:8px;background:#fff;box-shadow:0 2px 8px rgb(35 28 24 / 4%)}.state-card{padding:1rem}.error{color:#8b1e2d}.selector-card{display:grid;grid-template-columns:auto minmax(260px,1fr) auto;gap:.8rem;align-items:center;padding:.9rem 1rem}.selector-card label{font-weight:700}.selector-card select,.works-toolbar input,.works-toolbar select,.attendance-toolbar input,.analysis-filters input,.analysis-filters select,:global(.reason input),:global(.work-card textarea),dialog select{width:100%;padding:.62rem .72rem;border:1px solid #d8d1cc;border-radius:6px;background:#fff;font:inherit}.selector-actions{display:flex;gap:.5rem;flex-wrap:wrap}.primary,.secondary,.search-button{min-height:2.35rem;padding:.55rem .85rem;border-radius:6px;font:inherit;font-weight:700;cursor:pointer}.primary{border:1px solid #6f1d2b;background:#6f1d2b;color:#fff}.secondary{border:1px solid #d1c9c4;background:#fff;color:#514a46}.summary-card{display:flex;justify-content:space-between;gap:1.2rem;padding:1rem 1.15rem}.summary-card h2{margin:.2rem 0 0;color:#6f1d2b}.summary-meta{display:flex;align-items:center;justify-content:flex-end;gap:.55rem;flex-wrap:wrap}.summary-meta span{padding-left:.55rem;border-left:1px solid #ddd5d0;color:#5d5753}.summary-meta span:first-child{border-left:0}.panel{padding:1rem}.section-heading,.attendance-header{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin-bottom:1rem}.section-heading h2,.attendance-header h2{margin:.15rem 0}.attendance-header p{margin:.25rem 0 0;color:#68625e}.section-heading strong{color:#6f1d2b}.works-toolbar{display:grid;grid-template-columns:auto minmax(200px,1fr) minmax(220px,1.2fr) auto;gap:.55rem;margin-bottom:.4rem}.work-search-box{display:grid;grid-template-columns:1fr auto}.work-search-box input{border-radius:6px 0 0 6px}.search-button{border:1px solid #6f1d2b;border-left:0;border-radius:0 6px 6px 0;background:#fff;color:#6f1d2b;font-size:1.25rem;line-height:1}.search-result{min-height:1rem;margin:.15rem 0 .5rem;color:#6b625d;font-size:.8rem}.works-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.status{min-height:1.1rem;margin:.35rem 0;color:#7a313d;font-size:.84rem}.attendance-toolbar{display:flex;justify-content:space-between;gap:.8rem;align-items:center;margin-bottom:.8rem}.voice-tabs{display:flex;gap:.35rem;flex-wrap:wrap}.voice-tabs button{padding:.52rem .75rem;border:1px solid #d7cfca;border-radius:6px;background:#fff;color:#4f4945;font:inherit;cursor:pointer}.voice-tabs button.is-active{border-color:#6f1d2b;background:#6f1d2b;color:#fff}.attendance-toolbar input{max-width:280px}.attendance-overview{display:flex;gap:1rem;flex-wrap:wrap;padding:.65rem .8rem;margin-bottom:.8rem;border-radius:6px;background:#faf8f7;color:#5f5955}.attendance-overview strong{color:#6f1d2b}.attendance-list{display:grid;gap:1rem}.analysis-filters{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr)) auto;gap:.65rem;align-items:end;margin-bottom:1rem}.analysis-filters label{display:grid;gap:.35rem}.analysis-filters label span{font-size:.78rem;font-weight:700;color:#625b57}.analysis-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-bottom:1rem}.analysis-summary>div{display:grid;gap:.15rem;padding:.8rem;border:1px solid #e5dfdb;border-radius:7px;background:#faf9f8}.analysis-summary strong{color:#6f1d2b;font-size:1.35rem}.analysis-summary span{font-size:.78rem;color:#6e6762}.analysis-results{overflow-x:auto}.analysis-title{font-weight:800;color:#6f1d2b;margin-bottom:.5rem}.analysis-table{min-width:620px;border:1px solid #e3dcd7;border-radius:7px;overflow:hidden}.analysis-row{display:grid;grid-template-columns:1.1fr repeat(4,1fr);gap:.5rem;padding:.62rem .75rem;border-top:1px solid #eee8e4}.analysis-row:first-child{border-top:0}.analysis-row.head{background:#f8f5f3;font-weight:800;color:#5c5551}.analysis-row span{min-width:0}.analysis-row:has(span:nth-child(3):last-child){grid-template-columns:1fr 1.3fr 2fr}
+  :global(.voice-group){display:grid;gap:.55rem}:global(.voice-group>header){display:flex;justify-content:space-between;align-items:center;padding:.25rem .1rem;border-bottom:1px solid #e5ded9}:global(.voice-group h3){margin:0;color:#6f1d2b}:global(.voice-people){display:grid;gap:.45rem}:global(.attendee-names){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.35rem .8rem}:global(.attendee-names span){padding:.55rem .65rem;border:1px solid #e8e2de;border-radius:6px;background:#fff}:global(.person-row){display:grid;grid-template-columns:minmax(190px,1fr) minmax(430px,auto);gap:.55rem 1rem;align-items:center;padding:.7rem .75rem;border:1px solid #e7e1dd;border-radius:7px;background:#fff}:global(.person-main strong){color:#302b28}:global(.attendance-buttons){display:grid;grid-template-columns:1fr 1fr 1.45fr;gap:.35rem}:global(.attendance-buttons button){min-height:2.2rem;padding:.4rem .55rem;border:1px solid #d8d0cb;border-radius:6px;background:#fff;color:#4c4642;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}:global(.attendance-buttons button.selected){border-color:#6f1d2b;background:#6f1d2b;color:#fff}:global(.reason){grid-column:1/-1;display:grid;grid-template-columns:190px 1fr;gap:.75rem;align-items:center}:global(.reason span){font-size:.8rem;font-weight:700;color:#655e5a}:global(.row-status){grid-column:1/-1;color:#8b1e2d;font-size:.78rem}
   :global(.work-card){position:relative;display:grid;gap:.65rem;padding:.9rem;border:1px solid #e5dfdb;border-radius:8px;background:#fff}:global(.work-card:nth-child(odd)){border-left:3px solid #6f1d2b}:global(.work-card header){display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:start}:global(.work-card header>div){display:grid;gap:.15rem}:global(.work-number){display:grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;background:#f2ecec;color:#6f1d2b;font-weight:800}:global(.work-title){color:#24211f;font-weight:800;text-decoration:none}:global(.work-title:hover){color:#6f1d2b;text-decoration:underline}:global(.work-card small){color:#777}:global(.remove-work){border:0;background:transparent;color:#786e68;font-size:1.35rem;cursor:pointer}:global(.work-card label){display:grid;gap:.3rem}:global(.work-card label span){font-size:.8rem;font-weight:700;color:#635d59}:global(.work-card footer){display:flex;justify-content:flex-end;align-items:center;gap:.6rem}:global(.work-status){margin-right:auto;color:#6f1d2b;font-size:.78rem}:global(.work-observations){margin:0;color:#625b57;font-size:.88rem}
   dialog{width:min(520px,calc(100vw - 2rem));padding:0;border:0;border-radius:10px;box-shadow:0 24px 80px rgb(0 0 0 / 24%)}dialog::backdrop{background:rgb(0 0 0 / 35%)}dialog form{display:grid;gap:1rem;padding:1.1rem}dialog header,dialog footer{display:flex;justify-content:space-between;align-items:center;gap:.7rem}dialog h2{margin:0}dialog header button{border:0;background:transparent;font-size:1.4rem;cursor:pointer}dialog label{display:grid;gap:.35rem;font-weight:700}
-  @media(max-width:900px){.private-layout{display:block}.private-main{padding:1rem 1rem 3rem}.page-header,.summary-card{display:grid}.storage{min-width:0}.selector-card{grid-template-columns:1fr}.selector-actions{justify-content:flex-start}.works-toolbar{grid-template-columns:1fr 1fr}.works-grid{grid-template-columns:1fr}.absence-card{grid-template-columns:1fr}.absence-reason{grid-template-columns:1fr}.attendance-toolbar{display:grid}.attendance-toolbar input{max-width:none}:global(.person-row){grid-template-columns:1fr}:global(.attendance-buttons){grid-template-columns:1fr}:global(.reason){grid-template-columns:1fr}.summary-meta{justify-content:flex-start}.summary-meta span:first-child{padding-left:0}}
-  @media(max-width:620px){.works-toolbar{grid-template-columns:1fr}.selector-actions,.absence-actions{display:grid}.selector-actions button,.absence-actions button{width:100%}.voice-tabs{display:grid;grid-template-columns:repeat(2,1fr)}.voice-tabs button:first-child{grid-column:1/-1}.attendance-overview{display:grid;grid-template-columns:1fr 1fr}.summary-card{padding:.9rem}.panel,.absence-card{padding:.85rem}}
+  @media(max-width:1000px){.analysis-filters{grid-template-columns:repeat(3,1fr)}.analysis-summary{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:900px){.private-layout{display:block}.private-main{padding:1rem 1rem 3rem}.page-header,.summary-card{display:grid}.storage{min-width:0}.selector-card{grid-template-columns:1fr}.selector-actions{justify-content:flex-start}.works-toolbar{grid-template-columns:1fr 1fr}.works-grid{grid-template-columns:1fr}.attendance-toolbar{display:grid}.attendance-toolbar input{max-width:none}:global(.person-row){grid-template-columns:1fr}:global(.attendance-buttons){grid-template-columns:1fr}:global(.reason){grid-template-columns:1fr}.summary-meta{justify-content:flex-start}.summary-meta span:first-child{padding-left:0}}
+  @media(max-width:620px){.works-toolbar,.analysis-filters{grid-template-columns:1fr}.selector-actions{display:grid}.selector-actions button{width:100%}.voice-tabs{display:grid;grid-template-columns:repeat(2,1fr)}.voice-tabs button:first-child{grid-column:1/-1}.attendance-overview{display:grid;grid-template-columns:1fr 1fr}.summary-card{padding:.9rem}.panel{padding:.85rem}.analysis-summary{grid-template-columns:repeat(2,1fr)}:global(.attendee-names){grid-template-columns:1fr}}
 </style>
