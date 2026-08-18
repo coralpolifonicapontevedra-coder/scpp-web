@@ -1,0 +1,14 @@
+const TIMEOUT_FIREBASE_MS=8000;
+const PERFIS_R2_KEY='persoas/cache/perfis.json';
+const PERFIL_R2_PREFIX='persoas/cache/perfis/';
+const DRAFT_PREFIX='ensaios/borradores-v1/';
+const clean=v=>String(v==null?'':v).trim();
+const json=(s,b)=>new Response(JSON.stringify(b),{status:s,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
+async function fetchLimit(url,options,ms){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{return await fetch(url,{...options,signal:c.signal})}finally{clearTimeout(t)}}
+async function verify(idToken,apiKey){const token=clean(idToken);if(!token)return null;const r=await fetchLimit(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:token})},TIMEOUT_FIREBASE_MS);if(!r.ok)return null;const u=(await r.json())?.users?.[0];return u?.email&&u.emailVerified===true?{email:clean(u.email).toLowerCase()}:null}
+async function sha(v){const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(clean(v).toLowerCase()));return Array.from(new Uint8Array(d),b=>b.toString(16).padStart(2,'0')).join('')}
+async function read(env,key){const o=await env.R2_PRIVADO.get(key);if(!o)return null;try{return await o.json()}catch{return null}}
+const mail=p=>clean(p?.correoElectronico||p?.correo||p?.email).toLowerCase();
+function active(p){const voz=clean(p?.voz||p?.Voz),estado=clean(p?.activo??p?.Activo??p?.estado??p?.Estado).toLowerCase();return Boolean(voz)&&!['baixa','baja','inactivo','inactiva','false','0'].includes(estado)}
+async function profile(env,email){const i=await read(env,`${PERFIL_R2_PREFIX}${await sha(email)}.json`);if(i?.payload?.ok&&i.payload.perfil)return i.payload.perfil;const idx=await read(env,PERFIS_R2_KEY);return Array.isArray(idx?.persoas)?idx.persoas.find(p=>mail(p)===email)||null:null}
+export async function onRequest({request,env}){if(request.method!=='POST')return json(405,{ok:false,erro:'Método non permitido.'});let b;try{b=await request.json()}catch{return json(400,{ok:false,erro:'Solicitude non válida.'})}const u=await verify(b.idToken,env.FIREBASE_API_KEY).catch(()=>null);if(!u)return json(401,{ok:false,erro:'A identificación non é válida ou caducou.'});const p=await profile(env,u.email);if(!p||!active(p))return json(403,{ok:false,erro:'Usuario non autorizado.'});const id=clean(b.idEnsaio);if(!id)return json(400,{ok:false,erro:'Falta identificar o ensaio.'});const draft=await read(env,`${DRAFT_PREFIX}${await sha(id)}.json`);if(!draft||draft.idEnsaio!==id||!Array.isArray(draft.repertorio))return json(200,{ok:true,draft:{version:1,idEnsaio:id,repertorio:[],asistencias:[]},almacen:'R2'});return json(200,{ok:true,draft:{version:1,idEnsaio:id,updatedAt:draft.updatedAt,repertorio:draft.repertorio,asistencias:[]},almacen:'R2'});}
