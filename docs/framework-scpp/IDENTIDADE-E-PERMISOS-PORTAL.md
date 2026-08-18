@@ -24,7 +24,7 @@ Ocultar un botón non é unha medida de autorización. Os permisos deben comprob
 
 Unha petición manipulada manualmente debe fallar se tenta superar estes permisos.
 
-## Ensaios V2
+## Ensaios
 
 ### Acceso dos coralistas
 
@@ -76,7 +76,29 @@ O índice de administración de Persoas usa actualmente os campos normalizados `
 - Non expoñer teléfonos, correos ou outros datos persoais no módulo de Ensaios.
 - Cambios visuais e cambios de permisos deben revisarse por separado para evitar regresións.
 
-## Incidencia resolta o 18/08/2026
+## Paridade entre Preview e produción
+
+Unha Preview correcta non garante por si soa que o mesmo código se comporte igual ao ocupar a ruta definitiva de produción. Antes de substituír unha páxina existente débense revisar tamén todos os comportamentos asociados especificamente á URL de produción.
+
+Comprobación obrigatoria antes de promover unha nova páxina:
+
+1. Revisar `middleware` de Cloudflare/Pages e calquera regra condicionada por `pathname`.
+2. Buscar scripts JavaScript, estilos, HTMLRewriter, redireccións ou compatibilidade histórica que se inxecten só na ruta antiga.
+3. Comparar os recursos cargados pola Preview e pola ruta definitiva.
+4. Retirar ou adaptar expresamente os parches da implementación anterior antes de activar a nova versión.
+5. Facer unha proba funcional na URL real de produción despois do despregamento, aínda que a Preview xa fose aprobada.
+
+### Incidencia de Ensaios ao pasar a produción — 18/08/2026
+
+A nova páxina de Ensaios funcionaba correctamente na Preview `/portal/ensaios-v2/`, pero ao substituír a páxina antiga en `/portal/ensaios/` o control de asistencia deixou de permitir seleccionar correctamente persoas e aparecían estados previos de maneira incorrecta.
+
+A causa non estaba na nova páxina. `functions/portal/_middleware.js` conservaba unha regra específica para `/portal/ensaios` que inxectaba scripts e estilos da implementación antiga (`ensaios-borrador-r2.js`, `ensaios-eliminar-ensaio.js` e a UI antiga). Esa inxección non se executaba na ruta de Preview e, por iso, o fallo só apareceu en produción.
+
+A solución foi retirar da ruta definitiva de Ensaios esa inxección antiga, mantendo intactas as demais funcións do middleware. Tras o novo despregamento, produción recuperou o mesmo comportamento aprobado en Preview.
+
+Regra derivada: **cando Preview funciona e produción falla, comprobar primeiro middleware, scripts, estilos e regras ligadas á URL de produción antes de modificar o módulo que xa foi validado.**
+
+## Incidencia de identidade resolta o 18/08/2026
 
 O aviso persoal devolvía `Non foi posible identificar o teu rexistro de coralista` malia existir unha sesión válida. A causa era que `ensaios-aviso.js` buscaba o correo principalmente como `correoElectronico`, mentres que o índice `persoas/cache/perfis.json` xerado por Administración Persoas utiliza `correo`. Ademais, o perfil individual pode non incluír o Id_Persoa.
 
@@ -86,7 +108,7 @@ A corrección foi:
 - aceptar `idPersoa`, `id`, `rowId`, `Row ID` e variantes compatibles;
 - se o perfil individual non contén identificador persoal, continuar a resolución no índice de Persoas en vez de dar por concluída a busca.
 
-Esta corrección non modifica o deseño de Ensaios V2.
+Esta corrección non modifica o deseño de Ensaios.
 
 ## Mantemento futuro
 
