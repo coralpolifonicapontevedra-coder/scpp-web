@@ -1,0 +1,244 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Ensaios V2" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="ensaios" logoutId="ensaios-v2-logout" />
+
+    <main class="private-main">
+      <header class="private-page-header">
+        <div>
+          <span class="section-kicker">Portal do Coralista</span>
+          <h1>Ensaios</h1>
+          <p>Control do ensaio en borrador R2. As Sheets só se actualizan ao finalizar.</p>
+        </div>
+        <div class="account-card"><small>Almacenamento de traballo</small><strong>R2 privado</strong></div>
+      </header>
+
+      <section id="loading" class="portal-state">Cargando os ensaios…</section>
+      <section id="error" class="portal-state error-state" hidden></section>
+
+      <section id="app" class="ensaios-app" hidden>
+        <section class="selector-card">
+          <label for="ensaio-select">Ensaio</label>
+          <select id="ensaio-select"></select>
+        </section>
+
+        <article id="ensaio-resumo" class="summary-card"></article>
+
+        <nav class="work-tabs" aria-label="Traballo do ensaio">
+          <button type="button" class="is-active" data-tab="asistencia">Asistencia</button>
+          <button type="button" data-tab="obras">Obras a estudar</button>
+        </nav>
+
+        <section id="panel-asistencia" class="work-panel">
+          <div class="voice-tabs" aria-label="Cordas">
+            <button type="button" class="is-active" data-voice="Soprano">Sopranos</button>
+            <button type="button" data-voice="Contralto">Contraltos</button>
+            <button type="button" data-voice="Tenor">Tenores</button>
+            <button type="button" data-voice="Baixo">Baixos</button>
+          </div>
+          <header class="section-heading">
+            <div><span>Control de presenza</span><h2 id="voice-title">Sopranos</h2></div>
+            <strong id="attendance-summary"></strong>
+          </header>
+          <div id="attendance-list" class="attendance-list"></div>
+        </section>
+
+        <section id="panel-obras" class="work-panel" hidden>
+          <header class="section-heading">
+            <div><span>Preparación musical</span><h2>Obras a estudar</h2></div>
+            <strong id="works-summary"></strong>
+          </header>
+
+          <div class="works-toolbar">
+            <button id="load-program" type="button" class="secondary-button">Cargar desde programa</button>
+            <div class="work-picker">
+              <input id="work-search" type="search" placeholder="Buscar obra ou compositor…" autocomplete="off" />
+              <select id="work-select"><option value="">Escolle unha obra…</option></select>
+              <button id="add-work" type="button" class="primary-button">Engadir obra</button>
+            </div>
+          </div>
+          <p id="works-status" class="status-line" aria-live="polite"></p>
+          <div id="works-list" class="works-grid"></div>
+        </section>
+
+        <section class="finalize-card">
+          <div><strong>Finalizar ensaio</strong><p>Única acción que grava definitivamente asistencia e obras nas Sheets.</p></div>
+          <button id="finalize" type="button" class="primary-button">Finalizar ensaio</button>
+          <p id="finalize-status" class="status-line" aria-live="polite"></p>
+        </section>
+      </section>
+
+      <dialog id="program-dialog" class="rehearsal-dialog">
+        <form id="program-form" class="dialog-form">
+          <header><div><span class="section-kicker">Obras a estudar</span><h2>Cargar desde programa</h2></div><button id="close-program" type="button" class="dialog-close" aria-label="Pechar">×</button></header>
+          <label>Concerto<select id="program-select"><option value="">Escolle un concerto…</option></select></label>
+          <p id="program-status" class="status-line"></p>
+          <footer><button id="cancel-program" type="button" class="secondary-button">Cancelar</button><button type="submit" class="primary-button">Incluír programa</button></footer>
+        </form>
+      </dialog>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const $ = (s) => document.querySelector(s);
+  const esc = (v='') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const norm = (v='') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  const truthy = (v) => v === true || ['true','1','si','sí','yes','x'].includes(norm(v));
+  const rid = (r) => String(r?.idEnsaio || r?.id || '').trim();
+  const pid = (p) => String(p?.idPersoa || p?.id || '').trim();
+  const wid = (w) => String(w?.idRepertorio || w?.id || '').trim();
+  const first = (p) => String(p?.nome || p?.Nome || '').trim();
+  const surname1 = (p) => String(p?.primeiroApelido || p?.apelido1 || p?.Apelido1 || p?.primeiro_apelido || '').trim();
+  const surname2 = (p) => String(p?.segundoApelido || p?.apelido2 || p?.Apelido2 || p?.segundo_apelido || '').trim();
+  const fullName = (p) => String(p?.nomeCompleto || p?.NomeCompleto || [first(p),surname1(p),surname2(p)].filter(Boolean).join(' ')).trim();
+  const surnameKey = (p) => [surname1(p),surname2(p),first(p),fullName(p)].filter(Boolean).join('|');
+  const sortPeople = (a,b) => surnameKey(a).localeCompare(surnameKey(b),'gl',{sensitivity:'base',numeric:true});
+
+  const toDate = (v='') => {
+    const t=String(v).trim(); if(!t) return null;
+    const iso=/^\d{4}-\d{2}-\d{2}/.test(t)?t.slice(0,10):t.split(/[\/-]/).reverse().join('-');
+    const d=new Date(`${iso}T12:00:00`); return Number.isNaN(d.getTime())?null:d;
+  };
+  const fmtDate = (v) => { const d=toDate(v); return d ? new Intl.DateTimeFormat('gl-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d) : String(v||''); };
+  const fmtTime = (v='') => String(v).trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/,'$1');
+
+  let payload=null, selected=null, draft=null, voice='Soprano', loadSeq=0;
+
+  async function call(url, accion, extra={}) {
+    const user=auth.currentUser; if(!user) throw new Error('A sesión non está dispoñible.');
+    const idToken=await user.getIdToken();
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,accion,...extra})});
+    const out=await res.json().catch(()=>null);
+    if(!res.ok || !out?.ok) throw new Error(out?.erro || `Erro ${res.status}`);
+    return out;
+  }
+  const apiMain=(accion,extra={})=>call('/api/ensaios',accion,extra);
+  const apiDraft=(accion,extra={})=>call('/api/ensaios-borrador',accion,{idEnsaio:rid(selected),...extra});
+
+  function rehearsals(){
+    const today=new Date(); today.setHours(0,0,0,0); const map=new Map();
+    (payload?.ensaios||[]).forEach(r=>{const id=rid(r); if(id&&!map.has(id)) map.set(id,r);});
+    return [...map.values()].filter(r=>!truthy(r.cancelado)&&(!toDate(r.data)||toDate(r.data)>=today)).sort((a,b)=>(toDate(a.data)?.getTime()||0)-(toDate(b.data)?.getTime()||0));
+  }
+  function renderSelector(){
+    const rows=rehearsals(); if(!selected) selected=rows[0]||null;
+    $('#ensaio-select').innerHTML=rows.map(r=>`<option value="${esc(rid(r))}">${esc(fmtDate(r.data))}${r.horaInicio?` · ${esc(fmtTime(r.horaInicio))}`:''}${r.lugar?` · ${esc(r.lugar)}`:''}</option>`).join('');
+    if(selected) $('#ensaio-select').value=rid(selected);
+  }
+  function renderSummary(){
+    const box=$('#ensaio-resumo'); if(!selected){box.innerHTML='<p>Non hai próximos ensaios.</p>';return;}
+    const horario=[fmtTime(selected.horaInicio),selected.horaFin?fmtTime(selected.horaFin):''].filter(Boolean).join(' – ');
+    box.innerHTML=`<div><span>Ensaio seleccionado</span><h2>${esc(fmtDate(selected.data))}</h2></div><div class="summary-meta"><strong>${esc(selected.tipoEnsaio||'Ensaio')}</strong><span>${esc([horario,selected.lugar].filter(Boolean).join(' · '))}</span>${selected.concertoNome?`<span>${esc(selected.concertoNome)}</span>`:''}</div>`;
+  }
+  async function loadDraft(){
+    if(!selected)return; const seq=++loadSeq; draft=null; renderAttendance(); renderWorks();
+    try{const out=await apiDraft('obter'); if(seq!==loadSeq)return; draft=out.draft; renderAttendance();renderWorks();}
+    catch(e){if(seq!==loadSeq)return; $('#finalize-status').textContent=`⚠ ${e instanceof Error?e.message:'Non se puido cargar o borrador.'}`;}
+  }
+
+  function attendanceMap(){return new Map((draft?.asistencias||[]).map(a=>[String(a.persoa||a.idPersoa||''),a]));}
+  function kind(a={}){const s=norm(a.estadoAsistencia); if(s==='asiste')return'asiste'; if(s==='non asiste'&&truthy(a.xustificada))return'xustificada'; if(s==='non asiste')return'non'; return'';}
+  function peopleForVoice(){return (payload?.persoas||[]).filter(p=>norm(p.voz)===norm(voice)).sort(sortPeople);}
+  function renderAttendance(){
+    $('#voice-title').textContent=voice==='Baixo'?'Baixos':`${voice}s`;
+    const list=$('#attendance-list');
+    if(!draft){$('#attendance-summary').textContent='Cargando…';list.innerHTML='<p class="empty-state">Cargando borrador R2…</p>';return;}
+    const map=attendanceMap(), people=peopleForVoice();
+    const present=people.filter(p=>kind(map.get(pid(p)))==='asiste').length;
+    const marked=people.filter(p=>kind(map.get(pid(p)))).length;
+    $('#attendance-summary').textContent=`${present} asisten · ${marked}/${people.length} rexistrados`;
+    list.innerHTML=people.map(p=>{
+      const id=pid(p), a=map.get(id)||{}, k=kind(a);
+      return `<article class="person-card" data-person="${esc(id)}">
+        <div class="person-name"><strong>${esc(fullName(p))}</strong><small>${esc([surname1(p),surname2(p)].filter(Boolean).join(' '))}</small></div>
+        <div class="attendance-buttons" role="group" aria-label="Asistencia de ${esc(fullName(p))}">
+          <button type="button" data-kind="asiste" class="${k==='asiste'?'is-selected':''}">Asiste</button>
+          <button type="button" data-kind="non" class="${k==='non'?'is-selected':''}">Non asiste</button>
+          <button type="button" data-kind="xustificada" class="${k==='xustificada'?'is-selected':''}">Non asiste con xustificación</button>
+        </div>
+        ${k==='xustificada'?`<label class="reason-field"><span>Motivo da xustificación</span><input type="text" data-reason maxlength="240" value="${esc(a.motivo||'')}" placeholder="Indica o motivo…" /></label>`:''}
+        <span class="row-status" aria-live="polite"></span>
+      </article>`;
+    }).join('')||'<p class="empty-state">Non hai persoas nesta corda.</p>';
+  }
+
+  async function saveAttendance(id,k,motivo){
+    const map=attendanceMap(), current=map.get(id)||{};
+    const values=k==='asiste'?{estadoAsistencia:'Asiste',xustificada:false,motivo:''}:k==='xustificada'?{estadoAsistencia:'Non asiste',xustificada:true,motivo:String(motivo??current.motivo??'')}:{estadoAsistencia:'Non asiste',xustificada:false,motivo:''};
+    const previous=structuredClone(draft);
+    map.set(id,{...current,ensaio:rid(selected),persoa:id,...values}); draft={...draft,asistencias:[...map.values()]}; renderAttendance();
+    try{const out=await apiDraft('gardarAsistencia',{idPersoa:id,...values,observacions:String(current.observacions||'')}); draft=out.draft; renderAttendance();}
+    catch(e){draft=previous;renderAttendance();const st=document.querySelector(`.person-card[data-person="${CSS.escape(id)}"] .row-status`);if(st)st.textContent=`⚠ ${e instanceof Error?e.message:'Erro ao gardar'}`;}
+  }
+
+  function workById(id){return (payload?.repertorio||[]).find(w=>wid(w)===String(id||''))||null;}
+  function works(){return Array.isArray(draft?.repertorio)?draft.repertorio:[];}
+  function renderWorkPicker(){
+    const q=norm($('#work-search')?.value||''), used=new Set(works().map(r=>String(r.repertorio||r.idRepertorio||'')));
+    const options=(payload?.repertorio||[]).filter(w=>!used.has(wid(w))&&(!q||norm([w.nomeObra,w.nome,w.compositor].join(' ')).includes(q))).sort((a,b)=>String(a.nomeObra||a.nome||'').localeCompare(String(b.nomeObra||b.nome||''),'gl',{sensitivity:'base'})).slice(0,100);
+    $('#work-select').innerHTML='<option value="">Escolle unha obra…</option>'+options.map(w=>`<option value="${esc(wid(w))}">${esc([w.nomeObra||w.nome,w.compositor].filter(Boolean).join(' — '))}</option>`).join('');
+  }
+  function renderWorks(){
+    const list=$('#works-list'); if(!draft){$('#works-summary').textContent='Cargando…';list.innerHTML='<p class="empty-state">Cargando borrador R2…</p>';return;}
+    const rows=[...works()].sort((a,b)=>Number(a.orde||999)-Number(b.orde||999)); $('#works-summary').textContent=`${rows.length} obras`;
+    list.innerHTML=rows.map((r,i)=>{const id=String(r.repertorio||r.idRepertorio||''),w=workById(id)||{};return `<article class="work-card" data-work="${esc(id)}"><header><span class="work-number">${i+1}</span><div><strong>${esc(w.nomeObra||w.nome||id)}</strong>${w.compositor?`<small>${esc(w.compositor)}</small>`:''}</div><button type="button" class="remove-work" aria-label="Eliminar obra">×</button></header><label><span>Observacións</span><textarea class="work-notes" rows="2">${esc(r.observacions||'')}</textarea></label><footer><span class="work-status"></span><button type="button" class="save-work secondary-button">Gardar</button></footer></article>`;}).join('')||'<p class="empty-state">Aínda non hai obras neste ensaio.</p>';
+    renderWorkPicker();
+  }
+  function concertById(id){return (payload?.concertos||[]).find(c=>String(c.id||'')===String(id||''))||null;}
+  function resolveProgramId(item){if(item?.idRepertorio&&workById(item.idRepertorio))return String(item.idRepertorio);const target=norm(item?.obra||'');if(!target)return'';const exact=(payload?.repertorio||[]).find(w=>norm(w.nomeObra||w.nome||'')===target);return exact?wid(exact):'';}
+  function fillPrograms(){const rows=[...(payload?.concertos||[])].sort((a,b)=>String(a.data||'').localeCompare(String(b.data||'')));$('#program-select').innerHTML='<option value="">Escolle un concerto…</option>'+rows.map(c=>`<option value="${esc(c.id||'')}">${esc([c.data,c.nome].filter(Boolean).join(' · '))}</option>`).join('');}
+
+  async function load(){
+    $('#loading').hidden=false;$('#error').hidden=true;$('#app').hidden=true;
+    try{payload=await apiMain('listarEnsaiosPortal');selected=rehearsals()[0]||null;renderSelector();renderSummary();fillPrograms();$('#loading').hidden=true;$('#app').hidden=false;await loadDraft();}
+    catch(e){$('#loading').hidden=true;$('#error').hidden=false;$('#error').textContent=e instanceof Error?e.message:'Non foi posible cargar os ensaios.';}
+  }
+
+  $('#ensaio-select')?.addEventListener('change',e=>{selected=rehearsals().find(r=>rid(r)===String(e.target?.value||''))||null;voice='Soprano';document.querySelectorAll('[data-voice]').forEach(b=>b.classList.toggle('is-active',b.dataset.voice==='Soprano'));renderSummary();void loadDraft();});
+  $('#work-search')?.addEventListener('input',renderWorkPicker);
+
+  document.addEventListener('click',async e=>{
+    const t=e.target;if(!(t instanceof HTMLElement))return;
+    const tab=t.closest('[data-tab]');if(tab){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('is-active',b===tab));$('#panel-asistencia').hidden=tab.dataset.tab!=='asistencia';$('#panel-obras').hidden=tab.dataset.tab!=='obras';return;}
+    const vb=t.closest('[data-voice]');if(vb){voice=vb.dataset.voice||'Soprano';document.querySelectorAll('[data-voice]').forEach(b=>b.classList.toggle('is-active',b===vb));renderAttendance();return;}
+    const ab=t.closest('[data-kind]');if(ab){const row=ab.closest('.person-card');if(!row||!draft)return;await saveAttendance(String(row.dataset.person||''),String(ab.dataset.kind||''));return;}
+    const rm=t.closest('.remove-work');if(rm){const row=rm.closest('.work-card'),id=String(row?.dataset.work||'');if(!id||!draft)return;const prev=structuredClone(draft);draft={...draft,repertorio:draft.repertorio.filter(r=>String(r.repertorio||r.idRepertorio||'')!==id)};renderWorks();try{const out=await apiDraft('eliminarObra',{idRepertorio:id});draft=out.draft;renderWorks();}catch(err){draft=prev;renderWorks();$('#works-status').textContent=`⚠ ${err instanceof Error?err.message:'Erro ao eliminar'}`;}return;}
+    const sw=t.closest('.save-work');if(sw){const row=sw.closest('.work-card'),id=String(row?.dataset.work||''),st=row?.querySelector('.work-status');if(!row||!id||!draft)return;if(st)st.textContent='Gardando…';try{const old=works().find(r=>String(r.repertorio||r.idRepertorio||'')===id)||{};const out=await apiDraft('gardarObra',{idRepertorio:id,orde:old.orde||1,tipoTraballo:'',desde:'',ata:'',observacions:row.querySelector('.work-notes')?.value||''});draft=out.draft;renderWorks();const fresh=document.querySelector(`.work-card[data-work="${CSS.escape(id)}"] .work-status`);if(fresh)fresh.textContent='✓ Gardado';}catch(err){if(st)st.textContent=`⚠ ${err instanceof Error?err.message:'Erro ao gardar'}`;}return;}
+  });
+
+  document.addEventListener('change',async e=>{const input=e.target;if(!(input instanceof HTMLInputElement)||!input.matches('[data-reason]'))return;const row=input.closest('.person-card');if(!row||!draft)return;await saveAttendance(String(row.dataset.person||''),'xustificada',input.value);});
+
+  $('#add-work')?.addEventListener('click',async()=>{const id=$('#work-select')?.value||'',st=$('#works-status');if(!id){st.textContent='Escolle unha obra.';return;}try{st.textContent='Engadindo ao borrador R2…';const out=await apiDraft('gardarObra',{idRepertorio:id,orde:(draft?.repertorio?.length||0)+1,tipoTraballo:'',desde:'',ata:'',observacions:''});draft=out.draft;st.textContent='✓ Obra engadida.';renderWorks();}catch(e){st.textContent=`⚠ ${e instanceof Error?e.message:'Erro ao engadir'}`;}});
+
+  const dialog=$('#program-dialog');const closeDialog=()=>{if(dialog instanceof HTMLDialogElement)dialog.close();$('#program-status').textContent='';};
+  $('#load-program')?.addEventListener('click',()=>{if(!(dialog instanceof HTMLDialogElement))return;const s=$('#program-select');if(s instanceof HTMLSelectElement)s.value=selected?.concerto||'';dialog.showModal();});$('#close-program')?.addEventListener('click',closeDialog);$('#cancel-program')?.addEventListener('click',closeDialog);
+  $('#program-form')?.addEventListener('submit',async e=>{e.preventDefault();const c=concertById($('#program-select')?.value||''),st=$('#program-status');if(!c){st.textContent='Escolle un concerto.';return;}const used=new Set(works().map(r=>String(r.repertorio||r.idRepertorio||'')));const ids=[...new Set((c.programa||[]).map(resolveProgramId).filter(id=>id&&!used.has(id)))];if(!ids.length){st.textContent='Non hai obras novas dese programa.';return;}try{st.textContent=`Incluíndo ${ids.length} obras…`;const out=await apiDraft('incluírPrograma',{idsRepertorio:ids});draft=out.draft;renderWorks();$('#works-status').textContent=`✓ ${out.engadidas??ids.length} obras incluídas.`;closeDialog();}catch(err){st.textContent=`⚠ ${err instanceof Error?err.message:'Erro ao cargar programa'}`;}});
+
+  $('#finalize')?.addEventListener('click',async()=>{if(!draft||!selected)return;const btn=$('#finalize'),st=$('#finalize-status');if(!window.confirm('Finalizar o ensaio e gravar definitivamente asistencia e obras nas Sheets?'))return;btn.disabled=true;st.textContent='Gravando resultado definitivo nas Sheets…';try{const out=await apiDraft('finalizar');draft=out.draft;st.textContent='✓ Ensaio finalizado e gardado definitivamente.';renderAttendance();renderWorks();}catch(e){st.textContent=`⚠ ${e instanceof Error?e.message:'Erro ao finalizar'}`;}finally{btn.disabled=false;}});
+
+  onAuthStateChanged(auth,user=>{if(!user){window.location.href='/portal/';return;}void load();});
+</script>
+
+<style>
+  .private-layout{display:flex;min-height:100vh;background:#fff}.private-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,2.4rem) 4rem}.ensaios-app{display:grid;gap:1rem;max-width:1180px}.private-page-header{display:flex;justify-content:space-between;gap:1.5rem;align-items:flex-start;max-width:1180px;margin:0 0 1.4rem;padding-bottom:1.1rem;border-bottom:1px solid #e7e3df}.section-kicker,.section-heading span,.summary-card>div>span{color:#6f1d2b;font-size:.73rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.private-page-header h1,.section-heading h2,.summary-card h2{margin:.2rem 0 .35rem;color:#24211f}.private-page-header p,.summary-card p,.finalize-card p{margin:0;color:#68625e}.account-card{display:grid;gap:.15rem;min-width:170px;padding:.8rem 1rem;border:1px solid #e4dfdb;border-radius:8px;background:#faf9f8}.account-card small{color:#777}.account-card strong{color:#6f1d2b}.portal-state,.selector-card,.summary-card,.work-panel,.finalize-card{border:1px solid #e5e0dc;border-radius:8px;background:#fff;box-shadow:0 2px 8px rgb(35 28 24 / 4%)}.portal-state{max-width:1180px;padding:1rem}.error-state{color:#8b1e2d}.selector-card{display:flex;align-items:center;gap:1rem;padding:.9rem 1rem}.selector-card label{font-weight:700;color:#393431}.selector-card select{min-width:min(100%,460px);padding:.62rem .72rem;border:1px solid #d8d1cc;border-radius:6px;background:#fff}.summary-card{display:flex;justify-content:space-between;gap:1rem;padding:1rem 1.15rem}.summary-meta{display:grid;align-content:center;gap:.25rem;text-align:right;color:#5f5955}.work-tabs,.voice-tabs{display:flex;gap:.35rem;flex-wrap:wrap}.work-tabs button,.voice-tabs button{border:1px solid #d8d0cc;border-radius:6px;background:#fff;color:#4a4541;padding:.58rem .82rem;font:inherit;cursor:pointer}.work-tabs button.is-active,.voice-tabs button.is-active{border-color:#6f1d2b;background:#6f1d2b;color:#fff}.work-panel{padding:1rem}.section-heading{display:flex;justify-content:space-between;align-items:end;gap:1rem;margin:.9rem 0 1rem}.section-heading h2{font-size:1.28rem}.attendance-list{display:grid;gap:.55rem}.person-card{display:grid;grid-template-columns:minmax(180px,1fr) minmax(420px,auto);gap:.65rem 1rem;align-items:center;padding:.72rem .8rem;border:1px solid #e8e3df;border-radius:7px;background:#fff}.person-name{display:grid;gap:.1rem}.person-name strong{color:#2e2a27}.person-name small{color:#837c77;font-size:.76rem}.attendance-buttons{display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:.35rem}.attendance-buttons button{min-height:2.35rem;padding:.45rem .55rem;border:1px solid #d9d1cd;border-radius:6px;background:#fff;color:#4a4541;font:inherit;font-size:.82rem;font-weight:700;cursor:pointer}.attendance-buttons button.is-selected{border-color:#6f1d2b;background:#6f1d2b;color:#fff}.reason-field{grid-column:1/-1;display:grid;grid-template-columns:180px 1fr;gap:.75rem;align-items:center;padding-top:.2rem}.reason-field span{font-size:.8rem;font-weight:700;color:#665f5a}.reason-field input,.work-picker input,.work-picker select,.work-card textarea,.dialog-form select{width:100%;padding:.6rem .68rem;border:1px solid #d8d1cc;border-radius:6px;background:#fff;font:inherit}.row-status{grid-column:1/-1;color:#8b1e2d;font-size:.78rem}.works-toolbar{display:grid;grid-template-columns:auto 1fr;gap:.7rem;align-items:end;margin-bottom:.7rem}.work-picker{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.3fr) auto;gap:.45rem}.primary-button,.secondary-button{min-height:2.35rem;padding:.55rem .85rem;border-radius:6px;font:inherit;font-weight:700;cursor:pointer}.primary-button{border:1px solid #6f1d2b;background:#6f1d2b;color:#fff}.secondary-button{border:1px solid #cfc6c1;background:#fff;color:#514a46}.works-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.work-card{display:grid;gap:.65rem;padding:.85rem;border:1px solid #e5dfdb;border-radius:8px;background:#fff}.work-card header{display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:start}.work-card header>div{display:grid;gap:.1rem}.work-card small{color:#777}.work-number{display:grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;background:#f2ecec;color:#6f1d2b;font-weight:800}.remove-work{border:0;background:transparent;color:#7c716b;font-size:1.35rem;cursor:pointer}.work-card label{display:grid;gap:.3rem}.work-card label span{font-size:.78rem;font-weight:700;color:#665f5a}.work-card footer{display:flex;justify-content:space-between;align-items:center}.work-status,.status-line{min-height:1.15rem;color:#6a635f;font-size:.8rem}.finalize-card{display:grid;grid-template-columns:1fr auto;gap:.75rem 1rem;align-items:center;padding:1rem 1.1rem;border-left:4px solid #6f1d2b}.finalize-card .status-line{grid-column:1/-1;margin:0}.rehearsal-dialog{width:min(560px,calc(100vw - 2rem));border:0;border-radius:9px;padding:0;box-shadow:0 18px 50px rgb(0 0 0 / 20%)}.rehearsal-dialog::backdrop{background:rgb(0 0 0 / 35%)}.dialog-form{display:grid;gap:1rem;padding:1rem}.dialog-form header,.dialog-form footer{display:flex;justify-content:space-between;gap:1rem;align-items:center}.dialog-form label{display:grid;gap:.35rem;font-weight:700}.dialog-close{border:0;background:transparent;font-size:1.5rem;cursor:pointer}.empty-state{margin:.6rem 0;color:#777}
+  @media(max-width:900px){.person-card{grid-template-columns:1fr}.reason-field{grid-template-columns:1fr}.works-toolbar{grid-template-columns:1fr}.work-picker{grid-template-columns:1fr}.works-grid{grid-template-columns:1fr}.summary-card{display:grid}.summary-meta{text-align:left}.private-page-header{display:grid}.account-card{width:max-content}}
+  @media(max-width:620px){.private-layout{display:block}.private-main{padding:1rem .8rem 3rem}.attendance-buttons{grid-template-columns:1fr}.selector-card{display:grid}.selector-card select{width:100%}.finalize-card{grid-template-columns:1fr}.finalize-card .primary-button{width:100%}}
+</style>
