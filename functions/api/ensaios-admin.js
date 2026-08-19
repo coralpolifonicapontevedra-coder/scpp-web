@@ -140,6 +140,20 @@ function ensaiosAdministracion(result) {
   }).filter((item) => item.idEnsaio).sort((a, b) => String(b.data).localeCompare(String(a.data)));
 }
 
+async function listarAdministracion(env, user) {
+  const payload = await lerEnsaiosR2(env, user);
+  if (payload) {
+    return { nivel:'Administración', ensaios:ensaiosAdministracion(payload), fonte:'R2' };
+  }
+
+  const result = await chamarAppsScript(env, user, 'listarEnsaiosAdministracionPortal');
+  return {
+    nivel:result.nivel || 'Xunta Directiva',
+    ensaios:Array.isArray(result.ensaios) ? result.ensaios : [],
+    fonte:'SHEET-REFRESH'
+  };
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') return erro(405, 'REQUEST', 'METHOD_NOT_ALLOWED', 'Método non permitido.');
@@ -161,14 +175,12 @@ export async function onRequest(context) {
     if (!adminOk) return erro(403, 'AUTH', 'FORBIDDEN', 'Usuario non autorizado para Administración.');
 
     if (accion === 'listar') {
-      const payload = await lerEnsaiosR2(env, user);
-      if (!payload) {
-        return erro(503, 'R2', 'CACHE_MISSING', 'Non hai aínda un índice de Ensaios dispoñible en R2 para esta conta.');
-      }
+      const result = await listarAdministracion(env, user);
       return json(200, {
         ok:true,
-        nivel:'Administración',
-        ensaios:ensaiosAdministracion(payload)
+        nivel:result.nivel,
+        ensaios:result.ensaios,
+        diagnostico:{ fonte:result.fonte }
       });
     }
 
