@@ -16,7 +16,9 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'comprobarAceptacion',
   'rexistrarAceptacion',
   'listarEnsaiosAdministracionPortal',
-  'actualizarEnsaioAdministracionPortal'
+  'actualizarEnsaioAdministracionPortal',
+  'listarConcertosAdministracionPortal',
+  'actualizarConcertoAdministracionPortal'
 ]);
 
 const PATRON_APPS_SCRIPT = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/;
@@ -67,8 +69,6 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const expectJson = options.expectJson === true;
   const accion = String(corpo?.accion || '').trim();
   const soPrincipal = ACCIONS_SO_PRINCIPAL.has(accion);
-  // Apps Script pode ter arranques en frío bastante lentos. As accións críticas que
-  // non admiten fallback deben ter marxe suficiente para non abortar unha operación válida.
   const timeoutTotalMs = soPrincipal ? Math.max(45000, timeoutSolicitadoMs) : timeoutSolicitadoMs;
   const principal = urlPrincipalAppsScript(env);
   const urls = soPrincipal ? (principal ? [principal] : []) : urlsAppsScript(env);
