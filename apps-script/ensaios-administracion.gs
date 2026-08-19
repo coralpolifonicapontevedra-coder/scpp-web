@@ -50,6 +50,48 @@ function permisoEnsaiosAdministracionPortal_(email) {
   return permisoEnsaiosPortal_(correo);
 }
 
+function abrirFollaEnsaiosAdministracionPortal_(spreadsheetId, nomeEsperado, propiedade) {
+  var id = String(spreadsheetId || '').trim();
+  var etiqueta = String(propiedade || 'SPREADSHEET_ID');
+  if (!id) throw new Error('Diagnóstico ' + etiqueta + ': ID baleiro');
+
+  try {
+    var ss = SpreadsheetApp.openById(id);
+    var sheet = ss.getSheetByName(nomeEsperado) || ss.getSheets()[0];
+    if (!sheet) throw new Error('non existe ningunha folla no documento');
+    return { spreadsheet: ss, sheet: sheet };
+  } catch (erro) {
+    throw new Error(
+      'Diagnóstico ' + etiqueta + ' (' + id + '): non se puido abrir a folla "' +
+      nomeEsperado + '". ' + String(erro && erro.message ? erro.message : erro)
+    );
+  }
+}
+
+function filasEnsaiosAdministracionPortal_(spreadsheetId, nomeEsperado, propiedade) {
+  var aberto = abrirFollaEnsaiosAdministracionPortal_(spreadsheetId, nomeEsperado, propiedade);
+  var sheet = aberto.sheet;
+  var values;
+  try {
+    values = sheet.getDataRange().getValues();
+  } catch (erro) {
+    throw new Error(
+      'Diagnóstico ' + propiedade + ' (' + spreadsheetId + '): o documento abriu, pero non se puideron ler os datos. ' +
+      String(erro && erro.message ? erro.message : erro)
+    );
+  }
+  if (!values.length) return { sheet: sheet, headers: [], rows: [] };
+  var headers = values[0].map(function (h) { return textoEnsaiosPortal_(h); });
+  var rows = values.slice(1).filter(function (row) {
+    return row.some(function (cell) { return textoEnsaiosPortal_(cell) !== ''; });
+  }).map(function (row, index) {
+    var item = { __row: index + 2 };
+    headers.forEach(function (header, i) { item[header] = row[i]; });
+    return item;
+  });
+  return { sheet: sheet, headers: headers, rows: rows };
+}
+
 function listarEnsaiosAdministracionPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
   var permiso = permisoEnsaiosAdministracionPortal_(email);
@@ -58,9 +100,9 @@ function listarEnsaiosAdministracionPortal_(datos) {
   }
 
   var cfg = configuracionEnsaiosAdministracionPortal_();
-  var ensaios = filasEnsaiosPortal_(cfg.ensaiosId, 'Ensaios').rows;
-  var asistencias = filasEnsaiosPortal_(cfg.asistenciasId, 'AsistenciasEnsaios').rows;
-  var repertorio = filasEnsaiosPortal_(cfg.ensaiosRepertorioId, 'EnsaiosRepertorio').rows;
+  var ensaios = filasEnsaiosAdministracionPortal_(cfg.ensaiosId, 'Ensaios', 'ENSAIOS_SPREADSHEET_ID').rows;
+  var asistencias = filasEnsaiosAdministracionPortal_(cfg.asistenciasId, 'AsistenciasEnsaios', 'ASISTENCIAS_ENSAIOS_SPREADSHEET_ID').rows;
+  var repertorio = filasEnsaiosAdministracionPortal_(cfg.ensaiosRepertorioId, 'EnsaiosRepertorio', 'ENSAIOS_REPERTORIO_SPREADSHEET_ID').rows;
 
   var contaAsistencias = {};
   asistencias.forEach(function (row) {
@@ -92,11 +134,7 @@ function listarEnsaiosAdministracionPortal_(datos) {
 
   out.sort(function (a, b) { return String(b.data).localeCompare(String(a.data)); });
 
-  return {
-    ok: true,
-    nivel: permiso.nivel,
-    ensaios: out
-  };
+  return { ok: true, nivel: permiso.nivel, ensaios: out };
 }
 
 function dataEnsaiosAdministracionPortal_(valor) {
@@ -104,11 +142,7 @@ function dataEnsaiosAdministracionPortal_(valor) {
   var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto);
   if (!match) return null;
   var data = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0);
-  if (
-    data.getFullYear() !== Number(match[1]) ||
-    data.getMonth() !== Number(match[2]) - 1 ||
-    data.getDate() !== Number(match[3])
-  ) return null;
+  if (data.getFullYear() !== Number(match[1]) || data.getMonth() !== Number(match[2]) - 1 || data.getDate() !== Number(match[3])) return null;
   return data;
 }
 
@@ -125,12 +159,10 @@ function actualizarEnsaioAdministracionPortal_(datos) {
   var dataValor = cancelar ? null : dataEnsaiosAdministracionPortal_(novaData);
 
   if (!idEnsaio) return { ok: false, codigo: 'VALIDATION', erro: 'Falta o identificador do ensaio' };
-  if (!cancelar && !dataValor) {
-    return { ok: false, codigo: 'VALIDATION', erro: 'A nova data do ensaio non é válida' };
-  }
+  if (!cancelar && !dataValor) return { ok: false, codigo: 'VALIDATION', erro: 'A nova data do ensaio non é válida' };
 
   var cfg = configuracionEnsaiosAdministracionPortal_();
-  var datosFolla = filasEnsaiosPortal_(cfg.ensaiosId, 'Ensaios');
+  var datosFolla = filasEnsaiosAdministracionPortal_(cfg.ensaiosId, 'Ensaios', 'ENSAIOS_SPREADSHEET_ID');
   var headers = datosFolla.headers;
   var row = datosFolla.rows.find(function (item) {
     return textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Id_Ensaio', 'IdEnsaio', 'Id'])) === idEnsaio;
@@ -144,12 +176,19 @@ function actualizarEnsaioAdministracionPortal_(datos) {
     return { ok: false, codigo: 'SCHEMA', erro: 'A folla Ensaios non ten as columnas Data e Cancelado esperadas' };
   }
 
-  if (cancelar) {
-    datosFolla.sheet.getRange(row.__row, canceladoIndex + 1).setValue(true);
-  } else {
-    datosFolla.sheet.getRange(row.__row, dataIndex + 1).setValue(dataValor).setNumberFormat('yyyy-mm-dd');
+  try {
+    if (cancelar) {
+      datosFolla.sheet.getRange(row.__row, canceladoIndex + 1).setValue(true);
+    } else {
+      datosFolla.sheet.getRange(row.__row, dataIndex + 1).setValue(dataValor).setNumberFormat('yyyy-mm-dd');
+    }
+    SpreadsheetApp.flush();
+  } catch (erro) {
+    throw new Error(
+      'Diagnóstico ENSAIOS_SPREADSHEET_ID (' + cfg.ensaiosId + '): a folla abriu e leuse, pero fallou a escritura. ' +
+      String(erro && erro.message ? erro.message : erro)
+    );
   }
-  SpreadsheetApp.flush();
 
   return {
     ok: true,
