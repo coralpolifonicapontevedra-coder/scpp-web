@@ -69,6 +69,66 @@ function listarConcertosAdministracionPortal_(datos) {
   return { ok:true, nivel:permiso.nivel, concertos:out };
 }
 
+function crearConcertoAdministracionPortal_(datos) {
+  var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
+  var permiso = permisoConcertosAdministracionPortal_(email);
+  if (!permiso.escritura) return { ok:false, codigo:'FORBIDDEN', erro:'Usuario non autorizado para crear concertos' };
+
+  var data = textoEnsaiosPortal_(datos && datos.data);
+  var nome = textoEnsaiosPortal_(datos && datos.nome);
+  var cidade = textoEnsaiosPortal_(datos && datos.cidade);
+  var lugar = textoEnsaiosPortal_(datos && datos.lugar);
+  var hora = textoEnsaiosPortal_(datos && datos.hora);
+  var caracteristicas = textoEnsaiosPortal_(datos && datos.caracteristicas);
+  var estado = textoEnsaiosPortal_(datos && datos.estado) || 'Previsto';
+  var estadosValidos = ['Previsto', 'Confirmado', 'Aprazado', 'Cancelado', 'Realizado'];
+  var dataValor = dataEnsaiosAdministracionPortal_(data);
+
+  if (!dataValor) return { ok:false, codigo:'VALIDATION', erro:'A data do concerto non é válida' };
+  if (!nome) return { ok:false, codigo:'VALIDATION', erro:'O nome do concerto é obrigatorio' };
+  if (estadosValidos.indexOf(estado) < 0) return { ok:false, codigo:'VALIDATION', erro:'O estado indicado non é válido' };
+
+  var cfg = configuracionConcertosAdministracionPortal_();
+  var datosFolla = filasEnsaiosAdministracionPortal_(cfg.concertosId, 'Concertos', 'CONCERTOS_SPREADSHEET_ID');
+  var headers = datosFolla.headers;
+  var row = new Array(headers.length).fill('');
+
+  function set(nomes, valor) {
+    var index = indiceHeaderEnsaiosPortal_(headers, nomes);
+    if (index >= 0) row[index] = valor;
+  }
+
+  var maxId = 0;
+  datosFolla.rows.forEach(function (item) {
+    var valor = Number(textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Id', 'Id_Concerto', 'IdConcerto'])));
+    if (isFinite(valor) && valor > maxId) maxId = valor;
+  });
+  var idConcerto = String(maxId + 1);
+
+  set(['Id', 'Id_Concerto', 'IdConcerto'], idConcerto);
+  set(['Data'], dataValor);
+  set(['Nome'], nome);
+  set(['Cidade'], cidade);
+  set(['Lugar'], lugar);
+  set(['Características', 'Caracteristicas'], caracteristicas);
+  set(['Hora'], hora);
+  set(['Mostrar_Web', 'MostrarWeb'], false);
+  set(['Destacado_Web', 'DestacadoWeb'], false);
+  set(['Estado'], estado);
+
+  try {
+    datosFolla.sheet.appendRow(row);
+    var fila = datosFolla.sheet.getLastRow();
+    var dataIndex = indiceHeaderEnsaiosPortal_(headers, ['Data']);
+    if (dataIndex >= 0) datosFolla.sheet.getRange(fila, dataIndex + 1).setNumberFormat('dd/mm/yyyy');
+    SpreadsheetApp.flush();
+  } catch (erro) {
+    throw new Error('Diagnóstico CONCERTOS_SPREADSHEET_ID (' + cfg.concertosId + '): fallou a alta. ' + String(erro && erro.message ? erro.message : erro));
+  }
+
+  return { ok:true, resultado:{ idConcerto:idConcerto, data:data, nome:nome, cidade:cidade, lugar:lugar, hora:hora, estado:estado, rexistradoPor:email } };
+}
+
 function actualizarConcertoAdministracionPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
   var permiso = permisoConcertosAdministracionPortal_(email);
@@ -105,13 +165,5 @@ function actualizarConcertoAdministracionPortal_(datos) {
     throw new Error('Diagnóstico CONCERTOS_SPREADSHEET_ID (' + cfg.concertosId + '): fallou a escritura. ' + String(erro && erro.message ? erro.message : erro));
   }
 
-  return {
-    ok:true,
-    resultado:{
-      idConcerto:idConcerto,
-      data:novaData || serializarDataEnsaiosPortal_(campoEnsaiosPortal_(row, ['Data'])),
-      estado:novoEstado || textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Estado'])),
-      actualizadoPor:email
-    }
-  };
+  return { ok:true, resultado:{ idConcerto:idConcerto, data:novaData || serializarDataEnsaiosPortal_(campoEnsaiosPortal_(row, ['Data'])), estado:novoEstado || textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Estado'])), actualizadoPor:email } };
 }
