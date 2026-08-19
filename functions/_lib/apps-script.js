@@ -62,11 +62,14 @@ function detalleRespostaNonJson(texto = '') {
 }
 
 export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
-  const timeoutTotalMs = Math.max(4000, Number(options.timeoutMs) || 20000);
+  const timeoutSolicitadoMs = Math.max(4000, Number(options.timeoutMs) || 20000);
   const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
   const expectJson = options.expectJson === true;
   const accion = String(corpo?.accion || '').trim();
   const soPrincipal = ACCIONS_SO_PRINCIPAL.has(accion);
+  // Apps Script pode ter arranques en frío bastante lentos. As accións críticas que
+  // non admiten fallback deben ter marxe suficiente para non abortar unha operación válida.
+  const timeoutTotalMs = soPrincipal ? Math.max(45000, timeoutSolicitadoMs) : timeoutSolicitadoMs;
   const principal = urlPrincipalAppsScript(env);
   const urls = soPrincipal ? (principal ? [principal] : []) : urlsAppsScript(env);
 
@@ -126,7 +129,16 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
       }
       console.warn(`Apps Script respondeu ${resposta.status}; probando a seguinte implementación.`);
     } catch (erro) {
-      if (soPrincipal) throw erro;
+      if (soPrincipal) {
+        if (erro instanceof Error && erro.name === 'AbortError') {
+          throw new AppsScriptError(
+            'Apps Script tardou demasiado en responder. Tenta de novo nuns segundos.',
+            'APPS_SCRIPT_TIMEOUT',
+            ultimoEstado
+          );
+        }
+        throw erro;
+      }
       ultimoErro = erro;
       console.warn('Fallou unha implementación de Apps Script; probando a seguinte.', erro);
     }
