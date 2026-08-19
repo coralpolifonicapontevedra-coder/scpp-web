@@ -102,9 +102,22 @@ function serializarHoraEnsaiosPortal_(valor) {
 }
 
 function permisoEnsaiosPortal_(email) {
+  var props = PropertiesService.getScriptProperties();
+  var ambiente = String(props.getProperty('SCPP_ENVIRONMENT') || '').trim().toLowerCase();
+  var correo = textoEnsaiosPortal_(email).toLowerCase();
+
+  // En Preview só o correo de proba configurado recibe permisos de escritura.
+  // En produción mantense intacta a autorización baseada na táboa Persoas.
+  if (ambiente === 'test') {
+    var correoProba = String(props.getProperty('WEB_TEST_EMAIL') || '').trim().toLowerCase();
+    var autorizadoProba = !!correo && !!correoProba && correo === correoProba;
+    if (autorizadoProba) {
+      return { autorizado: true, escritura: true, nivel: 'Administración', cargo: 'Proba' };
+    }
+  }
+
   var cfg = configuracionEnsaiosPortal_();
   var datos = filasEnsaiosPortal_(cfg.persoasId, 'Persoas');
-  var correo = textoEnsaiosPortal_(email).toLowerCase();
   var row = datos.rows.find(function (item) {
     return textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Email', 'Correo', 'CorreoElectronico'])).toLowerCase() === correo;
   });
@@ -238,42 +251,28 @@ function gardarAsistenciaEnsaioPortal_(datos) {
   var permiso = permisoEnsaiosPortal_(email);
   if (!permiso.escritura) return { ok: false, codigo: 'FORBIDDEN', erro: 'Usuario non autorizado para modificar asistencias' };
 
-  var idEnsaio = textoEnsaiosPortal_(datos.idEnsaio);
-  var idPersoa = textoEnsaiosPortal_(datos.idPersoa);
-  var estado = textoEnsaiosPortal_(datos.estadoAsistencia);
-  if (!idEnsaio || !idPersoa || ['Asiste', 'Non asiste'].indexOf(estado) < 0) {
-    return { ok: false, codigo: 'INVALID_DATA', erro: 'Datos de asistencia incompletos' };
-  }
+  var idEnsaio = textoEnsaiosPortal_(datos && datos.idEnsaio);
+  var idPersoa = textoEnsaiosPortal_(datos && datos.idPersoa);
+  var estado = textoEnsaiosPortal_(datos && datos.estadoAsistencia);
+  var xustificada = datos && datos.xustificada === true;
+  var motivo = textoEnsaiosPortal_(datos && datos.motivo);
+  var observacions = textoEnsaiosPortal_(datos && datos.observacions);
+  if (!idEnsaio || !idPersoa) return { ok: false, codigo: 'VALIDATION', erro: 'Faltan datos da asistencia' };
 
   var cfg = configuracionEnsaiosPortal_();
-  var table = filasEnsaiosPortal_(cfg.asistenciasId, 'AsistenciasEnsaios');
-  var headers = table.headers;
-  var iId = indiceHeaderEnsaiosPortal_(headers, ['Id_AsistenciaEnsaio']);
-  var iEnsaio = indiceHeaderEnsaiosPortal_(headers, ['Ensaio']);
-  var iPersoa = indiceHeaderEnsaiosPortal_(headers, ['Persoa']);
-  var iEstado = indiceHeaderEnsaiosPortal_(headers, ['EstadoAsistencia']);
-  var iXust = indiceHeaderEnsaiosPortal_(headers, ['Xustificada']);
-  var iMotivo = indiceHeaderEnsaiosPortal_(headers, ['Motivo']);
-  var iObs = indiceHeaderEnsaiosPortal_(headers, ['Observacions']);
-  var iData = indiceHeaderEnsaiosPortal_(headers, ['DataRexistro']);
-  var iPor = indiceHeaderEnsaiosPortal_(headers, ['RexistradaPor']);
-  if ([iId, iEnsaio, iPersoa, iEstado].some(function (i) { return i < 0; })) return { ok: false, codigo: 'SCHEMA', erro: 'A Sheet AsistenciasEnsaios non ten as columnas esperadas' };
-
-  var existing = table.rows.find(function (row) {
-    return textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Ensaio'])) === idEnsaio && textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Persoa'])) === idPersoa;
+  var datosFolla = filasEnsaiosPortal_(cfg.asistenciasId, 'AsistenciasEnsaios');
+  var headers = datosFolla.headers;
+  var row = datosFolla.rows.find(function (item) {
+    return textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Ensaio'])) === idEnsaio &&
+      textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Persoa'])) === idPersoa;
   });
-  var rowNumber = existing ? existing.__row : table.sheet.getLastRow() + 1;
-  var rowValues = existing ? table.sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0] : new Array(headers.length).fill('');
-  if (!existing) rowValues[iId] = Utilities.getUuid();
-  rowValues[iEnsaio] = idEnsaio;
-  rowValues[iPersoa] = idPersoa;
-  rowValues[iEstado] = estado;
-  if (iXust >= 0) rowValues[iXust] = Boolean(datos.xustificada) && estado === 'Non asiste';
-  if (iMotivo >= 0) rowValues[iMotivo] = textoEnsaiosPortal_(datos.motivo);
-  if (iObs >= 0) rowValues[iObs] = textoEnsaiosPortal_(datos.observacions);
-  if (iData >= 0) rowValues[iData] = new Date();
-  if (iPor >= 0) rowValues[iPor] = email;
-  table.sheet.getRange(rowNumber, 1, 1, headers.length).setValues([rowValues]);
+  var valores = new Array(headers.length).fill('');
+  function set(nomes, valor) { var i = indiceHeaderEnsaiosPortal_(headers, nomes); if (i >= 0) valores[i] = valor; }
+  if (row) headers.forEach(function (header, i) { valores[i] = row[header]; });
+  set(['Id_AsistenciaEnsaio', 'Id'], row ? campoEnsaiosPortal_(row, ['Id_AsistenciaEnsaio', 'Id']) : Utilities.getUuid());
+  set(['Ensaio'], idEnsaio); set(['Persoa'], idPersoa); set(['EstadoAsistencia'], estado);
+  set(['Xustificada'], xustificada); set(['Motivo'], motivo); set(['Observacions'], observacions);
+  if (row) datosFolla.sheet.getRange(row.__row, 1, 1, headers.length).setValues([valores]); else datosFolla.sheet.appendRow(valores);
   SpreadsheetApp.flush();
   return { ok: true, resultado: { idEnsaio: idEnsaio, idPersoa: idPersoa, estadoAsistencia: estado } };
 }
@@ -281,92 +280,59 @@ function gardarAsistenciaEnsaioPortal_(datos) {
 function gardarEnsaioRepertorioPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
   var permiso = permisoEnsaiosPortal_(email);
-  if (!permiso.escritura) return { ok: false, codigo: 'FORBIDDEN', erro: 'Usuario non autorizado para modificar o repertorio do ensaio' };
+  if (!permiso.escritura) return { ok: false, codigo: 'FORBIDDEN', erro: 'Usuario non autorizado para modificar repertorio de ensaios' };
 
-  var idEnsaio = textoEnsaiosPortal_(datos.idEnsaio);
-  var idRepertorio = textoEnsaiosPortal_(datos.idRepertorio);
-  if (!idEnsaio || !idRepertorio) return { ok: false, codigo: 'INVALID_DATA', erro: 'Ensaio e repertorio son obrigatorios' };
-
+  var idEnsaio = textoEnsaiosPortal_(datos && datos.idEnsaio);
+  var idRepertorio = textoEnsaiosPortal_(datos && datos.idRepertorio);
+  if (!idEnsaio || !idRepertorio) return { ok: false, codigo: 'VALIDATION', erro: 'Falta o ensaio ou a obra' };
   var cfg = configuracionEnsaiosPortal_();
-  var table = filasEnsaiosPortal_(cfg.ensaiosRepertorioId, 'EnsaiosRepertorio');
-  var headers = table.headers;
-  var required = ['Id_EnsaioRepertorio', 'Ensaio', 'Repertorio'];
-  var indices = {};
-  required.concat(['Orde','TipoTraballo','Desde','Ata','Observacions','RexistradoPor','DataRexistro']).forEach(function (name) { indices[name] = indiceHeaderEnsaiosPortal_(headers, [name]); });
-  if (required.some(function (name) { return indices[name] < 0; })) return { ok: false, codigo: 'SCHEMA', erro: 'A Sheet EnsaiosRepertorio non ten as columnas esperadas' };
-
-  var existing = table.rows.find(function (row) {
-    return textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Ensaio'])) === idEnsaio && textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Repertorio'])) === idRepertorio;
+  var datosFolla = filasEnsaiosPortal_(cfg.ensaiosRepertorioId, 'EnsaiosRepertorio');
+  var headers = datosFolla.headers;
+  var existente = datosFolla.rows.find(function (item) {
+    return textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Ensaio'])) === idEnsaio && textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Repertorio'])) === idRepertorio;
   });
-  var rowNumber = existing ? existing.__row : table.sheet.getLastRow() + 1;
-  var values = existing ? table.sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0] : new Array(headers.length).fill('');
-  if (!existing) values[indices.Id_EnsaioRepertorio] = Utilities.getUuid();
-  values[indices.Ensaio] = idEnsaio;
-  values[indices.Repertorio] = idRepertorio;
-  if (indices.Orde >= 0 && !existing) values[indices.Orde] = table.rows.filter(function (r) { return textoEnsaiosPortal_(campoEnsaiosPortal_(r, ['Ensaio'])) === idEnsaio; }).length + 1;
-  if (indices.TipoTraballo >= 0) values[indices.TipoTraballo] = textoEnsaiosPortal_(datos.tipoTraballo);
-  if (indices.Desde >= 0) values[indices.Desde] = textoEnsaiosPortal_(datos.desde);
-  if (indices.Ata >= 0) values[indices.Ata] = textoEnsaiosPortal_(datos.ata);
-  if (indices.Observacions >= 0) values[indices.Observacions] = textoEnsaiosPortal_(datos.observacions);
-  if (indices.RexistradoPor >= 0) values[indices.RexistradoPor] = email;
-  if (indices.DataRexistro >= 0) values[indices.DataRexistro] = new Date();
-  table.sheet.getRange(rowNumber, 1, 1, headers.length).setValues([values]);
-  SpreadsheetApp.flush();
-  return { ok: true, resultado: { idEnsaio: idEnsaio, idRepertorio: idRepertorio } };
-}
-
-function obterSeguimentoEnsaiosPortal_(datos) {
-  var listado = listarEnsaiosPortal_(datos);
-  if (!listado.ok) return listado;
-  return {
-    ok: true,
-    seguimento: calcularSeguimentoEnsaiosPortal_(listado.ensaios, listado.persoas, listado.asistencias, listado.ensaiosRepertorio, listado.repertorio, datos || {})
-  };
+  if (existente) return { ok: true, resultado: { idEnsaio: idEnsaio, idRepertorio: idRepertorio, xaExistia: true } };
+  var valores = new Array(headers.length).fill('');
+  function set(nomes, valor) { var i = indiceHeaderEnsaiosPortal_(headers, nomes); if (i >= 0) valores[i] = valor; }
+  set(['Id_EnsaioRepertorio', 'Id'], Utilities.getUuid()); set(['Ensaio'], idEnsaio); set(['Repertorio'], idRepertorio);
+  set(['TipoTraballo'], textoEnsaiosPortal_(datos && datos.tipoTraballo)); set(['Desde'], textoEnsaiosPortal_(datos && datos.desde));
+  set(['Ata'], textoEnsaiosPortal_(datos && datos.ata)); set(['Observacions'], textoEnsaiosPortal_(datos && datos.observacions));
+  datosFolla.sheet.appendRow(valores); SpreadsheetApp.flush();
+  return { ok: true, resultado: { idEnsaio: idEnsaio, idRepertorio: idRepertorio, xaExistia: false } };
 }
 
 function calcularSeguimentoEnsaiosPortal_(ensaios, persoas, asistencias, ensaiosRep, repertorio, filtros) {
-  var desde = filtros.desde ? new Date(filtros.desde + 'T00:00:00') : null;
-  var ata = filtros.ata ? new Date(filtros.ata + 'T23:59:59') : null;
-  var concerto = textoEnsaiosPortal_(filtros.concerto);
-  var voz = textoEnsaiosPortal_(filtros.voz);
-  var validos = ensaios.filter(function (e) {
-    if (booleanoEnsaiosPortal_(e.cancelado)) return false;
-    var d = e.data ? new Date(e.data + 'T12:00:00') : null;
-    if (!d || isNaN(d.getTime()) || d > new Date()) return false;
-    if (desde && d < desde) return false;
-    if (ata && d > ata) return false;
-    if (concerto && e.concertoNome !== concerto && e.concerto !== concerto) return false;
+  filtros = filtros || {};
+  var desde = textoEnsaiosPortal_(filtros.desde);
+  var ata = textoEnsaiosPortal_(filtros.ata);
+  var idPersoa = textoEnsaiosPortal_(filtros.idPersoa);
+  var ensaiosFiltrados = ensaios.filter(function (ensaio) {
+    if (ensaio.cancelado) return false;
+    if (desde && ensaio.data < desde) return false;
+    if (ata && ensaio.data > ata) return false;
     return true;
   });
-  var ids = {};
-  validos.forEach(function (e) { ids[e.idEnsaio] = true; });
-  var persoasMap = {};
-  persoas.forEach(function (p) { persoasMap[p.idPersoa] = p; });
-  var attendance = asistencias.filter(function (a) {
-    return ids[a.ensaio] && (!voz || (persoasMap[a.persoa] && normalizarEnsaiosPortal_(persoasMap[a.persoa].voz) === normalizarEnsaiosPortal_(voz)));
+  var ids = {}; ensaiosFiltrados.forEach(function (ensaio) { ids[ensaio.idEnsaio] = true; });
+  var asistenciasFiltradas = asistencias.filter(function (a) { return ids[a.ensaio] && (!idPersoa || a.persoa === idPersoa); });
+  var presentes = asistenciasFiltradas.filter(function (a) { return normalizarEnsaiosPortal_(a.estadoAsistencia).indexOf('asist') >= 0 || normalizarEnsaiosPortal_(a.estadoAsistencia) === 'si'; });
+  var porEnsaio = ensaiosFiltrados.map(function (ensaio) {
+    var lista = asistencias.filter(function (a) { return a.ensaio === ensaio.idEnsaio; });
+    return { idEnsaio: ensaio.idEnsaio, data: ensaio.data, total: persoas.length, presentes: lista.filter(function (a) { return normalizarEnsaiosPortal_(a.estadoAsistencia).indexOf('asist') >= 0 || normalizarEnsaiosPortal_(a.estadoAsistencia) === 'si'; }).length };
   });
-  var presentes = attendance.filter(function (a) { return normalizarEnsaiosPortal_(a.estadoAsistencia) === 'asiste'; }).length;
-  var decididas = attendance.filter(function (a) { return ['asiste','nonasiste'].indexOf(normalizarEnsaiosPortal_(a.estadoAsistencia)) >= 0; }).length;
-  var ausXust = attendance.filter(function (a) { return normalizarEnsaiosPortal_(a.estadoAsistencia) === 'nonasiste' && a.xustificada; }).length;
-  var rep = ensaiosRep.filter(function (r) { return ids[r.ensaio]; });
-  var works = {};
-  repertorio.forEach(function (r) { works[r.idRepertorio] = r.nomeObra; });
-  var obraCounts = {};
-  rep.forEach(function (r) { obraCounts[r.repertorio] = (obraCounts[r.repertorio] || 0) + 1; });
-  var voices = ['Soprano','Contralto','Tenor','Baixo'].map(function (v) {
-    var idsPersoas = {};
-    persoas.filter(function (p) { return normalizarEnsaiosPortal_(p.voz) === normalizarEnsaiosPortal_(v); }).forEach(function (p) { idsPersoas[p.idPersoa] = true; });
-    var a = attendance.filter(function (x) { return idsPersoas[x.persoa]; });
-    var d = a.filter(function (x) { return ['asiste','nonasiste'].indexOf(normalizarEnsaiosPortal_(x.estadoAsistencia)) >= 0; });
-    var p = d.filter(function (x) { return normalizarEnsaiosPortal_(x.estadoAsistencia) === 'asiste'; }).length;
-    return { voz: v, porcentaxe: d.length ? Math.round(p * 100 / d.length) : 0 };
-  });
-  return {
-    ensaiosRealizados: validos.length,
-    asistenciaMedia: decididas ? Math.round(presentes * 100 / decididas) : 0,
-    ausenciasXustificadas: ausXust,
-    obrasTraballadas: Object.keys(obraCounts).length,
-    porVoz: voices,
-    porObra: Object.keys(obraCounts).map(function (id) { return { idRepertorio: id, nome: works[id] || id, ensaios: obraCounts[id] }; }).sort(function (a,b) { return b.ensaios - a.ensaios; })
-  };
+  var ranking = persoas.map(function (p) {
+    var lista = asistencias.filter(function (a) { return ids[a.ensaio] && a.persoa === p.idPersoa; });
+    var n = lista.filter(function (a) { return normalizarEnsaiosPortal_(a.estadoAsistencia).indexOf('asist') >= 0 || normalizarEnsaiosPortal_(a.estadoAsistencia) === 'si'; }).length;
+    return { idPersoa: p.idPersoa, nomeCompleto: p.nomeCompleto, voz: p.voz, asistencias: n, totalEnsaios: ensaiosFiltrados.length, porcentaxe: ensaiosFiltrados.length ? Math.round(n * 1000 / ensaiosFiltrados.length) / 10 : 0 };
+  }).sort(function (a, b) { return b.asistencias - a.asistencias || a.nomeCompleto.localeCompare(b.nomeCompleto); });
+  var obras = ensaiosRep.filter(function (r) { return ids[r.ensaio]; }).map(function (r) { var obra = repertorio.find(function (o) { return o.idRepertorio === r.repertorio; }); return { idEnsaio: r.ensaio, idRepertorio: r.repertorio, obra: obra ? obra.nomeObra : r.repertorio, compositor: obra ? obra.compositor : '' }; });
+  return { resumo: { ensaios: ensaiosFiltrados.length, persoas: persoas.length, rexistrosAsistencia: asistenciasFiltradas.length, presentes: presentes.length }, porEnsaio: porEnsaio, ranking: ranking, obras: obras };
+}
+
+function obterSeguimentoEnsaiosPortal_(datos) {
+  var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
+  var permiso = permisoEnsaiosPortal_(email);
+  if (!permiso.autorizado) return { ok: false, codigo: 'FORBIDDEN', erro: 'Usuario non autorizado' };
+  var base = listarEnsaiosPortal_({ email: email });
+  if (!base.ok) return base;
+  return { ok: true, seguimento: calcularSeguimentoEnsaiosPortal_(base.ensaios, base.persoas, base.asistencias, base.ensaiosRepertorio, base.repertorio, datos || {}) };
 }
