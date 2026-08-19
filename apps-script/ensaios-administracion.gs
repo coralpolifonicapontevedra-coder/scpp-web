@@ -1,18 +1,63 @@
 /*
  * Administración de ensaios desde o Portal SCPP.
  *
- * Este ficheiro reutiliza os helpers de apps-script/ensaios-portal.gs.
+ * Este ficheiro reutiliza só helpers xenéricos de apps-script/ensaios-portal.gs.
  * As operacións conservan sempre o Id_Ensaio e non eliminan relacións.
+ *
+ * En test, a autorización queda limitada a WEB_TEST_EMAIL e os datos dependen
+ * exclusivamente das tres copias Preview de Ensaios.
  */
+
+function configuracionEnsaiosAdministracionPortal_() {
+  var props = PropertiesService.getScriptProperties();
+  var nomes = [
+    'ENSAIOS_SPREADSHEET_ID',
+    'ASISTENCIAS_ENSAIOS_SPREADSHEET_ID',
+    'ENSAIOS_REPERTORIO_SPREADSHEET_ID'
+  ];
+  var valores = {};
+
+  nomes.forEach(function (nome) {
+    var valor = String(props.getProperty(nome) || '').trim();
+    if (!valor) {
+      throw new Error('Falta a propiedade obrigatoria do ambiente: ' + nome);
+    }
+    valores[nome] = valor;
+  });
+
+  return {
+    ensaiosId: valores.ENSAIOS_SPREADSHEET_ID,
+    asistenciasId: valores.ASISTENCIAS_ENSAIOS_SPREADSHEET_ID,
+    ensaiosRepertorioId: valores.ENSAIOS_REPERTORIO_SPREADSHEET_ID
+  };
+}
+
+function permisoEnsaiosAdministracionPortal_(email) {
+  var props = PropertiesService.getScriptProperties();
+  var ambiente = String(props.getProperty('SCPP_ENVIRONMENT') || '').trim().toLowerCase();
+  var correo = String(email || '').trim().toLowerCase();
+
+  if (ambiente === 'test') {
+    var correoProba = String(props.getProperty('WEB_TEST_EMAIL') || '').trim().toLowerCase();
+    var autorizado = !!correo && !!correoProba && correo === correoProba;
+    return {
+      autorizado: autorizado,
+      escritura: autorizado,
+      nivel: autorizado ? 'Administración' : ''
+    };
+  }
+
+  return permisoEnsaiosPortal_(correo);
+}
 
 function listarEnsaiosAdministracionPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
-  var permiso = permisoEnsaiosPortal_(email);
+  var permiso = permisoEnsaiosAdministracionPortal_(email);
   if (!permiso.escritura) {
     return { ok: false, codigo: 'FORBIDDEN', erro: 'Usuario non autorizado para administrar ensaios' };
   }
 
-  var cfg = configuracionEnsaiosPortal_();
+  var cfg = configuracionEnsaiosAdministracionPortal_();
   var ensaios = filasEnsaiosPortal_(cfg.ensaiosId, 'Ensaios').rows;
   var asistencias = filasEnsaiosPortal_(cfg.asistenciasId, 'AsistenciasEnsaios').rows;
   var repertorio = filasEnsaiosPortal_(cfg.ensaiosRepertorioId, 'EnsaiosRepertorio').rows;
@@ -69,7 +114,7 @@ function dataEnsaiosAdministracionPortal_(valor) {
 
 function actualizarEnsaioAdministracionPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
-  var permiso = permisoEnsaiosPortal_(email);
+  var permiso = permisoEnsaiosAdministracionPortal_(email);
   if (!permiso.escritura) {
     return { ok: false, codigo: 'FORBIDDEN', erro: 'Usuario non autorizado para administrar ensaios' };
   }
@@ -84,7 +129,7 @@ function actualizarEnsaioAdministracionPortal_(datos) {
     return { ok: false, codigo: 'VALIDATION', erro: 'A nova data do ensaio non é válida' };
   }
 
-  var cfg = configuracionEnsaiosPortal_();
+  var cfg = configuracionEnsaiosAdministracionPortal_();
   var datosFolla = filasEnsaiosPortal_(cfg.ensaiosId, 'Ensaios');
   var headers = datosFolla.headers;
   var row = datosFolla.rows.find(function (item) {
