@@ -6,7 +6,7 @@ function configuracionConcertosAdministracionPortal_() {
     'CONCERTOS_SPREADSHEET_ID',
     'ASISTENCIAS_CONCERTOS_SPREADSHEET_ID',
     'CONCERTOS_REPERTORIO_SPREADSHEET_ID',
-    'PERSOAS_SPREADSHEET_ID'
+    'CONCERTOS_PERSOAS_SPREADSHEET_ID'
   ];
   var valores = {};
   nomes.forEach(function (nome) {
@@ -18,7 +18,7 @@ function configuracionConcertosAdministracionPortal_() {
     concertosId: valores.CONCERTOS_SPREADSHEET_ID,
     asistenciasId: valores.ASISTENCIAS_CONCERTOS_SPREADSHEET_ID,
     concertosRepertorioId: valores.CONCERTOS_REPERTORIO_SPREADSHEET_ID,
-    persoasId: valores.PERSOAS_SPREADSHEET_ID
+    persoasId: valores.CONCERTOS_PERSOAS_SPREADSHEET_ID
   };
 }
 
@@ -124,7 +124,7 @@ function diagnosticoConcertosPreview() {
     { propiedade:'CONCERTOS_SPREADSHEET_ID', id:cfg.concertosId, folla:'Concertos' },
     { propiedade:'ASISTENCIAS_CONCERTOS_SPREADSHEET_ID', id:cfg.asistenciasId, folla:'AsistenciasConcertos' },
     { propiedade:'CONCERTOS_REPERTORIO_SPREADSHEET_ID', id:cfg.concertosRepertorioId, folla:'ConcertosRepertorio' },
-    { propiedade:'PERSOAS_SPREADSHEET_ID', id:cfg.persoasId, folla:'Persoas' }
+    { propiedade:'CONCERTOS_PERSOAS_SPREADSHEET_ID', id:cfg.persoasId, folla:'Persoas' }
   ];
   probas.forEach(function (proba) {
     try {
