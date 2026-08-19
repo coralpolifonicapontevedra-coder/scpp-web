@@ -57,13 +57,13 @@ function abrirFollaEnsaiosAdministracionPortal_(spreadsheetId, nomeEsperado, pro
 
   try {
     var ss = SpreadsheetApp.openById(id);
-    var sheet = ss.getSheetByName(nomeEsperado) || ss.getSheets()[0];
+    var sheet = nomeEsperado ? (ss.getSheetByName(nomeEsperado) || ss.getSheets()[0]) : ss.getSheets()[0];
     if (!sheet) throw new Error('non existe ningunha folla no documento');
     return { spreadsheet: ss, sheet: sheet };
   } catch (erro) {
     throw new Error(
       'Diagnóstico ' + etiqueta + ' (' + id + '): non se puido abrir a folla "' +
-      nomeEsperado + '". ' + String(erro && erro.message ? erro.message : erro)
+      (nomeEsperado || '[primeira folla]') + '". ' + String(erro && erro.message ? erro.message : erro)
     );
   }
 }
@@ -213,6 +213,7 @@ function diagnosticoEnsaiosPreview() {
   };
 
   var probas = [
+    { propiedade: 'TEST_APPS_SCRIPT', id: '1tPI6PjKN0scjrR7908TxsU7o1qt3JtjxN6R9u-TfOfg', folla: '' },
     { propiedade: 'ENSAIOS_SPREADSHEET_ID', id: cfg.ensaiosId, folla: 'Ensaios' },
     { propiedade: 'ASISTENCIAS_ENSAIOS_SPREADSHEET_ID', id: cfg.asistenciasId, folla: 'AsistenciasEnsaios' },
     { propiedade: 'ENSAIOS_REPERTORIO_SPREADSHEET_ID', id: cfg.ensaiosRepertorioId, folla: 'EnsaiosRepertorio' }
@@ -224,7 +225,7 @@ function diagnosticoEnsaiosPreview() {
       resultado.documentos.push({
         propiedade: proba.propiedade,
         id: proba.id,
-        folla: proba.folla,
+        folla: proba.folla || '[primeira folla]',
         ok: true,
         filas: datos.rows.length
       });
@@ -233,7 +234,7 @@ function diagnosticoEnsaiosPreview() {
       resultado.documentos.push({
         propiedade: proba.propiedade,
         id: proba.id,
-        folla: proba.folla,
+        folla: proba.folla || '[primeira folla]',
         ok: false,
         erro: String(erro && erro.message ? erro.message : erro)
       });
