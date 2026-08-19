@@ -36,11 +36,7 @@ function urlPrincipalAppsScript(env = {}) {
 }
 
 function urlsAppsScript(env = {}) {
-  return [
-    env.APPS_SCRIPT_WEBAPP_URL,
-    env.APPS_SCRIPT_FALLBACK_URL,
-    URL_RESPALDO_SCPP
-  ]
+  return [env.APPS_SCRIPT_WEBAPP_URL, env.APPS_SCRIPT_FALLBACK_URL, URL_RESPALDO_SCPP]
     .map((url) => String(url || '').trim())
     .filter((url, index, all) => PATRON_APPS_SCRIPT.test(url) && all.indexOf(url) === index);
 }
@@ -55,6 +51,16 @@ async function fetchConLimite(url, options, timeoutMs) {
   }
 }
 
+function detalleRespostaNonJson(texto = '') {
+  return String(texto)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
 export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const timeoutTotalMs = Math.max(4000, Number(options.timeoutMs) || 20000);
   const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
@@ -62,9 +68,7 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const accion = String(corpo?.accion || '').trim();
   const soPrincipal = ACCIONS_SO_PRINCIPAL.has(accion);
   const principal = urlPrincipalAppsScript(env);
-  const urls = soPrincipal
-    ? (principal ? [principal] : [])
-    : urlsAppsScript(env);
+  const urls = soPrincipal ? (principal ? [principal] : []) : urlsAppsScript(env);
 
   if (!urls.length) {
     const mensaxe = soPrincipal
@@ -81,7 +85,6 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   for (let index = 0; index < urls.length; index += 1) {
     const restante = timeoutTotalMs - (Date.now() - inicio);
     if (restante <= 1000) break;
-
     const intentosRestantes = urls.length - index;
     const repartoAutomatico = Math.max(2500, Math.min(12000, Math.floor(restante / intentosRestantes)));
     const tempoIntento = index === urls.length - 1
@@ -89,33 +92,24 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
       : Math.min(restante, timeoutIntentoPreferido > 0 ? timeoutIntentoPreferido : repartoAutomatico);
 
     try {
-      const resposta = await fetchConLimite(
-        urls[index],
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(corpo)
-        },
-        tempoIntento
-      );
+      const resposta = await fetchConLimite(urls[index], {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(corpo)
+      }, tempoIntento);
 
       ultimoEstado = resposta.status;
       if (resposta.ok) {
         if (expectJson) {
           const texto = await resposta.text();
           try {
-            return {
-              resposta,
-              resultado: JSON.parse(texto),
-              urlUsada: urls[index],
-              usouRespaldo: index > 0,
-              intento: index + 1
-            };
+            return { resposta, resultado: JSON.parse(texto), urlUsada: urls[index], usouRespaldo: index > 0, intento: index + 1 };
           } catch {
             houboRespostaNonValida = true;
             if (soPrincipal) {
+              const detalle = detalleRespostaNonJson(texto);
               throw new AppsScriptError(
-                'A implementación principal de Apps Script devolveu unha resposta non válida.',
+                `A implementación principal de Apps Script devolveu unha resposta non válida.${detalle ? ` Detalle: ${detalle}` : ''}`,
                 'APPS_SCRIPT_INVALID_RESPONSE',
                 resposta.status
               );
@@ -124,24 +118,12 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
             continue;
           }
         }
-
-        return {
-          resposta,
-          urlUsada: urls[index],
-          usouRespaldo: index > 0,
-          intento: index + 1
-        };
+        return { resposta, urlUsada: urls[index], usouRespaldo: index > 0, intento: index + 1 };
       }
 
       if (soPrincipal || !ESTADOS_RECUPERABLES.has(resposta.status)) {
-        return {
-          resposta,
-          urlUsada: urls[index],
-          usouRespaldo: false,
-          intento: index + 1
-        };
+        return { resposta, urlUsada: urls[index], usouRespaldo: false, intento: index + 1 };
       }
-
       console.warn(`Apps Script respondeu ${resposta.status}; probando a seguinte implementación.`);
     } catch (erro) {
       if (soPrincipal) throw erro;
@@ -153,36 +135,17 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   if (ultimoErro instanceof Error && ultimoErro.name === 'AbortError') {
     throw new AppsScriptError('O servizo externo tardou demasiado en responder.', 'APPS_SCRIPT_TIMEOUT', ultimoEstado);
   }
-
   if (houboRespostaNonValida) {
-    throw new AppsScriptError(
-      'O servizo de datos devolveu unha resposta non válida.',
-      'APPS_SCRIPT_INVALID_RESPONSE',
-      ultimoEstado
-    );
+    throw new AppsScriptError('O servizo de datos devolveu unha resposta non válida.', 'APPS_SCRIPT_INVALID_RESPONSE', ultimoEstado);
   }
-
-  throw new AppsScriptError(
-    'Non se puido contactar con ningunha implementación dispoñible de Apps Script.',
-    'APPS_SCRIPT_UNAVAILABLE',
-    ultimoEstado
-  );
+  throw new AppsScriptError('Non se puido contactar con ningunha implementación dispoñible de Apps Script.', 'APPS_SCRIPT_UNAVAILABLE', ultimoEstado);
 }
 
 export async function obterJsonAppsScript(env, corpo, options = {}) {
-  const resultadoFetch = await chamarAppsScriptRobusto(env, corpo, {
-    ...options,
-    expectJson: true
-  });
+  const resultadoFetch = await chamarAppsScriptRobusto(env, corpo, { ...options, expectJson: true });
   const { resposta, resultado } = resultadoFetch;
-
   if (!resposta.ok) {
-    throw new AppsScriptError(
-      'O servizo de datos non está dispoñible neste momento.',
-      'APPS_SCRIPT_HTTP_ERROR',
-      resposta.status
-    );
+    throw new AppsScriptError('O servizo de datos non está dispoñible neste momento.', 'APPS_SCRIPT_HTTP_ERROR', resposta.status);
   }
-
   return { ...resultadoFetch, resultado };
 }
