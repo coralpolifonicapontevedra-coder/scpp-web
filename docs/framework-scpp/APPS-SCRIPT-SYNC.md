@@ -13,13 +13,17 @@ Fluxo oficial:
 ```text
 GitHub (rama de traballo)
   → revisión
+  → código canónico Apps Script
   → Apps Script Preview (SCPP Script - Pruebas)
   → proba funcional
   → aprobación
+  → o MESMO código canónico
   → Apps Script Producción
 ```
 
 `clasp` úsase como ferramenta de sincronización e despregamento entre o código revisado e cada proxecto de Apps Script.
+
+A decisión arquitectónica é que **Preview e Producción deben acabar executando o mesmo código fonte**. As diferenzas de ambiente deben estar nas Propiedades do script, no Script ID local de `clasp` e nos deployments, non en dúas variantes do código que evolucionen por separado.
 
 ## 2. Copias locais verificadas con clasp
 
@@ -41,7 +45,7 @@ Proxecto: `SCPP Script - Pruebas`.
 
 Ficheiros seguidos por clasp: 20.
 
-Inclúe un ficheiro específico de ambiente:
+Inclúe un ficheiro específico de ambiente no estado auditado:
 
 - `configuracion-entorno.js`
 
@@ -55,43 +59,36 @@ Non contén `configuracion-entorno.js` no estado auditado.
 
 `clasp deployments` mostrou 12 despregamentos no momento da auditoría.
 
-## 3. Inventario actual observado
+## 3. Fotografías reais gardadas en GitHub
 
-Ficheiros presentes en ambos proxectos no momento da auditoría:
+As dúas copias frescas están versionadas en:
 
 ```text
-aceptacion-portal.js
-appsscript.json
-asistencias-concertos-portal.js
-Código.js
-concertos-portal.js
-diagnostico-administrador-fotos.js
-diagnostico.js
-documentacion-portal.js
-ensaios-eliminar-ensaio.js
-ensaios-portal.js
-fotos-portal.js
-perfil-portal.js
-permisos-fotos-drive.js
-persoas-administracion.js
-probas-aceptacion-acceso.js
-publicacions-web.js
-r2-fotos-portal.js
-sincronizacion-medios-concertos.js
-solicitudes-web.js
+apps-script/snapshot-2026-08-19/
+├── preview/
+└── production/
 ```
 
-Só en Preview:
+Estas carpetas son **snapshots de auditoría** e non deben usarse como fonte ordinaria dun `clasp push`.
+
+A comparación por SHA confirmou:
+
+### Idénticos en ambos ambientes
+
+```text
+appsscript.json
+ensaios-eliminar-ensaio.js
+r2-fotos-portal.js
+sincronizacion-medios-concertos.js
+```
+
+### Só en Preview
 
 ```text
 configuracion-entorno.js
 ```
 
-## 4. Estado da comparación Preview vs Producción
-
-A comparación SHA-256 realizada en 2026-08-19 confirmou que Preview e Producción non son copias idénticas.
-
-Ficheiros que presentaban diferenzas de contido:
+### Diverxentes
 
 ```text
 aceptacion-portal.js
@@ -111,22 +108,61 @@ publicacions-web.js
 solicitudes-web.js
 ```
 
-Polo tanto, nunca se debe copiar Preview completo sobre Producción nin Producción completo sobre Preview sen revisar primeiro as diferenzas.
+O detalle da reconciliación está en `APPS-SCRIPT-RECONCILIACION-2026-08-19.md`.
 
-## 5. Protección específica de Preview
+## 4. Patrón de diferenzas verificado
 
-`configuracion-entorno.js` centraliza a separación de ambiente mediante Propiedades do script.
+A revisión de módulos representativos confirma que Preview avanzou cara a unha configuración máis segura:
 
-Conceptos principais:
+- IDs e carpetas mediante `obterPropiedadeObrigatoria_()`;
+- `WEB_TEST_EMAIL` mediante Script Properties;
+- `SCPP_ENVIRONMENT` para distinguir test/production;
+- `SCPP_ALLOW_WRITES` para bloquear escritura cando proceda;
+- menos IDs e correos incrustados no código;
+- eliminación dalgunhas funcións duplicadas.
 
-- `SCPP_ENVIRONMENT`: debe ser `test` ou `production`.
-- `SCPP_ALLOW_WRITES`: controla se se permiten operacións de escritura.
-- Os IDs de Sheets, carpetas, correos e segredos deben vivir nas Propiedades do script e non no código fonte.
-- `validarAccionPermitidaEntorno_()` bloquea accións de escritura cando `SCPP_ALLOW_WRITES` non é `true`.
+Producción conserva aínda varios IDs e valores fixos dentro do código. A solución non é manter dúas variantes para sempre, senón levar esa parametrización ao código canónico común preservando a funcionalidade válida de Producción.
 
-No estado auditado, a configuración de Preview estaba incompleta: `validarConfiguracionEntorno()` informou varias propiedades obrigatorias ausentes. Isto debe resolverse como tarefa de infraestrutura antes de considerar Preview un ambiente plenamente reproducible.
+## 5. Estrutura obxectivo do repositorio
 
-## 6. GitHub como fonte de verdade
+A estrutura final proposta é:
+
+```text
+apps-script/
+├── current/                 # única fonte despregable
+├── snapshot-2026-08-19/     # auditoría actual
+│   ├── preview/
+│   └── production/
+└── canonical-2026-08-03/    # snapshot histórico
+```
+
+`apps-script/current/` será a única fonte de verdade de Apps Script.
+
+Non se manterán copias `current-preview` e `current-production`, porque iso permitiría volver crear deriva.
+
+## 6. Diferenzas permitidas entre ambientes
+
+As diferenzas deben quedar fóra do código canónico.
+
+### Preview
+
+- `.clasp.json` local → Script ID de `SCPP Script - Pruebas`.
+- Script Properties → valores de test.
+- `SCPP_ENVIRONMENT=test`.
+- `SCPP_ALLOW_WRITES` segundo o tipo de proba.
+- deployments propios de Preview.
+
+### Producción
+
+- `.clasp.json` local → Script ID do proxecto de Producción.
+- Script Properties → valores reais de Producción.
+- `SCPP_ENVIRONMENT=production`.
+- política de escritura de Producción.
+- deployments de Producción.
+
+`.clasp.json` non debe copiarse entre ambientes nin formar parte da fonte canónica despregable.
+
+## 7. GitHub como fonte de verdade
 
 A carpeta histórica:
 
@@ -134,19 +170,20 @@ A carpeta histórica:
 apps-script/canonical-2026-08-03/
 ```
 
-é unha fotografía canónica do 2026-08-03, non un espello garantido do estado actual. O seu propio README xa indica que non debe despregarse automaticamente.
+é unha fotografía do 2026-08-03, non un espello garantido do estado actual.
 
 A partir desta auditoría, calquera nova modificación de Apps Script debe:
 
 1. nacer nunha rama de GitHub;
 2. quedar revisada no repositorio;
-3. chegar primeiro a Preview;
-4. probarse contra o despregamento de Preview;
-5. chegar a Producción só despois da validación.
+3. formar parte de `apps-script/current/` cando a reconciliación estea completada;
+4. chegar primeiro a Preview;
+5. probarse contra o deployment de Preview;
+6. chegar a Producción só desde o mesmo commit xa validado.
 
-As edicións manuais directas no editor de Apps Script deben considerarse excepcións. Se se produce unha edición de emerxencia, debe facerse inmediatamente un `clasp pull` e reconciliarse con GitHub antes de continuar o desenvolvemento.
+As edicións manuais directas no editor de Apps Script deben considerarse excepcións. Se se produce unha edición de emerxencia, debe facerse inmediatamente un `clasp pull`, gardar unha fotografía e reconciliarse con GitHub antes de continuar.
 
-## 7. Procedemento seguro con clasp
+## 8. Procedemento seguro con clasp
 
 ### Auditoría / lectura
 
@@ -160,45 +197,46 @@ Antes dun `pull`, confirmar sempre a carpeta actual para evitar sobrescribir unh
 ### Envío a Preview
 
 1. comprobar que a carpeta actual é `AppsScript-Preview`;
-2. comprobar `.clasp.json` e o proxecto destino;
-3. executar `clasp.cmd status`;
-4. revisar as diferenzas co código aprobado en GitHub;
-5. executar `clasp.cmd push`;
-6. verificar o proxecto remoto;
-7. crear/actualizar versión ou deployment só cando sexa necesario para probar o Web App.
+2. conservar o `.clasp.json` propio de Preview;
+3. copiar/sincronizar nela o contido aprobado de `apps-script/current/`;
+4. executar `clasp.cmd status`;
+5. revisar a diferenza;
+6. executar `clasp.cmd push`;
+7. verificar o proxecto remoto;
+8. crear/actualizar versión ou deployment só cando sexa necesario para probar o Web App.
 
-### Envío a Producción
+### Promoción a Producción
 
 Só despois de validar Preview:
 
 1. comprobar que a carpeta actual é `AppsScript-Produccion`;
-2. incorporar exactamente o cambio aprobado para Producción, preservando as diferenzas propias do ambiente;
-3. executar `clasp.cmd status`;
-4. revisar a diferenza final;
-5. executar `clasp.cmd push`;
-6. crear versión e actualizar o deployment de Producción de forma explícita se corresponde.
+2. conservar o `.clasp.json` propio de Producción;
+3. copiar/sincronizar **exactamente o mesmo commit de `apps-script/current/`** validado en Preview;
+4. executar `clasp.cmd status`;
+5. revisar a diferenza final;
+6. executar `clasp.cmd push`;
+7. crear versión e actualizar o deployment de Producción de forma explícita se corresponde.
 
-## 8. Regras de seguridade
+## 9. Regras de seguridade
 
 - Non usar `clasp push --force` como rutina.
-- Non copiar unha carpeta completa entre Preview e Producción.
-- Non versionar `.clasp.json` se contén identificadores que se queira manter fóra do repositorio.
+- Non copiar `.clasp.json` entre Preview e Producción.
+- Non despregar directamente desde os snapshots.
 - Non versionar tokens, claves, segredos nin valores das Propiedades do script.
 - Non cambiar `SCPP_ALLOW_WRITES` sen saber exactamente a que fontes de datos apunta o ambiente.
 - `clasp push` actualiza o código fonte (`HEAD`) do proxecto; a publicación dun Web App versionado é un paso distinto.
 - Antes de calquera cambio de infraestrutura, conservar unha copia fresca obtida con `clasp pull` ou `clone`.
+- Preview e Producción non deben diverxer funcionalmente unha vez pechada a reconciliación.
 
-## 9. Próximo paso técnico
+## 10. Próximo paso técnico
 
-Antes de automatizar despregamentos hai que completar unha reconciliación do código actual:
+Antes de automatizar despregamentos hai que completar a reconciliación:
 
-1. importar a GitHub unha fotografía fresca de Preview e Producción obtida en 2026-08-19;
-2. clasificar cada diferenza como:
-   - común;
-   - específica de ambiente;
-   - cambio funcional pendente de reconciliar;
-3. definir a estrutura definitiva do código Apps Script no repositorio;
-4. probar un cambio inocuo GitHub → Preview → verificación;
-5. só entón valorar automatización adicional.
+1. revisar os ficheiros diverxentes restantes;
+2. construír `apps-script/current/` preservando toda funcionalidade válida e externalizando configuración;
+3. validar as Script Properties necesarias en ambos ambientes;
+4. facer unha primeira proba inocua GitHub → Preview;
+5. promover o mesmo commit a Producción;
+6. só entón valorar automatización adicional.
 
-Ata completar esa reconciliación, non se considera seguro facer sincronización automática de Producción desde GitHub.
+Ata completar `apps-script/current/`, non se considera seguro automatizar `clasp push` a Producción.
