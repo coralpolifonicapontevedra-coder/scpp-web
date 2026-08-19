@@ -121,7 +121,7 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
   {
     id: 'administracion',
     label: 'Administración',
-    path: '/portal/administracion/estado/',
+    path: '/portal/administracion/',
     enabled: true,
     order: 120,
     surfaces: ['sidebar'],
