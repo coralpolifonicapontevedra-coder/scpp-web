@@ -16,24 +16,34 @@ if (!fs.existsSync(adminSource)) {
 
 let codigo = fs.readFileSync(codigoPath, 'utf8');
 
-const markerList = "if (accion === 'listarEnsaiosAdministracionPortal')";
-const markerUpdate = "if (accion === 'actualizarEnsaioAdministracionPortal')";
+const markerList = "    if (accion === 'listarEnsaiosAdministracionPortal') {";
+const markerUpdate = "    if (accion === 'actualizarEnsaioAdministracionPortal') {";
+const anchor = "    if (accion === 'gardarAsistenciaEnsaioPortal') {";
 
-if (!codigo.includes(markerList) || !codigo.includes(markerUpdate)) {
-  const anchor = "    if (accion === 'gardarAsistenciaEnsaioPortal') {";
-  if (!codigo.includes(anchor)) {
-    throw new Error('Non se atopou o punto seguro de integración no doPost. Non se modificou Código.js.');
-  }
-
-  const block = `    if (accion === 'listarEnsaiosAdministracionPortal') {\n      const resultado = listarEnsaiosAdministracionPortal_(datos);\n\n      rexistrarAcceso({\n        email: correo,\n        tipoEvento: 'Consultar administración de ensaios',\n        modulo: 'Administración',\n        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',\n        detalle: resultado.ok\n          ? 'Ensaios consultados desde Administración'\n          : String(resultado.erro || '')\n      });\n\n      return respostaJSON(resultado);\n    }\n\n    if (accion === 'actualizarEnsaioAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      const resultado = actualizarEnsaioAdministracionPortal_(datos);\n\n      rexistrarAcceso({\n        email: correo,\n        tipoEvento: datos.cancelado === true\n          ? 'Dar de baixa ensaio'\n          : 'Modificar data de ensaio',\n        modulo: 'Administración',\n        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',\n        detalle: resultado.ok\n          ? String(datos.idEnsaio || '')\n          : String(resultado.erro || '')\n      });\n\n      return respostaJSON(resultado);\n    }\n\n`;
-
-  codigo = codigo.replace(anchor, block + anchor);
-  fs.writeFileSync(codigoPath, codigo, 'utf8');
+if (!codigo.includes(anchor)) {
+  throw new Error('Non se atopou o punto seguro de integración no doPost. Non se modificou Código.js.');
 }
 
+const block = `    if (accion === 'listarEnsaiosAdministracionPortal') {\n      try {\n        const resultado = listarEnsaiosAdministracionPortal_(datos);\n        return respostaJSON(resultado);\n      } catch (erroAdminLista) {\n        return respostaJSON({\n          ok: false,\n          codigo: 'ADMIN_ENSAIOS_LIST_EXCEPTION',\n          erro: String(\n            erroAdminLista && erroAdminLista.message\n              ? erroAdminLista.message\n              : erroAdminLista\n          )\n        });\n      }\n    }\n\n    if (accion === 'actualizarEnsaioAdministracionPortal') {\n      try {\n        bloqueo.waitLock(10000);\n        const resultado = actualizarEnsaioAdministracionPortal_(datos);\n        return respostaJSON(resultado);\n      } catch (erroAdminActualizacion) {\n        return respostaJSON({\n          ok: false,\n          codigo: 'ADMIN_ENSAIOS_UPDATE_EXCEPTION',\n          erro: String(\n            erroAdminActualizacion && erroAdminActualizacion.message\n              ? erroAdminActualizacion.message\n              : erroAdminActualizacion\n          ),\n          detalle: String(\n            erroAdminActualizacion && erroAdminActualizacion.stack\n              ? erroAdminActualizacion.stack\n              : ''\n          )\n        });\n      }\n    }\n\n`;
+
+const inicioExistente = codigo.indexOf(markerList);
+const anchorIndex = codigo.indexOf(anchor);
+
+if (inicioExistente !== -1 && inicioExistente < anchorIndex) {
+  codigo = codigo.slice(0, inicioExistente) + block + codigo.slice(anchorIndex);
+} else {
+  codigo = codigo.replace(anchor, block + anchor);
+}
+
+if (!codigo.includes(markerList) || !codigo.includes(markerUpdate)) {
+  throw new Error('Non foi posible integrar as accións administrativas no dispatcher.');
+}
+
+fs.writeFileSync(codigoPath, codigo, 'utf8');
 fs.copyFileSync(adminSource, adminTarget);
 
 console.log('Preview de Apps Script preparado.');
 console.log('- Dispatcher administrativo integrado en Código.js');
+console.log('- Excepcións administrativas devolven JSON de diagnóstico');
 console.log('- ensaios-administracion.js copiado ao proxecto clasp');
 console.log('Agora revisa git diff/no ficheiro local e só despois executa clasp push.');
