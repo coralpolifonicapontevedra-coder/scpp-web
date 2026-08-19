@@ -3,6 +3,7 @@ import { obterJsonAppsScript } from '../_lib/apps-script.js';
 const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
 const ENSAIOS_CACHE_PREFIX = 'ensaios/cache-v2/usuarios/';
+const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -41,6 +42,11 @@ async function verificarFirebase(idToken, apiKey) {
   return { uid:String(user.localId || ''), email:String(user.email).trim().toLowerCase() };
 }
 
+async function hashEmail(email) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(email || '').trim().toLowerCase()));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function chamarAppsScript(env, user, accion, datos = {}) {
   const { resultado } = await obterJsonAppsScript(env, {
     token:env.WEB_WRITE_TOKEN,
@@ -56,6 +62,25 @@ async function chamarAppsScript(env, user, accion, datos = {}) {
     throw Object.assign(new Error(message), { code });
   }
   return resultado;
+}
+
+async function verificarAdministracionR2(env, user) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return false;
+  const key = `${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`;
+  const object = await env.R2_PRIVADO.get(key);
+  if (!object) return false;
+  const entry = await object.json().catch(() => null);
+  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
+}
+
+async function lerEnsaiosR2(env, user) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  const key = `${ENSAIOS_CACHE_PREFIX}${await hashEmail(user.email)}.json`;
+  const object = await env.R2_PRIVADO.get(key);
+  if (!object) return null;
+  const entry = await object.json().catch(() => null);
+  if (entry?.email !== user.email || entry?.payload?.ok !== true || entry?.payload?.version !== 2) return null;
+  return entry.payload;
 }
 
 async function invalidarCacheEnsaios(env) {
@@ -132,14 +157,18 @@ export async function onRequest(context) {
   const accion = String(body.accion || 'listar').trim();
 
   try {
+    const adminOk = await verificarAdministracionR2(env, user);
+    if (!adminOk) return erro(403, 'AUTH', 'FORBIDDEN', 'Usuario non autorizado para Administración.');
+
     if (accion === 'listar') {
-      // Reutiliza a lectura xa despregada do módulo Ensaios. Non introduce unha
-      // segunda consulta específica nin require cambios de Apps Script para abrir a pantalla.
-      const result = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
+      const payload = await lerEnsaiosR2(env, user);
+      if (!payload) {
+        return erro(503, 'R2', 'CACHE_MISSING', 'Non hai aínda un índice de Ensaios dispoñible en R2 para esta conta.');
+      }
       return json(200, {
         ok:true,
-        nivel:result.perfil?.nivel || result.nivel || 'Xunta Directiva',
-        ensaios:ensaiosAdministracion(result)
+        nivel:'Administración',
+        ensaios:ensaiosAdministracion(payload)
       });
     }
 
