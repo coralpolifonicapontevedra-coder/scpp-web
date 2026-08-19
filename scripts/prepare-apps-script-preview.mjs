@@ -6,12 +6,17 @@ const previewDir = path.join(root, 'apps-script-preview');
 const codigoPath = path.join(previewDir, 'Código.js');
 const adminSource = path.join(root, 'apps-script', 'ensaios-administracion.gs');
 const adminTarget = path.join(previewDir, 'ensaios-administracion.js');
+const manifestSource = path.join(root, 'apps-script', 'appsscript.json');
+const manifestTarget = path.join(previewDir, 'appsscript.json');
 
 if (!fs.existsSync(codigoPath)) {
   throw new Error('Non se atopou apps-script-preview/Código.js. Executa antes clasp pull no proxecto de probas.');
 }
 if (!fs.existsSync(adminSource)) {
   throw new Error('Non se atopou apps-script/ensaios-administracion.gs.');
+}
+if (!fs.existsSync(manifestSource)) {
+  throw new Error('Non se atopou apps-script/appsscript.json.');
 }
 
 let codigo = fs.readFileSync(codigoPath, 'utf8');
@@ -41,9 +46,11 @@ if (!codigo.includes(markerList) || !codigo.includes(markerUpdate)) {
 
 fs.writeFileSync(codigoPath, codigo, 'utf8');
 fs.copyFileSync(adminSource, adminTarget);
+fs.copyFileSync(manifestSource, manifestTarget);
 
 console.log('Preview de Apps Script preparado.');
 console.log('- Dispatcher administrativo integrado en Código.js');
 console.log('- Excepcións administrativas devolven JSON de diagnóstico');
 console.log('- ensaios-administracion.js copiado ao proxecto clasp');
-console.log('Agora revisa git diff/no ficheiro local e só despois executa clasp push.');
+console.log('- appsscript.json sincronizado desde GitHub');
+console.log('Agora revisa os ficheiros locais e só despois executa clasp push.');
