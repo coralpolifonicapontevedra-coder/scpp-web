@@ -14,8 +14,12 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'listarAsistenciasConcertosPortal',
   'obterTextoLegalVixente',
   'comprobarAceptacion',
-  'rexistrarAceptacion'
+  'rexistrarAceptacion',
+  'listarEnsaiosAdministracionPortal',
+  'actualizarEnsaioAdministracionPortal'
 ]);
+
+const PATRON_APPS_SCRIPT = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/;
 
 export class AppsScriptError extends Error {
   constructor(message, code = 'APPS_SCRIPT_UNAVAILABLE', status = 0) {
@@ -26,6 +30,11 @@ export class AppsScriptError extends Error {
   }
 }
 
+function urlPrincipalAppsScript(env = {}) {
+  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  return PATRON_APPS_SCRIPT.test(url) ? url : '';
+}
+
 function urlsAppsScript(env = {}) {
   return [
     env.APPS_SCRIPT_WEBAPP_URL,
@@ -33,7 +42,7 @@ function urlsAppsScript(env = {}) {
     URL_RESPALDO_SCPP
   ]
     .map((url) => String(url || '').trim())
-    .filter((url, index, all) => /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) && all.indexOf(url) === index);
+    .filter((url, index, all) => PATRON_APPS_SCRIPT.test(url) && all.indexOf(url) === index);
 }
 
 async function fetchConLimite(url, options, timeoutMs) {
@@ -50,14 +59,18 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const timeoutTotalMs = Math.max(4000, Number(options.timeoutMs) || 20000);
   const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
   const expectJson = options.expectJson === true;
-  const urlsConfiguradas = urlsAppsScript(env);
   const accion = String(corpo?.accion || '').trim();
-  const urls = ACCIONS_SO_PRINCIPAL.has(accion)
-    ? urlsConfiguradas.slice(0, 1)
-    : urlsConfiguradas;
+  const soPrincipal = ACCIONS_SO_PRINCIPAL.has(accion);
+  const principal = urlPrincipalAppsScript(env);
+  const urls = soPrincipal
+    ? (principal ? [principal] : [])
+    : urlsAppsScript(env);
 
   if (!urls.length) {
-    throw new AppsScriptError('Non hai ningunha implementación de Apps Script configurada.', 'APPS_SCRIPT_NOT_CONFIGURED');
+    const mensaxe = soPrincipal
+      ? 'A acción require APPS_SCRIPT_WEBAPP_URL e non admite implementacións de respaldo.'
+      : 'Non hai ningunha implementación de Apps Script configurada.';
+    throw new AppsScriptError(mensaxe, 'APPS_SCRIPT_NOT_CONFIGURED');
   }
 
   const inicio = Date.now();
@@ -100,6 +113,13 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
             };
           } catch {
             houboRespostaNonValida = true;
+            if (soPrincipal) {
+              throw new AppsScriptError(
+                'A implementación principal de Apps Script devolveu unha resposta non válida.',
+                'APPS_SCRIPT_INVALID_RESPONSE',
+                resposta.status
+              );
+            }
             console.warn('Apps Script devolveu HTTP 200 cun corpo non JSON; probando a seguinte implementación.');
             continue;
           }
@@ -113,17 +133,18 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
         };
       }
 
-      if (!ESTADOS_RECUPERABLES.has(resposta.status)) {
+      if (soPrincipal || !ESTADOS_RECUPERABLES.has(resposta.status)) {
         return {
           resposta,
           urlUsada: urls[index],
-          usouRespaldo: index > 0,
+          usouRespaldo: false,
           intento: index + 1
         };
       }
 
       console.warn(`Apps Script respondeu ${resposta.status}; probando a seguinte implementación.`);
     } catch (erro) {
+      if (soPrincipal) throw erro;
       ultimoErro = erro;
       console.warn('Fallou unha implementación de Apps Script; probando a seguinte.', erro);
     }
