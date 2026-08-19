@@ -200,3 +200,46 @@ function actualizarEnsaioAdministracionPortal_(datos) {
     }
   };
 }
+
+function diagnosticoEnsaiosPreview() {
+  var props = PropertiesService.getScriptProperties();
+  var email = String(props.getProperty('WEB_TEST_EMAIL') || '').trim().toLowerCase();
+  var cfg = configuracionEnsaiosAdministracionPortal_();
+
+  var resultado = {
+    ok: true,
+    email: email,
+    documentos: []
+  };
+
+  var probas = [
+    { propiedade: 'ENSAIOS_SPREADSHEET_ID', id: cfg.ensaiosId, folla: 'Ensaios' },
+    { propiedade: 'ASISTENCIAS_ENSAIOS_SPREADSHEET_ID', id: cfg.asistenciasId, folla: 'AsistenciasEnsaios' },
+    { propiedade: 'ENSAIOS_REPERTORIO_SPREADSHEET_ID', id: cfg.ensaiosRepertorioId, folla: 'EnsaiosRepertorio' }
+  ];
+
+  probas.forEach(function (proba) {
+    try {
+      var datos = filasEnsaiosAdministracionPortal_(proba.id, proba.folla, proba.propiedade);
+      resultado.documentos.push({
+        propiedade: proba.propiedade,
+        id: proba.id,
+        folla: proba.folla,
+        ok: true,
+        filas: datos.rows.length
+      });
+    } catch (erro) {
+      resultado.ok = false;
+      resultado.documentos.push({
+        propiedade: proba.propiedade,
+        id: proba.id,
+        folla: proba.folla,
+        ok: false,
+        erro: String(erro && erro.message ? erro.message : erro)
+      });
+    }
+  });
+
+  Logger.log(JSON.stringify(resultado, null, 2));
+  return resultado;
+}
