@@ -2,6 +2,46 @@ import { z } from 'zod';
 
 const rexistroFlexible = z.record(z.string(), z.unknown()).or(z.object({}).loose());
 const listaFlexible = z.array(rexistroFlexible);
+const textoOpcional = z.string().optional();
+const booleanoFlexibleOpcional = z.union([z.boolean(), z.string(), z.number()]).optional();
+
+export const persoaSchema = z.object({
+  id: textoOpcional,
+  Id: textoOpcional,
+  nome: textoOpcional,
+  Nome: textoOpcional,
+  apelidos: textoOpcional,
+  Apelidos: textoOpcional,
+  email: textoOpcional,
+  Email: textoOpcional,
+  voz: textoOpcional,
+  Voz: textoOpcional,
+  cargo: textoOpcional,
+  Cargo: textoOpcional,
+  tipoSocio: textoOpcional,
+  'Tipo de socio': textoOpcional,
+  dataIncorporacion: textoOpcional,
+  DataIncorporacion: textoOpcional,
+  activo: booleanoFlexibleOpcional
+}).loose();
+
+export const obraRepertorioSchema = z.object({
+  id: textoOpcional,
+  idRepertorio: textoOpcional,
+  Id_Repertorio: textoOpcional,
+  nome: textoOpcional,
+  nomeObra: textoOpcional,
+  obra: textoOpcional,
+  titulo: textoOpcional,
+  autor: textoOpcional,
+  compositor: textoOpcional,
+  partitura: z.unknown().optional(),
+  partituras: z.array(z.unknown()).optional(),
+  audios: z.array(z.unknown()).optional(),
+  audiosR2: z.array(z.unknown()).optional()
+}).loose();
+
+const listaRepertorio = z.array(obraRepertorioSchema);
 
 export const ensaiosIndexSchema = z.object({
   ok: z.literal(true),
@@ -33,9 +73,9 @@ export const fotosRevisionIndexSchema = z.object({
 
 export const repertorioIndexSchema = z.object({
   ok: z.literal(true).optional(),
-  obras: listaFlexible.optional(),
-  repertorio: listaFlexible.optional(),
-  datos: listaFlexible.optional(),
+  obras: listaRepertorio.optional(),
+  repertorio: listaRepertorio.optional(),
+  datos: listaRepertorio.optional(),
   xeradoEn: z.string().optional(),
   version: z.union([z.string(), z.number()]).optional()
 }).loose().superRefine((value, ctx) => {
@@ -49,7 +89,7 @@ export const repertorioIndexSchema = z.object({
 
 export const persoasIndexSchema = z.object({
   ok: z.literal(true).optional(),
-  persoas: listaFlexible,
+  persoas: z.array(persoaSchema),
   xeradoEn: z.string().optional(),
   version: z.union([z.string(), z.number()]).optional()
 }).loose();
