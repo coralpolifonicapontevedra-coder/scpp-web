@@ -54,6 +54,19 @@ function listarEnsaiosAdministracionPortal_(datos) {
   };
 }
 
+function dataEnsaiosAdministracionPortal_(valor) {
+  var texto = textoEnsaiosPortal_(valor);
+  var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto);
+  if (!match) return null;
+  var data = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0);
+  if (
+    data.getFullYear() !== Number(match[1]) ||
+    data.getMonth() !== Number(match[2]) - 1 ||
+    data.getDate() !== Number(match[3])
+  ) return null;
+  return data;
+}
+
 function actualizarEnsaioAdministracionPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
   var permiso = permisoEnsaiosPortal_(email);
@@ -64,9 +77,10 @@ function actualizarEnsaioAdministracionPortal_(datos) {
   var idEnsaio = textoEnsaiosPortal_(datos && datos.idEnsaio);
   var novaData = textoEnsaiosPortal_(datos && datos.data);
   var cancelar = datos && datos.cancelado === true;
+  var dataValor = cancelar ? null : dataEnsaiosAdministracionPortal_(novaData);
 
   if (!idEnsaio) return { ok: false, codigo: 'VALIDATION', erro: 'Falta o identificador do ensaio' };
-  if (!cancelar && !/^\d{4}-\d{2}-\d{2}$/.test(novaData)) {
+  if (!cancelar && !dataValor) {
     return { ok: false, codigo: 'VALIDATION', erro: 'A nova data do ensaio non é válida' };
   }
 
@@ -88,7 +102,7 @@ function actualizarEnsaioAdministracionPortal_(datos) {
   if (cancelar) {
     datosFolla.sheet.getRange(row.__row, canceladoIndex + 1).setValue(true);
   } else {
-    datosFolla.sheet.getRange(row.__row, dataIndex + 1).setValue(novaData);
+    datosFolla.sheet.getRange(row.__row, dataIndex + 1).setValue(dataValor).setNumberFormat('yyyy-mm-dd');
   }
   SpreadsheetApp.flush();
 
