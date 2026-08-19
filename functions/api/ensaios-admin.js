@@ -32,11 +32,7 @@ async function verificarFirebase(idToken, apiKey) {
   if (!token) return null;
   const response = await fetchConLimite(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-    {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body:JSON.stringify({ idToken:token })
-    },
+    { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ idToken:token }) },
     TIMEOUT_FIREBASE_MS
   );
   if (!response.ok) return null;
@@ -52,10 +48,7 @@ async function chamarAppsScript(env, user, accion, datos = {}) {
     email:user.email,
     uidFirebase:user.uid,
     ...datos
-  }, {
-    timeoutMs:TIMEOUT_APPS_SCRIPT_MS,
-    attemptTimeoutMs:8_000
-  });
+  }, { timeoutMs:TIMEOUT_APPS_SCRIPT_MS, attemptTimeoutMs:8_000 });
 
   if (!resultado?.ok) {
     const message = resultado?.erro || 'Apps Script non puido completar a operación.';
@@ -76,12 +69,56 @@ async function invalidarCacheEnsaios(env) {
   } while (cursor);
 }
 
+function idEnsaio(item = {}) {
+  return String(item.idEnsaio || item.Id_Ensaio || item.IdEnsaio || item.id || '').trim();
+}
+
+function refEnsaio(item = {}) {
+  return String(item.ensaio || item.Ensaio || item.idEnsaio || item.Id_Ensaio || '').trim();
+}
+
+function booleano(value) {
+  return value === true || ['true','1','si','sí','yes','x'].includes(String(value || '').trim().toLowerCase());
+}
+
+function ensaiosAdministracion(result) {
+  const asistencias = Array.isArray(result.asistencias) ? result.asistencias : [];
+  const repertorio = Array.isArray(result.ensaiosRepertorio) ? result.ensaiosRepertorio : [];
+  const countAsistencias = new Map();
+  const countObras = new Map();
+
+  asistencias.forEach((item) => {
+    const id = refEnsaio(item);
+    if (id) countAsistencias.set(id, (countAsistencias.get(id) || 0) + 1);
+  });
+  repertorio.forEach((item) => {
+    const id = refEnsaio(item);
+    if (id) countObras.set(id, (countObras.get(id) || 0) + 1);
+  });
+
+  return (Array.isArray(result.ensaios) ? result.ensaios : []).map((item) => {
+    const id = idEnsaio(item);
+    return {
+      idEnsaio:id,
+      data:String(item.data || item.Data || '').slice(0, 10),
+      horaInicio:String(item.horaInicio || item.HoraInicio || '').trim(),
+      horaFin:String(item.horaFin || item.HoraFin || '').trim(),
+      lugar:String(item.lugar || item.Lugar || '').trim(),
+      tipoEnsaio:String(item.tipoEnsaio || item.TipoEnsaio || '').trim(),
+      concerto:String(item.concerto || item.Concerto || '').trim(),
+      descricion:String(item.descricion || item.Descricion || '').trim(),
+      observacions:String(item.observacions || item.Observacions || '').trim(),
+      cancelado:booleano(item.cancelado ?? item.Cancelado),
+      obras:countObras.get(id) || 0,
+      asistencias:countAsistencias.get(id) || 0
+    };
+  }).filter((item) => item.idEnsaio).sort((a, b) => String(b.data).localeCompare(String(a.data)));
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') return erro(405, 'REQUEST', 'METHOD_NOT_ALLOWED', 'Método non permitido.');
-  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
-    return erro(500, 'CONFIG', 'MISSING_CONFIG', 'O servizo non está configurado correctamente.');
-  }
+  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) return erro(500, 'CONFIG', 'MISSING_CONFIG', 'O servizo non está configurado correctamente.');
 
   let body;
   try { body = await request.json(); }
@@ -89,34 +126,36 @@ export async function onRequest(context) {
 
   let user;
   try { user = await verificarFirebase(body.idToken, env.FIREBASE_API_KEY); }
-  catch {
-    return erro(503, 'FIREBASE', 'FIREBASE_UNAVAILABLE', 'Non foi posible validar a sesión.');
-  }
+  catch { return erro(503, 'FIREBASE', 'FIREBASE_UNAVAILABLE', 'Non foi posible validar a sesión.'); }
   if (!user) return erro(401, 'AUTH', 'INVALID_SESSION', 'A identificación non é válida ou caducou.');
 
   const accion = String(body.accion || 'listar').trim();
 
   try {
     if (accion === 'listar') {
-      const result = await chamarAppsScript(env, user, 'listarEnsaiosAdministracionPortal');
-      return json(200, { ok:true, nivel:result.nivel || '', ensaios:Array.isArray(result.ensaios) ? result.ensaios : [] });
+      // Reutiliza a lectura xa despregada do módulo Ensaios. Non introduce unha
+      // segunda consulta específica nin require cambios de Apps Script para abrir a pantalla.
+      const result = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
+      return json(200, {
+        ok:true,
+        nivel:result.perfil?.nivel || result.nivel || 'Xunta Directiva',
+        ensaios:ensaiosAdministracion(result)
+      });
     }
 
     if (accion === 'cambiarData') {
-      const idEnsaio = String(body.idEnsaio || '').trim();
+      const id = String(body.idEnsaio || '').trim();
       const data = String(body.data || '').trim();
-      if (!idEnsaio || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
-        return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica un ensaio e unha data válida.');
-      }
-      const result = await chamarAppsScript(env, user, 'actualizarEnsaioAdministracionPortal', { idEnsaio, data, cancelado:false });
+      if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica un ensaio e unha data válida.');
+      const result = await chamarAppsScript(env, user, 'actualizarEnsaioAdministracionPortal', { idEnsaio:id, data, cancelado:false });
       await invalidarCacheEnsaios(env);
       return json(200, { ok:true, resultado:result.resultado || result });
     }
 
     if (accion === 'darBaixa') {
-      const idEnsaio = String(body.idEnsaio || '').trim();
-      if (!idEnsaio) return erro(400, 'REQUEST', 'INVALID_DATA', 'Falta o ensaio que se quere dar de baixa.');
-      const result = await chamarAppsScript(env, user, 'actualizarEnsaioAdministracionPortal', { idEnsaio, cancelado:true });
+      const id = String(body.idEnsaio || '').trim();
+      if (!id) return erro(400, 'REQUEST', 'INVALID_DATA', 'Falta o ensaio que se quere dar de baixa.');
+      const result = await chamarAppsScript(env, user, 'actualizarEnsaioAdministracionPortal', { idEnsaio:id, cancelado:true });
       await invalidarCacheEnsaios(env);
       return json(200, { ok:true, resultado:result.resultado || result });
     }
