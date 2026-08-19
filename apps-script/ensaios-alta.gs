@@ -1,13 +1,13 @@
 /*
- * Alta de ensaios desde o Portal SCPP.
+ * Alta administrativa de ensaios desde o Portal SCPP.
  *
- * Este ficheiro debe existir no mesmo proxecto de Apps Script ca ensaios-portal.gs,
- * porque reutiliza os seus helpers de configuración, permisos e cabeceiras.
+ * A creación só necesita a folla Ensaios. O repertorio, as asistencias e o
+ * resto de relacións xestiónanse despois desde o módulo operativo de Ensaios.
  */
 
 function gardarEnsaioPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
-  var permiso = permisoEnsaiosPortal_(email);
+  var permiso = permisoEnsaiosAdministracionPortal_(email);
   if (!permiso.escritura) {
     return { ok: false, codigo: 'FORBIDDEN', erro: 'Usuario non autorizado para crear ensaios' };
   }
@@ -32,8 +32,14 @@ function gardarEnsaioPortal_(datos) {
     return { ok: false, codigo: 'VALIDATION', erro: 'O tipo de ensaio é obrigatorio' };
   }
 
-  var cfg = configuracionEnsaiosPortal_();
-  var sheet = follaEnsaiosPortal_(cfg.ensaiosId, 'Ensaios');
+  var props = PropertiesService.getScriptProperties();
+  var ensaiosId = String(props.getProperty('ENSAIOS_SPREADSHEET_ID') || '').trim();
+  if (!ensaiosId) {
+    return { ok: false, codigo: 'CONFIG', erro: 'Falta a propiedade obrigatoria do ambiente: ENSAIOS_SPREADSHEET_ID' };
+  }
+
+  var aberto = abrirFollaEnsaiosAdministracionPortal_(ensaiosId, 'Ensaios', 'ENSAIOS_SPREADSHEET_ID');
+  var sheet = aberto.sheet;
   var values = sheet.getDataRange().getValues();
   if (!values.length) {
     return { ok: false, codigo: 'SCHEMA', erro: 'A folla Ensaios non ten cabeceiras' };
