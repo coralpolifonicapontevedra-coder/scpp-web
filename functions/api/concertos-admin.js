@@ -30,6 +30,13 @@ export async function onRequest(context) {
     const adminOk=await verificarAdministracionR2(env,user); if(!adminOk)return erro(403,'AUTH','FORBIDDEN','Usuario non autorizado para Administración.');
     const accion=String(body.accion||'listar').trim();
     if(accion==='listar'){const result=await chamarAppsScript(env,user,'listarConcertosAdministracionPortal');return json(200,{ok:true,nivel:result.nivel||'Administración',concertos:Array.isArray(result.concertos)?result.concertos:[]});}
+    if(accion==='novo'){
+      const data=String(body.data||'').trim(),nome=String(body.nome||'').trim(),estado=String(body.estado||'Previsto').trim();
+      const validos=new Set(['Previsto','Confirmado','Aprazado','Cancelado','Realizado']);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(data)||!nome||!validos.has(estado))return erro(400,'REQUEST','INVALID_DATA','Indica nome, data e estado válidos.');
+      const result=await chamarAppsScript(env,user,'crearConcertoAdministracionPortal',{data,nome,cidade:String(body.cidade||'').trim(),lugar:String(body.lugar||'').trim(),hora:String(body.hora||'').trim(),caracteristicas:String(body.caracteristicas||'').trim(),estado});
+      return json(200,{ok:true,resultado:result.resultado||result});
+    }
     if(accion==='cambiarData'){const idConcerto=String(body.idConcerto||'').trim(),data=String(body.data||'').trim();if(!idConcerto||!/^\d{4}-\d{2}-\d{2}$/.test(data))return erro(400,'REQUEST','INVALID_DATA','Indica un concerto e unha data válida.');const result=await chamarAppsScript(env,user,'actualizarConcertoAdministracionPortal',{idConcerto,data});return json(200,{ok:true,resultado:result.resultado||result});}
     if(accion==='cambiarEstado'){const idConcerto=String(body.idConcerto||'').trim(),estado=String(body.estado||'').trim();const validos=new Set(['Previsto','Confirmado','Aprazado','Cancelado','Realizado']);if(!idConcerto||!validos.has(estado))return erro(400,'REQUEST','INVALID_DATA','Indica un concerto e un estado válido.');const result=await chamarAppsScript(env,user,'actualizarConcertoAdministracionPortal',{idConcerto,estado});return json(200,{ok:true,resultado:result.resultado||result});}
     return erro(400,'REQUEST','ACTION_NOT_ALLOWED','Acción non permitida.');
