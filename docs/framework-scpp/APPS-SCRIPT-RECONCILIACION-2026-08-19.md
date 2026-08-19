@@ -9,7 +9,34 @@ Este documento parte de dúas fotografías reais obtidas con `clasp clone` o 19/
 
 O obxectivo non é manter dous códigos independentes, senón converxer cara a un único código canónico en GitHub que poida despregarse primeiro a Preview e despois a Producción. As diferenzas de ambiente deben residir nas Propiedades do script, no `Script ID` local de `clasp` e nos deployments, non en copias funcionais diverxentes do código.
 
-## Resultado estrutural
+## Estado executivo actual
+
+**Estado: PAUSADO DE FORMA INTENCIONADA, SEN DESPREGAMENTOS.**
+
+Esta reconciliación queda parada antes de crear `apps-script/current/` porque existe traballo funcional simultáneo na rama `agent/administracion-ensaios` sobre Administración → Ensaios (incluíndo operacións como baixa/eliminación e cambio de data). Esa rama pode modificar ficheiros de Apps Script que tamén forman parte desta reconciliación.
+
+Non se debe crear nin despregar o código canónico definitivo ata incorporar primeiro os cambios funcionais aprobados desa rama.
+
+A PR de infraestrutura é a **#61**, mantida en borrador durante esta fase.
+
+## Traballo realizado o 19/08/2026
+
+1. Instalouse e verificouse `clasp` no ordenador de traballo.
+2. Obtívose unha copia real independente dos dous proxectos de Apps Script mediante `clasp clone`:
+   - `AppsScript-Preview` → SCPP Script - Pruebas.
+   - `AppsScript-Produccion` → proxecto de produción.
+3. Verificouse `clasp status` en Preview: 20 ficheiros rastrexados e `.clasp.json` local/non rastrexado.
+4. Verificáronse os deployments existentes:
+   - Preview: 2 deployments no momento da comprobación.
+   - Producción: 12 deployments no momento da comprobación.
+5. Executouse accidentalmente `clasp push` en ambos proxectos despois dos clones. Ao partir de copias acabadas de clonar, o código local correspondía ao código remoto de cada proxecto. Non se crearon deployments novos con esa operación. Posteriormente verificáronse `status` e `deployments`.
+6. Gardáronse en GitHub snapshots completos de ambos proxectos, excluíndo `.clasp.json`.
+7. Creouse a rama `agent/apps-script-sync-architecture` e a PR #61 en borrador para illar este traballo do desenvolvemento funcional.
+8. Comparáronse Preview e Producción e identificouse que a deriva principal procede de configuración incrustada en Producción fronte a configuración externalizada en Preview.
+9. Decidiuse que GitHub debe ser a fonte de verdade e que o destino final será un único `apps-script/current/`, non dúas copias independentes.
+10. Antes de construír `current/`, decidiuse pausar para non interferir coa rama funcional `agent/administracion-ensaios`.
+
+## Resultado estrutural dos snapshots
 
 - Preview: 20 ficheiros.
 - Producción: 19 ficheiros.
@@ -94,9 +121,11 @@ Preview reutiliza `obterFollaUsuariosWeb_()` e xa non duplica `obterUsuarioWebPo
 
 Clasificación: **limpeza estrutural / eliminación de duplicación**, non unha diferenza que deba sobrevivir entre ambientes.
 
-## Ficheiros idénticos que poden considerarse xa comúns
+### Outros ficheiros xa inspeccionados
 
-Os seguintes ficheiros teñen exactamente o mesmo SHA en ambos snapshots e son candidatos inmediatos a formar parte do código canónico común:
+A revisión adicional de `diagnostico-administrador-fotos.js`, `permisos-fotos-drive.js`, `probas-aceptacion-acceso.js`, `publicacions-web.js` e `solicitudes-web.js` reforza o mesmo patrón: Preview substitúe correos, IDs de carpetas/Sheets e datos de proba incrustados por Script Properties. Non se debe, con todo, asumir que todo Preview substitúe automaticamente a Producción: calquera helper ou funcionalidade exclusiva de Producción debe preservarse tras comparación.
+
+## Ficheiros idénticos que poden considerarse xa comúns
 
 ```text
 appsscript.json
@@ -105,33 +134,28 @@ r2-fotos-portal.js
 sincronizacion-medios-concertos.js
 ```
 
-## Ficheiros diverxentes pendentes de revisión detallada
+## Ficheiros que requiren reconciliación antes de `current/`
 
-Ademais dos xa revisados, quedan por reconciliar de forma específica:
+Os 15 ficheiros diverxentes deben revisarse contra o estado funcional definitivo. A revisión xa realizada permite usar Preview como **base técnica preferente** pola parametrización, pero non autoriza unha copia cega de Preview sobre Producción.
+
+Especial atención a:
 
 ```text
-diagnostico-administrador-fotos.js
-diagnostico.js
+Código.js
+ensaios-portal.js
+aceptacion-portal.js
 fotos-portal.js
 perfil-portal.js
-permisos-fotos-drive.js
 persoas-administracion.js
-probas-aceptacion-acceso.js
-publicacions-web.js
-solicitudes-web.js
 ```
 
-Non deben etiquetarse automaticamente como “só ambiente” ata revisar o diff funcional.
+Os dous primeiros deben volver compararse despois de pechar `agent/administracion-ensaios`.
 
 ## Arquitectura obxectivo
 
-A estrutura final non debe ser `common/preview/production` con tres copias do código, porque volvería permitir deriva entre ambientes.
-
-A proposta é:
-
 ```text
 apps-script/
-├── current/                 # única fonte canónica despregable
+├── current/                 # única fonte canónica despregable (AÍNDA NON CREADA)
 ├── snapshot-2026-08-19/     # evidencia da auditoría; non despregable
 │   ├── preview/
 │   └── production/
@@ -159,15 +183,16 @@ Producción
 ## Fluxo final desexado
 
 ```text
-rama GitHub
-  → revisión
+rama funcional GitHub
+  → revisión e aprobación
+  → integración na fonte canónica
   → apps-script/current
-  → copiar/sincronizar current a AppsScript-Preview
+  → sincronizar current a AppsScript-Preview
   → clasp status
   → clasp push
   → probar Preview
   → aprobación
-  → copiar/sincronizar o MESMO current a AppsScript-Produccion
+  → sincronizar O MESMO COMMIT a AppsScript-Produccion
   → clasp status
   → clasp push
   → actualizar deployment de Producción cando corresponda
@@ -175,24 +200,33 @@ rama GitHub
 
 A regra principal é: **o código enviado aos dous proxectos debe ser o mesmo commit de GitHub**. O ambiente determínase polas Propiedades do script, non por bifurcacións manuais do código.
 
-## Plan de migración
+## Plan para retomar este traballo
 
-1. Conservar intactos os snapshots do 19/08/2026.
-2. Revisar os 9 ficheiros diverxentes aínda non clasificados.
-3. Construír `apps-script/current/` tomando como base a variante máis segura e parametrizada, preservando toda funcionalidade válida de Producción.
-4. Eliminar IDs, correos e segredos incrustados do código canónico.
-5. Incorporar `configuracion-entorno.js` ao código canónico para ambos ambientes; en Producción `SCPP_ENVIRONMENT=production`.
-6. Validar que Producción ten todas as Script Properties necesarias antes de despregar o código canónico.
-7. Facer unha primeira proba inocua contra Preview.
-8. Só tras validar Preview, probar a promoción exacta do mesmo commit a Producción.
-9. Automatizar parcialmente o fluxo só cando a reconciliación estea pechada e exista unha comprobación previa de destino.
+Cando remate o traballo de Administración → Ensaios:
 
-## Regra de seguridade durante a reconciliación
+1. Confirmar que `agent/administracion-ensaios` está no estado funcional aprobado.
+2. Comparar esa rama coa rama de arquitectura e identificar cambios en Apps Script, especialmente `Código.js`, `ensaios-portal.js` e módulos relacionados.
+3. Incorporar os cambios funcionais aprobados á reconciliación; non sobrescribilos cos snapshots do 19/08.
+4. Completar a revisión dos ficheiros diverxentes.
+5. Construír `apps-script/current/` tomando Preview como base técnica parametrizada e preservando toda funcionalidade válida de Producción e da rama de Ensaios.
+6. Eliminar IDs, correos e segredos incrustados do código canónico.
+7. Incorporar `configuracion-entorno.js` ao código canónico para ambos ambientes; en Producción `SCPP_ENVIRONMENT=production`.
+8. Validar todas as Script Properties necesarias en Preview antes de calquera push.
+9. Facer a primeira proba unicamente contra Preview.
+10. Só despois de validar Preview, preparar a promoción exacta do mesmo commit a Producción.
+
+## Regra de seguridade durante a pausa e reconciliación
 
 Ata completar `apps-script/current/`:
 
-- non facer `clasp push` desde unha copia preparada para o outro ambiente;
+- **non facer `clasp push` como parte deste traballo**;
 - non igualar Preview e Producción por copia directa;
 - non editar Apps Script manualmente salvo emerxencia;
-- se hai unha edición remota, facer `clasp pull`, gardar snapshot e reconciliar antes de continuar;
-- os snapshots nunca son a fonte de despregamento ordinario.
+- se outro traballo modifica Apps Script, debe integrarse primeiro en GitHub;
+- se hai unha edición remota inevitable, facer `clasp pull`, gardar snapshot e reconciliar antes de continuar;
+- os snapshots nunca son a fonte de despregamento ordinario;
+- non mesturar a rama `agent/apps-script-sync-architecture` coa rama funcional `agent/administracion-ensaios` ata que esta última estea aprobada.
+
+## Punto exacto de reanudación
+
+A seguinte acción desta liña de traballo **non é facer push nin crear `current/` inmediatamente**. É comparar a versión final aprobada de `agent/administracion-ensaios` cos snapshots e coa rama de arquitectura. Só despois desa comparación se constrúe o código canónico.
