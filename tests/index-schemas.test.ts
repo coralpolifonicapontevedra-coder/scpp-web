@@ -3,7 +3,9 @@ import {
   concertosPrivadosIndexSchema,
   ensaiosIndexSchema,
   fotosRevisionIndexSchema,
+  persoaSchema,
   persoasIndexSchema,
+  obraRepertorioSchema,
   repertorioIndexSchema,
   resumirErroIndice,
   validarIndice
@@ -52,6 +54,44 @@ describe('contratos dos índices R2', () => {
 
   it('rexeita repertorio sen ningunha colección de obras', () => {
     expect(repertorioIndexSchema.safeParse({ ok: true }).success).toBe(false);
+  });
+
+  it('acepta campos coñecidos de repertorio e conserva extensións futuras', () => {
+    const result = obraRepertorioSchema.safeParse({
+      idRepertorio: 'R-1',
+      nomeObra: 'Ave Maria',
+      autor: 'Autor',
+      audios: [{ voz: 'Tenores' }],
+      campoNovo: 'compatible'
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.campoNovo).toBe('compatible');
+  });
+
+  it('rexeita tipos claramente incorrectos nos campos coñecidos de repertorio', () => {
+    expect(obraRepertorioSchema.safeParse({ idRepertorio: 123 }).success).toBe(false);
+    expect(obraRepertorioSchema.safeParse({ audios: 'non-é-unha-lista' }).success).toBe(false);
+  });
+
+  it('acepta campos coñecidos dunha persoa sen pechar o contrato a novos campos', () => {
+    const result = persoaSchema.safeParse({
+      Id: 'P-1',
+      Nome: 'Persoa',
+      Apelidos: 'de Proba',
+      Voz: 'Tenor',
+      Cargo: 'Secretario/a',
+      DataIncorporacion: '2024-01-15',
+      campoNovo: 'compatible'
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.campoNovo).toBe('compatible');
+  });
+
+  it('rexeita tipos claramente incorrectos nos campos coñecidos de persoas', () => {
+    expect(persoaSchema.safeParse({ Id: 57 }).success).toBe(false);
+    expect(persoaSchema.safeParse({ Voz: ['Tenor'] }).success).toBe(false);
   });
 
   it('valida a estrutura mínima dos índices de persoas, concertos e fotos', () => {
