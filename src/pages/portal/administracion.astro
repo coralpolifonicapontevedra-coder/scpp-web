@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+
+const modules = [
+  { title:'Persoas', description:'Consulta e xestión administrativa dos datos das persoas.', path:'/portal/administracion/persoas/', number:'01' },
+  { title:'Ensaios', description:'Cambiar a data dun ensaio programado ou dalo de baixa.', path:'/portal/administracion/ensaios/', number:'02' },
+  { title:'Concertos', description:'Cambiar a data ou o estado dun concerto sen perder as súas relacións.', path:'/portal/administracion/concertos/', number:'03' },
+  { title:'Estado do sistema', description:'Comprobar servizos, integracións e incidencias técnicas.', path:'/portal/administracion/estado/', number:'04' },
+];
+---
+
+<BaseLayout title="Administración" lang="gl">
+  <div class="private-layout admin-home-layout">
+    <PortalSidebar active="administracion" logoutId="admin-home-logout" />
+    <main class="admin-home-main">
+      <header class="admin-home-header">
+        <span class="section-kicker">Portal do Coralista</span>
+        <h1>Administración</h1>
+        <p>Escolle o módulo no que queres traballar. Nesta portada non se cargan datos administrativos ata que abras un apartado.</p>
+      </header>
+
+      <section class="admin-grid" aria-label="Módulos de administración">
+        {modules.map((module) => (
+          <a class="admin-card" href={module.path}>
+            <span class="admin-number">{module.number}</span>
+            <div>
+              <h2>{module.title}</h2>
+              <p>{module.description}</p>
+            </div>
+            <span class="admin-arrow" aria-hidden="true">→</span>
+          </a>
+        ))}
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { closePortalSession, waitForPortalUser } from '../../lib/portal-session.js';
+
+  waitForPortalUser().then((user) => {
+    if (!user?.email) window.location.href = '/portal/';
+  });
+
+  document.querySelector('#admin-home-logout')?.addEventListener('click', () => closePortalSession());
+</script>
+
+<style is:global>
+  body { background:#f5f3f1; }
+  .admin-home-layout { display:flex; width:100%; min-height:100vh; }
+  .admin-home-main { flex:1 1 auto; min-width:0; padding:2.1rem clamp(1.25rem,3vw,3.5rem) 4rem; font-family:var(--fuente-minimalista); }
+  .admin-home-header { max-width:820px; margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid #ded8d3; }
+  .admin-home-header h1 { margin:.2rem 0 .6rem; color:var(--color-principal); font-size:clamp(2rem,4vw,3.5rem); }
+  .admin-home-header p { margin:0; color:#625c58; line-height:1.6; }
+  .section-kicker { color:var(--color-acento); font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .admin-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; max-width:1100px; }
+  .admin-card { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:start; gap:1rem; min-height:150px; padding:1.3rem 1.35rem; border:1px solid #ded8d3; background:#fff; color:#2f2927; text-decoration:none; transition:transform .15s ease,border-color .15s ease; }
+  .admin-card:hover { transform:translateY(-2px); border-color:rgba(93,20,43,.45); }
+  .admin-number { color:var(--color-acento); font-size:.72rem; font-weight:800; letter-spacing:.08em; }
+  .admin-card h2 { margin:0 0 .45rem; color:var(--color-principal); font-size:1.25rem; }
+  .admin-card p { margin:0; color:#6d6561; line-height:1.55; }
+  .admin-arrow { align-self:end; color:var(--color-principal); font-size:1.4rem; }
+
+  @media (max-width:900px) {
+    .admin-home-layout { display:block; }
+    .admin-grid { grid-template-columns:1fr; }
+  }
+
+  @media (max-width:620px) {
+    .admin-home-main { padding:1.15rem .9rem 2.5rem; }
+  }
+</style>
