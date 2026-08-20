@@ -5,8 +5,8 @@ on:
     branches:
       - feature/admin-concertos
     paths:
+      - 'apps-script/**'
       - scripts/audit-apps-script-canonical.mjs
-      - scripts/normalize-apps-script-environment.py
       - .github/workflows/audit-apps-script-canonical.yml
 
 permissions:
@@ -20,21 +20,8 @@ jobs:
         with:
           ref: feature/admin-concertos
           fetch-depth: 0
-      - name: Normalizar configuración do ambiente
-        id: normalize
-        continue-on-error: true
-        shell: bash
-        run: |
-          set +e
-          python scripts/normalize-apps-script-environment.py > docs/framework-scpp/apps-script-normalize.log 2>&1
-          EXIT=$?
-          cat docs/framework-scpp/apps-script-normalize.log
-          exit $EXIT
-      - name: Desfacer cambios parciais se a normalización fallou
-        if: steps.normalize.outcome != 'success'
-        run: git restore apps-script
-      - name: Validar sintaxe Apps Script
-        if: steps.normalize.outcome == 'success'
+
+      - name: Validar cada ficheiro Apps Script
         shell: bash
         run: |
           set -euo pipefail
@@ -42,28 +29,47 @@ jobs:
             cp "$f" /tmp/check.js
             node --check /tmp/check.js >/dev/null
           done
-          git diff --check -- apps-script
-      - name: Auditar apps-script
+
+      - name: Validar o proxecto como espazo global único
+        id: combined
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          : > /tmp/apps-script-combined.js
+          for f in apps-script/*.gs; do
+            case "$f" in
+              *Código.producion-reference.gs) continue ;;
+            esac
+            printf '\n/* FILE: %s */\n' "$f" >> /tmp/apps-script-combined.js
+            cat "$f" >> /tmp/apps-script-combined.js
+          done
+          node --check /tmp/apps-script-combined.js > docs/framework-scpp/apps-script-combined-syntax.log 2>&1
+          EXIT=$?
+          if [ "$EXIT" -eq 0 ]; then echo 'OK: sintaxe combinada válida.' > docs/framework-scpp/apps-script-combined-syntax.log; fi
+          cat docs/framework-scpp/apps-script-combined-syntax.log
+          exit "$EXIT"
+
+      - name: Auditar estrutura, duplicados e IDs incrustados
         if: always()
         shell: bash
         run: |
           set +e
           node scripts/audit-apps-script-canonical.mjs > docs/framework-scpp/apps-script-canonical-audit.json
-          EXIT=$?
           cat docs/framework-scpp/apps-script-canonical-audit.json
           exit 0
-      - name: Gardar resultado seguro
+
+      - name: Gardar só os informes
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/framework-scpp/apps-script-normalize.log docs/framework-scpp/apps-script-canonical-audit.json
-          if [ "${{ steps.normalize.outcome }}" = "success" ]; then git add apps-script; fi
+          git add docs/framework-scpp/apps-script-canonical-audit.json docs/framework-scpp/apps-script-combined-syntax.log
           if git diff --cached --quiet; then
-            echo "Sen cambios"
+            echo "Informes sen cambios"
             exit 0
           fi
-          git commit -m "chore(apps-script): gardar resultado da normalizacion"
+          git commit -m "chore(apps-script): actualizar auditoria canonica"
           git push origin HEAD:feature/admin-concertos
