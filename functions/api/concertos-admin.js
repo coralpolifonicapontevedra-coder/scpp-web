@@ -3,6 +3,7 @@ import { obterJsonAppsScript } from '../_lib/apps-script.js';
 const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
+const ESTADOS = new Set(['Previsto','Confirmado','Aprazado','Cancelado','Realizado']);
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -69,6 +70,9 @@ async function chamarAppsScript(env, user, accion, datos = {}) {
   return resultado;
 }
 
+const texto = (value, max) => String(value || '').trim().slice(0, max);
+const booleano = (value) => value === true;
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') return erro(405, 'REQUEST', 'METHOD_NOT_ALLOWED', 'Método non permitido.');
@@ -93,19 +97,46 @@ export async function onRequest(context) {
       return json(200, { ok:true, nivel:result.nivel || 'Administración', concertos:Array.isArray(result.concertos) ? result.concertos : [] });
     }
 
+    if (accion === 'crear') {
+      const data = texto(body.data, 10);
+      const nome = texto(body.nome, 250);
+      const cidade = texto(body.cidade, 150);
+      const lugar = texto(body.lugar, 250);
+      const hora = texto(body.hora, 5);
+      const caracteristicas = texto(body.caracteristicas, 3000);
+      const estado = texto(body.estado, 20) || 'Previsto';
+      const mostrarWeb = booleano(body.mostrarWeb);
+      const destacadoWeb = booleano(body.destacadoWeb);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !nome || !ESTADOS.has(estado)) {
+        return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica polo menos unha data, un nome e un estado válidos.');
+      }
+      if (hora && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(hora)) return erro(400, 'REQUEST', 'INVALID_DATA', 'A hora debe ter formato HH:MM.');
+      if (destacadoWeb && !mostrarWeb) return erro(400, 'REQUEST', 'INVALID_DATA', 'Un concerto destacado debe estar marcado tamén para mostrar na web.');
+      const result = await chamarAppsScript(env, user, 'crearConcertoAdministracionPortal', {
+        data, nome, cidade, lugar, hora, caracteristicas, estado, mostrarWeb, destacadoWeb
+      });
+      return json(200, { ok:true, resultado:result.resultado || result });
+    }
+
+    if (accion === 'eliminar') {
+      const idConcerto = texto(body.idConcerto, 120);
+      if (!idConcerto) return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica o concerto que queres dar de baixa.');
+      const result = await chamarAppsScript(env, user, 'eliminarConcertoAdministracionPortal', { idConcerto });
+      return json(200, { ok:true, resultado:result.resultado || result });
+    }
+
     if (accion === 'cambiarData') {
-      const idConcerto = String(body.idConcerto || '').trim();
-      const data = String(body.data || '').trim();
+      const idConcerto = texto(body.idConcerto, 120);
+      const data = texto(body.data, 10);
       if (!idConcerto || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica un concerto e unha data válida.');
       const result = await chamarAppsScript(env, user, 'actualizarConcertoAdministracionPortal', { idConcerto, data });
       return json(200, { ok:true, resultado:result.resultado || result });
     }
 
     if (accion === 'cambiarEstado') {
-      const idConcerto = String(body.idConcerto || '').trim();
-      const estado = String(body.estado || '').trim();
-      const validos = new Set(['Previsto','Confirmado','Aprazado','Cancelado','Realizado']);
-      if (!idConcerto || !validos.has(estado)) return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica un concerto e un estado válido.');
+      const idConcerto = texto(body.idConcerto, 120);
+      const estado = texto(body.estado, 20);
+      if (!idConcerto || !ESTADOS.has(estado)) return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica un concerto e un estado válido.');
       const result = await chamarAppsScript(env, user, 'actualizarConcertoAdministracionPortal', { idConcerto, estado });
       return json(200, { ok:true, resultado:result.resultado || result });
     }
@@ -113,7 +144,7 @@ export async function onRequest(context) {
     return erro(400, 'REQUEST', 'ACTION_NOT_ALLOWED', 'Acción non permitida.');
   } catch (error) {
     const code = error?.code || 'UPSTREAM';
-    const status = code === 'FORBIDDEN' ? 403 : code === 'NOT_FOUND' ? 404 : 502;
+    const status = code === 'FORBIDDEN' ? 403 : code === 'NOT_FOUND' ? 404 : code === 'HAS_RELATIONS' ? 409 : 502;
     return erro(status, 'APPS_SCRIPT', code, error?.message || 'Non foi posible completar a operación.');
   }
 }
