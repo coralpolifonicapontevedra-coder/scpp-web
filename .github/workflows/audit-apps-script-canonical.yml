@@ -6,6 +6,7 @@ on:
       - feature/admin-concertos
     paths:
       - scripts/audit-apps-script-canonical.mjs
+      - scripts/normalize-apps-script-environment.py
       - .github/workflows/audit-apps-script-canonical.yml
 
 permissions:
@@ -19,6 +20,17 @@ jobs:
         with:
           ref: feature/admin-concertos
           fetch-depth: 0
+      - name: Normalizar configuración do ambiente
+        run: python scripts/normalize-apps-script-environment.py
+      - name: Validar sintaxe Apps Script
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in apps-script/*.gs; do
+            cp "$f" /tmp/check.js
+            node --check /tmp/check.js >/dev/null
+          done
+          git diff --check -- apps-script
       - name: Auditar apps-script
         shell: bash
         run: |
@@ -28,16 +40,16 @@ jobs:
           cat docs/framework-scpp/apps-script-canonical-audit.json
           echo "audit_exit=$EXIT" >> "$GITHUB_ENV"
           exit 0
-      - name: Gardar informe
+      - name: Gardar normalización e informe
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/framework-scpp/apps-script-canonical-audit.json
+          git add apps-script docs/framework-scpp/apps-script-canonical-audit.json
           if git diff --cached --quiet; then
-            echo "Informe sen cambios"
+            echo "Sen cambios"
             exit 0
           fi
-          git commit -m "chore(apps-script): actualizar informe da auditoria canonica"
+          git commit -m "apps-script: mover configuracion de entorno a Script Properties"
           git push origin HEAD:feature/admin-concertos
