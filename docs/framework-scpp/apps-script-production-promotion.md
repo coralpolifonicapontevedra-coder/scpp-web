@@ -1,35 +1,31 @@
-# Promoción segura de Apps Script a produción
+# Despregue único de Apps Script: Preview e Produción
 
-Este procedemento evita cambios manuais no editor de Apps Script. GitHub é a fonte de traballo e `clasp` é o mecanismo de publicación.
+GitHub é a fonte canónica do código de Apps Script. Preview e Produción executan o mesmo código; só cambia a configuración do entorno.
 
-## Principios
+## Regra non negociable
 
-- Non editar `Código.js` manualmente en Apps Script.
-- Non facer `clasp push` desde unha carpeta de Preview.
-- Antes de cada promoción, obter unha copia actual do proxecto de produción con `clasp pull` nunha carpeta local separada: `apps-script-production`.
-- Os scripts preparadores deben buscar un punto de integración coñecido e fallar se a estrutura cambiou.
-- A preparación non publica nada: sempre debe haber unha revisión local antes do `clasp push`.
+- Non existe código funcional específico de Preview nin código funcional específico de Produción.
+- `apps-script/` é a única fonte canónica dos módulos `.gs`.
+- Un cambio funcional faise unha vez en `apps-script/` e esa mesma revisión despregase aos dous proxectos de Apps Script.
+- Se un valor cambia entre Preview e Produción (IDs de Sheets, URLs, tokens, buckets, flags ou similares), debe proceder de Script Properties, variables de Cloudflare, secrets ou bindings; nunca dunha bifurcación do código.
+- Non editar código manualmente no editor de Apps Script salvo recuperación excepcional documentada.
+- Non manter snapshots de Preview e Produción como fontes de desenvolvemento. Os snapshots, se existen, son só evidencia/auditoría histórica.
 
-## Administración → Ensaios
+## Fluxo
 
-1. Traballar nunha rama de release creada desde `main`.
-2. A rama debe conter só as pezas do módulo administrativo e non cambios no módulo normal `/portal/ensaios/`.
-3. Preparar unha carpeta clasp de produción chamada `apps-script-production` e executar nela `clasp pull` contra o proxecto correcto de produción.
-4. Desde a raíz do repositorio executar:
+1. Desenvolver nunha rama creada desde `main`.
+2. Modificar exclusivamente a fonte canónica en `apps-script/` e o código web compartido.
+3. Validar que non se introduciron IDs/URLs específicos dun entorno no código.
+4. Despregar a mesma revisión de `apps-script/` ao proxecto Apps Script de Preview.
+5. Probar o circuito completo en Preview.
+6. Fusionar a rama a `main` sen reescribir nin adaptar a lóxica.
+7. Despregar exactamente a mesma revisión de `apps-script/` ao proxecto Apps Script de Produción.
+8. As diferenzas de destino resólvense exclusivamente mediante a configuración de cada entorno.
 
-   `node scripts/prepare-apps-script-production.mjs`
+## Administración → Concertos
 
-5. O preparador:
-   - comproba que existe `apps-script-production/Código.js`;
-   - comproba o punto seguro do dispatcher existente;
-   - engade só `listarEnsaiosAdministracionPortal` e `actualizarEnsaioAdministracionPortal` se aínda non existen;
-   - copia `apps-script/ensaios-administracion.gs` como `apps-script-production/ensaios-administracion.js`;
-   - non modifica `appsscript.json`;
-   - non modifica `ensaios-portal`, asistencias, repertorio, caché nin finalización de ensaio.
-6. Revisar os cambios locais antes de publicar.
-7. Só se a revisión é correcta, entrar en `apps-script-production` e executar `npx.cmd @google/clasp push --force`.
-8. Actualizar a implementación de produción segundo o fluxo habitual do proxecto y comprobar a web.
+Concertos é o primeiro módulo que debe cumprir estritamente esta arquitectura. A implementación debe ser a mesma en Preview e Produción para ficha, programa, asistentes, cartel, tríptico, índices R2 e lectura desde Portal. Ensaios non se modifica para conseguir esta unificación.
 
-## Regra para futuras promocións
+## Criterio de auditoría
 
-Para Concertos ou outros módulos administrativos debe reutilizarse este mesmo patrón: rama limpa desde `main`, preparador determinista, carpeta clasp separada de produción, revisión previa e publicación con `clasp`. Non se debe volver a unha edición manual no editor de Apps Script.
+Calquera proceso que copie módulos e despois os modifique para crear unha variante de Produción ou Preview incumpre esta norma. Os scripts de despregue poden empaquetar, renomear extensións ou seleccionar credenciais/destinos, pero non alterar a lóxica funcional.
