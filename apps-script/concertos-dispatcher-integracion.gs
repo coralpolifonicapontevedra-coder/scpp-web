@@ -1,41 +1,85 @@
 /*
- * Integración do módulo Administración → Concertos no despachador principal (Código.gs).
- * Este bloque é idéntico en Preview e Produción. Só cambian as Script Properties.
- * NON crear un segundo doPost.
- *
- * Accións de lectura:
- *   listarConcertosAdministracionPortal
- *   obterXestionConcertoAdministracionPortal
- *
- * Accións de escritura:
- *   actualizarConcertoAdministracionPortal
- *   gardarProgramaConcertoAdministracionPortal
- *   gardarAsistentesConcertoAdministracionPortal
- *   actualizarMedioConcertoAdministracionPortal
- *
- * Exemplo para un dispatcher baseado en if/else:
- *
- *   } else if (accion === 'listarConcertosAdministracionPortal') {
- *     resultado = listarConcertosAdministracionPortal_(datos);
- *   } else if (accion === 'obterXestionConcertoAdministracionPortal') {
- *     resultado = obterXestionConcertoAdministracionPortal_(datos);
- *   } else if (accion === 'actualizarConcertoAdministracionPortal') {
- *     resultado = actualizarConcertoAdministracionPortal_(datos);
- *   } else if (accion === 'gardarProgramaConcertoAdministracionPortal') {
- *     resultado = gardarProgramaConcertoAdministracionPortal_(datos);
- *   } else if (accion === 'gardarAsistentesConcertoAdministracionPortal') {
- *     resultado = gardarAsistentesConcertoAdministracionPortal_(datos);
- *   } else if (accion === 'actualizarMedioConcertoAdministracionPortal') {
- *     resultado = actualizarMedioConcertoAdministracionPortal_(datos);
- *
- * Se Código.gs usa ScriptLock para as escrituras, estas accións deben entrar no bloqueo.
+ * Integración de Administración → Concertos co dispatcher principal.
+ * Código común para Preview e Produción: só cambia a configuración do ambiente.
+ * NON define un segundo doPost.
  */
-var ACCIONS_ESCRITURA_CONCERTOS_ADMIN_ = [
+var ACCIONS_CONCERTOS_ADMIN_ = [
+  'listarConcertosAdministracionPortal',
+  'obterXestionConcertoAdministracionPortal',
+  'crearConcertoAdministracionPortal',
+  'eliminarConcertoAdministracionPortal',
   'actualizarConcertoAdministracionPortal',
   'gardarProgramaConcertoAdministracionPortal',
   'gardarAsistentesConcertoAdministracionPortal',
   'actualizarMedioConcertoAdministracionPortal'
 ];
-function eAccionEscrituraConcertosAdministracion_(accion){
-  return ACCIONS_ESCRITURA_CONCERTOS_ADMIN_.indexOf(String(accion||'').trim())>=0;
+
+var ACCIONS_ESCRITURA_CONCERTOS_ADMIN_ = [
+  'crearConcertoAdministracionPortal',
+  'eliminarConcertoAdministracionPortal',
+  'actualizarConcertoAdministracionPortal',
+  'gardarProgramaConcertoAdministracionPortal',
+  'gardarAsistentesConcertoAdministracionPortal',
+  'actualizarMedioConcertoAdministracionPortal'
+];
+
+function eAccionConcertosAdministracion_(accion) {
+  return ACCIONS_CONCERTOS_ADMIN_.indexOf(String(accion || '').trim()) >= 0;
+}
+
+function eAccionEscrituraConcertosAdministracion_(accion) {
+  return ACCIONS_ESCRITURA_CONCERTOS_ADMIN_.indexOf(String(accion || '').trim()) >= 0;
+}
+
+function despacharConcertosAdministracion_(accion, datos, bloqueo) {
+  accion = String(accion || '').trim();
+  if (!eAccionConcertosAdministracion_(accion)) return null;
+
+  if (
+    eAccionEscrituraConcertosAdministracion_(accion) &&
+    bloqueo &&
+    !bloqueo.hasLock()
+  ) {
+    bloqueo.waitLock(10000);
+  }
+
+  if (accion === 'listarConcertosAdministracionPortal') {
+    return listarConcertosAdministracionPortal_(datos);
+  }
+  if (accion === 'obterXestionConcertoAdministracionPortal') {
+    return obterXestionConcertoAdministracionPortal_(datos);
+  }
+  if (accion === 'actualizarConcertoAdministracionPortal') {
+    return actualizarConcertoAdministracionPortal_(datos);
+  }
+  if (accion === 'gardarProgramaConcertoAdministracionPortal') {
+    return gardarProgramaConcertoAdministracionPortal_(datos);
+  }
+  if (accion === 'gardarAsistentesConcertoAdministracionPortal') {
+    return gardarAsistentesConcertoAdministracionPortal_(datos);
+  }
+  if (accion === 'actualizarMedioConcertoAdministracionPortal') {
+    return actualizarMedioConcertoAdministracionPortal_(datos);
+  }
+
+  /*
+   * Estas dúas accións mantéñense no contrato do módulo porque a alta e a
+   * baixa pertencen a Administración. Se a implementación aínda non está
+   * presente no paquete actual, devolvemos un erro explícito e non rompemos
+   * o resto do dispatcher.
+   */
+  if (accion === 'crearConcertoAdministracionPortal') {
+    if (typeof crearConcertoAdministracionPortal_ !== 'function') {
+      return { ok: false, codigo: 'NOT_IMPLEMENTED', erro: 'A alta de concertos aínda non está integrada no paquete canónico' };
+    }
+    return crearConcertoAdministracionPortal_(datos);
+  }
+  if (accion === 'eliminarConcertoAdministracionPortal') {
+    if (typeof eliminarConcertoAdministracionPortal_ !== 'function') {
+      return { ok: false, codigo: 'NOT_IMPLEMENTED', erro: 'A baixa de concertos aínda non está integrada no paquete canónico' };
+    }
+    return eliminarConcertoAdministracionPortal_(datos);
+  }
+
+  return null;
 }
