@@ -11,6 +11,7 @@
  *   actualizarConcertoAdministracionPortal
  *   gardarProgramaConcertoAdministracionPortal
  *   gardarAsistentesConcertoAdministracionPortal
+ *   actualizarMedioConcertoAdministracionPortal
  *
  * Exemplo para un dispatcher baseado en if/else:
  *
@@ -24,13 +25,16 @@
  *     resultado = gardarProgramaConcertoAdministracionPortal_(datos);
  *   } else if (accion === 'gardarAsistentesConcertoAdministracionPortal') {
  *     resultado = gardarAsistentesConcertoAdministracionPortal_(datos);
+ *   } else if (accion === 'actualizarMedioConcertoAdministracionPortal') {
+ *     resultado = actualizarMedioConcertoAdministracionPortal_(datos);
  *
  * Se Código.gs usa ScriptLock para as escrituras, estas accións deben entrar no bloqueo.
  */
 var ACCIONS_ESCRITURA_CONCERTOS_ADMIN_ = [
   'actualizarConcertoAdministracionPortal',
   'gardarProgramaConcertoAdministracionPortal',
-  'gardarAsistentesConcertoAdministracionPortal'
+  'gardarAsistentesConcertoAdministracionPortal',
+  'actualizarMedioConcertoAdministracionPortal'
 ];
 function eAccionEscrituraConcertosAdministracion_(accion){
   return ACCIONS_ESCRITURA_CONCERTOS_ADMIN_.indexOf(String(accion||'').trim())>=0;
