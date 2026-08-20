@@ -196,7 +196,505 @@
       ]
     }
   ],
-  "hardcoded": [],
+  "hardcoded": [
+    {
+      "file": "aceptacion-textos-legais.gs",
+      "line": 9,
+      "kind": "google-id",
+      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
+      "context": "* Tanto a comprobación como o rexistro resolven a fila activa directamente * desde TextosLegais. */ const ACEPTACION_SPREADSHEET_ID_ = '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'; const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208; const TEXTO_LEGAL_PORTAL_ID_ = 'P"
+    },
+    {
+      "file": "aceptacion-textos-legais.gs",
+      "line": 10,
+      "kind": "sheet-id",
+      "literal": "2025412208",
+      "context": "SHEET_ID_ = 2025412208"
+    },
+    {
+      "file": "Código.gs",
+      "line": 387,
+      "kind": "google-id",
+      "literal": "actualizarPublicacionFoto",
+      "context": "on === 'listarFotosPublicadas') { return respostaJSON( listarFotosPublicadasPortal_(datos) ); } if (accion === 'actualizarPublicacionFoto') { return respostaJSON( actualizarPublicacionFotoPortal_(datos)"
+    },
+    {
+      "file": "Código.gs",
+      "line": 428,
+      "kind": "google-id",
+      "literal": "listarAsistenciasConcertosPortal",
+      "context": "sultado desde o Portal' : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'listarAsistenciasConcertosPortal') { const resultado = listarAsistenciasConcertosPortal_(datos);"
+    },
+    {
+      "file": "Código.gs",
+      "line": 469,
+      "kind": "google-id",
+      "literal": "gardarAsistenciaEnsaioPortal",
+      "context": "ultados desde o Portal' : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'gardarAsistenciaEnsaioPortal') { bloqueo.waitLock(10000); const resultado = gardarAsiste"
+    },
+    {
+      "file": "Código.gs",
+      "line": 488,
+      "kind": "google-id",
+      "literal": "gardarEnsaioRepertorioPortal",
+      "context": "istrada desde o Portal' : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'gardarEnsaioRepertorioPortal') { bloqueo.waitLock(10000); const resultado = gardarEnsaio"
+    },
+    {
+      "file": "Código.gs",
+      "line": 543,
+      "kind": "google-id",
+      "literal": "eliminarEnsaioRepertorioPortal",
+      "context": "? 'Fotografía eliminada desde o Portal' : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'eliminarEnsaioRepertorioPortal') { bloqueo.waitLock(10000); const resultado = eliminarEnsaioRepertorio"
+    },
+    {
+      "file": "Código.gs",
+      "line": 580,
+      "kind": "google-id",
+      "literal": "obterSeguimentoEnsaiosPortal",
+      "context": "? 'Ensaio creado desde o Portal' : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'obterSeguimentoEnsaiosPortal') { const resultado = obterSeguimentoEnsaiosPortal_(datos);"
+    },
+    {
+      "file": "Código.gs",
+      "line": 603,
+      "kind": "google-id",
+      "literal": "listarDocumentacionPortal",
+      "context": "cion === 'obterFicheiroRepertorio') { return respostaJSON( obterFicheiroRepertorio_(datos) ); } if (accion === 'listarDocumentacionPortal') { const resultado = listarDocumentacionPortal_(datos); re"
+    },
+    {
+      "file": "Código.gs",
+      "line": 622,
+      "kind": "google-id",
+      "literal": "obterFicheiroDocumentacion",
+      "context": "sultada desde o Portal' : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'obterFicheiroDocumentacion') { const resultado = obterFicheiroDocumentacion_(datos); r"
+    },
+    {
+      "file": "Código.gs",
+      "line": 641,
+      "kind": "google-id",
+      "literal": "listarPersoasAdministracion",
+      "context": "ado.nomeFicheiro || '') : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'listarPersoasAdministracion') { const resultado = listarPersoasAdministracion_(datos);"
+    },
+    {
+      "file": "Código.gs",
+      "line": 660,
+      "kind": "google-id",
+      "literal": "obterFichaPersoaAdministracion",
+      "context": "de persoas consultada' : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'obterFichaPersoaAdministracion') { const resultado = obterFichaPersoaAdministracion_(datos);"
+    },
+    {
+      "file": "Código.gs",
+      "line": 912,
+      "kind": "google-id",
+      "literal": "1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw",
+      "context": "o); if (!usuario) { return { ok: false, erro: 'Usuario non autorizado' }; } const ids = { repertorio: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw', audios: '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0', partitur"
+    },
+    {
+      "file": "Código.gs",
+      "line": 914,
+      "kind": "google-id",
+      "literal": "16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0",
+      "context": "Usuario non autorizado' }; } const ids = { repertorio: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw', audios: '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0', partituras: '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0', prog"
+    },
+    {
+      "file": "Código.gs",
+      "line": 916,
+      "kind": "google-id",
+      "literal": "18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0",
+      "context": "'1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw', audios: '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0', partituras: '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0', programas: '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig', conce"
+    },
+    {
+      "file": "Código.gs",
+      "line": 918,
+      "kind": "google-id",
+      "literal": "1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig",
+      "context": "'16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0', partituras: '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0', programas: '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig', concertos: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU' }; co"
+    },
+    {
+      "file": "Código.gs",
+      "line": 920,
+      "kind": "google-id",
+      "literal": "1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU",
+      "context": "'18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0', programas: '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig', concertos: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU' }; const repertorio = lerFollaRepertorio_( ids.repertorio, 'Repert"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1102,
+      "kind": "google-id",
+      "literal": "1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0",
+      "context": "(!usuario) { return { ok: false, erro: 'Usuario non autorizado' }; } const asistencias = lerFollaRepertorio_( '1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0', 'AsistenciasConcertos' ); const ordeVoces = { Soprano: 1, Con"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1243,
+      "kind": "google-id",
+      "literal": "1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU",
+      "context": "uario non autorizado' }; } const ruta = String(datos.ruta || '').trim(); const carpetasPermitidas = { 'Obras_Files_': '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU', 'Partituras_Files_': '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm', 'Audio"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1245,
+      "kind": "google-id",
+      "literal": "1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm",
+      "context": "| '').trim(); const carpetasPermitidas = { 'Obras_Files_': '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU', 'Partituras_Files_': '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm', 'AudiosRepertorio_Files_': '1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V' };"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1247,
+      "kind": "google-id",
+      "literal": "1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V",
+      "context": "QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU', 'Partituras_Files_': '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm', 'AudiosRepertorio_Files_': '1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V' }; const partes = ruta.split('/'); if ( partes.length !== 2 ||"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1827,
+      "kind": "google-id",
+      "literal": "1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU",
+      "context": ") ); } } // Arquivo independente RexistroAccesosWeb. const libroRexistro = SpreadsheetApp.openById( '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU' ); // Identificador interno da pestana. const follaRexistro ="
+    },
+    {
+      "file": "Código.gs",
+      "line": 1898,
+      "kind": "google-id",
+      "literal": "1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU",
+      "context": "anas atopadas: ' + nomes.join(' | ') ); } function comprobarRexistroAccesosWeb() { const libroRexistro = SpreadsheetApp.openById( '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU' ); const follaRexistro = libroRexistro.getSheetById(1291817000); if"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1932,
+      "kind": "google-id",
+      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
+      "context": "'Proba directa desde Apps Script' }); } function comprobarFollaAceptacion() { const libroAceptacion = SpreadsheetApp.openById( '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k' ); const follaAceptacion = libroAceptacion.getSheetById(974695665);"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1967,
+      "kind": "google-id",
+      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
+      "context": "eiras: ' + cabeceiras.join(' | ') ); } function rexistrarAceptacion(datos) { const libroAceptacion = SpreadsheetApp.openById( '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k' ); const follaAceptacion = libroAceptacion.getSheetById(974695665);"
+    },
+    {
+      "file": "Código.gs",
+      "line": 2003,
+      "kind": "google-id",
+      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
+      "context": "ón escrita correctamente' ); } function tenAceptacionVixente_(correo, version) { const libroAceptacion = SpreadsheetApp.openById( '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k' ); const follaAceptacion = libroAceptacion.getSheetById(974695665);"
+    },
+    {
+      "file": "Código.gs",
+      "line": 2130,
+      "kind": "google-id",
+      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
+      "context": "* Tanto a comprobación como o rexistro resolven a fila activa directamente * desde TextosLegais. */ const ACEPTACION_SPREADSHEET_ID_ = '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'; const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208; const TEXTO_LEGAL_PORTAL_ID_ = 'P"
+    },
+    {
+      "file": "Código.gs",
+      "line": 2131,
+      "kind": "sheet-id",
+      "literal": "2025412208",
+      "context": "SHEET_ID_ = 2025412208"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 7,
+      "kind": "google-id",
+      "literal": "listarConcertosAdministracionPortal",
+      "context": "ún para Preview e Produción: só cambia a configuración do ambiente. * NON define un segundo doPost. */ var ACCIONS_CONCERTOS_ADMIN_ = [ 'listarConcertosAdministracionPortal', 'obterXestionConcertoAdministracionPortal', 'crearConcertoAdministracionPo"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 8,
+      "kind": "google-id",
+      "literal": "obterXestionConcertoAdministracionPortal",
+      "context": "configuración do ambiente. * NON define un segundo doPost. */ var ACCIONS_CONCERTOS_ADMIN_ = [ 'listarConcertosAdministracionPortal', 'obterXestionConcertoAdministracionPortal', 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 9,
+      "kind": "google-id",
+      "literal": "crearConcertoAdministracionPortal",
+      "context": "gundo doPost. */ var ACCIONS_CONCERTOS_ADMIN_ = [ 'listarConcertosAdministracionPortal', 'obterXestionConcertoAdministracionPortal', 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionP"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 10,
+      "kind": "google-id",
+      "literal": "eliminarConcertoAdministracionPortal",
+      "context": "_ADMIN_ = [ 'listarConcertosAdministracionPortal', 'obterXestionConcertoAdministracionPortal', 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministr"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 11,
+      "kind": "google-id",
+      "literal": "actualizarConcertoAdministracionPortal",
+      "context": "onPortal', 'obterXestionConcertoAdministracionPortal', 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal', 'gardarAsistentesConcertoAdm"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 12,
+      "kind": "google-id",
+      "literal": "gardarProgramaConcertoAdministracionPortal",
+      "context": "cionPortal', 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal', 'gardarAsistentesConcertoAdministracionPortal', 'actualizarMedioConcertoAd"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 13,
+      "kind": "google-id",
+      "literal": "gardarAsistentesConcertoAdministracionPortal",
+      "context": "l', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal', 'gardarAsistentesConcertoAdministracionPortal', 'actualizarMedioConcertoAdministracionPortal' ]; var ACCIONS_ESCRITURA_CONC"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 14,
+      "kind": "google-id",
+      "literal": "actualizarMedioConcertoAdministracionPortal",
+      "context": "ctualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal', 'gardarAsistentesConcertoAdministracionPortal', 'actualizarMedioConcertoAdministracionPortal' ]; var ACCIONS_ESCRITURA_CONCERTOS_ADMIN_ = [ 'crearConcertoAdministracionPo"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 18,
+      "kind": "google-id",
+      "literal": "crearConcertoAdministracionPortal",
+      "context": "arAsistentesConcertoAdministracionPortal', 'actualizarMedioConcertoAdministracionPortal' ]; var ACCIONS_ESCRITURA_CONCERTOS_ADMIN_ = [ 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionP"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 19,
+      "kind": "google-id",
+      "literal": "eliminarConcertoAdministracionPortal",
+      "context": "l', 'actualizarMedioConcertoAdministracionPortal' ]; var ACCIONS_ESCRITURA_CONCERTOS_ADMIN_ = [ 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministr"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 20,
+      "kind": "google-id",
+      "literal": "actualizarConcertoAdministracionPortal",
+      "context": "onPortal' ]; var ACCIONS_ESCRITURA_CONCERTOS_ADMIN_ = [ 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal', 'gardarAsistentesConcertoAdm"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 21,
+      "kind": "google-id",
+      "literal": "gardarProgramaConcertoAdministracionPortal",
+      "context": "S_ADMIN_ = [ 'crearConcertoAdministracionPortal', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal', 'gardarAsistentesConcertoAdministracionPortal', 'actualizarMedioConcertoAd"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 22,
+      "kind": "google-id",
+      "literal": "gardarAsistentesConcertoAdministracionPortal",
+      "context": "l', 'eliminarConcertoAdministracionPortal', 'actualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal', 'gardarAsistentesConcertoAdministracionPortal', 'actualizarMedioConcertoAdministracionPortal' ]; function eAccionConcertosA"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 23,
+      "kind": "google-id",
+      "literal": "actualizarMedioConcertoAdministracionPortal",
+      "context": "ctualizarConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal', 'gardarAsistentesConcertoAdministracionPortal', 'actualizarMedioConcertoAdministracionPortal' ]; function eAccionConcertosAdministracion_(accion) { return ACCIONS_CONCERT"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 46,
+      "kind": "google-id",
+      "literal": "listarConcertosAdministracionPortal",
+      "context": "EscrituraConcertosAdministracion_(accion) && bloqueo && !bloqueo.hasLock() ) { bloqueo.waitLock(10000); } if (accion === 'listarConcertosAdministracionPortal') { return listarConcertosAdministracionPortal_(datos); } if (accion ==="
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 49,
+      "kind": "google-id",
+      "literal": "obterXestionConcertoAdministracionPortal",
+      "context": "} if (accion === 'listarConcertosAdministracionPortal') { return listarConcertosAdministracionPortal_(datos); } if (accion === 'obterXestionConcertoAdministracionPortal') { return obterXestionConcertoAdministracionPortal_(datos); } if (accio"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 52,
+      "kind": "google-id",
+      "literal": "actualizarConcertoAdministracionPortal",
+      "context": "(accion === 'obterXestionConcertoAdministracionPortal') { return obterXestionConcertoAdministracionPortal_(datos); } if (accion === 'actualizarConcertoAdministracionPortal') { return actualizarConcertoAdministracionPortal_(datos); } if (accion"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 55,
+      "kind": "google-id",
+      "literal": "gardarProgramaConcertoAdministracionPortal",
+      "context": "if (accion === 'actualizarConcertoAdministracionPortal') { return actualizarConcertoAdministracionPortal_(datos); } if (accion === 'gardarProgramaConcertoAdministracionPortal') { return gardarProgramaConcertoAdministracionPortal_(datos); } if (acc"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 58,
+      "kind": "google-id",
+      "literal": "gardarAsistentesConcertoAdministracionPortal",
+      "context": "ion === 'gardarProgramaConcertoAdministracionPortal') { return gardarProgramaConcertoAdministracionPortal_(datos); } if (accion === 'gardarAsistentesConcertoAdministracionPortal') { return gardarAsistentesConcertoAdministracionPortal_(datos); } if (a"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 61,
+      "kind": "google-id",
+      "literal": "actualizarMedioConcertoAdministracionPortal",
+      "context": "=== 'gardarAsistentesConcertoAdministracionPortal') { return gardarAsistentesConcertoAdministracionPortal_(datos); } if (accion === 'actualizarMedioConcertoAdministracionPortal') { return actualizarMedioConcertoAdministracionPortal_(datos); } /*"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 71,
+      "kind": "google-id",
+      "literal": "crearConcertoAdministracionPortal",
+      "context": "da non está * presente no paquete actual, devolvemos un erro explícito e non rompemos * o resto do dispatcher. */ if (accion === 'crearConcertoAdministracionPortal') { if (typeof crearConcertoAdministracionPortal_ !== 'function') { re"
+    },
+    {
+      "file": "concertos-dispatcher-integracion.gs",
+      "line": 77,
+      "kind": "google-id",
+      "literal": "eliminarConcertoAdministracionPortal",
+      "context": "concertos aínda non está integrada no paquete canónico' }; } return crearConcertoAdministracionPortal_(datos); } if (accion === 'eliminarConcertoAdministracionPortal') { if (typeof eliminarConcertoAdministracionPortal_ !== 'function') {"
+    },
+    {
+      "file": "ensaios-dispatcher-integracion.gs",
+      "line": 21,
+      "kind": "google-id",
+      "literal": "gardarAsistenciaEnsaioPortal",
+      "context": "ortal_(datos); * } else if (accion === 'gardarEnsaioPortal') { * resultado = gardarEnsaioPortal_(datos); * } else if (accion === 'gardarAsistenciaEnsaioPortal') { * resultado = gardarAsistenciaEnsaioPortal_(datos); * } else if (acc"
+    },
+    {
+      "file": "ensaios-dispatcher-integracion.gs",
+      "line": 23,
+      "kind": "google-id",
+      "literal": "gardarEnsaioRepertorioPortal",
+      "context": "} else if (accion === 'gardarAsistenciaEnsaioPortal') { * resultado = gardarAsistenciaEnsaioPortal_(datos); * } else if (accion === 'gardarEnsaioRepertorioPortal') { * resultado = gardarEnsaioRepertorioPortal_(datos); * } else if (acc"
+    },
+    {
+      "file": "ensaios-dispatcher-integracion.gs",
+      "line": 25,
+      "kind": "google-id",
+      "literal": "obterSeguimentoEnsaiosPortal",
+      "context": "} else if (accion === 'gardarEnsaioRepertorioPortal') { * resultado = gardarEnsaioRepertorioPortal_(datos); * } else if (accion === 'obterSeguimentoEnsaiosPortal') { * resultado = obterSeguimentoEnsaiosPortal_(datos); * * Se o despacha"
+    },
+    {
+      "file": "ensaios-dispatcher-integracion.gs",
+      "line": 36,
+      "kind": "google-id",
+      "literal": "gardarAsistenciaEnsaioPortal",
+      "context": "EnsaiosPortal_(datos); * break; * case 'gardarEnsaioPortal': * resultado = gardarEnsaioPortal_(datos); * break; * case 'gardarAsistenciaEnsaioPortal': * resultado = gardarAsistenciaEnsaioPortal_(datos); * break; * ca"
+    },
+    {
+      "file": "ensaios-dispatcher-integracion.gs",
+      "line": 39,
+      "kind": "google-id",
+      "literal": "gardarEnsaioRepertorioPortal",
+      "context": "); * break; * case 'gardarAsistenciaEnsaioPortal': * resultado = gardarAsistenciaEnsaioPortal_(datos); * break; * case 'gardarEnsaioRepertorioPortal': * resultado = gardarEnsaioRepertorioPortal_(datos); * break; * ca"
+    },
+    {
+      "file": "ensaios-dispatcher-integracion.gs",
+      "line": 42,
+      "kind": "google-id",
+      "literal": "obterSeguimentoEnsaiosPortal",
+      "context": "); * break; * case 'gardarEnsaioRepertorioPortal': * resultado = gardarEnsaioRepertorioPortal_(datos); * break; * case 'obterSeguimentoEnsaiosPortal': * resultado = obterSeguimentoEnsaiosPortal_(datos); * break; */ /*"
+    },
+    {
+      "file": "ensaios-dispatcher-integracion.gs",
+      "line": 62,
+      "kind": "google-id",
+      "literal": "gardarAsistenciaEnsaioPortal",
+      "context": "listarEnsaiosPortal e obterSeguimentoEnsaiosPortal son só lectura. */ var ACCIONS_ESCRITURA_ENSAIOS_PORTAL_ = [ 'gardarEnsaioPortal', 'gardarAsistenciaEnsaioPortal', 'gardarEnsaioRepertorioPortal' ]; function eAccionEscrituraEnsaiosPortal_(a"
+    },
+    {
+      "file": "ensaios-dispatcher-integracion.gs",
+      "line": 63,
+      "kind": "google-id",
+      "literal": "gardarEnsaioRepertorioPortal",
+      "context": "ntoEnsaiosPortal son só lectura. */ var ACCIONS_ESCRITURA_ENSAIOS_PORTAL_ = [ 'gardarEnsaioPortal', 'gardarAsistenciaEnsaioPortal', 'gardarEnsaioRepertorioPortal' ]; function eAccionEscrituraEnsaiosPortal_(accion) { return ACCIONS_ESCRITUR"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 12,
+      "kind": "google-id",
+      "literal": "1YJkIH4DpuOQShAP8fcSq_TrLPDn08zv_tfKNjq297wc",
+      "context": "gardarAsistenciaEnsaioPortal * gardarEnsaioRepertorioPortal * obterSeguimentoEnsaiosPortal */ var ENSAIOS_CONFIG_ = { ensaiosId: '1YJkIH4DpuOQShAP8fcSq_TrLPDn08zv_tfKNjq297wc', asistenciasId: '1yp0Gc_GaewODS6IaPB9p2cdKqeOCbnyehL_-HzpdUQI', ensaiosRepe"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 13,
+      "kind": "google-id",
+      "literal": "1yp0Gc_GaewODS6IaPB9p2cdKqeOCbnyehL_-HzpdUQI",
+      "context": "* obterSeguimentoEnsaiosPortal */ var ENSAIOS_CONFIG_ = { ensaiosId: '1YJkIH4DpuOQShAP8fcSq_TrLPDn08zv_tfKNjq297wc', asistenciasId: '1yp0Gc_GaewODS6IaPB9p2cdKqeOCbnyehL_-HzpdUQI', ensaiosRepertorioId: '155FLEl07h8LwlrSVLEhFsbkgJMqIf4E6k6lCXf8x_JE', perso"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 14,
+      "kind": "google-id",
+      "literal": "155FLEl07h8LwlrSVLEhFsbkgJMqIf4E6k6lCXf8x_JE",
+      "context": "Id: '1YJkIH4DpuOQShAP8fcSq_TrLPDn08zv_tfKNjq297wc', asistenciasId: '1yp0Gc_GaewODS6IaPB9p2cdKqeOCbnyehL_-HzpdUQI', ensaiosRepertorioId: '155FLEl07h8LwlrSVLEhFsbkgJMqIf4E6k6lCXf8x_JE', persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ', concertosId: '1"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 15,
+      "kind": "google-id",
+      "literal": "13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ",
+      "context": "ciasId: '1yp0Gc_GaewODS6IaPB9p2cdKqeOCbnyehL_-HzpdUQI', ensaiosRepertorioId: '155FLEl07h8LwlrSVLEhFsbkgJMqIf4E6k6lCXf8x_JE', persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ', concertosId: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU', repertorioId:"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 16,
+      "kind": "google-id",
+      "literal": "1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU",
+      "context": "osRepertorioId: '155FLEl07h8LwlrSVLEhFsbkgJMqIf4E6k6lCXf8x_JE', persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ', concertosId: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU', repertorioId: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw' }; function co"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 17,
+      "kind": "google-id",
+      "literal": "1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw",
+      "context": "persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ', concertosId: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU', repertorioId: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw' }; function configuracionEnsaiosPortal_() { var props = PropertiesService.ge"
+    },
+    {
+      "file": "fotos-portal.gs",
+      "line": 600,
+      "kind": "google-id",
+      "literal": "1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w",
+      "context": "= PropertiesService.getScriptProperties(); const spreadsheetId = String( propiedades.getProperty('FOTOS_SPREADSHEET_ID') || '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w' ).trim(); const sheetId = Number( propiedades.getProperty('FOTOS_SHEET"
+    },
+    {
+      "file": "fotos-portal.gs",
+      "line": 610,
+      "kind": "google-id",
+      "literal": "1FySxDvTHVNC20-a3I0wDU1v0s82VRiix",
+      "context": "es.getProperty('FOTOS_SHEET_ID') || '1291817000' ); const folderId = String( propiedades.getProperty('FOTOS_FOLDER_ID') || '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix' ).trim(); const appsheetPath = String( propiedades.getProperty('FOTOS_"
+    },
+    {
+      "file": "permisos-fotos-drive.gs",
+      "line": 10,
+      "kind": "google-id",
+      "literal": "1FySxDvTHVNC20-a3I0wDU1v0s82VRiix",
+      "context": "as * de la carpeta Fotos_Images. * * Ejecutar manualmente una sola vez. */ function facerPublicasFotosDrive() { const folderId = '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'; const carpeta = DriveApp.getFolderById(folderId); const ficheiros ="
+    },
+    {
+      "file": "sincronizacion-medios-concertos.gs",
+      "line": 26,
+      "kind": "google-id",
+      "literal": "coralpolifonicapontevedra-coder",
+      "context": "rtiesService.getScriptProperties(); const token = props.getProperty('GITHUB_TOKEN'); const owner = props.getProperty('GITHUB_OWNER') || 'coralpolifonicapontevedra-coder'; const repo = props.getProperty('GITHUB_REPO') || 'scpp-web'; const branch"
+    },
+    {
+      "file": "sincronizacion-medios-concertos.gs",
+      "line": 163,
+      "kind": "google-id",
+      "literal": "sincronizarMediosConcertos",
+      "context": "'); } function crearActivadorSincronizacion() { ScriptApp.getProjectTriggers() .filter((trigger) => trigger.getHandlerFunction() === 'sincronizarMediosConcertos') .forEach((trigger) => ScriptApp.deleteTrigger(trigger)); ScriptApp.newT"
+    },
+    {
+      "file": "sincronizacion-medios-concertos.gs",
+      "line": 166,
+      "kind": "google-id",
+      "literal": "sincronizarMediosConcertos",
+      "context": "getHandlerFunction() === 'sincronizarMediosConcertos') .forEach((trigger) => ScriptApp.deleteTrigger(trigger)); ScriptApp.newTrigger('sincronizarMediosConcertos') .timeBased() .everyMinutes(15) .create(); console.log('Activado"
+    },
+    {
+      "file": "solicitudes-web.gs",
+      "line": 14,
+      "kind": "google-id",
+      "literal": "AceptacionProteccionDatos",
+      "context": "Nova','Prioridade':'Normal','AvisoEnviado':false,'DataAviso':'','DataContacto':'','AtendidaPor':'','DataPeche':'','ObservacionsInternas':'','AceptacionProteccionDatos':true,'VersionTextoLegal':limparSolicitude_(datos.versionTextoLegal,80),'FonteEn"
+    }
+  ],
   "syntaxErrors": [],
   "archiveDirsInsideRoot": [
     "canonical-2026-08-03"
