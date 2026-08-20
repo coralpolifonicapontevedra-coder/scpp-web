@@ -46,8 +46,8 @@
         },
         {
           "file": "Código.gs",
-          "sha256": "b0aeef541fc2335daa332ad6814c1ba10243c236bcc7807c704bf760a75aa9ac",
-          "bytes": 1748
+          "sha256": "22c29c7d9a98993f8ee88c606acbc55b24efac4281d89eefe7345474eb0f8bbe",
+          "bytes": 1769
         }
       ]
     },
@@ -186,118 +186,6 @@
       "kind": "google-id",
       "literal": "obterFichaPersoaAdministracion",
       "context": "de persoas consultada' : String(resultado.erro || '') }); return respostaJSON(resultado); } if (accion === 'obterFichaPersoaAdministracion') { const resultado = obterFichaPersoaAdministracion_(datos);"
-    },
-    {
-      "file": "Código.gs",
-      "line": 912,
-      "kind": "google-id",
-      "literal": "1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw",
-      "context": "o); if (!usuario) { return { ok: false, erro: 'Usuario non autorizado' }; } const ids = { repertorio: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw', audios: '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0', partitur"
-    },
-    {
-      "file": "Código.gs",
-      "line": 914,
-      "kind": "google-id",
-      "literal": "16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0",
-      "context": "Usuario non autorizado' }; } const ids = { repertorio: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw', audios: '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0', partituras: '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0', prog"
-    },
-    {
-      "file": "Código.gs",
-      "line": 916,
-      "kind": "google-id",
-      "literal": "18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0",
-      "context": "'1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw', audios: '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0', partituras: '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0', programas: '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig', conce"
-    },
-    {
-      "file": "Código.gs",
-      "line": 918,
-      "kind": "google-id",
-      "literal": "1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig",
-      "context": "'16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0', partituras: '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0', programas: '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig', concertos: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU' }; co"
-    },
-    {
-      "file": "Código.gs",
-      "line": 920,
-      "kind": "google-id",
-      "literal": "1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU",
-      "context": "'18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0', programas: '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig', concertos: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU' }; const repertorio = lerFollaRepertorio_( ids.repertorio, 'Repert"
-    },
-    {
-      "file": "Código.gs",
-      "line": 1102,
-      "kind": "google-id",
-      "literal": "1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0",
-      "context": "(!usuario) { return { ok: false, erro: 'Usuario non autorizado' }; } const asistencias = lerFollaRepertorio_( '1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0', 'AsistenciasConcertos' ); const ordeVoces = { Soprano: 1, Con"
-    },
-    {
-      "file": "Código.gs",
-      "line": 1243,
-      "kind": "google-id",
-      "literal": "1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU",
-      "context": "uario non autorizado' }; } const ruta = String(datos.ruta || '').trim(); const carpetasPermitidas = { 'Obras_Files_': '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU', 'Partituras_Files_': '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm', 'Audio"
-    },
-    {
-      "file": "Código.gs",
-      "line": 1245,
-      "kind": "google-id",
-      "literal": "1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm",
-      "context": "| '').trim(); const carpetasPermitidas = { 'Obras_Files_': '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU', 'Partituras_Files_': '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm', 'AudiosRepertorio_Files_': '1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V' };"
-    },
-    {
-      "file": "Código.gs",
-      "line": 1247,
-      "kind": "google-id",
-      "literal": "1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V",
-      "context": "QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU', 'Partituras_Files_': '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm', 'AudiosRepertorio_Files_': '1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V' }; const partes = ruta.split('/'); if ( partes.length !== 2 ||"
-    },
-    {
-      "file": "Código.gs",
-      "line": 1827,
-      "kind": "google-id",
-      "literal": "1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU",
-      "context": ") ); } } // Arquivo independente RexistroAccesosWeb. const libroRexistro = SpreadsheetApp.openById( '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU' ); // Identificador interno da pestana. const follaRexistro ="
-    },
-    {
-      "file": "Código.gs",
-      "line": 1898,
-      "kind": "google-id",
-      "literal": "1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU",
-      "context": "anas atopadas: ' + nomes.join(' | ') ); } function comprobarRexistroAccesosWeb() { const libroRexistro = SpreadsheetApp.openById( '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU' ); const follaRexistro = libroRexistro.getSheetById(1291817000); if"
-    },
-    {
-      "file": "Código.gs",
-      "line": 1932,
-      "kind": "google-id",
-      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
-      "context": "'Proba directa desde Apps Script' }); } function comprobarFollaAceptacion() { const libroAceptacion = SpreadsheetApp.openById( '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k' ); const follaAceptacion = libroAceptacion.getSheetById(974695665);"
-    },
-    {
-      "file": "Código.gs",
-      "line": 1967,
-      "kind": "google-id",
-      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
-      "context": "eiras: ' + cabeceiras.join(' | ') ); } function rexistrarAceptacion(datos) { const libroAceptacion = SpreadsheetApp.openById( '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k' ); const follaAceptacion = libroAceptacion.getSheetById(974695665);"
-    },
-    {
-      "file": "Código.gs",
-      "line": 2003,
-      "kind": "google-id",
-      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
-      "context": "ón escrita correctamente' ); } function tenAceptacionVixente_(correo, version) { const libroAceptacion = SpreadsheetApp.openById( '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k' ); const follaAceptacion = libroAceptacion.getSheetById(974695665);"
-    },
-    {
-      "file": "Código.gs",
-      "line": 2130,
-      "kind": "google-id",
-      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
-      "context": "* Tanto a comprobación como o rexistro resolven a fila activa directamente * desde TextosLegais. */ const ACEPTACION_SPREADSHEET_ID_ = '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'; const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208; const TEXTO_LEGAL_PORTAL_ID_ = 'P"
-    },
-    {
-      "file": "Código.gs",
-      "line": 2131,
-      "kind": "sheet-id",
-      "literal": "2025412208",
-      "context": "SHEET_ID_ = 2025412208"
     },
     {
       "file": "concertos-dispatcher-integracion.gs",
@@ -550,20 +438,6 @@
       "kind": "google-id",
       "literal": "1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw",
       "context": "persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ', concertosId: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU', repertorioId: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw' }; function configuracionEnsaiosPortal_() { var props = PropertiesService.ge"
-    },
-    {
-      "file": "fotos-portal.gs",
-      "line": 600,
-      "kind": "google-id",
-      "literal": "1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w",
-      "context": "= PropertiesService.getScriptProperties(); const spreadsheetId = String( propiedades.getProperty('FOTOS_SPREADSHEET_ID') || '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w' ).trim(); const sheetId = Number( propiedades.getProperty('FOTOS_SHEET"
-    },
-    {
-      "file": "fotos-portal.gs",
-      "line": 610,
-      "kind": "google-id",
-      "literal": "1FySxDvTHVNC20-a3I0wDU1v0s82VRiix",
-      "context": "es.getProperty('FOTOS_SHEET_ID') || '1291817000' ); const folderId = String( propiedades.getProperty('FOTOS_FOLDER_ID') || '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix' ).trim(); const appsheetPath = String( propiedades.getProperty('FOTOS_"
     },
     {
       "file": "permisos-fotos-drive.gs",
