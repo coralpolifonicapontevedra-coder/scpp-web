@@ -595,20 +595,9 @@ function obterContextoFotos_() {
   const propiedades =
     PropertiesService.getScriptProperties();
 
-  const spreadsheetId = String(
-    propiedades.getProperty('FOTOS_SPREADSHEET_ID') ||
-    '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w'
-  ).trim();
-
-  const sheetId = Number(
-    propiedades.getProperty('FOTOS_SHEET_ID') ||
-    '1291817000'
-  );
-
-  const folderId = String(
-    propiedades.getProperty('FOTOS_FOLDER_ID') ||
-    '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'
-  ).trim();
+  const spreadsheetId = obterPropiedadeObrigatoria_('FOTOS_SPREADSHEET_ID');
+  const sheetId = Number(obterPropiedadeObrigatoria_('FOTOS_SHEET_ID'));
+  const folderId = obterPropiedadeObrigatoria_('FOTOS_FOLDER_ID');
 
   const appsheetPath = String(
     propiedades.getProperty('FOTOS_APPSHEET_PATH') ||
