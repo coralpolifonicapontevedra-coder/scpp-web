@@ -74,10 +74,7 @@ async function chamarAppsScript(env, user, accion, datos = {}) {
 function idSeguro(value) {
   return String(value || '').trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 160);
 }
-
-function cacheKey(idConcerto) {
-  return `${CACHE_PREFIX}${idConcerto}.json`;
-}
+function cacheKey(idConcerto) { return `${CACHE_PREFIX}${idConcerto}.json`; }
 
 async function lerCache(env, idConcerto) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
@@ -112,7 +109,9 @@ async function listar(context, user, idConcerto, forzar) {
     });
   }
   const inicio = Date.now();
-  const payload = await chamarAppsScript(context.env, user, 'listarConcertoOperacionPortal', { idConcerto });
+  const payload = await chamarAppsScript(context.env, user, 'listarConcertosAdministracionPortal', {
+    operacion:'detalle', idConcerto
+  });
   await gardarCache(context.env, idConcerto, payload);
   return json(200, { ...payload, cache:'SHEET-SEED' }, {
     'X-SCPP-Cache':forzar ? 'REFRESH' : 'SEED',
@@ -124,7 +123,6 @@ export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') return erro(405, 'REQUEST', 'METHOD_NOT_ALLOWED', 'Método non permitido.');
   if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) return erro(500, 'CONFIG', 'MISSING_CONFIG', 'O servizo non está configurado correctamente.');
-
   let body;
   try { body = await request.json(); }
   catch { return erro(400, 'REQUEST', 'INVALID_JSON', 'Solicitude non válida.'); }
@@ -133,10 +131,7 @@ export async function onRequest(context) {
   try { user = await verificarFirebase(body.idToken, env.FIREBASE_API_KEY); }
   catch { return erro(503, 'FIREBASE', 'FIREBASE_UNAVAILABLE', 'Non foi posible validar a sesión.'); }
   if (!user) return erro(401, 'AUTH', 'INVALID_SESSION', 'A identificación non é válida ou caducou.');
-
-  if (!(await verificarAdministracionR2(env, user))) {
-    return erro(403, 'AUTH', 'FORBIDDEN', 'Usuario non autorizado para administrar concertos.');
-  }
+  if (!(await verificarAdministracionR2(env, user))) return erro(403, 'AUTH', 'FORBIDDEN', 'Usuario non autorizado para administrar concertos.');
 
   const accion = String(body.accion || 'listar').trim();
   const idConcerto = idSeguro(body.idConcerto);
@@ -148,18 +143,16 @@ export async function onRequest(context) {
     if (accion === 'gardarAsistencias') {
       const idsPersoas = [...new Set((Array.isArray(body.idsPersoas) ? body.idsPersoas : []).map(idSeguro).filter(Boolean))].slice(0, 200);
       const inicio = Date.now();
-      const result = await chamarAppsScript(env, user, 'gardarAsistenciasConcertoPortal', { idConcerto, idsPersoas });
+      const result = await chamarAppsScript(env, user, 'actualizarConcertoAdministracionPortal', {
+        operacion:'gardarAsistencias', idConcerto, idsPersoas
+      });
       await invalidar(env, idConcerto, true);
       let payload = null;
       try {
-        payload = await chamarAppsScript(env, user, 'listarConcertoOperacionPortal', { idConcerto });
+        payload = await chamarAppsScript(env, user, 'listarConcertosAdministracionPortal', { operacion:'detalle', idConcerto });
         await gardarCache(env, idConcerto, payload);
-      } catch (cacheError) {
-        console.warn('Asistencias gardadas, pero non se puido rexenerar a caché do concerto:', cacheError);
-      }
-      return json(200, { ok:true, resultado:result.resultado || result, payload, diagnostico:{ duracionMs:Date.now() - inicio } }, {
-        'X-SCPP-Cache':'INVALIDATED'
-      });
+      } catch (cacheError) { console.warn('Asistencias gardadas, pero non se puido rexenerar a caché:', cacheError); }
+      return json(200, { ok:true, resultado:result.resultado || result, payload, diagnostico:{ duracionMs:Date.now() - inicio } }, { 'X-SCPP-Cache':'INVALIDATED' });
     }
 
     if (accion === 'gardarPrograma') {
@@ -169,18 +162,16 @@ export async function onRequest(context) {
         solista:String(item?.solista || '').trim().slice(0, 250)
       })).filter((item) => item.idRepertorio);
       const inicio = Date.now();
-      const result = await chamarAppsScript(env, user, 'gardarProgramaConcertoPortal', { idConcerto, programa });
+      const result = await chamarAppsScript(env, user, 'actualizarConcertoAdministracionPortal', {
+        operacion:'gardarPrograma', idConcerto, programa
+      });
       await invalidar(env, idConcerto, false);
       let payload = null;
       try {
-        payload = await chamarAppsScript(env, user, 'listarConcertoOperacionPortal', { idConcerto });
+        payload = await chamarAppsScript(env, user, 'listarConcertosAdministracionPortal', { operacion:'detalle', idConcerto });
         await gardarCache(env, idConcerto, payload);
-      } catch (cacheError) {
-        console.warn('Programa gardado, pero non se puido rexenerar a caché do concerto:', cacheError);
-      }
-      return json(200, { ok:true, resultado:result.resultado || result, payload, diagnostico:{ duracionMs:Date.now() - inicio } }, {
-        'X-SCPP-Cache':'INVALIDATED'
-      });
+      } catch (cacheError) { console.warn('Programa gardado, pero non se puido rexenerar a caché:', cacheError); }
+      return json(200, { ok:true, resultado:result.resultado || result, payload, diagnostico:{ duracionMs:Date.now() - inicio } }, { 'X-SCPP-Cache':'INVALIDATED' });
     }
 
     return erro(400, 'REQUEST', 'ACTION_NOT_ALLOWED', 'Acción non permitida.');
