@@ -57,6 +57,10 @@ function extractFunction(text, start) {
   return '';
 }
 
+function lineNumberAt(text, index) {
+  return text.slice(0, index).split('\n').length;
+}
+
 if (!fs.existsSync(ROOT)) throw new Error('Non existe apps-script/');
 
 const files = walk(ROOT);
@@ -74,7 +78,6 @@ for (const file of files) {
     syntaxErrors.push({ file: file.rel, error: String(error.message || error) });
   }
 
-  // Só funcións declaradas no nivel superior: evita falsos positivos de helpers locais.
   const fnRe = /^function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
   let match;
   while ((match = fnRe.exec(text)) !== null) {
@@ -92,16 +95,33 @@ for (const file of files) {
     if (name === 'doGet') doGetCount += 1;
   }
 
-  const lines = text.split(/\r?\n/);
-  lines.forEach((line, index) => {
-    const idMatch = line.match(/['"]([A-Za-z0-9_-]{25,})['"]/);
-    if (!idMatch) return;
-    const literal = idMatch[1];
-    // As claves de Script Properties non son IDs de Google.
-    if (/^[A-Z0-9_]+$/.test(literal)) return;
-    const context = /(openById|getFolderById|SpreadsheetId|sheetId|folderId|FolderId|SPREADSHEET|FOLDER)/i.test(line);
-    if (context) hardcoded.push({ file: file.rel, line: index + 1, literal, text: line.trim().slice(0, 220) });
-  });
+  // Busca calquera literal con formato plausible de ID de Google, aínda que a
+  // constante e o valor estean en liñas distintas. Exclúe nomes de propiedades.
+  const googleIdRe = /['"]([A-Za-z0-9_-]{25,})['"]/g;
+  while ((match = googleIdRe.exec(text)) !== null) {
+    const literal = match[1];
+    if (/^[A-Z0-9_]+$/.test(literal)) continue;
+    const line = lineNumberAt(text, match.index);
+    const context = text.slice(Math.max(0, match.index - 140), Math.min(text.length, googleIdRe.lastIndex + 80));
+    hardcoded.push({ file: file.rel, line, kind: 'google-id', literal, context: context.replace(/\s+/g, ' ').trim().slice(0, 260) });
+  }
+
+  // Detecta tamén IDs numéricos de pestanas cando están asignados a constantes
+  // ou propiedades *_SHEET_ID, que non teñen o formato longo dun ID de Drive.
+  const sheetIdRe = /(?:SHEET_ID|SheetId|sheetId)[A-Za-z0-9_]*\s*[:=]\s*['"]?(\d{6,})['"]?/g;
+  while ((match = sheetIdRe.exec(text)) !== null) {
+    const line = lineNumberAt(text, match.index);
+    hardcoded.push({ file: file.rel, line, kind: 'sheet-id', literal: match[1], context: match[0].slice(0, 220) });
+  }
+}
+
+const uniqueHardcoded = [];
+const seenHardcoded = new Set();
+for (const item of hardcoded) {
+  const key = `${item.file}:${item.line}:${item.kind}:${item.literal}`;
+  if (seenHardcoded.has(key)) continue;
+  seenHardcoded.add(key);
+  uniqueHardcoded.push(item);
 }
 
 const duplicates = [...functions.entries()]
@@ -122,7 +142,7 @@ const result = {
   doPostCount,
   doGetCount,
   duplicates,
-  hardcoded,
+  hardcoded: uniqueHardcoded,
   syntaxErrors,
   archiveDirsInsideRoot,
 };
