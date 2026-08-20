@@ -20,22 +20,6 @@
       ]
     },
     {
-      "name": "dataEnsaiosAdministracionPortal_",
-      "identical": false,
-      "locations": [
-        {
-          "file": "concertos-administracion.gs",
-          "sha256": "e47523eec0c64f183032e06ccecdc979c37630c1152e7c8a032e9e1cb734424f",
-          "bytes": 311
-        },
-        {
-          "file": "ensaios-administracion.gs",
-          "sha256": "54783d0fd5b5a9f6912be23ff2881735bebb8b56a28dbfa7662dbefb289a6561",
-          "bytes": 381
-        }
-      ]
-    },
-    {
       "name": "gardarEnsaioPortal_",
       "identical": false,
       "locations": [
@@ -212,56 +196,7 @@
       ]
     }
   ],
-  "hardcoded": [
-    {
-      "file": "fotos-portal.gs",
-      "line": 16,
-      "literal": "1FySxDvTHVNC20-a3I0wDU1v0s82VRiix",
-      "text": "FOTOS_FOLDER_ID: '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',"
-    },
-    {
-      "file": "fotos-portal.gs",
-      "line": 17,
-      "literal": "1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w",
-      "text": "FOTOS_SPREADSHEET_ID: '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w',"
-    },
-    {
-      "file": "partituras-portal.gs",
-      "line": 7,
-      "literal": "18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0",
-      "text": "var PARTITURAS_PORTAL_SPREADSHEET_ID_ = '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0';"
-    },
-    {
-      "file": "perfil-portal.gs",
-      "line": 27,
-      "literal": "13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ",
-      "text": "PERFIL_PERSOAS_SPREADSHEET_ID: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',"
-    },
-    {
-      "file": "perfil-portal.gs",
-      "line": 29,
-      "literal": "1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8",
-      "text": "PERFIL_USUARIOS_SPREADSHEET_ID: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',"
-    },
-    {
-      "file": "perfil-portal.gs",
-      "line": 31,
-      "literal": "1qXPUplggCFbFTTLRtm2j16af717o-bQs",
-      "text": "PERFIL_FOTOS_FOLDER_ID: '1qXPUplggCFbFTTLRtm2j16af717o-bQs',"
-    },
-    {
-      "file": "persoas-administracion.gs",
-      "line": 10,
-      "literal": "13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ",
-      "text": "persoasSpreadsheetId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',"
-    },
-    {
-      "file": "persoas-administracion.gs",
-      "line": 12,
-      "literal": "1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8",
-      "text": "usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',"
-    }
-  ],
+  "hardcoded": [],
   "syntaxErrors": [],
   "archiveDirsInsideRoot": [
     "canonical-2026-08-03"

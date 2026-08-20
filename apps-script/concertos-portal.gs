@@ -30,12 +30,12 @@ function obterDocumentoConcerto_(datos) {
 
 function obterContextoConcertosPortal_() {
   var p = PropertiesService.getScriptProperties();
-  var concertosSpreadsheetId = p.getProperty('CONCERTOS_PORTAL_SPREADSHEET_ID');
-  var concertosSheetId = Number(p.getProperty('CONCERTOS_PORTAL_SHEET_ID'));
-  var usuariosSpreadsheetId = p.getProperty('CONCERTOS_PORTAL_USUARIOS_SPREADSHEET_ID');
-  var usuariosSheetId = Number(p.getProperty('CONCERTOS_PORTAL_USUARIOS_SHEET_ID'));
-  var filesFolderId = p.getProperty('CONCERTOS_PORTAL_FILES_FOLDER_ID');
-  var imagesFolderId = p.getProperty('CONCERTOS_PORTAL_IMAGES_FOLDER_ID');
+  var concertosSpreadsheetId = p.getProperty('CONCERTOS_SPREADSHEET_ID');
+  var concertosSheetId = Number(p.getProperty('CONCERTOS_SHEET_ID'));
+  var usuariosSpreadsheetId = p.getProperty('USUARIOS_WEB_SPREADSHEET_ID');
+  var usuariosSheetId = Number(p.getProperty('USUARIOS_WEB_SHEET_ID'));
+  var filesFolderId = p.getProperty('CONCERTOS_FILES_FOLDER_ID');
+  var imagesFolderId = p.getProperty('CONCERTOS_IMAGES_FOLDER_ID');
   if (!concertosSpreadsheetId || !concertosSheetId || !usuariosSpreadsheetId || !usuariosSheetId || !filesFolderId || !imagesFolderId) {
     throw new Error('Falta configurar o módulo Concertos mediante Script Properties');
   }

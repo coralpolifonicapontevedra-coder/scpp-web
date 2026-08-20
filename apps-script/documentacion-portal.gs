@@ -7,32 +7,15 @@
  */
 
 const DOC_PORTAL_CONFIG = {
-  documentosSpreadsheetId:
-    '1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8',
-
-  sheetDocumentacion:
-    'Documentación',
-
-  sheetActas:
-    'Actas XD e AX',
-
-  usuariosSpreadsheetId:
-    '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
-
-  usuariosSheetId:
-    1291817000,
-
-  persoasSpreadsheetId:
-    '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
-
-  persoasSheetId:
-    388888827,
-
-  folderDocumentacionId:
-    '1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ',
-
-  folderActasId:
-    '1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR'
+  get documentosSpreadsheetId() { return obterPropiedadeObrigatoria_('DOCUMENTACION_SPREADSHEET_ID'); },
+  sheetDocumentacion: 'Documentación',
+  sheetActas: 'Actas XD e AX',
+  get usuariosSpreadsheetId() { return obterPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID'); },
+  get usuariosSheetId() { return Number(obterPropiedadeObrigatoria_('USUARIOS_WEB_SHEET_ID')); },
+  get persoasSpreadsheetId() { return obterPropiedadeObrigatoria_('PERSOAS_SPREADSHEET_ID'); },
+  get persoasSheetId() { return Number(obterPropiedadeObrigatoria_('PERSOAS_SHEET_ID')); },
+  get folderDocumentacionId() { return obterPropiedadeObrigatoria_('DOCUMENTACION_FOLDER_ID'); },
+  get folderActasId() { return obterPropiedadeObrigatoria_('ACTAS_FOLDER_ID'); }
 };
 
 const DOC_NIVEIS = {
