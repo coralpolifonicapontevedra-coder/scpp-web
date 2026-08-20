@@ -5,6 +5,8 @@ const TIMEOUT_APPS_SCRIPT_MS = 20_000;
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const PRIVATE_INDEX_KEY = 'indices/concertos-privado-v1.json';
 const PUBLIC_INDEX_KEY = 'indices/concertos-v1.json';
+const PREVIEW_PRIVATE_INDEX_KEY = 'indices/preview/concertos-privado-v1.json';
+const PREVIEW_PUBLIC_INDEX_KEY = 'indices/preview/concertos-v1.json';
 const ESTADOS = new Set(['Previsto','Confirmado','Aprazado','Cancelado','Realizado']);
 
 const json = (status, body) => new Response(JSON.stringify(body), {
@@ -18,6 +20,16 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 
 function erro(status, etapa, codigo, mensaxe) {
   return json(status, { ok:false, etapa, codigo, erro:mensaxe });
+}
+
+function contextoIndices(request) {
+  const host = new URL(request.url).hostname.toLowerCase();
+  const preview = host.endsWith('.scpp-web.pages.dev') && host !== 'scpp-web.pages.dev';
+  return {
+    preview,
+    privateKey:preview ? PREVIEW_PRIVATE_INDEX_KEY : PRIVATE_INDEX_KEY,
+    publicKey:preview ? PREVIEW_PUBLIC_INDEX_KEY : PUBLIC_INDEX_KEY
+  };
 }
 
 async function fetchConLimite(url, options, timeoutMs) {
@@ -93,16 +105,17 @@ function payloadIndice(concertos, orixe = 'PORTAL_ADMIN_WRITE_THROUGH') {
   };
 }
 
-async function lerIndicePrivado(env) {
+async function lerIndicePrivado(env, context) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
-  const object = await env.R2_PRIVADO.get(PRIVATE_INDEX_KEY);
+  let object = await env.R2_PRIVADO.get(context.privateKey);
+  if (!object && context.preview) object = await env.R2_PRIVADO.get(PRIVATE_INDEX_KEY);
   if (!object) return null;
   const data = await object.json().catch(() => null);
   if (!data?.ok || !Array.isArray(data.concertos)) return null;
   return data;
 }
 
-async function gardarIndices(env, concertos) {
+async function gardarIndices(env, context, concertos) {
   if (!env.R2_PRIVADO || !env.R2_PUBLICO || typeof env.R2_PRIVADO.put !== 'function' || typeof env.R2_PUBLICO.put !== 'function') {
     throw Object.assign(new Error('Os bindings R2 de concertos non están dispoñibles.'), { code:'R2_CONFIG' });
   }
@@ -111,29 +124,29 @@ async function gardarIndices(env, concertos) {
     String(a?.data || '9999-99-99').localeCompare(String(b?.data || '9999-99-99')) ||
     String(a?.id || '').localeCompare(String(b?.id || ''))
   );
-  const privado = payloadIndice(ordenados);
+  const privado = payloadIndice(ordenados, context.preview ? 'PORTAL_ADMIN_PREVIEW' : 'PORTAL_ADMIN_WRITE_THROUGH');
   const publicos = ordenados.filter((item) => item?.mostrarWeb === true);
   const publico = {
-    ...payloadIndice(publicos),
+    ...payloadIndice(publicos, context.preview ? 'PORTAL_ADMIN_PREVIEW' : 'PORTAL_ADMIN_WRITE_THROUGH'),
     totalFonte:ordenados.length,
     totalHistorico:privado.totalHistorico,
     ordeHistoricaMax:privado.ordeHistoricaMax
   };
 
   await Promise.all([
-    env.R2_PRIVADO.put(PRIVATE_INDEX_KEY, JSON.stringify(privado), {
+    env.R2_PRIVADO.put(context.privateKey, JSON.stringify(privado), {
       httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, max-age=60' },
-      customMetadata:{ 'scpp-source':'portal-admin-write-through', 'scpp-generated-at':String(privado.xeradoEnMs) }
+      customMetadata:{ 'scpp-source':context.preview ? 'portal-admin-preview' : 'portal-admin-write-through', 'scpp-generated-at':String(privado.xeradoEnMs) }
     }),
-    env.R2_PUBLICO.put(PUBLIC_INDEX_KEY, JSON.stringify(publico), {
+    env.R2_PUBLICO.put(context.publicKey, JSON.stringify(publico), {
       httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'public, max-age=60' },
-      customMetadata:{ 'scpp-source':'portal-admin-write-through', 'scpp-generated-at':String(publico.xeradoEnMs) }
+      customMetadata:{ 'scpp-source':context.preview ? 'portal-admin-preview' : 'portal-admin-write-through', 'scpp-generated-at':String(publico.xeradoEnMs) }
     })
   ]);
 }
 
-async function actualizarIndicesTrasEscritura(env, cambio) {
-  const indice = await lerIndicePrivado(env);
+async function actualizarIndicesTrasEscritura(env, context, cambio) {
+  const indice = await lerIndicePrivado(env, context);
   if (!indice) {
     throw Object.assign(new Error('Non se atopou o índice privado de concertos en R2.'), { code:'R2_INDEX_MISSING' });
   }
@@ -155,7 +168,7 @@ async function actualizarIndicesTrasEscritura(env, cambio) {
     }
   }
 
-  await gardarIndices(env, concertos);
+  await gardarIndices(env, context, concertos);
 }
 
 export async function onRequest(context) {
@@ -172,6 +185,8 @@ export async function onRequest(context) {
   catch { return erro(503, 'FIREBASE', 'FIREBASE_UNAVAILABLE', 'Non foi posible validar a sesión.'); }
   if (!user) return erro(401, 'AUTH', 'INVALID_SESSION', 'A identificación non é válida ou caducou.');
 
+  const indexContext = contextoIndices(request);
+
   try {
     const adminOk = await verificarAdministracionR2(env, user);
     if (!adminOk) return erro(403, 'AUTH', 'FORBIDDEN', 'Usuario non autorizado para Administración.');
@@ -179,7 +194,7 @@ export async function onRequest(context) {
     const accion = String(body.accion || 'listar').trim();
     if (accion === 'listar') {
       const result = await chamarAppsScript(env, user, 'listarConcertosAdministracionPortal');
-      return json(200, { ok:true, nivel:result.nivel || 'Administración', concertos:Array.isArray(result.concertos) ? result.concertos : [] });
+      return json(200, { ok:true, nivel:result.nivel || 'Administración', concertos:Array.isArray(result.concertos) ? result.concertos : [], ambiente:indexContext.preview ? 'preview' : 'production' });
     }
 
     if (accion === 'crear') {
@@ -202,7 +217,7 @@ export async function onRequest(context) {
       });
       const idConcerto = String(result?.resultado?.idConcerto || '').trim();
       if (!idConcerto) throw Object.assign(new Error('Apps Script non devolveu o Id do novo concerto.'), { code:'INVALID_UPSTREAM_RESULT' });
-      await actualizarIndicesTrasEscritura(env, {
+      await actualizarIndicesTrasEscritura(env, indexContext, {
         tipo:'crear',
         concerto:{
           id:idConcerto,
@@ -224,15 +239,15 @@ export async function onRequest(context) {
           programa:[]
         }
       });
-      return json(200, { ok:true, resultado:result.resultado || result, sincronizacion:'SHEET+R2' });
+      return json(200, { ok:true, resultado:result.resultado || result, sincronizacion:'SHEET+R2', ambiente:indexContext.preview ? 'preview' : 'production' });
     }
 
     if (accion === 'eliminar') {
       const idConcerto = texto(body.idConcerto, 120);
       if (!idConcerto) return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica o concerto que queres dar de baixa.');
       const result = await chamarAppsScript(env, user, 'eliminarConcertoAdministracionPortal', { idConcerto });
-      await actualizarIndicesTrasEscritura(env, { tipo:'eliminar', idConcerto });
-      return json(200, { ok:true, resultado:result.resultado || result, sincronizacion:'SHEET+R2' });
+      await actualizarIndicesTrasEscritura(env, indexContext, { tipo:'eliminar', idConcerto });
+      return json(200, { ok:true, resultado:result.resultado || result, sincronizacion:'SHEET+R2', ambiente:indexContext.preview ? 'preview' : 'production' });
     }
 
     if (accion === 'cambiarData') {
@@ -240,8 +255,8 @@ export async function onRequest(context) {
       const data = texto(body.data, 10);
       if (!idConcerto || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica un concerto e unha data válida.');
       const result = await chamarAppsScript(env, user, 'actualizarConcertoAdministracionPortal', { idConcerto, data });
-      await actualizarIndicesTrasEscritura(env, { tipo:'actualizar', idConcerto, parche:{ data } });
-      return json(200, { ok:true, resultado:result.resultado || result, sincronizacion:'SHEET+R2' });
+      await actualizarIndicesTrasEscritura(env, indexContext, { tipo:'actualizar', idConcerto, parche:{ data } });
+      return json(200, { ok:true, resultado:result.resultado || result, sincronizacion:'SHEET+R2', ambiente:indexContext.preview ? 'preview' : 'production' });
     }
 
     if (accion === 'cambiarEstado') {
@@ -249,8 +264,8 @@ export async function onRequest(context) {
       const estado = texto(body.estado, 20);
       if (!idConcerto || !ESTADOS.has(estado)) return erro(400, 'REQUEST', 'INVALID_DATA', 'Indica un concerto e un estado válido.');
       const result = await chamarAppsScript(env, user, 'actualizarConcertoAdministracionPortal', { idConcerto, estado });
-      await actualizarIndicesTrasEscritura(env, { tipo:'actualizar', idConcerto, parche:{ estado:estadoIndice(estado) } });
-      return json(200, { ok:true, resultado:result.resultado || result, sincronizacion:'SHEET+R2' });
+      await actualizarIndicesTrasEscritura(env, indexContext, { tipo:'actualizar', idConcerto, parche:{ estado:estadoIndice(estado) } });
+      return json(200, { ok:true, resultado:result.resultado || result, sincronizacion:'SHEET+R2', ambiente:indexContext.preview ? 'preview' : 'production' });
     }
 
     return erro(400, 'REQUEST', 'ACTION_NOT_ALLOWED', 'Acción non permitida.');
