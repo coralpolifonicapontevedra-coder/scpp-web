@@ -4,22 +4,6 @@
   "doGetCount": 1,
   "duplicates": [
     {
-      "name": "comprobarAceptacionPortal_",
-      "identical": true,
-      "locations": [
-        {
-          "file": "aceptacion-textos-legais.gs",
-          "sha256": "09c8d3dd134b1e8991fe4d276fa2c25bdcf8ef2f65cdf9f30771d34107092ad2",
-          "bytes": 244
-        },
-        {
-          "file": "Código.gs",
-          "sha256": "09c8d3dd134b1e8991fe4d276fa2c25bdcf8ef2f65cdf9f30771d34107092ad2",
-          "bytes": 244
-        }
-      ]
-    },
-    {
       "name": "gardarEnsaioPortal_",
       "identical": false,
       "locations": [
@@ -84,22 +68,6 @@
       ]
     },
     {
-      "name": "normalizarDataTextoLegal_",
-      "identical": true,
-      "locations": [
-        {
-          "file": "aceptacion-textos-legais.gs",
-          "sha256": "d14eb4163976fccde4115230d658442e0e64f2901c66a2a422ffb476d38608e7",
-          "bytes": 468
-        },
-        {
-          "file": "Código.gs",
-          "sha256": "d14eb4163976fccde4115230d658442e0e64f2901c66a2a422ffb476d38608e7",
-          "bytes": 468
-        }
-      ]
-    },
-    {
       "name": "obterFotoParaR2Portal_",
       "identical": false,
       "locations": [
@@ -112,22 +80,6 @@
           "file": "r2-fotos-portal.gs",
           "sha256": "abeb9f3280c8036a51e28665f0299cec78b52019f5ed29ae73a0892c86516e9f",
           "bytes": 3065
-        }
-      ]
-    },
-    {
-      "name": "obterTextoLegalVixente_",
-      "identical": true,
-      "locations": [
-        {
-          "file": "aceptacion-textos-legais.gs",
-          "sha256": "b10f6b4da80b2140ad342c71a4f84f5814a4aa1cd5148957ab59b9199ac907d4",
-          "bytes": 2869
-        },
-        {
-          "file": "Código.gs",
-          "sha256": "b10f6b4da80b2140ad342c71a4f84f5814a4aa1cd5148957ab59b9199ac907d4",
-          "bytes": 2869
         }
       ]
     },
@@ -162,55 +114,9 @@
           "bytes": 133
         }
       ]
-    },
-    {
-      "name": "probarTextoLegalVixente",
-      "identical": true,
-      "locations": [
-        {
-          "file": "aceptacion-textos-legais.gs",
-          "sha256": "1073e220176e6a27dddba64899d23b3abe6c4107712918478c3e46d99d702127",
-          "bytes": 96
-        },
-        {
-          "file": "Código.gs",
-          "sha256": "1073e220176e6a27dddba64899d23b3abe6c4107712918478c3e46d99d702127",
-          "bytes": 96
-        }
-      ]
-    },
-    {
-      "name": "rexistrarAceptacionPortal_",
-      "identical": true,
-      "locations": [
-        {
-          "file": "aceptacion-textos-legais.gs",
-          "sha256": "5bbbe4f36cb258f473557384def9df554824e8bf2daef407471c89e3e886e33e",
-          "bytes": 689
-        },
-        {
-          "file": "Código.gs",
-          "sha256": "5bbbe4f36cb258f473557384def9df554824e8bf2daef407471c89e3e886e33e",
-          "bytes": 689
-        }
-      ]
     }
   ],
   "hardcoded": [
-    {
-      "file": "aceptacion-textos-legais.gs",
-      "line": 9,
-      "kind": "google-id",
-      "literal": "1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k",
-      "context": "* Tanto a comprobación como o rexistro resolven a fila activa directamente * desde TextosLegais. */ const ACEPTACION_SPREADSHEET_ID_ = '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'; const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208; const TEXTO_LEGAL_PORTAL_ID_ = 'P"
-    },
-    {
-      "file": "aceptacion-textos-legais.gs",
-      "line": 10,
-      "kind": "sheet-id",
-      "literal": "2025412208",
-      "context": "SHEET_ID_ = 2025412208"
-    },
     {
       "file": "Código.gs",
       "line": 387,
