@@ -144,10 +144,16 @@ for anchor, new_name in [
     ('FOTOS_SPREADSHEET_ID','FOTOS_SHEET_ID'),
     ('SOLICITUDES_SPREADSHEET_ID','SOLICITUDES_SHEET_ID'),
 ]:
-    if f"'{new_name}'" in t: continue
+    if f"'{new_name}'" in t:
+        continue
     needle = f"  '{anchor}',"
-    if needle not in t: raise SystemExit(f'Non se atopou áncora {anchor}')
-    t = t.replace(needle, needle + f"\n  '{new_name}',", 1)
+    if needle in t:
+        t = t.replace(needle, needle + f"\n  '{new_name}',", 1)
+        continue
+    bare = f"  '{anchor}'"
+    if bare not in t:
+        raise SystemExit(f'Non se atopou áncora {anchor}')
+    t = t.replace(bare, bare + f",\n  '{new_name}'", 1)
 p.write_text(t, encoding='utf-8')
 
 print('Normalización aplicada con gardas exactas.')
