@@ -1,0 +1,74 @@
+name: Patch seguro do dispatcher canónico de Concertos
+
+on:
+  push:
+    branches:
+      - feature/admin-concertos
+    paths:
+      - .github/workflows/patch-codigo-concertos.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout da rama
+        uses: actions/checkout@v4
+        with:
+          ref: feature/admin-concertos
+          fetch-depth: 0
+
+      - name: Verificar base exacta de Produción e inserir o enganche
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git hash-object 'apps-script/Código.gs')"
+          ESPERADO="8ca0dfeb6ca69bb6fb4055615821eb5fb658f566"
+          if [ "$ACTUAL" != "$ESPERADO" ]; then
+            echo "ABORTADO: Código.gs xa non coincide coa base exacta de Produción ($ESPERADO). Actual: $ACTUAL"
+            exit 1
+          fi
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps-script/Código.gs')
+          text = path.read_text(encoding='utf-8')
+          marker = "const respostaConcertosAdmin = despacharConcertosAdministracion_(accion, datos, bloqueo);"
+          if marker in text:
+              raise SystemExit('ABORTADO: o enganche xa existe')
+
+          needle = "    if (accion === 'listarEnsaiosPortal') {"
+          if text.count(needle) != 1:
+              raise SystemExit(f'ABORTADO: esperábase unha única áncora de Ensaios e atopáronse {text.count(needle)}')
+
+          hook = """    // Administración → Concertos: dispatcher modular común a Preview e Produción.\n    const respostaConcertosAdmin =\n      despacharConcertosAdministracion_(accion, datos, bloqueo);\n\n    if (respostaConcertosAdmin !== null) {\n      return respostaJSON(respostaConcertosAdmin);\n    }\n\n"""
+          path.write_text(text.replace(needle, hook + needle, 1), encoding='utf-8')
+          PY
+
+      - name: Validar sintaxe e garantir cero eliminacións
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp 'apps-script/Código.gs' /tmp/codigo.js
+          node --check /tmp/codigo.js
+          git diff --check -- 'apps-script/Código.gs'
+          read ADD DEL FILE <<<"$(git diff --numstat -- 'apps-script/Código.gs')"
+          echo "Código.gs: +${ADD} -${DEL}"
+          if [ "$DEL" != "0" ]; then
+            echo "ABORTADO: o parche eliminou liñas de Código.gs"
+            exit 1
+          fi
+          git diff -- 'apps-script/Código.gs'
+
+      - name: Gardar o parche na mesma rama
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add 'apps-script/Código.gs'
+          git commit -m 'apps-script: conectar dispatcher modular de concertos'
+          git push origin HEAD:feature/admin-concertos
