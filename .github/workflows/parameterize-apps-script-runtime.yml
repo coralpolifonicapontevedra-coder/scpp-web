@@ -39,3 +39,5 @@ jobs:
           git add apps-script/Código.gs apps-script/fotos-portal.gs apps-script/configuracion-entorno.gs
           git commit -m "apps-script: parametrizar ids herdados do runtime"
           git push origin HEAD:feature/admin-concertos
+
+# activación puntual verificada na rama de traballo
