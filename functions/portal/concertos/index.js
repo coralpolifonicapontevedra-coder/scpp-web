@@ -21,6 +21,7 @@ export async function onRequestGet({ request, env }) {
     '<link rel="stylesheet" href="/css/concertos-novo-informe.css?v=1">',
     '<link rel="stylesheet" href="/css/concertos-operacion.css?v=1">',
     '<script type="module" src="/js/concertos-novo-clasico.js?v=2"></script>',
+    '<script type="module" src="/js/concertos-r2-overlay.js?v=1"></script>',
     '<script type="module" src="/js/concertos-operacion.js?v=1"></script>'
   ];
 
@@ -45,7 +46,7 @@ export async function onRequestGet({ request, env }) {
   cabeceiras.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   cabeceiras.set('Pragma', 'no-cache');
   cabeceiras.set('Expires', '0');
-  cabeceiras.set('X-SCPP-Concertos-Version', 'operacion-v1');
+  cabeceiras.set('X-SCPP-Concertos-Version', 'r2-operacion-v2');
 
   return new Response(html, {
     status: resposta.status,
