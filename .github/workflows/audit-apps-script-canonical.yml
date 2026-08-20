@@ -9,7 +9,7 @@ on:
       - .github/workflows/audit-apps-script-canonical.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
@@ -18,5 +18,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/admin-concertos
+          fetch-depth: 0
       - name: Auditar apps-script
-        run: node scripts/audit-apps-script-canonical.mjs
+        shell: bash
+        run: |
+          set +e
+          node scripts/audit-apps-script-canonical.mjs > docs/framework-scpp/apps-script-canonical-audit.json
+          EXIT=$?
+          cat docs/framework-scpp/apps-script-canonical-audit.json
+          echo "audit_exit=$EXIT" >> "$GITHUB_ENV"
+          exit 0
+      - name: Gardar informe
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/framework-scpp/apps-script-canonical-audit.json
+          if git diff --cached --quiet; then
+            echo "Informe sen cambios"
+            exit 0
+          fi
+          git commit -m "chore(apps-script): actualizar informe da auditoria canonica"
+          git push origin HEAD:feature/admin-concertos
