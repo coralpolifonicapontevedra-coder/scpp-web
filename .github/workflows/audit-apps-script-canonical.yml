@@ -1,0 +1,22 @@
+name: Auditoría Apps Script canónico
+
+on:
+  push:
+    branches:
+      - feature/admin-concertos
+    paths:
+      - scripts/audit-apps-script-canonical.mjs
+      - .github/workflows/audit-apps-script-canonical.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/admin-concertos
+      - name: Auditar apps-script
+        run: node scripts/audit-apps-script-canonical.mjs
