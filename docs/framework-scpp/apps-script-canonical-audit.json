@@ -1,0 +1,366 @@
+{
+  "files": 25,
+  "doPostCount": 1,
+  "doGetCount": 1,
+  "duplicates": [
+    {
+      "name": "comprobarAceptacionPortal_",
+      "locations": [
+        "aceptacion-textos-legais.gs",
+        "Código.gs"
+      ]
+    },
+    {
+      "name": "dataEnsaiosAdministracionPortal_",
+      "locations": [
+        "concertos-administracion.gs",
+        "ensaios-administracion.gs"
+      ]
+    },
+    {
+      "name": "gardarEnsaioPortal_",
+      "locations": [
+        "ensaios-alta.gs",
+        "ensaios-portal.gs"
+      ]
+    },
+    {
+      "name": "gardarRutasFotoR2Portal_",
+      "locations": [
+        "fotos-portal.gs",
+        "r2-fotos-portal.gs"
+      ]
+    },
+    {
+      "name": "listarAsistenciasConcertosPortal_",
+      "locations": [
+        "asistencias-concertos-portal.gs",
+        "Código.gs"
+      ]
+    },
+    {
+      "name": "listarFotosPendentesR2Portal_",
+      "locations": [
+        "fotos-portal.gs",
+        "r2-fotos-portal.gs"
+      ]
+    },
+    {
+      "name": "normalizarDataTextoLegal_",
+      "locations": [
+        "aceptacion-textos-legais.gs",
+        "Código.gs"
+      ]
+    },
+    {
+      "name": "obterFotoParaR2Portal_",
+      "locations": [
+        "fotos-portal.gs",
+        "r2-fotos-portal.gs"
+      ]
+    },
+    {
+      "name": "obterTextoLegalVixente_",
+      "locations": [
+        "aceptacion-textos-legais.gs",
+        "Código.gs"
+      ]
+    },
+    {
+      "name": "obterUsuarioWebPorEmail",
+      "locations": [
+        "aceptacion-portal.gs",
+        "Código.gs"
+      ]
+    },
+    {
+      "name": "probarEscrituraAceptacion",
+      "locations": [
+        "aceptacion-portal.gs",
+        "Código.gs"
+      ]
+    },
+    {
+      "name": "probarTextoLegalVixente",
+      "locations": [
+        "aceptacion-textos-legais.gs",
+        "Código.gs"
+      ]
+    },
+    {
+      "name": "rexistrarAceptacionPortal_",
+      "locations": [
+        "aceptacion-textos-legais.gs",
+        "Código.gs"
+      ]
+    },
+    {
+      "name": "set",
+      "locations": [
+        "ensaios-alta.gs",
+        "partituras-portal.gs"
+      ]
+    }
+  ],
+  "hardcoded": [
+    {
+      "file": "asistencias-concertos-portal.gs",
+      "line": 29,
+      "text": "var spreadsheetId = p.getProperty('ASISTENCIAS_CONCERTOS_SPREADSHEET_ID');"
+    },
+    {
+      "file": "Código.gs",
+      "line": 107,
+      "text": "'USUARIOS_WEB_SPREADSHEET_ID',"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1302,
+      "text": "'USUARIOS_WEB_SPREADSHEET_ID'"
+    },
+    {
+      "file": "Código.gs",
+      "line": 1339,
+      "text": "'USUARIOS_WEB_SPREADSHEET_ID',"
+    },
+    {
+      "file": "concertos-administracion.gs",
+      "line": 2,
+      "text": "function configuracionConcertosAdministracionPortal_(){var p=PropertiesService.getScriptProperties(),n=['CONCERTOS_SPREADSHEET_ID','ASISTENCIAS_CONCERTOS_SPREADSHEET_ID','CONCERTOS_REPERTORIO_SPREADSHEET_ID','PERSOAS_SPR"
+    },
+    {
+      "file": "concertos-administracion.gs",
+      "line": 7,
+      "text": "function listarConcertosAdministracionPortal_(datos){var email=textoEnsaiosPortal_(datos&&datos.email).toLowerCase(),permiso=permisoConcertosAdministracionPortal_(email);if(!permiso.escritura)return{ok:false,codigo:'FORB"
+    },
+    {
+      "file": "concertos-administracion.gs",
+      "line": 9,
+      "text": "var catalogo=filasEnsaiosAdministracionPortal_(c.repertorioId,'Repertorio','REPERTORIO_SPREADSHEET_ID').rows.map(function(r){return{idRepertorio:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Id','Id_Repertorio','Row ID']))"
+    },
+    {
+      "file": "concertos-administracion.gs",
+      "line": 10,
+      "text": "var programa=filasEnsaiosAdministracionPortal_(c.concertosRepertorioId,'ConcertosRepertorio','CONCERTOS_REPERTORIO_SPREADSHEET_ID').rows.filter(function(r){return textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Id_Conciertos"
+    },
+    {
+      "file": "concertos-administracion.gs",
+      "line": 12,
+      "text": "var porNome={};persoas.forEach(function(p){porNome[normalizarEnsaiosPortal_(p.nomeCompleto)]=p.idPersoa;});var asistentes=[];filasEnsaiosAdministracionPortal_(c.asistenciasId,'AsistenciasConcertos','ASISTENCIAS_CONCERTOS"
+    },
+    {
+      "file": "concertos-administracion.gs",
+      "line": 14,
+      "text": "function gardarProgramaConcertoAdministracionPortal_(datos){var email=textoEnsaiosPortal_(datos&&datos.email).toLowerCase(),permiso=permisoConcertosAdministracionPortal_(email);if(!permiso.escritura)return{ok:false,codig"
+    },
+    {
+      "file": "concertos-administracion.gs",
+      "line": 15,
+      "text": "function gardarAsistentesConcertoAdministracionPortal_(datos){var email=textoEnsaiosPortal_(datos&&datos.email).toLowerCase(),permiso=permisoConcertosAdministracionPortal_(email);if(!permiso.escritura)return{ok:false,cod"
+    },
+    {
+      "file": "concertos-portal.gs",
+      "line": 33,
+      "text": "var concertosSpreadsheetId = p.getProperty('CONCERTOS_PORTAL_SPREADSHEET_ID');"
+    },
+    {
+      "file": "concertos-portal.gs",
+      "line": 34,
+      "text": "var concertosSheetId = Number(p.getProperty('CONCERTOS_PORTAL_SHEET_ID'));"
+    },
+    {
+      "file": "concertos-portal.gs",
+      "line": 35,
+      "text": "var usuariosSpreadsheetId = p.getProperty('CONCERTOS_PORTAL_USUARIOS_SPREADSHEET_ID');"
+    },
+    {
+      "file": "concertos-portal.gs",
+      "line": 36,
+      "text": "var usuariosSheetId = Number(p.getProperty('CONCERTOS_PORTAL_USUARIOS_SHEET_ID'));"
+    },
+    {
+      "file": "concertos-portal.gs",
+      "line": 37,
+      "text": "var filesFolderId = p.getProperty('CONCERTOS_PORTAL_FILES_FOLDER_ID');"
+    },
+    {
+      "file": "concertos-portal.gs",
+      "line": 38,
+      "text": "var imagesFolderId = p.getProperty('CONCERTOS_PORTAL_IMAGES_FOLDER_ID');"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 11,
+      "text": "'USUARIOS_WEB_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 13,
+      "text": "'REPERTORIO_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 14,
+      "text": "'AUDIOS_REPERTORIO_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 15,
+      "text": "'PARTITURAS_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 16,
+      "text": "'CONCERTOS_REPERTORIO_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 18,
+      "text": "'ASISTENCIAS_CONCERTOS_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 19,
+      "text": "'REXISTRO_ACCESOS_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 20,
+      "text": "'ACEPTACION_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 21,
+      "text": "'CONCERTOS_FILES_FOLDER_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 22,
+      "text": "'CONCERTOS_IMAGES_FOLDER_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 23,
+      "text": "'DOCUMENTACION_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 27,
+      "text": "'ASISTENCIAS_ENSAIOS_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 28,
+      "text": "'ENSAIOS_REPERTORIO_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 32,
+      "text": "'PUBLICACIONS_SPREADSHEET_ID',"
+    },
+    {
+      "file": "configuracion-entorno.gs",
+      "line": 33,
+      "text": "'SOLICITUDES_SPREADSHEET_ID'"
+    },
+    {
+      "file": "ensaios-administracion.gs",
+      "line": 4,
+      "text": "var nomes = ['ENSAIOS_SPREADSHEET_ID','ASISTENCIAS_ENSAIOS_SPREADSHEET_ID','ENSAIOS_REPERTORIO_SPREADSHEET_ID'];"
+    },
+    {
+      "file": "ensaios-administracion.gs",
+      "line": 16,
+      "text": "function listarEnsaiosAdministracionPortal_(datos) { var email=textoEnsaiosPortal_(datos&&datos.email).toLowerCase();var permiso=permisoEnsaiosAdministracionPortal_(email);if(!permiso.escritura)return{ok:false,codigo:'FO"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 29,
+      "text": "props.getProperty('ASISTENCIAS_ENSAIOS_SPREADSHEET_ID') ||"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 33,
+      "text": "props.getProperty('ENSAIOS_REPERTORIO_SPREADSHEET_ID') ||"
+    },
+    {
+      "file": "ensaios-portal.gs",
+      "line": 45,
+      "text": "props.getProperty('REPERTORIO_SPREADSHEET_ID') ||"
+    },
+    {
+      "file": "fotos-portal.gs",
+      "line": 16,
+      "text": "FOTOS_FOLDER_ID: '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',"
+    },
+    {
+      "file": "fotos-portal.gs",
+      "line": 17,
+      "text": "FOTOS_SPREADSHEET_ID: '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w',"
+    },
+    {
+      "file": "partituras-portal.gs",
+      "line": 7,
+      "text": "var PARTITURAS_PORTAL_SPREADSHEET_ID_ = '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0';"
+    },
+    {
+      "file": "perfil-portal.gs",
+      "line": 27,
+      "text": "PERFIL_PERSOAS_SPREADSHEET_ID: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',"
+    },
+    {
+      "file": "perfil-portal.gs",
+      "line": 29,
+      "text": "PERFIL_USUARIOS_SPREADSHEET_ID: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',"
+    },
+    {
+      "file": "perfil-portal.gs",
+      "line": 31,
+      "text": "PERFIL_FOTOS_FOLDER_ID: '1qXPUplggCFbFTTLRtm2j16af717o-bQs',"
+    },
+    {
+      "file": "perfil-portal.gs",
+      "line": 269,
+      "text": "'PERFIL_PERSOAS_SPREADSHEET_ID'"
+    },
+    {
+      "file": "perfil-portal.gs",
+      "line": 280,
+      "text": "'PERFIL_USUARIOS_SPREADSHEET_ID'"
+    },
+    {
+      "file": "persoas-administracion.gs",
+      "line": 10,
+      "text": "persoasSpreadsheetId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',"
+    },
+    {
+      "file": "persoas-administracion.gs",
+      "line": 12,
+      "text": "usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',"
+    },
+    {
+      "file": "publicacions-web.gs",
+      "line": 4,
+      "text": "var spreadsheetId = String(p.getProperty('PUBLICACIONS_SPREADSHEET_ID') || '').trim();"
+    },
+    {
+      "file": "sincronizacion-medios-concertos.gs",
+      "line": 16,
+      "text": "propiedadeFolderId: 'CONCERTOS_IMAGES_FOLDER_ID',"
+    },
+    {
+      "file": "sincronizacion-medios-concertos.gs",
+      "line": 175,
+      "text": "const folderId = PropertiesService.getScriptProperties().getProperty('CONCERTOS_IMAGES_FOLDER_ID');"
+    },
+    {
+      "file": "solicitudes-web.gs",
+      "line": 22,
+      "text": "function obterContextoSolicitudes_(){ var p=PropertiesService.getScriptProperties(), spreadsheetId=String(p.getProperty('SOLICITUDES_SPREADSHEET_ID')||'').trim(), sheetId=Number(p.getProperty('SOLICITUDES_SHEET_ID')); if"
+    }
+  ],
+  "syntaxErrors": [],
+  "archiveDirsInsideRoot": [
+    "canonical-2026-08-03"
+  ]
+}
