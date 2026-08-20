@@ -74,4 +74,4 @@ jobs:
           git commit -m "chore(apps-script): actualizar auditoria canonica"
           git push origin HEAD:feature/admin-concertos
 
-# auditoría relanzada tras parametrizar o runtime
+# auditoría relanzada tras a limpeza de duplicados e separación do histórico
