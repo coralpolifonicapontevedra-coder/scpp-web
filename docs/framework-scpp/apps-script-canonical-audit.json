@@ -1,121 +1,8 @@
 {
-  "files": 25,
+  "files": 21,
   "doPostCount": 1,
   "doGetCount": 1,
-  "duplicates": [
-    {
-      "name": "gardarEnsaioPortal_",
-      "identical": false,
-      "locations": [
-        {
-          "file": "ensaios-alta.gs",
-          "sha256": "9b6930a796511813dd1f8868f788b5ce493d89ae7936c7994160a69996c01a2d",
-          "bytes": 2536
-        },
-        {
-          "file": "ensaios-portal.gs",
-          "sha256": "b5c3023aa88dc9789c5bb511b3a6f0a940c20ff7a0336f6ac9df27156a4e0970",
-          "bytes": 2673
-        }
-      ]
-    },
-    {
-      "name": "gardarRutasFotoR2Portal_",
-      "identical": false,
-      "locations": [
-        {
-          "file": "fotos-portal.gs",
-          "sha256": "ffd335cdabbff24e296b2fde4fc42f64c6ecb6b75da74d5e44fae1111b6dbc78",
-          "bytes": 948
-        },
-        {
-          "file": "r2-fotos-portal.gs",
-          "sha256": "0fdc7bc68e8a58ff9b984f7a32a9ba329c21f18cdc0466f348e58e4d6a16f426",
-          "bytes": 3608
-        }
-      ]
-    },
-    {
-      "name": "listarAsistenciasConcertosPortal_",
-      "identical": false,
-      "locations": [
-        {
-          "file": "asistencias-concertos-portal.gs",
-          "sha256": "20679a85a5aaa649cf0efce1b9062b6d4a1f29d3b4a68d5a91388cd78afc8ca5",
-          "bytes": 1211
-        },
-        {
-          "file": "Código.gs",
-          "sha256": "22c29c7d9a98993f8ee88c606acbc55b24efac4281d89eefe7345474eb0f8bbe",
-          "bytes": 1769
-        }
-      ]
-    },
-    {
-      "name": "listarFotosPendentesR2Portal_",
-      "identical": false,
-      "locations": [
-        {
-          "file": "fotos-portal.gs",
-          "sha256": "e55307a86b8c24e89e405496e0c454dc0f037b5a8a7f4f2cc4f64814ad07745e",
-          "bytes": 1294
-        },
-        {
-          "file": "r2-fotos-portal.gs",
-          "sha256": "7f7097c9f307f5f4e841d88ac70ea0a39f0f12d278fe8fced72299bed8c16a2a",
-          "bytes": 1921
-        }
-      ]
-    },
-    {
-      "name": "obterFotoParaR2Portal_",
-      "identical": false,
-      "locations": [
-        {
-          "file": "fotos-portal.gs",
-          "sha256": "919d5580df93091b8edc70c5861acecd557fbc158137c14d635d88432ee89a65",
-          "bytes": 1303
-        },
-        {
-          "file": "r2-fotos-portal.gs",
-          "sha256": "abeb9f3280c8036a51e28665f0299cec78b52019f5ed29ae73a0892c86516e9f",
-          "bytes": 3065
-        }
-      ]
-    },
-    {
-      "name": "obterUsuarioWebPorEmail",
-      "identical": false,
-      "locations": [
-        {
-          "file": "aceptacion-portal.gs",
-          "sha256": "2d3853dff24f228d4ef1508142772dcd266de7b0ac77560f4f1b70a7b908d03d",
-          "bytes": 1513
-        },
-        {
-          "file": "Código.gs",
-          "sha256": "e31f154256830a9dc6ecffb5a4cc4dd99e19c3dcc7a3b5a92446fcbdf67cc9fa",
-          "bytes": 150
-        }
-      ]
-    },
-    {
-      "name": "probarEscrituraAceptacion",
-      "identical": false,
-      "locations": [
-        {
-          "file": "aceptacion-portal.gs",
-          "sha256": "48754151a35b4737261dbe1c4dc7146fe0da40460ccc69b7a778882538e8b491",
-          "bytes": 1752
-        },
-        {
-          "file": "Código.gs",
-          "sha256": "967803496542d726a4fcb531d12607eaeb50ee4d0195fb9e964c0a8159a3035d",
-          "bytes": 133
-        }
-      ]
-    }
-  ],
+  "duplicates": [],
   "hardcoded": [
     {
       "file": "Código.gs",
@@ -476,7 +363,5 @@
     }
   ],
   "syntaxErrors": [],
-  "archiveDirsInsideRoot": [
-    "canonical-2026-08-03"
-  ]
+  "archiveDirsInsideRoot": []
 }
