@@ -433,6 +433,33 @@ function doPost(e) {
 
       return respostaJSON(resultado);
     }
+    if (accion === 'listarConcertosAdministracionPortal') {
+    return respostaJSON(
+      listarConcertosAdministracionPortal_(datos)
+    );
+  }
+
+  if (accion === 'actualizarConcertoAdministracionPortal') {
+    bloqueo.waitLock(10000);
+    return respostaJSON(
+      actualizarConcertoAdministracionPortal_(datos)
+    );
+  }
+
+  if (accion === 'crearConcertoAdministracionPortal') {
+    bloqueo.waitLock(10000);
+    return respostaJSON(
+      crearConcertoAdministracionPortal_(datos)
+    );
+  }
+
+  if (accion === 'eliminarConcertoAdministracionPortal') {
+    bloqueo.waitLock(10000);
+    return respostaJSON(
+      eliminarConcertoAdministracionPortal_(datos)
+    );
+  }
+
     if (accion === 'listarEnsaiosPortal') {
       const resultado =
         listarEnsaiosPortal_(datos);
