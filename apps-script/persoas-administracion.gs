@@ -16,10 +16,26 @@ const PERSOAS_ADMIN_CONFIG = {
 const PERSOAS_ADMIN_CACHE_SEGUNDOS = 10 * 60;
 
 function probarPersoasAdministracion() {
+  const inicio = Date.now();
+
   const resultado = listarPersoasAdministracion_({
     email: 'jcuinas@gmail.com'
   });
-  console.log(JSON.stringify(resultado));
+
+  const persoas = Array.isArray(resultado.persoas)
+    ? resultado.persoas
+    : [];
+
+  console.log(JSON.stringify({
+    ok: resultado.ok === true,
+    erro: resultado.erro || '',
+    perfil: resultado.perfil || null,
+    totalPersoas: persoas.length,
+    fichasR2: persoas.filter(function(persoa) {
+      return persoa.fichaDisponibleR2 === true;
+    }).length,
+    duracionMs: Date.now() - inicio
+  }));
 }
 
 function listarPersoasAdministracion_(datos) {
@@ -728,4 +744,25 @@ function formatarDataHoraPersoasAdmin_(
   }
 
   return textoPersoasAdmin_(valor);
+}
+
+function probarFichaPersoaAdministracionR2() {
+  const inicio = Date.now();
+
+  const resultado = obterFichaPersoaAdministracion_({
+    email: 'jcuinas@gmail.com',
+    idPersoa: '37'
+  });
+
+  console.log(JSON.stringify({
+    ok: resultado.ok,
+    erro: resultado.erro || '',
+    idPersoa: resultado.idPersoa || '',
+    r2Key: resultado.r2Key || '',
+    nomeFicheiro: resultado.nomeFicheiro || '',
+    mimeType: resultado.mimeType || '',
+    size: resultado.size || '',
+    tenBase64: Boolean(resultado.base64),
+    duracionMs: Date.now() - inicio
+  }));
 }
