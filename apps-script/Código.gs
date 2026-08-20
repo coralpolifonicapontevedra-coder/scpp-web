@@ -441,6 +441,14 @@ function doPost(e) {
 
       return respostaJSON(resultado);
     }
+    // Administración → Concertos: dispatcher modular común a Preview e Produción.
+    const respostaConcertosAdmin =
+      despacharConcertosAdministracion_(accion, datos, bloqueo);
+
+    if (respostaConcertosAdmin !== null) {
+      return respostaJSON(respostaConcertosAdmin);
+    }
+
     if (accion === 'listarEnsaiosPortal') {
       const resultado =
         listarEnsaiosPortal_(datos);
