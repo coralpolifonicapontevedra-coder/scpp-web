@@ -1,43 +1,14 @@
-name: Parametrizar runtime Apps Script
+name: Parametrización Apps Script (histórica)
 
 on:
-  push:
-    branches:
-      - feature/admin-concertos
-    paths:
-      - .github/workflows/parameterize-apps-script-runtime.yml
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  parameterize:
+  obsolete:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: feature/admin-concertos
-          fetch-depth: 0
-      - name: Aplicar substitucións con gardas exactas
-        run: python scripts/parameterize-apps-script-runtime.py
-      - name: Validar sintaxe individual e diff
-        shell: bash
-        run: |
-          set -euo pipefail
-          for f in apps-script/*.gs; do
-            cp "$f" /tmp/check.js
-            node --check /tmp/check.js >/dev/null
-          done
-          git diff --check -- apps-script
-          git diff --stat -- apps-script
-      - name: Gardar parametrización
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps-script/Código.gs apps-script/fotos-portal.gs apps-script/configuracion-entorno.gs
-          git commit -m "apps-script: parametrizar ids herdados do runtime"
-          git push origin HEAD:feature/admin-concertos
-
-# activación puntual verificada na rama de traballo
+      - run: |
+          echo "Este fluxo foi puntual e xa está aplicado. Non modifica código."
