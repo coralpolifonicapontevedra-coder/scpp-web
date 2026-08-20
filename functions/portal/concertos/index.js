@@ -9,7 +9,6 @@ function requestImplementacion(request) {
 export async function onRequestGet({ request, env }) {
   const resposta = await env.ASSETS.fetch(requestImplementacion(request));
   const tipo = String(resposta.headers.get('Content-Type') || '');
-
   if (!resposta.ok || !tipo.includes('text/html')) return resposta;
 
   let html = await resposta.text();
@@ -17,7 +16,8 @@ export async function onRequestGet({ request, env }) {
     '<link rel="stylesheet" href="/css/concertos-novo-clasico.css?v=2">',
     '<link rel="stylesheet" href="/css/concertos-novo-informe.css?v=1">',
     '<script type="module" src="/js/concertos-novo-clasico.js?v=2"></script>',
-    '<script type="module" src="/js/concertos-r2-overlay.js?v=2"></script>'
+    '<script type="module" src="/js/concertos-r2-overlay.js?v=2"></script>',
+    '<script type="module" src="/js/concertos-asistencias-live.js?v=1"></script>'
   ];
 
   recursos.forEach((recurso) => {
@@ -36,8 +36,7 @@ export async function onRequestGet({ request, env }) {
   cabeceiras.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   cabeceiras.set('Pragma', 'no-cache');
   cabeceiras.set('Expires', '0');
-  cabeceiras.set('X-SCPP-Concertos-Version', 'consulta-r2-v3');
-
+  cabeceiras.set('X-SCPP-Concertos-Version', 'consulta-r2-live-v4');
   return new Response(html, { status: resposta.status, statusText: resposta.statusText, headers: cabeceiras });
 }
 
