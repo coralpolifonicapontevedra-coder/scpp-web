@@ -230,11 +230,13 @@ export async function onRequest(context) {
     context.waitUntil(actualizarCacheEnSegundoPlano(env, usuario));
   }
 
-  return respostaAsistencias(respaldoIntegrado, {
-    'X-SCPP-Asistencias-Source': 'EMBEDDED-SEED',
-    'X-SCPP-Asistencias-Age': '0',
-    'X-SCPP-AppScript': 'BACKGROUND-REFRESH'
-  });
+  if (Object.keys(ASISTENCIAS_CONCERTOS_RESPALDO).length > 0) {
+    return respostaAsistencias(respaldoIntegrado, {
+      'X-SCPP-Asistencias-Source': 'EMBEDDED-SEED',
+      'X-SCPP-Asistencias-Age': '0',
+      'X-SCPP-AppScript': 'BACKGROUND-REFRESH'
+    });
+  }
 
   const inicio = Date.now();
 
