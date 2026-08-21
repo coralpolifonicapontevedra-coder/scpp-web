@@ -592,8 +592,30 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     }
   }
 
-  onAuthStateChanged(auth, async (user) => {
+  async function agardarUsuarioAutenticado() {
+    await auth.authStateReady();
+    if (auth.currentUser?.email) return auth.currentUser;
+
+    return new Promise<typeof auth.currentUser>((resolve) => {
+      let cancelar = () => {};
+      const temporizador = window.setTimeout(() => {
+        cancelar();
+        resolve(auth.currentUser);
+      }, 2500);
+
+      cancelar = onAuthStateChanged(auth, (user) => {
+        if (!user?.email) return;
+        window.clearTimeout(temporizador);
+        cancelar();
+        resolve(user);
+      });
+    });
+  }
+
+  async function iniciar() {
+    const user = await agardarUsuarioAutenticado();
     if (!user?.email) { window.location.replace('/portal/'); return; }
+
     try {
       if (!(await aceptacionVixente(user))) { window.location.replace('/portal/'); return; }
       if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
@@ -601,7 +623,9 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     } catch {
       window.location.replace('/portal/');
     }
-  });
+  }
+
+  void iniciar();
 
   viewSwitch?.addEventListener('click', (event) => {
     const target = event.target;
