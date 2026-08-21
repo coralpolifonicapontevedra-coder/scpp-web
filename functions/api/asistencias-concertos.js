@@ -1,7 +1,13 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
-import { ASISTENCIAS_CONCERTOS_RESPALDO } from '../_data/asistencias-concertos-respaldo.js';
 
-const CHAVE_CACHE = 'indices/asistencias-concertos.json';
+const CHAVE_CACHE_PRODUCION = 'indices/asistencias-concertos.json';
+const CHAVE_CACHE_PREVIEW = 'indices/preview/asistencias-concertos.json';
+
+function chaveCache(env = {}) {
+  return String(env.CF_PAGES_BRANCH || '').trim() === 'main'
+    ? CHAVE_CACHE_PRODUCION
+    : CHAVE_CACHE_PREVIEW;
+}
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
 const CACHE_MAXIMA_MS = 24 * 60 * 60 * 1000;
 const MAX_INTENTOS_APPS_SCRIPT = 3;
@@ -52,11 +58,11 @@ function resultadoValido(resultado) {
   );
 }
 
-async function lerCacheR2(bucket) {
+async function lerCacheR2(bucket, chave) {
   if (!bucket || typeof bucket.get !== 'function') return null;
 
   try {
-    const obxecto = await bucket.get(CHAVE_CACHE);
+    const obxecto = await bucket.get(chave);
     if (!obxecto) return null;
 
     const gardado = JSON.parse(await obxecto.text());
@@ -76,11 +82,11 @@ async function lerCacheR2(bucket) {
   }
 }
 
-async function gardarCacheR2(bucket, resultado) {
+async function gardarCacheR2(bucket, chave, resultado) {
   if (!bucket || typeof bucket.put !== 'function' || !resultadoValido(resultado)) return;
 
   await bucket.put(
-    CHAVE_CACHE,
+    chave,
     JSON.stringify({ gardadoEn: Date.now(), resultado }),
     {
       httpMetadata: {
@@ -158,7 +164,7 @@ function respostaAsistencias(resultado, extraHeaders = {}) {
 async function actualizarCacheEnSegundoPlano(env, usuario) {
   try {
     const { resultado } = await consultarAppsScript(env, usuario);
-    await gardarCacheR2(env.R2_PRIVADO, resultado);
+    await gardarCacheR2(env.R2_PRIVADO, chaveCache(env), resultado);
   } catch (erro) {
     console.warn('Non se puido actualizar en segundo plano a caché de asistencias:', erro);
   }
@@ -193,7 +199,7 @@ export async function onRequest(context) {
     return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
   }
 
-  const cache = await lerCacheR2(env.R2_PRIVADO);
+  const cache = await lerCacheR2(env.R2_PRIVADO, chaveCache(env));
 
   if (cache && cache.idadeMs <= CACHE_FRESCA_MS) {
     return respostaAsistencias(cache.resultado, {
@@ -215,36 +221,13 @@ export async function onRequest(context) {
     });
   }
 
-  const respaldoIntegrado = {
-    ok: true,
-    asistenciasPorConcerto: ASISTENCIAS_CONCERTOS_RESPALDO
-  };
-
-  try {
-    await gardarCacheR2(env.R2_PRIVADO, respaldoIntegrado);
-  } catch (erroCache) {
-    console.warn('Non se puido sementar a caché R2 de asistencias:', erroCache);
-  }
-
-  if (typeof context.waitUntil === 'function') {
-    context.waitUntil(actualizarCacheEnSegundoPlano(env, usuario));
-  }
-
-  if (Object.keys(ASISTENCIAS_CONCERTOS_RESPALDO).length > 0) {
-    return respostaAsistencias(respaldoIntegrado, {
-      'X-SCPP-Asistencias-Source': 'EMBEDDED-SEED',
-      'X-SCPP-Asistencias-Age': '0',
-      'X-SCPP-AppScript': 'BACKGROUND-REFRESH'
-    });
-  }
-
   const inicio = Date.now();
 
   try {
     const { resultado, usouRespaldo, intento, intentoLocal } = await consultarAppsScript(env, usuario);
 
     try {
-      await gardarCacheR2(env.R2_PRIVADO, resultado);
+      await gardarCacheR2(env.R2_PRIVADO, chaveCache(env), resultado);
     } catch (erroCache) {
       console.warn('As asistencias cargaron, pero non se puido gardar a caché R2:', erroCache);
     }
