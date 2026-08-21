@@ -228,9 +228,13 @@ export async function onRequest(context) {
     console.error('Erro no servizo de aceptación:', erro);
 
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
+    const codigo = erro instanceof AppsScriptError ? erro.code : (erro?.name || 'ERRO_DESCONECIDO');
+    const mensaxeOriginal = erro instanceof Error ? erro.message : String(erro);
     return json(status, {
       ok: false,
-      erro: 'O servizo de acceso non está dispoñible neste momento. Tenta de novo nuns segundos.'
+      erro: `O servizo de acceso non está dispoñible neste momento (${codigo}: ${mensaxeOriginal}). Tenta de novo nuns segundos.`,
+      codigo,
+      detalles: mensaxeOriginal
     });
   }
 }

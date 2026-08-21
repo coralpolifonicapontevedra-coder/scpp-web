@@ -2126,16 +2126,13 @@ function probarPostAceptacion() {
  * Tanto a comprobación como o rexistro resolven a fila activa directamente
  * desde TextosLegais.
  */
-const ACEPTACION_SPREADSHEET_ID_ =
-  obterPropiedadeObrigatoria_('ACEPTACION_SPREADSHEET_ID');
-const TEXTOS_LEGAIS_SHEET_ID_ = Number(obterPropiedadeObrigatoria_('TEXTOS_LEGAIS_SHEET_ID'));
 const TEXTO_LEGAL_PORTAL_ID_ = 'PRIVACIDADE_WEB';
 
 function obterTextoLegalVixente_() {
   const libro = SpreadsheetApp.openById(
-    ACEPTACION_SPREADSHEET_ID_
+    obterPropiedadeObrigatoria_('ACEPTACION_SPREADSHEET_ID')
   );
-  const folla = libro.getSheetById(TEXTOS_LEGAIS_SHEET_ID_);
+  const folla = libro.getSheetById(Number(obterPropiedadeObrigatoria_('TEXTOS_LEGAIS_SHEET_ID')));
 
   if (!folla || folla.getName() !== 'TextosLegais') {
     throw new Error('Non se atopou a pestana TextosLegais configurada');
