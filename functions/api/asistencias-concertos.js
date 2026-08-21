@@ -1,4 +1,5 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
+import { ASISTENCIAS_CONCERTOS_RESPALDO } from '../_data/asistencias-concertos-respaldo.js';
 
 const CHAVE_CACHE = 'indices/asistencias-concertos.json';
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
@@ -211,6 +212,29 @@ export async function onRequest(context) {
       'X-SCPP-Asistencias-Source': 'R2-STALE',
       'X-SCPP-Asistencias-Age': String(Math.round(cache.idadeMs / 1000)),
       'X-SCPP-AppScript': 'R2-CACHE'
+    });
+  }
+
+  const respaldoIntegrado = {
+    ok: true,
+    asistenciasPorConcerto: ASISTENCIAS_CONCERTOS_RESPALDO
+  };
+
+  try {
+    await gardarCacheR2(env.R2_PRIVADO, respaldoIntegrado);
+  } catch (erroCache) {
+    console.warn('Non se puido sementar a caché R2 de asistencias:', erroCache);
+  }
+
+  if (typeof context.waitUntil === 'function') {
+    context.waitUntil(actualizarCacheEnSegundoPlano(env, usuario));
+  }
+
+  if (Object.keys(ASISTENCIAS_CONCERTOS_RESPALDO).length > 0) {
+    return respostaAsistencias(respaldoIntegrado, {
+      'X-SCPP-Asistencias-Source': 'EMBEDDED-SEED',
+      'X-SCPP-Asistencias-Age': '0',
+      'X-SCPP-AppScript': 'BACKGROUND-REFRESH'
     });
   }
 
