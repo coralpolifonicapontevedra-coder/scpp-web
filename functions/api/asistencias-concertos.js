@@ -1,15 +1,10 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
-const CHAVE_CACHE_PRODUCION = 'indices/asistencias-concertos.json';
-const CHAVE_CACHE_PREVIEW = 'indices/preview/asistencias-concertos.json';
-
-function chaveCache(env = {}) {
-  return String(env.CF_PAGES_BRANCH || '').trim() === 'main'
-    ? CHAVE_CACHE_PRODUCION
-    : CHAVE_CACHE_PREVIEW;
-}
+const CHAVE_INDICE = 'indices/asistencias-concertos.json';
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
-const CACHE_MAXIMA_MS = 24 * 60 * 60 * 1000;
+
+const ramaProducion = (env = {}) =>
+  String(env.CF_PAGES_BRANCH || '').trim() === 'main';
 const MAX_INTENTOS_APPS_SCRIPT = 3;
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
@@ -54,7 +49,10 @@ function resultadoValido(resultado) {
     resultado?.ok === true &&
     porConcerto &&
     typeof porConcerto === 'object' &&
-    !Array.isArray(porConcerto)
+    !Array.isArray(porConcerto) &&
+    Object.values(porConcerto).some((asistentes) =>
+      Array.isArray(asistentes) && asistentes.length > 0
+    )
   );
 }
 
@@ -82,11 +80,16 @@ async function lerCacheR2(bucket, chave) {
   }
 }
 
-async function gardarCacheR2(bucket, chave, resultado) {
-  if (!bucket || typeof bucket.put !== 'function' || !resultadoValido(resultado)) return;
+async function gardarCacheR2(bucket, resultado, env) {
+  if (
+    !ramaProducion(env) ||
+    !bucket ||
+    typeof bucket.put !== 'function' ||
+    !resultadoValido(resultado)
+  ) return;
 
   await bucket.put(
-    chave,
+    CHAVE_INDICE,
     JSON.stringify({ gardadoEn: Date.now(), resultado }),
     {
       httpMetadata: {
@@ -164,7 +167,7 @@ function respostaAsistencias(resultado, extraHeaders = {}) {
 async function actualizarCacheEnSegundoPlano(env, usuario) {
   try {
     const { resultado } = await consultarAppsScript(env, usuario);
-    await gardarCacheR2(env.R2_PRIVADO, chaveCache(env), resultado);
+    await gardarCacheR2(env.R2_PRIVADO, resultado, env);
   } catch (erro) {
     console.warn('Non se puido actualizar en segundo plano a caché de asistencias:', erro);
   }
@@ -199,7 +202,7 @@ export async function onRequest(context) {
     return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
   }
 
-  const cache = await lerCacheR2(env.R2_PRIVADO, chaveCache(env));
+  const cache = await lerCacheR2(env.R2_PRIVADO, CHAVE_INDICE);
 
   if (cache && cache.idadeMs <= CACHE_FRESCA_MS) {
     return respostaAsistencias(cache.resultado, {
@@ -209,8 +212,8 @@ export async function onRequest(context) {
     });
   }
 
-  if (cache && cache.idadeMs <= CACHE_MAXIMA_MS) {
-    if (typeof context.waitUntil === 'function') {
+  if (cache) {
+    if (ramaProducion(env) && typeof context.waitUntil === 'function') {
       context.waitUntil(actualizarCacheEnSegundoPlano(env, usuario));
     }
 
@@ -227,7 +230,7 @@ export async function onRequest(context) {
     const { resultado, usouRespaldo, intento, intentoLocal } = await consultarAppsScript(env, usuario);
 
     try {
-      await gardarCacheR2(env.R2_PRIVADO, chaveCache(env), resultado);
+      await gardarCacheR2(env.R2_PRIVADO, resultado, env);
     } catch (erroCache) {
       console.warn('As asistencias cargaron, pero non se puido gardar a caché R2:', erroCache);
     }
