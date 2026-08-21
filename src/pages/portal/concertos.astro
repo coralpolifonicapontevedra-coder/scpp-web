@@ -596,7 +596,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     await auth.authStateReady();
     if (auth.currentUser?.email) return auth.currentUser;
 
-    return new Promise((resolve) => {
+    return new Promise<typeof auth.currentUser>((resolve) => {
       let cancelar = () => {};
       const temporizador = window.setTimeout(() => {
         cancelar();
