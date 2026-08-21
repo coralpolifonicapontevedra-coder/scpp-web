@@ -14,6 +14,7 @@ Reducir improvisacións, evitar que un cambio nun módulo afecte a outro e estab
 - [Convencións](./CONVENCIONS.md)
 - [Decisións técnicas](./DECISIONS.md)
 - [Folla de ruta](./ROADMAP.md)
+- [Apps Script con GitHub e clasp](./APPS-SCRIPT-CICD.md)
 - [Concertos en R2](./CONCERTOS-R2.md)
 - [Honras concedidas en R2](./HONRAS-R2.md)
 
