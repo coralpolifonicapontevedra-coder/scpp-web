@@ -16,6 +16,13 @@ export async function onRequestGet({ request, env }) {
 
   let html = await resposta.text();
 
+  // Só en Preview: redirixir temporalmente a consulta de asistencias a un
+  // endpoint de diagnóstico seguro. Non se modifica main nin Producción.
+  html = html.replaceAll(
+    '/api/asistencias-concertos',
+    '/api/asistencias-concertos-debug'
+  );
+
   const recursos = [
     '<link rel="stylesheet" href="/css/concertos-novo-clasico.css?v=2">',
     '<link rel="stylesheet" href="/css/concertos-novo-informe.css?v=1">',
@@ -44,6 +51,7 @@ export async function onRequestGet({ request, env }) {
   cabeceiras.set('Pragma', 'no-cache');
   cabeceiras.set('Expires', '0');
   cabeceiras.set('X-SCPP-Concertos-Version', 'oficial-v2');
+  cabeceiras.set('X-SCPP-Asistencias-Debug', 'preview');
 
   return new Response(html, {
     status: resposta.status,
