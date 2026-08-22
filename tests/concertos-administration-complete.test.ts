@@ -9,6 +9,7 @@ const gas=readFileSync(resolve(root,'apps-script/concertos-administracion.gs'),'
 describe('administración integral de concertos',()=>{
   it('centraliza alta e edición na administración',()=>{expect(page).toContain('Alta de concerto');expect(api).toContain("accion==='gardarConcerto'");expect(gas).toContain('gardarConcertoAdministracionPortal_');});
   it('reutiliza as relacións de programa e asistencia',()=>{expect(gas).toContain("'ConcertosRepertorio'");expect(gas).toContain("'AsistenciasConcertos'");expect(api).toContain("accion==='gardarPrograma'");expect(api).toContain("accion==='gardarAsistentes'");});
+  it('rexistra os tres estados de asistencia e reutiliza Observaciones como respaldo',()=>{expect(page).toContain('data-attendance="asiste"');expect(page).toContain('data-attendance="non_asiste"');expect(page).toContain('data-attendance="xustificada"');expect(gas).toContain("'Observaciones'");expect(gas).toContain("estado==='asiste'");});
   it('garda cartel e tríptico en R2',()=>{expect(api).toContain("accion==='subirMedio'");expect(api).toContain('env.R2_PRIVADO.put');expect(api).toContain('actualizarMedioConcertoAdministracionPortal');});
   it('non modifica Ensaios',()=>{expect(page).not.toContain('/api/ensaios');});
 });
