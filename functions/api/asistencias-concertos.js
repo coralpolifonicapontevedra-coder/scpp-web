@@ -1,6 +1,7 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const CHAVE_INDICE = 'indices/asistencias-concertos.json';
+const CHAVE_INDICE_PREVIEW = 'indices/preview/asistencias-concertos.json';
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
 
 const ramaProducion = (env = {}) =>
@@ -78,6 +79,14 @@ async function lerCacheR2(bucket, chave) {
     console.warn('Non se puido ler a caché privada de asistencias en R2:', erro);
     return null;
   }
+}
+
+async function lerCacheEntorno(env) {
+  if (!ramaProducion(env)) {
+    const preview = await lerCacheR2(env.R2_PRIVADO, CHAVE_INDICE_PREVIEW);
+    if (preview) return preview;
+  }
+  return lerCacheR2(env.R2_PRIVADO, CHAVE_INDICE);
 }
 
 async function gardarCacheR2(bucket, resultado, env) {
@@ -202,7 +211,7 @@ export async function onRequest(context) {
     return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
   }
 
-  const cache = await lerCacheR2(env.R2_PRIVADO, CHAVE_INDICE);
+  const cache = await lerCacheEntorno(env);
 
   if (cache && cache.idadeMs <= CACHE_FRESCA_MS) {
     return respostaAsistencias(cache.resultado, {

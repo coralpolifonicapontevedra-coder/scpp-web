@@ -16,6 +16,8 @@ function listarAsistenciasConcertosPortal_(datos) {
   const porConcerto = {};
 
   asistencias.forEach(function(asistencia) {
+    const estado = String(asistencia.EstadoAsistencia || asistencia['Estado asistencia'] || '').trim().toLowerCase();
+    if (estado && !['asiste', 'true', '1', 'si', 'sí', 'yes', 'x'].includes(estado)) return;
     const idConcerto = String(asistencia.Concerto || '').trim();
     const nome = String(
       asistencia.Nome_Completo ||
