@@ -53,14 +53,17 @@ function respostaFicheiro(resultado) {
 
 async function respostaProgramaR2(env, concertoId) {
   const entrada = CONCERT_PROGRAM_BY_ID[concertoId];
-  if (!entrada || !env.R2_PRIVADO) return null;
+  if (!env.R2_PRIVADO) return null;
   try {
-    const obxecto = await env.R2_PRIVADO.get(entrada.r2Key);
+    let resolta=entrada;
+    if(!resolta){const prefix=`concertos/admin/${encodeURIComponent(concertoId)}/triptico/`,lista=await env.R2_PRIVADO.list({prefix,limit:10}),ultima=[...lista.objects].sort((a,b)=>String(b.uploaded).localeCompare(String(a.uploaded)))[0];if(ultima)resolta={r2Key:ultima.key,name:ultima.key.split('/').pop(),mimeType:ultima.httpMetadata?.contentType||'application/octet-stream'};}
+    if(!resolta)return null;
+    const obxecto = await env.R2_PRIVADO.get(resolta.r2Key);
     if (!obxecto) return null;
     const headers = new Headers();
     obxecto.writeHttpMetadata(headers);
-    headers.set('Content-Type', entrada.mimeType);
-    headers.set('Content-Disposition', `inline; filename="${entrada.name.replace(/[\r\n"]/g, '')}"`);
+    headers.set('Content-Type', resolta.mimeType);
+    headers.set('Content-Disposition', `inline; filename="${resolta.name.replace(/[\r\n"]/g, '')}"`);
     headers.set('Cache-Control', 'private, max-age=300');
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('X-SCPP-Storage', 'R2');
