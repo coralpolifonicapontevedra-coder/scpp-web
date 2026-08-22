@@ -1,6 +1,7 @@
 const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
 const DRAFT_PREFIX = 'ensaios/borradores-v1/';
+const DRAFT_BACKUP_PREFIX = 'ensaios/borradores-backup-v1/';
 const MAIN_CACHE_PREFIX = 'ensaios/cache-v2/usuarios/';
 
 const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
@@ -81,6 +82,10 @@ async function draftKey(idEnsaio) {
   return `${DRAFT_PREFIX}${await sha256(idEnsaio)}.json`;
 }
 
+async function draftBackupKey(idEnsaio) {
+  return `${DRAFT_BACKUP_PREFIX}${await sha256(idEnsaio)}.json`;
+}
+
 async function mainCacheKey(email) {
   return `${MAIN_CACHE_PREFIX}${await sha256(String(email || '').trim().toLowerCase())}.json`;
 }
@@ -128,11 +133,15 @@ function draftValido(value, idEnsaio) {
   return value?.version === 1 && value?.idEnsaio === idEnsaio && Array.isArray(value?.repertorio) && Array.isArray(value?.asistencias);
 }
 
-async function lerDraft(env, idEnsaio) {
-  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') throw Object.assign(new Error('R2 privado non está dispoñible.'), { code:'R2_NOT_CONFIGURED' });
-  const object = await env.R2_PRIVADO.get(await draftKey(idEnsaio));
-  if (!object) return null;
+function draftTime(value) {
+  const stamp = Date.parse(String(value?.updatedAt || ''));
+  return Number.isFinite(stamp) ? stamp : 0;
+}
+
+async function lerDraftObject(env, key, idEnsaio) {
   try {
+    const object = await env.R2_PRIVADO.get(key);
+    if (!object) return null;
     const value = await object.json();
     return draftValido(value, idEnsaio) ? value : null;
   } catch {
@@ -140,12 +149,45 @@ async function lerDraft(env, idEnsaio) {
   }
 }
 
+async function putDraftObject(env, key, value) {
+  await env.R2_PRIVADO.put(key, JSON.stringify(value), {
+    httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' }
+  });
+}
+
+async function lerDraft(env, idEnsaio) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') throw Object.assign(new Error('R2 privado non está dispoñible.'), { code:'R2_NOT_CONFIGURED' });
+  const [primaryKey, backupKey] = await Promise.all([draftKey(idEnsaio), draftBackupKey(idEnsaio)]);
+  const [primary, backup] = await Promise.all([
+    lerDraftObject(env, primaryKey, idEnsaio),
+    lerDraftObject(env, backupKey, idEnsaio)
+  ]);
+
+  if (!primary && !backup) return null;
+  const selected = !primary ? backup : !backup ? primary : (draftTime(backup) > draftTime(primary) ? backup : primary);
+  if (!selected) return null;
+
+  // Autorrecuperación: se unha das copias falta ou é máis antiga, repárase coa máis recente.
+  const repairs = [];
+  if (!primary || draftTime(primary) < draftTime(selected)) repairs.push(putDraftObject(env, primaryKey, selected));
+  if (!backup || draftTime(backup) < draftTime(selected)) repairs.push(putDraftObject(env, backupKey, selected));
+  if (repairs.length) {
+    try { await Promise.all(repairs); }
+    catch (error) { console.warn('Non se puido reparar unha copia do borrador de ensaio en R2:', error); }
+  }
+  return selected;
+}
+
 async function gardarDraft(env, draft) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') throw Object.assign(new Error('R2 privado non está dispoñible.'), { code:'R2_NOT_CONFIGURED' });
   const value = { ...draft, updatedAt:new Date().toISOString() };
-  await env.R2_PRIVADO.put(await draftKey(value.idEnsaio), JSON.stringify(value), {
-    httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' }
-  });
+  const [primaryKey, backupKey] = await Promise.all([draftKey(value.idEnsaio), draftBackupKey(value.idEnsaio)]);
+
+  // A copia principal debe quedar confirmada antes de responder ao navegador.
+  await putDraftObject(env, primaryKey, value);
+  // A copia secundaria é unha rede de seguridade; un fallo nela non invalida un gardado principal correcto.
+  try { await putDraftObject(env, backupKey, value); }
+  catch (error) { console.warn('Non se puido actualizar a copia de seguridade do borrador de ensaio:', error); }
   return value;
 }
 
@@ -266,7 +308,7 @@ export async function onRequest({ request, env }) {
   try {
     let draft = await obterOuCrearDraft(env, user, idEnsaio);
 
-    if (accion === 'obter') return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+    if (accion === 'obter') return json(200, { ok:true, draft, almacen:'R2+BACKUP' }, { 'X-SCPP-Storage':'R2-DRAFT' });
 
     if (accion === 'gardarAsistencia') {
       const idPersoa = clean(body.idPersoa);
@@ -281,7 +323,7 @@ export async function onRequest({ request, env }) {
       const map = new Map(draft.asistencias.map((item) => [idPersoaDe(item), item]));
       map.set(idPersoa, row);
       draft = await gardarDraft(env, { ...draft, asistencias:[...map.values()] });
-      return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+      return json(200, { ok:true, draft, almacen:'R2+BACKUP' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
     if (accion === 'gardarObra') {
@@ -299,14 +341,14 @@ export async function onRequest({ request, env }) {
         observacions:body.observacions
       }, idEnsaio, map.size + 1));
       draft = await gardarDraft(env, { ...draft, repertorio:[...map.values()] });
-      return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+      return json(200, { ok:true, draft, almacen:'R2+BACKUP' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
     if (accion === 'eliminarObra') {
       const idRepertorio = clean(body.idRepertorio);
       if (!idRepertorio) return erro(400, 'INVALID_DATA', 'Falta identificar a obra.');
       draft = await gardarDraft(env, { ...draft, repertorio:draft.repertorio.filter((row) => idRepertorioDe(row) !== idRepertorio) });
-      return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+      return json(200, { ok:true, draft, almacen:'R2+BACKUP' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
     if (accion === 'incluírPrograma') {
@@ -319,7 +361,7 @@ export async function onRequest({ request, env }) {
         engadidas += 1;
       }
       draft = await gardarDraft(env, { ...draft, repertorio:[...map.values()] });
-      return json(200, { ok:true, draft, engadidas, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+      return json(200, { ok:true, draft, engadidas, almacen:'R2+BACKUP' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
     if (accion === 'finalizar') {
