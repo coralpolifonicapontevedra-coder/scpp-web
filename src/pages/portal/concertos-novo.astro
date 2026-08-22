@@ -135,6 +135,9 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     ordeHistorica: number;
     dataTextoHistorica: string;
     caracteristicas: string;
+    cartel: string;
+    triptico: string;
+    hora: string;
     programa: ProgramaItem[];
     asistentes: Asistente[];
   };
@@ -145,9 +148,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     asistenciasPorConcerto?: Record<string, Asistente[]>;
   };
 
-  const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
-  const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
-  const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
+  const URL_INDICE_CONCERTOS = '/api/concertos-portal-indice';
 
   const firebaseConfig = {
     apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
@@ -473,35 +474,26 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (historicoBaleiro instanceof HTMLElement) historicoBaleiro.hidden = listaxe.length > 0;
   }
 
-  async function cargarConcertos() {
-    const [cRows,pRows,rRows]: [CSVRow[], CSVRow[], CSVRow[]] = await Promise.all([lerCSV(URL_CONCERTOS),lerCSV(URL_PROGRAMAS),lerCSV(URL_REPERTORIO)]);
-    const obras = new Map<string, ObraCatalogo>(rRows.map((r) => [canonIdObra(valor(r,'Id','Row ID')), { nome:valor(r,'NomeObra','Nome','Obra'), autor:valor(r,'Compositor','Autor') }]));
-
-    todosConcertos = cRows.map((r): Concerto => {
-      const id = valor(r,'Id','Row ID');
-      const programa = pRows.filter((p) => valor(p,'Id_Conciertos','Id_Concertos') === id).map((p): ProgramaItem => {
-        const obraId = canonIdObra(valor(p,'Id_Obras'));
-        const obra = obras.get(obraId);
-        return { id: obraId, obra:obra?.nome || obraId, autor:obra?.autor || '', orde:Number(valor(p,'Orde')) || 999 };
-      }).sort((a,b) => a.orde-b.orde);
-
-      return {
-        id,
-        data:valor(r,'Data'),
-        nome:valor(r,'Nome'),
-        cidade:valor(r,'Cidade'),
-        lugar:valor(r,'Lugar'),
-        estado:normalizar(valor(r,'Estado')) || 'confirmado',
-        mostrarWeb:verdadeiro(valor(r,'Mostrar_Web')),
-        numeroConcerto:valor(r,'NumeroConcerto'),
-        ordeHistorica:Number(valor(r,'OrdeHistorica')) || 0,
-        dataTextoHistorica:valor(r,'DataTextoHistorica'),
-        caracteristicas:valor(r,'Características','Caracteristicas'),
-        programa,
-        asistentes:[]
-      };
-    }).filter((c) => c.id && (c.nome || c.numeroConcerto))
+  async function cargarConcertos(user: User) {
+    const idToken = await user.getIdToken();
+    const resposta = await fetch(URL_INDICE_CONCERTOS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+      cache: 'no-store'
+    });
+    const datos = await resposta.json();
+    if (!resposta.ok || datos?.ok !== true || !Array.isArray(datos?.concertos)) {
+      throw new Error(datos?.erro || 'Non foi posible ler o índice de concertos.');
+    }
+    todosConcertos = datos.concertos.map((c: Concerto): Concerto => ({
+      ...c,
+      programa: Array.isArray(c.programa) ? c.programa : [],
+      asistentes: []
+    })).filter((c: Concerto) => c.id && (c.nome || c.numeroConcerto))
       .sort((a,b) => (b.ordeHistorica || 0) - (a.ordeHistorica || 0) || dataISO(b.data).localeCompare(dataISO(a.data)));
+    (window as Window & { __scppConcertosIndice?: Concerto[] }).__scppConcertosIndice = todosConcertos;
+    window.dispatchEvent(new CustomEvent('scpp:concertos-indice', { detail: todosConcertos }));
     concertos = todosConcertos.filter((c) => c.mostrarWeb && c.nome && c.data)
       .sort((a,b) => dataISO(b.data).localeCompare(dataISO(a.data)));
 
@@ -541,7 +533,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const email = document.querySelector('#user-email');
     if (email) email.textContent = user.email;
     try {
-      await cargarConcertos();
+      await cargarConcertos(user);
       cargarAsistencias(user);
     } catch (e) {
       if (estado) estado.textContent = e instanceof Error ? e.message : String(e);
