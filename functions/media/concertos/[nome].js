@@ -30,7 +30,12 @@ export async function onRequest({ request, env, params }) {
   }
 
   const nome = nomeSolicitado(params);
-  const entrada = concertMediaByName(nome);
+  let entrada = concertMediaByName(nome);
+  if (!entrada && env.R2_PRIVADO) {
+    const lista = await env.R2_PRIVADO.list({ prefix:'concertos/admin/', limit:1000 });
+    const atopada = lista.objects.find((item) => item.key.endsWith(`/${nome}`));
+    if (atopada) entrada = { r2Key:atopada.key, name:nome, mimeType:atopada.httpMetadata?.contentType || 'application/octet-stream' };
+  }
   if (!entrada) return json(404, { ok: false, erro: 'O material non existe.' });
 
   if (env.R2_PRIVADO) {
