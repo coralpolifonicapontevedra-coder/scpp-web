@@ -26,6 +26,14 @@ function permisoConcertosAdministracionPortal_(email) {
   return permisoEnsaiosAdministracionPortal_(email);
 }
 
+function estadoAsistenciaConcertoPortal_(valor) {
+  var texto = textoEnsaiosPortal_(valor).toLowerCase();
+  if (['asiste', 'si', 'sí', 'true', '1', 'yes', 'x'].indexOf(texto) >= 0) return 'asiste';
+  if (['non asiste', 'no asiste', 'false', '0', 'no'].indexOf(texto) >= 0) return 'non_asiste';
+  if (['pendente', 'pendiente'].indexOf(texto) >= 0) return 'pendente';
+  return '';
+}
+
 function listarConcertosAdministracionPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
   var permiso = permisoConcertosAdministracionPortal_(email);
@@ -39,7 +47,8 @@ function listarConcertosAdministracionPortal_(datos) {
   var contaAsistencias = {};
   asistencias.forEach(function (row) {
     var id = textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Concerto', 'Id_Conciertos', 'IdConcerto']));
-    if (id) contaAsistencias[id] = (contaAsistencias[id] || 0) + 1;
+    var estado = estadoAsistenciaConcertoPortal_(campoEnsaiosPortal_(row, ['EstadoAsistencia', 'Estado asistencia']));
+    if (id && (estado === 'asiste' || !estado)) contaAsistencias[id] = (contaAsistencias[id] || 0) + 1;
   });
 
   var contaRepertorio = {};
@@ -92,7 +101,7 @@ function obterXestionConcertoAdministracionPortal_(datos){
   var id=textoEnsaiosPortal_(datos&&datos.idConcerto);if(!id)return{ok:false,codigo:'VALIDATION',erro:'Falta o concerto'};var cfg=configuracionConcertosAdministracionPortal_();
   var rel=filasEnsaiosAdministracionPortal_(cfg.concertosRepertorioId,'ConcertosRepertorio','CONCERTOS_REPERTORIO_SPREADSHEET_ID').rows,rep=filasEnsaiosAdministracionPortal_(cfg.concertosRepertorioId,'Repertorio','CONCERTOS_REPERTORIO_SPREADSHEET_ID').rows,as=filasEnsaiosAdministracionPortal_(cfg.asistenciasId,'AsistenciasConcertos','ASISTENCIAS_CONCERTOS_SPREADSHEET_ID').rows,ps=filasEnsaiosAdministracionPortal_(cfg.persoasId,'Persoas','CONCERTOS_PERSOAS_SPREADSHEET_ID').rows;
   var programa=rel.filter(function(r){return textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Id_Conciertos','Concerto']))===id;}).map(function(r){return{obraId:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Id_Repertorio','Id_Obras'])),orde:Number(campoEnsaiosPortal_(r,['Orde']))||999,notas:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Notas'])),solista:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Solista']))};}).sort(function(a,b){return a.orde-b.orde;});
-  var asistenciaPorPersoa={};as.forEach(function(r){if(textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Concerto','Id_Conciertos']))!==id)return;var pid=textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Persoa'])),asiste=booleanoEnsaiosPortal_(campoEnsaiosPortal_(r,['Estado asistencia','EstadoAsistencia'])),xustificada=booleanoEnsaiosPortal_(campoEnsaiosPortal_(r,['Xustificada','Justificada'])),motivo=textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Motivo','Xustificación','Xustificacion','Justificación','Justificacion','Observacións','Observacions','Observaciones']));asistenciaPorPersoa[pid]={estado:asiste?'asiste':(xustificada||motivo?'xustificada':'non_asiste'),xustificacion:motivo};});
+  var asistenciaPorPersoa={};as.forEach(function(r){if(textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Concerto','Id_Conciertos']))!==id)return;var pid=textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Persoa'])),estado=estadoAsistenciaConcertoPortal_(campoEnsaiosPortal_(r,['EstadoAsistencia','Estado asistencia'])),xustificada=booleanoEnsaiosPortal_(campoEnsaiosPortal_(r,['Xustificada','Justificada'])),motivo=textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Motivo','Xustificación','Xustificacion','Justificación','Justificacion'])),observacions=textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Observacións','Observacions','Observaciones']));asistenciaPorPersoa[pid]={estado:estado==='asiste'?'asiste':(estado==='non_asiste'?(xustificada?'xustificada':'non_asiste'):''),xustificacion:motivo,observacions:observacions};});
   var persoas=ps.map(function(r){var pid=textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Id','Row ID'])),rexistro=asistenciaPorPersoa[pid]||{};return{id:pid,nome:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Nome'])),primeiroApelido:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Primeiro apelido','PrimeiroApelido'])),segundoApelido:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Segundo apelido','SegundoApelido'])),voz:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Voz'])),estado:rexistro.estado||'',xustificacion:rexistro.xustificacion||''};}).filter(function(p){return p.id&&p.nome&&p.voz;});
   var obras=rep.map(function(r){return{id:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Id','Row ID'])),nome:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['NomeObra','Nome','Obra'])),autor:textoEnsaiosPortal_(campoEnsaiosPortal_(r,['Compositor','Autor']))};}).filter(function(o){return o.id&&o.nome;});
   return{ok:true,programa:programa,persoas:persoas,obras:obras};
@@ -108,7 +117,8 @@ function gardarAsistentesConcertoAdministracionPortal_(datos){
   var permiso=permisoConcertosAdministracionPortal_(textoEnsaiosPortal_(datos&&datos.email).toLowerCase());if(!permiso.escritura)return{ok:false,codigo:'FORBIDDEN',erro:'Usuario non autorizado'};var id=textoEnsaiosPortal_(datos&&datos.idConcerto),items=Array.isArray(datos&&datos.persoas)?datos.persoas:[];if(!id)return{ok:false,codigo:'VALIDATION',erro:'Falta o concerto'};
   var cfg=configuracionConcertosAdministracionPortal_(),f=filasEnsaiosAdministracionPortal_(cfg.asistenciasId,'AsistenciasConcertos','ASISTENCIAS_CONCERTOS_SPREADSHEET_ID');for(var i=f.rows.length-1;i>=0;i--)if(textoEnsaiosPortal_(campoEnsaiosPortal_(f.rows[i],['Concerto','Id_Conciertos']))===id)f.sheet.deleteRow(f.rows[i].__row);
   var xustificadaIndex=indiceHeaderEnsaiosPortal_(f.headers,['Xustificada','Justificada']),motivoIndex=indiceHeaderEnsaiosPortal_(f.headers,['Motivo','Xustificación','Xustificacion','Justificación','Justificacion','Observacións','Observacions','Observaciones']);
-  items.filter(function(x){return['asiste','non_asiste','xustificada'].indexOf(textoEnsaiosPortal_(x.estado))>=0;}).forEach(function(x){var estado=textoEnsaiosPortal_(x.estado);f.sheet.appendRow(f.headers.map(function(h,col){if(['Id_Asistencia','Id'].indexOf(h)>=0)return Utilities.getUuid();if(['Concerto','Id_Conciertos'].indexOf(h)>=0)return id;if(h==='Persoa')return textoEnsaiosPortal_(x.id);if(h==='Voz')return textoEnsaiosPortal_(x.voz);if(['Estado asistencia','EstadoAsistencia'].indexOf(h)>=0)return estado==='asiste';if(col===xustificadaIndex)return estado==='xustificada';if(col===motivoIndex)return estado==='xustificada'?textoEnsaiosPortal_(x.xustificacion):'';return '';}));});SpreadsheetApp.flush();return{ok:true,total:items.length,columnaXustificacion:motivoIndex>=0?f.headers[motivoIndex]:''};
+  var observacionsIndex=indiceHeaderEnsaiosPortal_(f.headers,['Observacións','Observacions','Observaciones']),dataIndex=indiceHeaderEnsaiosPortal_(f.headers,['DataRexistro']),autorIndex=indiceHeaderEnsaiosPortal_(f.headers,['RexistradaPor']);
+  items.filter(function(x){return['asiste','non_asiste','xustificada'].indexOf(textoEnsaiosPortal_(x.estado))>=0;}).forEach(function(x){var estado=textoEnsaiosPortal_(x.estado),nome=[textoEnsaiosPortal_(x.primeiroApelido),textoEnsaiosPortal_(x.segundoApelido)].filter(Boolean).join(' ')+', '+textoEnsaiosPortal_(x.nome);f.sheet.appendRow(f.headers.map(function(h,col){if(['Id_AsistenciaConcerto','Id_Asistencia','Id'].indexOf(h)>=0)return Utilities.getUuid();if(['Concerto','Id_Conciertos'].indexOf(h)>=0)return id;if(h==='Persoa')return textoEnsaiosPortal_(x.id);if(h==='Voz')return textoEnsaiosPortal_(x.voz);if(h==='Nome_Completo')return nome;if(['EstadoAsistencia','Estado asistencia'].indexOf(h)>=0)return estado==='asiste'?'Asiste':'Non asiste';if(col===xustificadaIndex)return estado==='xustificada';if(col===motivoIndex)return estado==='xustificada'?textoEnsaiosPortal_(x.xustificacion):'';if(col===observacionsIndex)return textoEnsaiosPortal_(x.observacions);if(col===dataIndex)return new Date();if(col===autorIndex)return email;return '';}));});SpreadsheetApp.flush();return{ok:true,total:items.length,columnaXustificacion:motivoIndex>=0?f.headers[motivoIndex]:''};
 }
 
 function actualizarMedioConcertoAdministracionPortal_(datos){
