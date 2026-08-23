@@ -38,7 +38,11 @@ function listarConcertosAdministracionPortal_(datos) {
 
   var contaAsistencias = {};
   asistencias.forEach(function (row) {
+    var estadoAsistencia = textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['EstadoAsistencia'])).toLowerCase();
     var id = textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Concerto', 'Id_Conciertos', 'IdConcerto']));
+
+    // Compatibilidade cos rexistros históricos, nos que non existía EstadoAsistencia.
+    if (estadoAsistencia && estadoAsistencia !== 'asiste') return;
     if (id) contaAsistencias[id] = (contaAsistencias[id] || 0) + 1;
   });
 
