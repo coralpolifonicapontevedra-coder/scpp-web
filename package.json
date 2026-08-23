@@ -7,6 +7,7 @@
   },
   "scripts": {
     "posters:thumbs": "node scripts/generate-poster-thumbnails.mjs",
+    "test-admin": "node scripts/test-admin.js",
     "dev": "npm run posters:thumbs && astro dev",
     "build": "npm run posters:thumbs && astro build",
     "check": "tsc --noEmit",
