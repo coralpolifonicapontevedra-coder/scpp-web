@@ -548,9 +548,8 @@ export async function onRequest(context) {
         customMetadata: { idConcerto, tipo, subidoPor: user.email }
       });
       const ruta = `r2://${key}`;
-      await chamarAppsScript(env, user, 'actualizarMedioConcertoAdministracionPortal', { idConcerto, tipo, ruta });
       await updateConcertMetadataIndex(env, idConcerto, { [tipo]: ruta });
-      return json(200, { ok: true, ruta, almacen: 'SHEET+R2' });
+      return json(200, { ok: true, ruta, almacen: 'R2', sheetSincronizada: false });
     }
 
     return erro(400, 'REQUEST', 'ACTION_NOT_ALLOWED', 'Acción non permitida.');
