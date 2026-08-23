@@ -10,6 +10,9 @@
 # Generated poster thumbnails
 /public/img/concertos/*.thumb.webp
 
+# Local Apps Script preview workspace
+/apps-script-preview/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
