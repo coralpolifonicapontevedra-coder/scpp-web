@@ -9,22 +9,6 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   }
 });
 
-const clean = (value) => String(value || '').trim();
-const branch = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
-const privateIndexKey = (env) => branch(env) === 'main'
-  ? 'indices/concertos-privado-v1.json'
-  : 'indices/preview/concertos-privado-v1.json';
-
-const normalEstado = (value) => clean(value).toLowerCase();
-const estadoPortal = (value) => ({
-  previsto: 'Previsto',
-  confirmado: 'Confirmado',
-  realizado: 'Realizado',
-  aprazado: 'Aprazado',
-  aplazado: 'Aprazado',
-  cancelado: 'Cancelado'
-}[normalEstado(value)] || clean(value));
-
 async function verificarTokenFirebase(idToken, apiKey) {
   const resposta = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
@@ -42,72 +26,6 @@ async function verificarTokenFirebase(idToken, apiKey) {
   return {
     uid: String(usuario.localId || ''),
     email: String(usuario.email).trim().toLowerCase()
-  };
-}
-
-async function lerIndicePrivado(env) {
-  if (!env.R2_PRIVADO) throw new Error('O bucket privado R2 non está configurado.');
-  const key = privateIndexKey(env);
-  const object = await env.R2_PRIVADO.get(key);
-  if (!object) throw new Error(`Non existe o índice privado de concertos para ${branch(env)}.`);
-  const index = await object.json().catch(() => null);
-  if (index?.ok !== true || !Array.isArray(index?.concertos)) {
-    throw new Error('O índice privado de concertos non é válido.');
-  }
-  return index;
-}
-
-function normalizarPrograma(programa) {
-  return (Array.isArray(programa) ? programa : [])
-    .map((item, index) => ({
-      id: clean(item?.idRepertorio || item?.id),
-      orde: Number(item?.orde || index + 1) || index + 1,
-      obra: clean(item?.obra || item?.nome),
-      autor: clean(item?.autor || item?.compositor),
-      notas: clean(item?.notas),
-      solista: clean(item?.solista)
-    }))
-    .filter((item) => item.id || item.obra)
-    .sort((a, b) => a.orde - b.orde);
-}
-
-async function listarConcertosPortal(env) {
-  const index = await lerIndicePrivado(env);
-  const permitidos = new Set(['previsto', 'confirmado', 'realizado']);
-
-  const concertos = index.concertos
-    .filter((concerto) => {
-      const id = clean(concerto?.id);
-      if (!id) return false;
-      if (id.startsWith('hist-')) return true;
-      return permitidos.has(normalEstado(concerto?.estado));
-    })
-    .map((concerto) => ({
-      id: clean(concerto.id),
-      data: clean(concerto.data),
-      nome: clean(concerto.nome),
-      cidade: clean(concerto.cidade),
-      lugar: clean(concerto.lugar),
-      caracteristicas: clean(concerto.caracteristicas),
-      cartel: clean(concerto.cartel),
-      triptico: clean(concerto.triptico),
-      prensa: clean(concerto.prensa),
-      hora: clean(concerto.hora),
-      mostrarWeb: concerto.mostrarWeb === true,
-      destacadoWeb: concerto.destacadoWeb === true,
-      estado: estadoPortal(concerto.estado),
-      numeroConcerto: clean(concerto.numeroConcerto),
-      ordeHistorica: Number(concerto.ordeHistorica || 0) || 0,
-      dataTextoHistorica: clean(concerto.dataTextoHistorica),
-      programa: normalizarPrograma(concerto.programa)
-    }));
-
-  return {
-    ok: true,
-    fonte: 'R2-PRIVADO',
-    rama: branch(env),
-    xeradoEn: index.xeradoEn || '',
-    concertos
   };
 }
 
@@ -137,21 +55,9 @@ async function respostaProgramaR2(env, concertoId) {
   const entrada = CONCERT_PROGRAM_BY_ID[concertoId];
   if (!env.R2_PRIVADO) return null;
   try {
-    let resolta = entrada;
-    if (!resolta) {
-      const prefix = `concertos/admin/${encodeURIComponent(concertoId)}/triptico/`;
-      const lista = await env.R2_PRIVADO.list({ prefix, limit: 10 });
-      const ultima = [...lista.objects]
-        .sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded)))[0];
-      if (ultima) {
-        resolta = {
-          r2Key: ultima.key,
-          name: ultima.key.split('/').pop(),
-          mimeType: ultima.httpMetadata?.contentType || 'application/octet-stream'
-        };
-      }
-    }
-    if (!resolta) return null;
+    let resolta=entrada;
+    if(!resolta){const prefix=`concertos/admin/${encodeURIComponent(concertoId)}/triptico/`,lista=await env.R2_PRIVADO.list({prefix,limit:10}),ultima=[...lista.objects].sort((a,b)=>String(b.uploaded).localeCompare(String(a.uploaded)))[0];if(ultima)resolta={r2Key:ultima.key,name:ultima.key.split('/').pop(),mimeType:ultima.httpMetadata?.contentType||'application/octet-stream'};}
+    if(!resolta)return null;
     const obxecto = await env.R2_PRIVADO.get(resolta.r2Key);
     if (!obxecto) return null;
     const headers = new Headers();
@@ -199,19 +105,6 @@ export async function onRequest({ request, env }) {
   }
 
   const accion = String(datos.accion || '').trim();
-
-  if (accion === 'listarConcertosPortal') {
-    try {
-      return json(200, await listarConcertosPortal(env));
-    } catch (erro) {
-      console.error('Erro ao ler concertos privados desde R2:', erro);
-      return json(503, {
-        ok: false,
-        erro: erro instanceof Error ? erro.message : 'Non foi posible ler os concertos.'
-      });
-    }
-  }
-
   if (accion !== 'obterDocumentoConcerto') {
     return json(400, { ok: false, erro: 'Acción non permitida' });
   }
