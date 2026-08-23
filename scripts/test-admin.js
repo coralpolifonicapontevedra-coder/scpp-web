@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import fetch from 'node-fetch';
+// Use global fetch available in Node 18+ (no external dependency)
 
 const rl = readline.createInterface({ input, output });
 
