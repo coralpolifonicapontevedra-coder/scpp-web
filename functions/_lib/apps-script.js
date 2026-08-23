@@ -12,6 +12,12 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'listarFotosPublicadas',
   'listarFotosPendentesR2',
   'listarAsistenciasConcertosPortal',
+  'listarConcertosAdministracionPortal',
+  'obterXestionConcertoAdministracionPortal',
+  'actualizarConcertoAdministracionPortal',
+  'gardarConcertoAdministracionPortal',
+  'gardarProgramaConcertoAdministracionPortal',
+  'gardarAsistentesConcertoAdministracionPortal',
   'obterTextoLegalVixente',
   'comprobarAceptacion',
   'rexistrarAceptacion'
