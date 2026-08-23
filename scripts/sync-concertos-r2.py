@@ -213,6 +213,7 @@ def build_concerts(
         work = works.get(work_id, {})
         programs[concert_id].append(
             {
+                "id": work_id,
                 "orde": integer(row_value(row, "Orde")) or 999,
                 "obra": text(work.get("name")) or work_id,
                 "autor": text(work.get("author")),
