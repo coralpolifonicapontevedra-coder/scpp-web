@@ -8,11 +8,14 @@ const ensaiosSource = path.join(root, 'apps-script', 'ensaios-administracion.gs'
 const ensaiosTarget = path.join(productionDir, 'ensaios-administracion.js');
 const concertosSource = path.join(root, 'apps-script', 'concertos-administracion.gs');
 const concertosTarget = path.join(productionDir, 'concertos-administracion.js');
+const asistenciasConcertosSource = path.join(root, 'apps-script', 'canonical-2026-08-03', 'asistencias-concertos.gs');
+const asistenciasConcertosTarget = path.join(productionDir, 'asistencias-concertos.js');
 
 for (const [file, message] of [
   [codigoPath, 'Non se atopou apps-script-production/Código.js. Executa antes clasp pull no proxecto de produción.'],
   [ensaiosSource, 'Non se atopou apps-script/ensaios-administracion.gs.'],
-  [concertosSource, 'Non se atopou apps-script/concertos-administracion.gs.']
+  [concertosSource, 'Non se atopou apps-script/concertos-administracion.gs.'],
+  [asistenciasConcertosSource, 'Non se atopou a fonte canónica de asistencias de concertos.']
 ]) {
   if (!fs.existsSync(file)) throw new Error(message);
 }
@@ -31,16 +34,24 @@ const concertosMarker = "    if (accion === 'listarConcertosAdministracionPortal
 const concertosBlock = `    if (accion === 'listarConcertosAdministracionPortal') {\n      try {\n        const resultado = listarConcertosAdministracionPortal_(datos);\n        return respostaJSON(resultado);\n      } catch (erroConcertosLista) {\n        return respostaJSON({ ok:false, codigo:'ADMIN_CONCERTOS_LIST_EXCEPTION', erro:String(erroConcertosLista && erroConcertosLista.message ? erroConcertosLista.message : erroConcertosLista) });\n      }\n    }\n\n    if (accion === 'actualizarConcertoAdministracionPortal') {\n      try {\n        bloqueo.waitLock(10000);\n        const resultado = actualizarConcertoAdministracionPortal_(datos);\n        return respostaJSON(resultado);\n      } catch (erroConcertoActualizacion) {\n        return respostaJSON({ ok:false, codigo:'ADMIN_CONCERTOS_UPDATE_EXCEPTION', erro:String(erroConcertoActualizacion && erroConcertoActualizacion.message ? erroConcertoActualizacion.message : erroConcertoActualizacion), detalle:String(erroConcertoActualizacion && erroConcertoActualizacion.stack ? erroConcertoActualizacion.stack : '') });\n      }\n    }\n\n`;
 if (!codigo.includes(concertosMarker)) codigo = codigo.replace(anchor, concertosBlock + anchor);
 
-if (!codigo.includes(ensaiosMarker) || !codigo.includes("accion === 'actualizarEnsaioAdministracionPortal'") || !codigo.includes(concertosMarker) || !codigo.includes("accion === 'actualizarConcertoAdministracionPortal'")) {
+const concertosXestionMarker = "accion === 'gardarConcertoAdministracionPortal'";
+const concertosXestionBlock = `    if (accion === 'gardarConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'obterXestionConcertoAdministracionPortal') {\n      return respostaJSON(obterXestionConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarProgramaConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarProgramaConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarAsistentesConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarAsistentesConcertoAdministracionPortal_(datos));\n    }\n\n`;
+const concertosMedioBlock = `    if (accion === 'actualizarMedioConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(actualizarMedioConcertoAdministracionPortal_(datos));\n    }\n\n`;
+if (!codigo.includes(concertosXestionMarker)) codigo = codigo.replace(anchor, concertosXestionBlock + anchor);
+if (!codigo.includes("accion === 'actualizarMedioConcertoAdministracionPortal'")) codigo = codigo.replace(anchor, concertosMedioBlock + anchor);
+
+if (!codigo.includes(ensaiosMarker) || !codigo.includes("accion === 'actualizarEnsaioAdministracionPortal'") || !codigo.includes(concertosMarker) || !codigo.includes("accion === 'actualizarConcertoAdministracionPortal'") || !codigo.includes(concertosXestionMarker)) {
   throw new Error('A integración administrativa non quedou completa. Non se debe executar clasp push.');
 }
 
 fs.writeFileSync(codigoPath, codigo, 'utf8');
 fs.copyFileSync(ensaiosSource, ensaiosTarget);
 fs.copyFileSync(concertosSource, concertosTarget);
+fs.copyFileSync(asistenciasConcertosSource, asistenciasConcertosTarget);
 
 console.log('Produción de Apps Script preparada para Administración → Ensaios e Concertos.');
 console.log('- Código.js conserva o dispatcher existente e engade só as accións administrativas que falten.');
 console.log('- ensaios-administracion.js e concertos-administracion.js copiados ao proxecto clasp de produción.');
+console.log('- asistencias-concertos.js filtra EstadoAsistencia para non publicar ausencias.');
 console.log('- Non se modificou appsscript.json nin os módulos normais de Ensaios ou Concertos.');
 console.log('Revisa os ficheiros locais e só despois executa clasp push desde apps-script-production.');

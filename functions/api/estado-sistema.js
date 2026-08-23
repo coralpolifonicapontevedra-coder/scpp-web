@@ -162,9 +162,148 @@ async function publicWebStatus() {
   }
 }
 
+async function appsScriptStatus(env) {
+  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  const started = Date.now();
+  if (!url) return {
+    id: 'apps-script',
+    label: 'Apps Script',
+    state: 'unknown',
+    labelState: 'Non configurado',
+    updatedAt: new Date().toISOString(),
+    durationMs: 0,
+    url
+  };
+
+  try {
+    const response = await fetchWithTimeout(url, { method: 'GET' }, 8000);
+    const durationMs = Date.now() - started;
+    const ok = response.ok;
+    return {
+      id: 'apps-script',
+      label: 'Apps Script',
+      state: ok ? 'ok' : 'error',
+      labelState: ok ? 'Dispoñible' : `HTTP ${response.status}`,
+      updatedAt: new Date().toISOString(),
+      durationMs,
+      url
+    };
+  } catch (error) {
+    return {
+      id: 'apps-script',
+      label: 'Apps Script',
+      state: 'error',
+      labelState: 'Non dispoñible',
+      updatedAt: new Date().toISOString(),
+      durationMs: Date.now() - started,
+      error: error instanceof Error ? error.message : String(error),
+      url
+    };
+  }
+}
+
+async function r2Status(env) {
+  const key = 'indices/revision-fotos-v1.json';
+  const started = Date.now();
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') {
+    return {
+      id: 'r2',
+      label: 'R2 Privado',
+      state: 'unknown',
+      labelState: 'Binding non configurado',
+      updatedAt: new Date().toISOString(),
+      durationMs: 0
+    };
+  }
+
+  try {
+    const object = await env.R2_PRIVADO.get(key);
+    const durationMs = Date.now() - started;
+    if (!object) {
+      return {
+        id: 'r2',
+        label: 'R2 Privado',
+        state: 'warning',
+        labelState: 'Obxecto non atopado',
+        updatedAt: new Date().toISOString(),
+        durationMs,
+        url: key
+      };
+    }
+
+    return {
+      id: 'r2',
+      label: 'R2 Privado',
+      state: 'ok',
+      labelState: 'Accesible',
+      updatedAt: new Date().toISOString(),
+      durationMs,
+      url: key
+    };
+  } catch (error) {
+    return {
+      id: 'r2',
+      label: 'R2 Privado',
+      state: 'error',
+      labelState: 'Erro lendo R2',
+      updatedAt: new Date().toISOString(),
+      durationMs: Date.now() - started,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+async function firebaseStatus(env) {
+  const started = Date.now();
+  const key = String(env.FIREBASE_API_KEY || '').trim();
+  if (!key) return {
+    id: 'firebase',
+    label: 'Firebase Identity',
+    state: 'unknown',
+    labelState: 'Non configurado',
+    updatedAt: new Date().toISOString(),
+    durationMs: 0
+  };
+
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(key)}`;
+  try {
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: 'invalid-token-for-healthcheck' })
+    }, 8000);
+    const durationMs = Date.now() - started;
+    // If we receive any response (even 400), the service is reachable. Treat 5xx as error.
+    const status = response.status || 0;
+    const state = status >= 500 ? 'error' : 'ok';
+    return {
+      id: 'firebase',
+      label: 'Firebase Identity',
+      state,
+      labelState: state === 'ok' ? 'Dispoñible' : `HTTP ${status}`,
+      updatedAt: new Date().toISOString(),
+      durationMs,
+      url
+    };
+  } catch (error) {
+    return {
+      id: 'firebase',
+      label: 'Firebase Identity',
+      state: 'error',
+      labelState: 'Non dispoñible',
+      updatedAt: new Date().toISOString(),
+      durationMs: Date.now() - started,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
 async function buildStatus(env) {
   const token = String(env.GITHUB_TOKEN || env.GH_TOKEN || '').trim();
   const checks = await Promise.all([
+    appsScriptStatus(env),
+    r2Status(env),
+    firebaseStatus(env),
     publicWebStatus(),
     latestWorkflowRun('quality.yml', 'Calidade do proxecto', token),
     latestWorkflowRun('check-public-links.yml', 'Enlaces públicos', token),

@@ -18,7 +18,7 @@ describe('histórico de concertos activo', () => {
   });
 
   it('limita a grella principal a Mostrar_Web sen reducir o informe', () => {
-    expect(privatePage).toContain("mostrarWeb:verdadeiro(valor(r,'Mostrar_Web'))");
+    expect(privatePage).toContain("const URL_INDICE_CONCERTOS = '/api/concertos-portal-indice'");
     expect(privatePage).toContain('concertos = todosConcertos.filter((c) => c.mostrarWeb');
     expect(privatePage).toContain('todosConcertos.forEach((c) => (c.asistentes');
   });

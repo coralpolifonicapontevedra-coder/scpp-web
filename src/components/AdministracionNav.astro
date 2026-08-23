@@ -9,7 +9,9 @@ const items = [
 ];
 ---
 
-<nav class="admin-nav" aria-label="Administración">
+<nav class="admin-nav" aria-label="Navegación do panel de administración">
+  <strong class="admin-nav-title">Panel de administración</strong>
+  <div class="admin-nav-items">
   {items.map((item) => (
     <a
       href={item.path}
@@ -19,6 +21,7 @@ const items = [
       {item.label}
     </a>
   ))}
+  </div>
 </nav>
 
 <style is:global>
@@ -43,19 +46,44 @@ const items = [
   }
 
   .admin-nav {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: stretch;
+    margin: 0 0 1.5rem;
+    border: 1px solid #d8d0cc;
+    background: #fff;
+  }
+
+  .admin-nav-title {
+    display: flex;
+    align-items: center;
+    padding: .7rem 1rem;
+    border-right: 1px solid #d8d0cc;
+    color: #5d142b;
+    font-size: .78rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .admin-nav-items {
     display: flex;
     flex-wrap: wrap;
-    gap: .55rem;
-    margin: 0 0 1.5rem;
   }
 
   .admin-nav-link {
     display: inline-flex;
     align-items: center;
+<<<<<<< HEAD
+    min-height: 2.7rem;
+    padding: .7rem 1rem;
+    border: 0;
+    border-right: 1px solid #e4ddda;
+=======
     min-height: 2.35rem;
     padding: .55rem .9rem;
     border: 1px solid rgba(93, 20, 43, .2);
-    border-radius: 999px;
+>>>>>>> 9616a436ec718f3ffa0b98eb235ff3a85531fc75
+    border-radius: 0;
     background: #fff;
     color: #3b2028;
     font-size: .9rem;
@@ -65,13 +93,20 @@ const items = [
   }
 
   .admin-nav-link:hover {
-    border-color: rgba(93, 20, 43, .5);
+    background: #f5f1ef;
   }
 
   .admin-nav-link.is-active {
     background: #5d142b;
     border-color: #5d142b;
     color: #fff;
+  }
+
+  @media (max-width: 760px) {
+    .admin-nav { grid-template-columns: 1fr; }
+    .admin-nav-title { border-right: 0; border-bottom: 1px solid #d8d0cc; }
+    .admin-nav-items { display: grid; grid-template-columns: 1fr 1fr; }
+    .admin-nav-link { border-bottom: 1px solid #e4ddda; }
   }
 
   /* Estado do sistema: estas regras son globais porque as tarxetas créanse con JavaScript. */

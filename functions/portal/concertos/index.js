@@ -6,6 +6,26 @@ function requestImplementacion(request) {
   return new Request(url.toString(), request);
 }
 
+const SCRIPT_DIAGNOSTICO_ASISTENCIAS = `<script>
+(() => {
+  const fetchOriginal = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    try {
+      const valor = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input || '');
+      const url = new URL(valor, window.location.href);
+      if (url.pathname === '/api/asistencias-concertos') {
+        url.pathname = '/api/asistencias-concertos-debug';
+        const destino = typeof input === 'string' ? url.pathname + url.search : new Request(url.toString(), input);
+        return fetchOriginal(destino, init);
+      }
+    } catch (erro) {
+      console.warn('Non foi posible activar o diagnóstico de asistencias.', erro);
+    }
+    return fetchOriginal(input, init);
+  };
+})();
+</script>`;
+
 export async function onRequestGet({ request, env }) {
   const resposta = await env.ASSETS.fetch(requestImplementacion(request));
   const tipo = String(resposta.headers.get('Content-Type') || '');
@@ -15,6 +35,14 @@ export async function onRequestGet({ request, env }) {
   }
 
   let html = await resposta.text();
+
+  if (!html.includes('/api/asistencias-concertos-debug')) {
+    if (html.includes('</head>')) {
+      html = html.replace('</head>', `${SCRIPT_DIAGNOSTICO_ASISTENCIAS}</head>`);
+    } else {
+      html = `${SCRIPT_DIAGNOSTICO_ASISTENCIAS}${html}`;
+    }
+  }
 
   const recursos = [
     '<link rel="stylesheet" href="/css/concertos-novo-clasico.css?v=2">',
