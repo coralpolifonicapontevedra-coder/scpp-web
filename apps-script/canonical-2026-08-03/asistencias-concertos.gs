@@ -16,6 +16,7 @@ function listarAsistenciasConcertosPortal_(datos) {
   const porConcerto = {};
 
   asistencias.forEach(function(asistencia) {
+    const estadoAsistencia = String(asistencia.EstadoAsistencia || '').trim().toLowerCase();
     const idConcerto = String(asistencia.Concerto || '').trim();
     const nome = String(
       asistencia.Nome_Completo ||
@@ -24,6 +25,9 @@ function listarAsistenciasConcertosPortal_(datos) {
     ).trim();
     const voz = String(asistencia.Voz || 'Sen voz indicada').trim();
 
+    // Compatibilidade cos rexistros históricos: antes de existir EstadoAsistencia,
+    // unha fila con concerto e persoa representaba sempre unha asistencia real.
+    if (estadoAsistencia && estadoAsistencia !== 'asiste') return;
     if (!idConcerto || !nome) return;
     if (!porConcerto[idConcerto]) porConcerto[idConcerto] = [];
 
