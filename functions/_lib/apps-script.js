@@ -18,6 +18,7 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'gardarConcertoAdministracionPortal',
   'gardarProgramaConcertoAdministracionPortal',
   'gardarAsistentesConcertoAdministracionPortal',
+  'actualizarMedioConcertoAdministracionPortal',
   'obterTextoLegalVixente',
   'comprobarAceptacion',
   'rexistrarAceptacion'
