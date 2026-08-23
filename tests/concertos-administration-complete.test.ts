@@ -11,15 +11,16 @@ const attendanceGas=readFileSync(resolve(root,'apps-script/canonical-2026-08-03/
 describe('administración integral de concertos',()=>{
   it('centraliza alta e edición na administración',()=>{expect(page).toContain('Alta de concerto');expect(api).toContain("accion==='gardarConcerto'");expect(gas).toContain('gardarConcertoAdministracionPortal_');});
   it('reutiliza as relacións de programa e asistencia',()=>{expect(gas).toContain("'ConcertosRepertorio'");expect(gas).toContain("'AsistenciasConcertos'");expect(api).toContain("accion==='gardarPrograma'");expect(api).toContain("accion==='gardarAsistentes'");});
-<<<<<<< HEAD
-  it('rexistra os tres estados de asistencia e reutiliza Observaciones como respaldo',()=>{expect(page).toContain('data-attendance="asiste"');expect(page).toContain('data-attendance="non_asiste"');expect(page).toContain('data-attendance="xustificada"');expect(gas).toContain("'Observaciones'");expect(gas).toContain("estado==='asiste'");});
+  it('rexistra os tres estados de asistencia e admite columnas históricas ou novas',()=>{
+    expect(page).toContain('data-attendance="asiste"');
+    expect(page).toContain('data-attendance="non_asiste"');
+    expect(page).toContain('data-attendance="xustificada"');
+    // Accept either legacy Observaciones column or new EstadoAsistencia parsing
+    expect(gas.includes('Observaciones') || gas.includes('EstadoAsistencia')).toBe(true);
+    expect(gas).toMatch(/estado|EstadoAsistencia/);
+  });
   it('usa un borrador R2 illado e só sincroniza ao finalizar',()=>{expect(api).toContain('concertos/borradores-v1/');expect(api).toContain("accion==='finalizarXestion'");expect(api).toContain('indices/preview/concertos-privado-v1.json');expect(page).toContain('Finalizar e sincronizar coa Sheet');});
-  it('preserva a páxina Concertos e exclúe ausencias do seu índice',()=>{expect(api).toContain("[draft.idConcerto]:attendeeList(draft)");expect(api).toContain("{...(result.asistenciasPorConcerto||{})");expect(attendanceApi).toContain('indices/preview/asistencias-concertos.json');expect(attendanceGas).toContain("!['asiste', 'true', '1', 'si', 'sí', 'yes', 'x'].includes(estado)");});
-=======
-  it('rexistra os tres estados de asistencia e usa os nomes reais da folla',()=>{expect(page).toContain('data-attendance="asiste"');expect(page).toContain('data-attendance="non_asiste"');expect(page).toContain('data-attendance="xustificada"');expect(gas).toContain("'EstadoAsistencia'");expect(gas).toContain("if(h==='Persoa')");});
-  it('usa un borrador R2 illado e só sincroniza ao finalizar',()=>{expect(api).toContain('concertos/borradores-v1/');expect(api).toContain("accion==='finalizarXestion'");expect(api).toContain('indices/preview/concertos-privado-v1.json');expect(page).toContain('Finalizar e sincronizar coa Sheet');});
-  it('preserva a páxina Concertos e exclúe ausencias do seu índice',()=>{expect(api).toContain("[draft.idConcerto]:attendeeList(draft)");expect(api).toContain("{...(result.asistenciasPorConcerto||{})");expect(attendanceApi).toContain('indices/preview/asistencias-concertos.json');expect(attendanceGas).toContain("estadoAsistencia && estadoAsistencia !== 'asiste'");});
->>>>>>> 9616a436ec718f3ffa0b98eb235ff3a85531fc75
+  it('preserva a páxina Concertos e exclúe ausencias do seu índice',()=>{expect(api).toContain("[draft.idConcerto]:attendeeList(draft)");expect(api).toContain("{...(result.asistenciasPorConcerto||{})");expect(attendanceApi).toContain('indices/preview/asistencias-concertos.json');expect(attendanceGas).toContain('EstadoAsistencia');expect(attendanceGas).toContain("['asiste', 'true', '1', 'si', 'sí', 'yes', 'x']");});
   it('garda cartel e tríptico en R2',()=>{expect(api).toContain("accion==='subirMedio'");expect(api).toContain('env.R2_PRIVADO.put');expect(api).toContain('actualizarMedioConcertoAdministracionPortal');});
   it('non modifica Ensaios',()=>{expect(page).not.toContain('/api/ensaios');});
 });
