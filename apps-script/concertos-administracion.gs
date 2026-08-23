@@ -301,34 +301,104 @@ function actualizarMedioConcertoAdministracionPortal_(datos){
 }
 
 function actualizarConcertoAdministracionPortal_(datos) {
-  var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
+  var entrada = datos || {};
+  var email = textoEnsaiosPortal_(entrada.email).toLowerCase();
   var permiso = permisoConcertosAdministracionPortal_(email);
-  if (!permiso.escritura) return { ok:false, codigo:'FORBIDDEN', erro:'Usuario non autorizado para administrar concertos' };
+  if (!permiso.escritura)
+    return { ok:false, codigo:'FORBIDDEN', erro:'Usuario non autorizado para administrar concertos' };
 
-  var idConcerto = textoEnsaiosPortal_(datos && datos.idConcerto);
-  var novaData = textoEnsaiosPortal_(datos && datos.data);
-  var novoEstado = textoEnsaiosPortal_(datos && datos.estado);
+  var idConcerto = textoEnsaiosPortal_(entrada.idConcerto);
+  var novaData = textoEnsaiosPortal_(entrada.data);
+  var novoEstado = textoEnsaiosPortal_(entrada.estado);
+
+  var tenCartel = Object.prototype.hasOwnProperty.call(entrada, 'cartel');
+  var tenTriptico = Object.prototype.hasOwnProperty.call(entrada, 'triptico');
+  var cartel = textoEnsaiosPortal_(entrada.cartel);
+  var triptico = textoEnsaiosPortal_(entrada.triptico);
+
   var estadosValidos = ['Previsto','Confirmado','Aprazado','Cancelado','Realizado'];
   var dataValor = novaData ? dataEnsaiosAdministracionPortal_(novaData) : null;
-  if (!idConcerto) return { ok:false, codigo:'VALIDATION', erro:'Falta o identificador do concerto' };
-  if (novaData && !dataValor) return { ok:false, codigo:'VALIDATION', erro:'A nova data do concerto non é válida' };
-  if (novoEstado && estadosValidos.indexOf(novoEstado) < 0) return { ok:false, codigo:'VALIDATION', erro:'O estado indicado non é válido' };
-  if (!novaData && !novoEstado) return { ok:false, codigo:'VALIDATION', erro:'Non se indicou ningún cambio' };
+
+  if (!idConcerto)
+    return { ok:false, codigo:'VALIDATION', erro:'Falta o identificador do concerto' };
+
+  if (novaData && !dataValor)
+    return { ok:false, codigo:'VALIDATION', erro:'A nova data do concerto non é válida' };
+
+  if (novoEstado && estadosValidos.indexOf(novoEstado) < 0)
+    return { ok:false, codigo:'VALIDATION', erro:'O estado indicado non é válido' };
+
+  if (!novaData && !novoEstado && !tenCartel && !tenTriptico)
+    return { ok:false, codigo:'VALIDATION', erro:'Non se indicou ningún cambio' };
 
   var cfg = configuracionConcertosAdministracionPortal_();
-  var datosFolla = filasEnsaiosAdministracionPortal_(cfg.concertosId, 'Concertos', 'CONCERTOS_SPREADSHEET_ID');
+  var datosFolla = filasEnsaiosAdministracionPortal_(
+    cfg.concertosId,
+    'Concertos',
+    'CONCERTOS_SPREADSHEET_ID'
+  );
+
   var headers = datosFolla.headers;
-  var row = datosFolla.rows.find(function (item) { return textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Id','Id_Concerto','IdConcerto'])) === idConcerto; });
-  if (!row) return { ok:false, codigo:'NOT_FOUND', erro:'Non se atopou o concerto indicado' };
+  var row = datosFolla.rows.find(function(item) {
+    return textoEnsaiosPortal_(
+      campoEnsaiosPortal_(item, ['Id','Id_Concerto','IdConcerto'])
+    ) === idConcerto;
+  });
+
+  if (!row)
+    return { ok:false, codigo:'NOT_FOUND', erro:'Non se atopou o concerto indicado' };
+
   var dataIndex = indiceHeaderEnsaiosPortal_(headers, ['Data']);
   var estadoIndex = indiceHeaderEnsaiosPortal_(headers, ['Estado']);
-  if (dataIndex < 0 || estadoIndex < 0) return { ok:false, codigo:'SCHEMA', erro:'A folla Concertos non ten as columnas Data e Estado esperadas' };
+  var cartelIndex = indiceHeaderEnsaiosPortal_(headers, ['Cartel']);
+  var tripticoIndex = indiceHeaderEnsaiosPortal_(headers, ['Triptico','Tríptico']);
+
+  if (novaData && dataIndex < 0)
+    return { ok:false, codigo:'SCHEMA', erro:'Falta a columna Data' };
+
+  if (novoEstado && estadoIndex < 0)
+    return { ok:false, codigo:'SCHEMA', erro:'Falta a columna Estado' };
+
+  if (tenCartel && cartelIndex < 0)
+    return { ok:false, codigo:'SCHEMA', erro:'Falta a columna Cartel' };
+
+  if (tenTriptico && tripticoIndex < 0)
+    return { ok:false, codigo:'SCHEMA', erro:'Falta a columna Triptico' };
+
   try {
-    if (novaData) datosFolla.sheet.getRange(row.__row, dataIndex + 1).setValue(dataValor).setNumberFormat('yyyy-mm-dd');
-    if (novoEstado) datosFolla.sheet.getRange(row.__row, estadoIndex + 1).setValue(novoEstado);
+    if (novaData)
+      datosFolla.sheet.getRange(row.__row, dataIndex + 1)
+        .setValue(dataValor)
+        .setNumberFormat('yyyy-mm-dd');
+
+    if (novoEstado)
+      datosFolla.sheet.getRange(row.__row, estadoIndex + 1).setValue(novoEstado);
+
+    if (tenCartel)
+      datosFolla.sheet.getRange(row.__row, cartelIndex + 1).setValue(cartel);
+
+    if (tenTriptico)
+      datosFolla.sheet.getRange(row.__row, tripticoIndex + 1).setValue(triptico);
+
     SpreadsheetApp.flush();
   } catch (erro) {
-    throw new Error('Diagnóstico CONCERTOS_SPREADSHEET_ID (' + cfg.concertosId + '): fallou a escritura. ' + String(erro && erro.message ? erro.message : erro));
+    throw new Error(
+      'Diagnóstico CONCERTOS_SPREADSHEET_ID (' +
+      cfg.concertosId +
+      '): fallou a escritura. ' +
+      String(erro && erro.message ? erro.message : erro)
+    );
   }
-  return { ok:true, resultado:{ idConcerto:idConcerto, data:novaData || serializarDataEnsaiosPortal_(campoEnsaiosPortal_(row, ['Data'])), estado:novoEstado || textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Estado'])), actualizadoPor:email } };
+
+  return {
+    ok:true,
+    resultado:{
+      idConcerto:idConcerto,
+      data:novaData || serializarDataEnsaiosPortal_(campoEnsaiosPortal_(row, ['Data'])),
+      estado:novoEstado || textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Estado'])),
+      cartel:tenCartel ? cartel : textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Cartel'])),
+      triptico:tenTriptico ? triptico : textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Triptico','Tríptico'])),
+      actualizadoPor:email
+    }
+  };
 }

@@ -502,23 +502,49 @@ export async function onRequest(context) {
     if (accion === 'finalizarXestion') {
       const id = clean(body.idConcerto);
       if (!id) return erro(400, 'REQUEST', 'INVALID_DATA', 'Falta identificar o concerto.');
+
       const draft = await getDraft(env, user, id);
+
+      const index = await readConcertIndex(env);
+      const concerto = (index?.concertos || []).find((c) => clean(c.id) === id);
+      const medios = {};
+
+      const cartel = clean(concerto?.cartel);
+      const triptico = clean(concerto?.triptico);
+
+      if (cartel) medios.cartel = cartel;
+      if (triptico) medios.triptico = triptico;
+
+      if (Object.keys(medios).length) {
+        await chamarAppsScript(env, user, 'actualizarConcertoAdministracionPortal', {
+          idConcerto: id,
+          ...medios
+        });
+      }
+
       await chamarAppsScript(env, user, 'gardarProgramaConcertoAdministracionPortal', {
         idConcerto: id,
         programa: draft.programa
       });
+
       await chamarAppsScript(env, user, 'gardarAsistentesConcertoAdministracionPortal', {
         idConcerto: id,
         persoas: draft.persoas.filter((p) => p.estado)
       });
-      await Promise.all([updateAttendanceIndex(env, draft), updateConcertIndex(env, draft)]);
+
+      await Promise.all([
+        updateAttendanceIndex(env, draft),
+        updateConcertIndex(env, draft)
+      ]);
+
       return json(200, {
         ok: true,
         almacen: 'SHEET+R2',
         resumo: {
           obras: draft.programa.length,
           asistencias: attendeeList(draft).length,
-          rexistros: draft.persoas.filter((p) => p.estado).length
+          rexistros: draft.persoas.filter((p) => p.estado).length,
+          medios: Object.values(medios).filter(Boolean).length
         }
       });
     }
