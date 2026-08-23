@@ -1,77 +1,18 @@
 name: Monitor Web (read-only)
 
 on:
-  schedule:
-    - cron: '*/30 * * * *' # every 30 minutes
   workflow_dispatch:
     inputs:
       main_url:
         description: 'Main site URL'
         required: false
-            default: 'https://scpp-web.pages.dev'
+        default: 'https://scpp-web.pages.dev'
       preview_url:
         description: 'Preview site URL (optional)'
         required: false
-            default: 'https://preview.coralpolifonicapontevedra.org'
-
-jobs:
-  monitor:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Prepare output folder
-        run: mkdir -p monitor-output
-
-      - name: Set environment variables
-        run: |
-          echo "TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)" >> $GITHUB_ENV
-          echo "MAIN_URL=${{ github.event.inputs.main_url }}" >> $GITHUB_ENV
-          echo "PREVIEW_URL=${{ github.event.inputs.preview_url }}" >> $GITHUB_ENV
-
-      - name: Run read-only checks
-        run: |
-          TIMESTAMP=${TIMESTAMP}
-          MAIN_URL=${MAIN_URL:-https://scpp-web.pages.dev}
-          PREVIEW_URL=${PREVIEW_URL:-}
-
-          targets=(
-            "$MAIN_URL:/"
-            "$MAIN_URL:/portal/"
-            "$MAIN_URL:/api/asistencias-concertos?proba=$TIMESTAMP"
-          )
-
-          if [ -n "$PREVIEW_URL" ]; then
-            targets+=("$PREVIEW_URL:/" "$PREVIEW_URL:/portal/" "$PREVIEW_URL:/api/asistencias-concertos?proba=$TIMESTAMP")
-          fi
-
-          for t in "${targets[@]}"; do
-            url="${t%%:*}"
-            path="${t#*:}"
-            safe=$(echo "${url}${path}" | tr '/:?&=' '_' | tr -s '_')
-            hdr="monitor-output/${safe}_headers.txt"
-            body="monitor-output/${safe}_body.txt"
-            echo "Checking ${url}${path}"
-            # Read-only, capture headers and body (no auth)
-            curl -s -D "$hdr" -o "$body" -w "HTTPSTATUS:%{http_code}" "$url$path" || echo "CURL_FAILED" > "$body"
-          done
-
-      - name: Zip results
-        run: |
-          zip -r monitor-${TIMESTAMP}.zip monitor-output || true
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: monitor-${{ env.TIMESTAMP }}
-          path: monitor-${{ env.TIMESTAMP }}.zip
-name: Vixiar dispoñibilidade web
-
-on:
-  workflow_dispatch:
-  pull_request:
-    paths:
-      - ".github/workflows/monitor-web.yml"
+        default: 'https://preview.coralpolifonicapontevedra.org'
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: '*/10 * * * *'
 
 permissions:
   contents: read
@@ -108,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -u
-          BASE="https://scpp-web.pages.dev"
+          BASE="${{ github.event.inputs.preview_url || github.event.inputs.main_url || 'https://preview.coralpolifonicapontevedra.org' }}"
           EXPECTED="Sociedade Coral Polifónica de Pontevedra"
           SUCCESS=0
           : > diagnostico/resumo.txt
