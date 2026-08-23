@@ -23,3 +23,5 @@ Propósito: dejar constancia de las reglas operativas para `preview` y `producci
   - Todo bypass debe dejarse justificado en el PR o en el ticket asociado, indicando motivo, aprobador y auditoría posterior.
 
 Fecha: 2026-08-23
+
+<!-- trigger Cloudflare preview deploy 2026-08-23 -->
