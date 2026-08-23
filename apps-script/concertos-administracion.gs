@@ -69,13 +69,15 @@ function listarConcertosAdministracionPortal_(datos) {
     var idPersoa = textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Persoa','Id_Persoa','IdPersoa']));
     if (!idConcerto || !idPersoa) return;
     var persoa = persoasPorId[idPersoa] || { idPersoa:idPersoa, nome:idPersoa, voz:textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Voz'])) };
-    var estado = campoEnsaiosPortal_(row, ['Estado asistencia','Estado_asistencia','Asiste','Estado']);
+    var estado = textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['EstadoAsistencia','Estado asistencia','Estado_asistencia','Asiste','Estado']));
+    var estadoNormalizado = estado.toLowerCase();
+    var asiste = estado === '' || estadoNormalizado === 'asiste' || booleanoEnsaiosPortal_(estado);
     if (!asistenciasPorConcerto[idConcerto]) asistenciasPorConcerto[idConcerto] = [];
     asistenciasPorConcerto[idConcerto].push({
       idPersoa:persoa.idPersoa,
       nome:persoa.nome,
       voz:persoa.voz || textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Voz'])),
-      asiste:estado === '' ? true : booleanoEnsaiosPortal_(estado)
+      asiste:asiste
     });
   });
 
