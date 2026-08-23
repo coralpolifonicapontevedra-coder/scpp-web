@@ -181,12 +181,116 @@ function gardarProgramaConcertoAdministracionPortal_(datos){
   items.forEach(function(x,n){f.sheet.appendRow(f.headers.map(function(h){if(h==='Id')return Utilities.getUuid();if(h==='Orde')return n+1;if(h==='Notas')return textoEnsaiosPortal_(x.notas);if(h==='Solista')return textoEnsaiosPortal_(x.solista);if(['Id_Conciertos','Concerto'].indexOf(h)>=0)return id;if(['Id_Repertorio','Id_Obras'].indexOf(h)>=0)return textoEnsaiosPortal_(x.obraId);return '';}));});SpreadsheetApp.flush();return{ok:true,total:items.length};
 }
 
+function primeiraFilaLibreAsistenciasConcertoPortal_(sheet, headers) {
+  var idIndex = indiceHeaderEnsaiosPortal_(headers, ['Id_AsistenciaConcerto','Id_Asistencia','Id']);
+  if (idIndex < 0) return sheet.getLastRow() + 1;
+
+  var lastRow = Math.max(sheet.getLastRow(), 2);
+  var values = sheet.getRange(2, idIndex + 1, lastRow - 1, 1).getDisplayValues();
+
+  for (var i = 0; i < values.length; i++) {
+    if (!textoEnsaiosPortal_(values[i][0])) return i + 2;
+  }
+
+  var nextRow = lastRow + 1;
+  if (nextRow > sheet.getMaxRows()) {
+    sheet.insertRowsAfter(sheet.getMaxRows(), nextRow - sheet.getMaxRows());
+  }
+  return nextRow;
+}
+
+function detalleConcertoAsistenciaPortal_(cfg, id) {
+  var concertos = filasEnsaiosAdministracionPortal_(
+    cfg.concertosId,
+    'Concertos',
+    'CONCERTOS_SPREADSHEET_ID'
+  );
+  var concerto = concertos.rows.find(function(r) {
+    return textoEnsaiosPortal_(campoEnsaiosPortal_(r, ['Id','Id_Concerto','IdConcerto'])) === id;
+  });
+
+  if (!concerto) return '';
+
+  var data = serializarDataEnsaiosPortal_(campoEnsaiosPortal_(concerto, ['Data']));
+  var partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
+  if (partes) data = partes[3] + '/' + partes[2] + '/' + partes[1];
+
+  var nome = textoEnsaiosPortal_(campoEnsaiosPortal_(concerto, ['Nome']));
+  return [data, nome].filter(Boolean).join(' - ');
+}
+
 function gardarAsistentesConcertoAdministracionPortal_(datos){
-  var permiso=permisoConcertosAdministracionPortal_(textoEnsaiosPortal_(datos&&datos.email).toLowerCase());if(!permiso.escritura)return{ok:false,codigo:'FORBIDDEN',erro:'Usuario non autorizado'};var id=textoEnsaiosPortal_(datos&&datos.idConcerto),items=Array.isArray(datos&&datos.persoas)?datos.persoas:[];if(!id)return{ok:false,codigo:'VALIDATION',erro:'Falta o concerto'};
-  var cfg=configuracionConcertosAdministracionPortal_(),f=filasEnsaiosAdministracionPortal_(cfg.asistenciasId,'AsistenciasConcertos','ASISTENCIAS_CONCERTOS_SPREADSHEET_ID');for(var i=f.rows.length-1;i>=0;i--)if(textoEnsaiosPortal_(campoEnsaiosPortal_(f.rows[i],['Concerto','Id_Conciertos']))===id)f.sheet.deleteRow(f.rows[i].__row);
-  var xustificadaIndex=indiceHeaderEnsaiosPortal_(f.headers,['Xustificada','Justificada']),motivoIndex=indiceHeaderEnsaiosPortal_(f.headers,['Motivo','Xustificación','Xustificacion','Justificación','Justificacion','Observacións','Observacions','Observaciones']);
-  var observacionsIndex=indiceHeaderEnsaiosPortal_(f.headers,['Observacións','Observacions','Observaciones']),dataIndex=indiceHeaderEnsaiosPortal_(f.headers,['DataRexistro']),autorIndex=indiceHeaderEnsaiosPortal_(f.headers,['RexistradaPor']);
-  items.filter(function(x){return['asiste','non_asiste','xustificada'].indexOf(textoEnsaiosPortal_(x.estado))>=0;}).forEach(function(x){var estado=textoEnsaiosPortal_(x.estado),nome=[textoEnsaiosPortal_(x.primeiroApelido),textoEnsaiosPortal_(x.segundoApelido)].filter(Boolean).join(' ')+', '+textoEnsaiosPortal_(x.nome);f.sheet.appendRow(f.headers.map(function(h,col){if(['Id_AsistenciaConcerto','Id_Asistencia','Id'].indexOf(h)>=0)return Utilities.getUuid();if(['Concerto','Id_Conciertos'].indexOf(h)>=0)return id;if(h==='Persoa')return textoEnsaiosPortal_(x.id);if(h==='Voz')return textoEnsaiosPortal_(x.voz);if(h==='Nome_Completo')return nome;if(['EstadoAsistencia','Estado asistencia'].indexOf(h)>=0)return estado==='asiste'?'Asiste':'Non asiste';if(col===xustificadaIndex)return estado==='xustificada';if(col===motivoIndex)return estado==='xustificada'?textoEnsaiosPortal_(x.xustificacion):'';if(col===observacionsIndex)return textoEnsaiosPortal_(x.observacions);if(col===dataIndex)return new Date();if(col===autorIndex)return email;return '';}));});SpreadsheetApp.flush();return{ok:true,total:items.length,columnaXustificacion:motivoIndex>=0?f.headers[motivoIndex]:''};
+  var email=textoEnsaiosPortal_(datos&&datos.email).toLowerCase(),
+      permiso=permisoConcertosAdministracionPortal_(email);
+
+  if(!permiso.escritura)
+    return{ok:false,codigo:'FORBIDDEN',erro:'Usuario non autorizado'};
+
+  var id=textoEnsaiosPortal_(datos&&datos.idConcerto),
+      items=Array.isArray(datos&&datos.persoas)?datos.persoas:[];
+
+  if(!id)
+    return{ok:false,codigo:'VALIDATION',erro:'Falta o concerto'};
+
+  var cfg=configuracionConcertosAdministracionPortal_(),
+      f=filasEnsaiosAdministracionPortal_(
+        cfg.asistenciasId,
+        'AsistenciasConcertos',
+        'ASISTENCIAS_CONCERTOS_SPREADSHEET_ID'
+      );
+
+  for(var i=f.rows.length-1;i>=0;i--){
+    if(textoEnsaiosPortal_(campoEnsaiosPortal_(f.rows[i],['Concerto','Id_Conciertos']))===id)
+      f.sheet.deleteRow(f.rows[i].__row);
+  }
+
+  var detalle=detalleConcertoAsistenciaPortal_(cfg,id);
+  var xustificadaIndex=indiceHeaderEnsaiosPortal_(f.headers,['Xustificada','Justificada']),
+      motivoIndex=indiceHeaderEnsaiosPortal_(f.headers,['Motivo','Xustificación','Xustificacion','Justificación','Justificacion']),
+      observacionsIndex=indiceHeaderEnsaiosPortal_(f.headers,['Observacións','Observacions','Observaciones']),
+      dataIndex=indiceHeaderEnsaiosPortal_(f.headers,['DataRexistro']),
+      autorIndex=indiceHeaderEnsaiosPortal_(f.headers,['RexistradaPor']);
+
+  var guardados=0;
+
+  items.filter(function(x){
+    return ['asiste','non_asiste','xustificada'].indexOf(textoEnsaiosPortal_(x.estado))>=0;
+  }).forEach(function(x){
+    var estado=textoEnsaiosPortal_(x.estado);
+    var nome=[textoEnsaiosPortal_(x.primeiroApelido),textoEnsaiosPortal_(x.segundoApelido)]
+      .filter(Boolean).join(' ') + ', ' + textoEnsaiosPortal_(x.nome);
+
+    var valores=f.headers.map(function(h,col){
+      if(['Id_AsistenciaConcerto','Id_Asistencia','Id'].indexOf(h)>=0) return Utilities.getUuid();
+      if(['Concerto','Id_Conciertos'].indexOf(h)>=0) return id;
+      if(h==='Persoa') return textoEnsaiosPortal_(x.id);
+      if(h==='Detalle concerto') return detalle;
+      if(h==='Voz') return textoEnsaiosPortal_(x.voz);
+      if(h==='Nome_Completo') return nome;
+      if(['EstadoAsistencia','Estado asistencia'].indexOf(h)>=0)
+        return estado==='asiste'?'Asiste':'Non asiste';
+      if(col===xustificadaIndex) return estado==='xustificada';
+      if(col===motivoIndex)
+        return estado==='xustificada'?textoEnsaiosPortal_(x.xustificacion):'';
+      if(col===observacionsIndex) return textoEnsaiosPortal_(x.observacions);
+      if(col===dataIndex) return new Date();
+      if(col===autorIndex) return email;
+      return '';
+    });
+
+    var fila=primeiraFilaLibreAsistenciasConcertoPortal_(f.sheet,f.headers);
+    f.sheet.getRange(fila,1,1,valores.length).setValues([valores]);
+    guardados++;
+  });
+
+  SpreadsheetApp.flush();
+
+  return{
+    ok:true,
+    total:guardados,
+    detalleConcerto:detalle,
+    columnaXustificacion:motivoIndex>=0?f.headers[motivoIndex]:''
+  };
 }
 
 function actualizarMedioConcertoAdministracionPortal_(datos){
