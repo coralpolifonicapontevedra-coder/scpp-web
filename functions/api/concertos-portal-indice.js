@@ -23,7 +23,9 @@ function prepararConcertosPortal(concertos = []) {
     .filter((concerto) => clean(concerto?.id))
     .map((concerto) => {
       const id = clean(concerto.id);
-      const historico = id.startsWith('hist-') || Boolean(clean(concerto.numeroConcerto));
+      // Os concertos actuais poden ter NumeroConcerto/OrdeHistorica e deben seguir
+      // aparecendo no portal. Só os rexistros importados do histórico usan id hist-*.
+      const historico = id.startsWith('hist-');
       const visibleNoPortal = !historico && estadosVisibles.has(normalizarEstado(concerto.estado));
 
       return {
@@ -79,7 +81,7 @@ export async function onRequest({ request, env }) {
     concertos,
     cache: 'R2',
     rama: rama(env),
-    regraPortal: 'Previsto+Confirmado+Realizado; Aprazado/Cancelado só Administración; históricos só Histórico',
+    regraPortal: 'Previsto+Confirmado+Realizado; Aprazado/Cancelado só Administración; só id hist-* vai ao Histórico',
     tempoRespostaMs: duracion
   }, {
     'X-SCPP-Concertos-Index': rama(env) === 'main' ? 'R2-PRIVADO-MAIN' : 'R2-PRIVADO-PREVIEW',

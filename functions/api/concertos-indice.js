@@ -1,4 +1,5 @@
-const INDEX_KEY = 'indices/concertos-v1.json';
+const INDEX_KEY_MAIN = 'indices/concertos-v1.json';
+const INDEX_KEY_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -10,8 +11,11 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
   }
 });
 
-const normalizarEstado = (value = '') => String(value || '').trim().toLowerCase();
+const clean = (value = '') => String(value || '').trim();
+const rama = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
+const normalizarEstado = (value = '') => clean(value).toLowerCase();
 const estadoPublicable = (value = '') => ['confirmado', 'realizado'].includes(normalizarEstado(value));
+const visibleNaWeb = (concerto) => concerto?.mostrarWeb === true && estadoPublicable(concerto?.estado);
 
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') {
@@ -20,17 +24,22 @@ export async function onRequest({ request, env }) {
     });
   }
 
-  if (!env.R2_PUBLICO) {
-    return json(500, { ok: false, erro: 'O bucket público R2 non está configurado.' }, {
+  const branch = rama(env);
+  const preview = branch !== 'main';
+  const bucket = preview ? env.R2_PRIVADO : env.R2_PUBLICO;
+  const key = preview ? INDEX_KEY_PREVIEW : INDEX_KEY_MAIN;
+
+  if (!bucket) {
+    return json(500, { ok: false, erro: 'O bucket de concertos non está configurado.' }, {
       'Cache-Control': 'no-store',
       'X-SCPP-Concertos-Index': 'UNCONFIGURED'
     });
   }
 
   const started = Date.now();
-  const object = await env.R2_PUBLICO.get(INDEX_KEY);
+  const object = await bucket.get(key);
   if (!object) {
-    return json(503, { ok: false, erro: 'O índice de concertos aínda non está dispoñible.' }, {
+    return json(503, { ok: false, erro: `O índice de concertos de ${branch} aínda non está dispoñible.` }, {
       'Cache-Control': 'no-store',
       'X-SCPP-Concertos-Index': 'MISSING'
     });
@@ -48,7 +57,9 @@ export async function onRequest({ request, env }) {
     });
   }
 
-  const concertos = index.concertos.filter((concerto) => estadoPublicable(concerto?.estado));
+  // En Preview lemos o índice privado illado da propia rama e aplicamos aquí
+  // exactamente a regra pública. Así as probas nunca dependen do índice de main.
+  const concertos = index.concertos.filter(visibleNaWeb);
   const elapsed = Date.now() - started;
   return json(200, {
     ...index,
@@ -56,11 +67,12 @@ export async function onRequest({ request, env }) {
     concertos,
     regraPublicacion: 'Mostrar_Web + Confirmado/Realizado',
     cache: 'R2',
+    rama: branch,
     tempoRespostaMs: elapsed
   }, {
-    'X-SCPP-Concertos-Index': 'R2',
+    'X-SCPP-Concertos-Index': preview ? 'R2-PRIVADO-PREVIEW' : 'R2-PUBLICO-MAIN',
     'X-SCPP-Concertos-Version': String(index.xeradoEnMs || index.xeradoEn || ''),
-    'X-SCPP-Concertos-Publication-Rule': 'confirmado-realizado',
+    'X-SCPP-Concertos-Publication-Rule': 'mostrar-web-confirmado-realizado',
     'Server-Timing': `r2;dur=${elapsed}`
   });
 }

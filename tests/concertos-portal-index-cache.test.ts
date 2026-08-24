@@ -5,14 +5,30 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const endpoint = readFileSync(resolve(root, 'functions/api/concertos-portal-indice.js'), 'utf8');
+const publicEndpoint = readFileSync(resolve(root, 'functions/api/concertos-indice.js'), 'utf8');
 const page = readFileSync(resolve(root, 'src/pages/portal/concertos-novo.astro'), 'utf8');
 const classic = readFileSync(resolve(root, 'public/js/concertos-novo-clasico.js'), 'utf8');
 
-describe('índice privado rápido de concertos', () => {
-  it('le o índice privado de R2 tras validar a sesión', () => {
-    expect(endpoint).toContain("INDEX_KEY = 'indices/concertos-privado-v1.json'");
+describe('índices rápidos de concertos por contorno', () => {
+  it('le o índice privado correcto de main ou preview tras validar a sesión', () => {
+    expect(endpoint).toContain("INDEX_KEY_MAIN = 'indices/concertos-privado-v1.json'");
+    expect(endpoint).toContain("INDEX_KEY_PREVIEW = 'indices/preview/concertos-privado-v1.json'");
     expect(endpoint).toContain('verificarTokenFirebase');
-    expect(endpoint).toContain('env.R2_PRIVADO.get(INDEX_KEY)');
+    expect(endpoint).toContain('env.R2_PRIVADO.get(key)');
+  });
+
+  it('mantén no portal os concertos actuais numerados e reserva hist-* para o histórico', () => {
+    expect(endpoint).toContain("const historico = id.startsWith('hist-');");
+    expect(endpoint).not.toContain('Boolean(clean(concerto.numeroConcerto))');
+    expect(endpoint).toContain("new Set(['previsto', 'confirmado', 'realizado'])");
+  });
+
+  it('illa a Axenda de Preview do índice público de main', () => {
+    expect(publicEndpoint).toContain("INDEX_KEY_MAIN = 'indices/concertos-v1.json'");
+    expect(publicEndpoint).toContain("INDEX_KEY_PREVIEW = 'indices/preview/concertos-privado-v1.json'");
+    expect(publicEndpoint).toContain('const bucket = preview ? env.R2_PRIVADO : env.R2_PUBLICO;');
+    expect(publicEndpoint).toContain('concerto?.mostrarWeb === true');
+    expect(publicEndpoint).toContain("['confirmado', 'realizado']");
   });
 
   it('non toca a carga independente de asistentes', () => {
