@@ -6,7 +6,6 @@
   window.__scppConcertosInformeR2 = true;
 
   let idToken = '';
-  let informeActual = null;
   const fetchOriginal = window.fetch.bind(window);
   const escapar = (v = '') => String(v)
     .replaceAll('&', '&amp;')
@@ -33,7 +32,7 @@
 
     const niveis = Array.isArray(data?.informe?.niveis) ? data.informe.niveis : [];
     box.innerHTML = niveis.map((nivel) => `
-      <section class="attendance-tier">
+      <section class="attendance-tier" data-informe-r2="1">
         <header><strong>${Number(nivel.totalConcertos || 0)} concerto${Number(nivel.totalConcertos || 0) === 1 ? '' : 's'}</strong><span>${Number(nivel.totalPersoas || 0)} persoa${Number(nivel.totalPersoas || 0) === 1 ? '' : 's'}</span></header>
         <div class="report-voices">${(Array.isArray(nivel.voces) ? nivel.voces : []).map((grupo) => `
           <section class="report-voice">
@@ -61,7 +60,6 @@
     });
     const data = await response.json().catch(() => null);
     if (!response.ok || !data?.ok) throw new Error(data?.erro || `Erro HTTP ${response.status}`);
-    informeActual = data;
     return data;
   }
 
@@ -73,7 +71,9 @@
     setTimeout(async () => {
       try {
         const data = await cargar();
-        if (data) pintar(data);
+        if (!data) return;
+        pintar(data);
+        setTimeout(() => pintar(data), 500);
       } catch (error) {
         const box = document.querySelector('#informe');
         if (box instanceof HTMLElement && !box.children.length) {
@@ -82,9 +82,4 @@
       }
     }, 0);
   });
-
-  const observer = new MutationObserver(() => {
-    if (informeActual && !document.querySelector('#vista-informe[hidden]')) pintar(informeActual);
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
