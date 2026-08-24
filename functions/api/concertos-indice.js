@@ -10,6 +10,9 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
   }
 });
 
+const normalizarEstado = (value = '') => String(value || '').trim().toLowerCase();
+const estadoPublicable = (value = '') => ['confirmado', 'realizado'].includes(normalizarEstado(value));
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') {
     return json(405, { ok: false, erro: 'Método non permitido' }, {
@@ -45,14 +48,19 @@ export async function onRequest({ request, env }) {
     });
   }
 
+  const concertos = index.concertos.filter((concerto) => estadoPublicable(concerto?.estado));
   const elapsed = Date.now() - started;
   return json(200, {
     ...index,
+    total: concertos.length,
+    concertos,
+    regraPublicacion: 'Mostrar_Web + Confirmado/Realizado',
     cache: 'R2',
     tempoRespostaMs: elapsed
   }, {
     'X-SCPP-Concertos-Index': 'R2',
     'X-SCPP-Concertos-Version': String(index.xeradoEnMs || index.xeradoEn || ''),
+    'X-SCPP-Concertos-Publication-Rule': 'confirmado-realizado',
     'Server-Timing': `r2;dur=${elapsed}`
   });
 }

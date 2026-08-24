@@ -9,6 +9,21 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   }
 });
 
+function mimePorNome(nome = '') {
+  const limpo = String(nome || '').toLowerCase().split('?')[0];
+  if (limpo.endsWith('.pdf')) return 'application/pdf';
+  if (limpo.endsWith('.jpg') || limpo.endsWith('.jpeg')) return 'image/jpeg';
+  if (limpo.endsWith('.png')) return 'image/png';
+  if (limpo.endsWith('.webp')) return 'image/webp';
+  return 'application/octet-stream';
+}
+
+function mimeDocumento(mime = '', nome = '') {
+  const indicado = String(mime || '').trim().toLowerCase();
+  if (indicado && indicado !== 'application/octet-stream') return indicado;
+  return mimePorNome(nome);
+}
+
 async function verificarTokenFirebase(idToken, apiKey) {
   const resposta = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
@@ -39,11 +54,12 @@ function respostaFicheiro(resultado) {
 
   const nome = String(resultado.nomeFicheiro || 'programa-concerto')
     .replace(/[\r\n"]/g, '');
+  const mime = mimeDocumento(resultado.mimeType, nome);
 
   return new Response(bytes, {
     status: 200,
     headers: {
-      'Content-Type': String(resultado.mimeType || 'application/octet-stream'),
+      'Content-Type': mime,
       'Content-Disposition': `inline; filename="${nome}"`,
       'Cache-Control': 'private, max-age=300',
       'X-Content-Type-Options': 'nosniff'
@@ -54,19 +70,43 @@ function respostaFicheiro(resultado) {
 async function respostaProgramaR2(env, concertoId) {
   const entrada = CONCERT_PROGRAM_BY_ID[concertoId];
   if (!env.R2_PRIVADO) return null;
+
   try {
-    let resolta=entrada;
-    if(!resolta){const prefix=`concertos/admin/${encodeURIComponent(concertoId)}/triptico/`,lista=await env.R2_PRIVADO.list({prefix,limit:10}),ultima=[...lista.objects].sort((a,b)=>String(b.uploaded).localeCompare(String(a.uploaded)))[0];if(ultima)resolta={r2Key:ultima.key,name:ultima.key.split('/').pop(),mimeType:ultima.httpMetadata?.contentType||'application/octet-stream'};}
-    if(!resolta)return null;
+    let resolta = entrada;
+
+    if (!resolta) {
+      const prefix = `concertos/admin/${encodeURIComponent(concertoId)}/triptico/`;
+      const lista = await env.R2_PRIVADO.list({ prefix, limit: 10 });
+      const ultima = [...lista.objects]
+        .sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded)))[0];
+
+      if (ultima) {
+        const nome = ultima.key.split('/').pop() || 'programa-concerto';
+        resolta = {
+          r2Key: ultima.key,
+          name: nome,
+          mimeType: mimeDocumento(ultima.httpMetadata?.contentType, nome)
+        };
+      }
+    }
+
+    if (!resolta) return null;
+
     const obxecto = await env.R2_PRIVADO.get(resolta.r2Key);
     if (!obxecto) return null;
+
+    const nome = String(resolta.name || resolta.r2Key.split('/').pop() || 'programa-concerto')
+      .replace(/[\r\n"]/g, '');
+    const mime = mimeDocumento(resolta.mimeType || obxecto.httpMetadata?.contentType, nome);
     const headers = new Headers();
+
     obxecto.writeHttpMetadata(headers);
-    headers.set('Content-Type', resolta.mimeType);
-    headers.set('Content-Disposition', `inline; filename="${resolta.name.replace(/[\r\n"]/g, '')}"`);
+    headers.set('Content-Type', mime);
+    headers.set('Content-Disposition', `inline; filename="${nome}"`);
     headers.set('Cache-Control', 'private, max-age=300');
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('X-SCPP-Storage', 'R2');
+
     return new Response(obxecto.body, { status: 200, headers });
   } catch (erro) {
     console.warn('Non foi posible abrir o programa do concerto desde R2:', erro);

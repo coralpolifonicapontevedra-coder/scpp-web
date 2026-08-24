@@ -1,4 +1,5 @@
-const INDEX_KEY = 'indices/concertos-privado-v1.json';
+const INDEX_KEY_MAIN = 'indices/concertos-privado-v1.json';
+const INDEX_KEY_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -9,6 +10,28 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
     ...extraHeaders
   }
 });
+
+const clean = (value = '') => String(value || '').trim();
+const normalizarEstado = (value = '') => clean(value).toLowerCase();
+const rama = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
+const indiceKey = (env) => rama(env) === 'main' ? INDEX_KEY_MAIN : INDEX_KEY_PREVIEW;
+
+function prepararConcertosPortal(concertos = []) {
+  const estadosVisibles = new Set(['previsto', 'confirmado', 'realizado']);
+
+  return concertos
+    .filter((concerto) => clean(concerto?.id))
+    .map((concerto) => {
+      const id = clean(concerto.id);
+      const historico = id.startsWith('hist-') || Boolean(clean(concerto.numeroConcerto));
+      const visibleNoPortal = !historico && estadosVisibles.has(normalizarEstado(concerto.estado));
+
+      return {
+        ...concerto,
+        mostrarWeb: visibleNoPortal
+      };
+    });
+}
 
 async function verificarTokenFirebase(idToken, apiKey) {
   const token = String(idToken || '').trim();
@@ -34,15 +57,33 @@ export async function onRequest({ request, env }) {
   if (!env.R2_PRIVADO) return json(500, { ok: false, erro: 'O índice privado non está configurado.' });
 
   const inicio = Date.now();
-  const obxecto = await env.R2_PRIVADO.get(INDEX_KEY);
-  if (!obxecto) return json(503, { ok: false, erro: 'O índice de concertos aínda non está dispoñible.' });
+  const key = indiceKey(env);
+  const obxecto = await env.R2_PRIVADO.get(key);
+  if (!obxecto) {
+    return json(503, {
+      ok: false,
+      erro: `O índice de concertos de ${rama(env)} aínda non está dispoñible.`
+    });
+  }
+
   const indice = await obxecto.json().catch(() => null);
   if (indice?.ok !== true || !Array.isArray(indice?.concertos)) {
     return json(503, { ok: false, erro: 'O índice de concertos non é válido.' });
   }
+
+  const concertos = prepararConcertosPortal(indice.concertos);
   const duracion = Date.now() - inicio;
-  return json(200, { ...indice, cache: 'R2', tempoRespostaMs: duracion }, {
-    'X-SCPP-Concertos-Index': 'R2-PRIVADO',
+
+  return json(200, {
+    ...indice,
+    concertos,
+    cache: 'R2',
+    rama: rama(env),
+    regraPortal: 'Previsto+Confirmado+Realizado; Aprazado/Cancelado só Administración; históricos só Histórico',
+    tempoRespostaMs: duracion
+  }, {
+    'X-SCPP-Concertos-Index': rama(env) === 'main' ? 'R2-PRIVADO-MAIN' : 'R2-PRIVADO-PREVIEW',
+    'X-SCPP-Concertos-Portal-Rule': 'previsto-confirmado-realizado',
     'Server-Timing': `r2;dur=${duracion}`
   });
 }
