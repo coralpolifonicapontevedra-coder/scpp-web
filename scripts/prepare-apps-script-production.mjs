@@ -9,7 +9,7 @@ const ensaiosTarget = path.join(productionDir, 'ensaios-administracion.js');
 const concertosSource = path.join(root, 'apps-script', 'concertos-administracion.gs');
 const concertosTarget = path.join(productionDir, 'concertos-administracion.js');
 const asistenciasConcertosSource = path.join(root, 'apps-script', 'canonical-2026-08-03', 'asistencias-concertos.gs');
-const asistenciasConcertosTarget = path.join(productionDir, 'asistencias-concertos.js');
+const asistenciasConcertosTarget = path.join(productionDir, 'asistencias-concertos-portal.js');
 
 for (const [file, message] of [
   [codigoPath, 'Non se atopou apps-script-production/Código.js. Executa antes clasp pull no proxecto de produción.'],
@@ -52,6 +52,6 @@ fs.copyFileSync(asistenciasConcertosSource, asistenciasConcertosTarget);
 console.log('Produción de Apps Script preparada para Administración → Ensaios e Concertos.');
 console.log('- Código.js conserva o dispatcher existente e engade só as accións administrativas que falten.');
 console.log('- ensaios-administracion.js e concertos-administracion.js copiados ao proxecto clasp de produción.');
-console.log('- asistencias-concertos.js filtra EstadoAsistencia para non publicar ausencias.');
+console.log('- asistencias-concertos-portal.js filtra EstadoAsistencia para non publicar ausencias.');
 console.log('- Non se modificou appsscript.json nin os módulos normais de Ensaios ou Concertos.');
 console.log('Revisa os ficheiros locais e só despois executa clasp push desde apps-script-production.');
