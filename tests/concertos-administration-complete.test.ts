@@ -51,10 +51,13 @@ describe('administración integral de concertos', () => {
     expect(attendanceGas).toContain("['asiste', 'true', '1', 'si', 'sí', 'yes', 'x']");
   });
 
-  it('garda cartel e tríptico en R2', () => {
+  it('garda cartel e tríptico en R2 e sincronízaos coa Sheet ao finalizar', () => {
     expectAction(api, 'subirMedio');
     expect(api).toContain('env.R2_PRIVADO.put');
-    expect(api).toContain('actualizarMedioConcertoAdministracionPortal');
+    expect(api).toContain('updateConcertMetadataIndex(env, idConcerto, { [tipo]: ruta })');
+    expect(api).toContain('sheetSincronizada: false');
+    expect(api).toContain("'actualizarConcertoAdministracionPortal'");
+    expect(api).toContain('...medios');
   });
 
   it('non modifica Ensaios', () => {
