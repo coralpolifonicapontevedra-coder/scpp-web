@@ -14,7 +14,7 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
 const clean = (value = '') => String(value || '').trim();
 const rama = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
 const normalizarEstado = (value = '') => clean(value).toLowerCase();
-const estadoPublicable = (value = '') => ['confirmado', 'realizado'].includes(normalizarEstado(value));
+const estadoPublicable = (value = '') => ['previsto', 'confirmado', 'realizado'].includes(normalizarEstado(value));
 const visibleNaWeb = (concerto) => concerto?.mostrarWeb === true && estadoPublicable(concerto?.estado);
 
 export async function onRequest({ request, env }) {
@@ -57,22 +57,20 @@ export async function onRequest({ request, env }) {
     });
   }
 
-  // En Preview lemos o índice privado illado da propia rama e aplicamos aquí
-  // exactamente a regra pública. Así as probas nunca dependen do índice de main.
   const concertos = index.concertos.filter(visibleNaWeb);
   const elapsed = Date.now() - started;
   return json(200, {
     ...index,
     total: concertos.length,
     concertos,
-    regraPublicacion: 'Mostrar_Web + Confirmado/Realizado',
+    regraPublicacion: 'Mostrar_Web + Previsto/Confirmado/Realizado',
     cache: 'R2',
     rama: branch,
     tempoRespostaMs: elapsed
   }, {
     'X-SCPP-Concertos-Index': preview ? 'R2-PRIVADO-PREVIEW' : 'R2-PUBLICO-MAIN',
     'X-SCPP-Concertos-Version': String(index.xeradoEnMs || index.xeradoEn || ''),
-    'X-SCPP-Concertos-Publication-Rule': 'mostrar-web-confirmado-realizado',
+    'X-SCPP-Concertos-Publication-Rule': 'mostrar-web-previsto-confirmado-realizado',
     'Server-Timing': `r2;dur=${elapsed}`
   });
 }

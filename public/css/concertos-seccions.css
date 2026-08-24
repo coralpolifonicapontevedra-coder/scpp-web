@@ -1,0 +1,30 @@
+.concert-section-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin: 1.75rem 0 .15rem;
+  padding: 0 0 .85rem;
+  border-bottom: 1px solid rgba(92, 25, 38, .18);
+}
+
+.concert-section-heading:first-child { margin-top: .35rem; }
+.concert-section-heading div { display: flex; flex-direction: column; gap: .25rem; }
+.concert-section-heading span {
+  color: #a3821a;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.concert-section-heading h2 {
+  margin: 0;
+  color: #5c1926;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+  line-height: 1.15;
+}
+
+@media (max-width: 700px) {
+  .concert-section-heading { margin-top: 1.35rem; }
+}
