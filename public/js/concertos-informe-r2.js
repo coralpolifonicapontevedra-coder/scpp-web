@@ -14,6 +14,15 @@
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 
+  const formatarData = (v = '') => {
+    const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v || '');
+  };
+
+  const style = document.createElement('style');
+  style.textContent = '#vista-informe .attendance-tier:not([data-informe-r2="1"]){display:none!important}';
+  document.head.appendChild(style);
+
   window.fetch = async (input, init) => {
     try {
       if (typeof init?.body === 'string') {
@@ -28,6 +37,7 @@
     const box = document.querySelector('#informe');
     const resumo = document.querySelector('#resumo-informe');
     const baleiro = document.querySelector('#informe-baleiro');
+    const descricion = document.querySelector('#vista-informe .report-heading p');
     if (!(box instanceof HTMLElement)) return;
 
     const niveis = Array.isArray(data?.informe?.niveis) ? data.informe.niveis : [];
@@ -46,8 +56,20 @@
       </section>`).join('');
 
     const r = data?.resumo || {};
+    const inicio = formatarData(data?.periodo?.inicio);
+    const fin = formatarData(data?.periodo?.fin);
     if (resumo) resumo.textContent = `${Number(r.persoas || 0)} persoas · ${Number(r.asistencias || 0)} asistencias`;
-    if (baleiro instanceof HTMLElement) baleiro.hidden = niveis.length > 0;
+    if (descricion) {
+      descricion.textContent = inicio && fin
+        ? `Período: ${inicio} – ${fin}. Só concertos realizados; agrupado por número de concertos, corda e orde alfabética.`
+        : 'Informe xerado desde Administración de Concertos.';
+    }
+    if (baleiro instanceof HTMLElement) {
+      baleiro.hidden = niveis.length > 0;
+      if (!niveis.length) baleiro.textContent = inicio && fin
+        ? `Non hai asistencias computables entre ${inicio} e ${fin}.`
+        : 'Non hai datos de asistencia dispoñibles.';
+    }
   }
 
   async function cargar() {
@@ -68,13 +90,15 @@
     const botao = target instanceof Element ? target.closest('#ver-informe') : null;
     if (!botao) return;
 
+    const box = document.querySelector('#informe');
+    const resumo = document.querySelector('#resumo-informe');
+    if (box instanceof HTMLElement) box.innerHTML = '<p class="no-results">Cargando informe xerado desde Administración…</p>';
+    if (resumo) resumo.textContent = '';
+
     setTimeout(async () => {
-      const box = document.querySelector('#informe');
-      const resumo = document.querySelector('#resumo-informe');
       try {
         const data = await cargar();
         pintar(data);
-        setTimeout(() => pintar(data), 500);
       } catch (error) {
         if (box instanceof HTMLElement) {
           box.innerHTML = `<p class="no-results">${escapar(error instanceof Error ? error.message : 'Non foi posible cargar o informe.')}</p>`;
