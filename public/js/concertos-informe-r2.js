@@ -51,7 +51,7 @@
   }
 
   async function cargar() {
-    if (!idToken) return null;
+    if (!idToken) throw new Error('A sesión aínda non está preparada para ler o informe.');
     const response = await fetchOriginal('/api/concertos-informe-asistencia', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -69,16 +69,17 @@
     if (!botao) return;
 
     setTimeout(async () => {
+      const box = document.querySelector('#informe');
+      const resumo = document.querySelector('#resumo-informe');
       try {
         const data = await cargar();
-        if (!data) return;
         pintar(data);
         setTimeout(() => pintar(data), 500);
       } catch (error) {
-        const box = document.querySelector('#informe');
-        if (box instanceof HTMLElement && !box.children.length) {
+        if (box instanceof HTMLElement) {
           box.innerHTML = `<p class="no-results">${escapar(error instanceof Error ? error.message : 'Non foi posible cargar o informe.')}</p>`;
         }
+        if (resumo) resumo.textContent = '';
       }
     }, 0);
   });
