@@ -55,10 +55,23 @@ const concertosBlock = `    if (accion === 'listarConcertosAdministracionPortal'
 if (!codigo.includes(concertosMarker)) codigo = codigo.replace(anchor, concertosBlock + anchor);
 
 const concertosXestionMarker = "accion === 'gardarConcertoAdministracionPortal'";
-const concertosXestionBlock = `    if (accion === 'gardarConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'obterXestionConcertoAdministracionPortal') {\n      return respostaJSON(obterXestionConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarProgramaConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarProgramaConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarAsistentesConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarAsistentesConcertoAdministracionPortal_(datos));\n    }\n\n`;
+const concertosXestionBlock = `    if (accion === 'gardarConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'obterXestionConcertoAdministracionPortal') {\n      return respostaJSON(obterXestionConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarProgramaConcertoAdministracionPortal') {\n      return respostaJSON(gardarProgramaConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarAsistentesConcertoAdministracionPortal') {\n      return respostaJSON(gardarAsistentesConcertoAdministracionPortal_(datos));\n    }\n\n`;
 const concertosMedioBlock = `    if (accion === 'actualizarMedioConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(actualizarMedioConcertoAdministracionPortal_(datos));\n    }\n\n`;
 if (!codigo.includes(concertosXestionMarker)) codigo = codigo.replace(anchor, concertosXestionBlock + anchor);
 if (!codigo.includes("accion === 'actualizarMedioConcertoAdministracionPortal'")) codigo = codigo.replace(anchor, concertosMedioBlock + anchor);
+
+// As escrituras de programa e asistencias son chamadas consecutivas desde a mesma
+// finalización e afectan follas distintas. Non deben competir polo bloqueo global
+// do dispatcher. Normalizamos tamén dispatchers xa preparados anteriormente.
+const bloqueosXestionConcertos = [
+  ['gardarProgramaConcertoAdministracionPortal', 'gardarProgramaConcertoAdministracionPortal_'],
+  ['gardarAsistentesConcertoAdministracionPortal', 'gardarAsistentesConcertoAdministracionPortal_']
+];
+for (const [accion, funcion] of bloqueosXestionConcertos) {
+  const conBloqueo = `    if (accion === '${accion}') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(${funcion}(datos));\n    }`;
+  const senBloqueo = `    if (accion === '${accion}') {\n      return respostaJSON(${funcion}(datos));\n    }`;
+  codigo = codigo.replace(conBloqueo, senBloqueo);
+}
 
 const required = [
   ensaiosMarker,
@@ -86,4 +99,5 @@ console.log(`- Dispatcher actualizado: ${path.basename(codigoPath)}`);
 console.log('- concertos-administracion.js copiado.');
 console.log('- ensaios-administracion.js copiado.');
 console.log('- asistencias-concertos.js copiado.');
+console.log('- Programa e asistencias de Concertos quedan sen o bloqueo global de 10 s.');
 console.log('- Aínda NON se executou clasp push. Revisa e, despois, executa clasp push dentro de apps-script-preview.');
