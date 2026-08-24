@@ -27,11 +27,19 @@ function dataCanon(value = '') {
 function prepararPrograma(programa = []) {
   if (!Array.isArray(programa)) return [];
   return programa.map((item) => {
-    const idObra = clean(item?.id || item?.idRepertorio);
+    const idObra = clean(
+      item?.id ||
+      item?.idRepertorio ||
+      item?.obraId ||
+      item?.Id_Repertorio ||
+      item?.IdRepertorio ||
+      item?.id_repertorio ||
+      item?.repertorioId
+    );
     return {
       ...item,
       id: idObra,
-      idRepertorio: clean(item?.idRepertorio || item?.id)
+      idRepertorio: idObra
     };
   });
 }
