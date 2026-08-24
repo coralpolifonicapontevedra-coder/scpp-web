@@ -50,6 +50,7 @@ export async function onRequestGet({ request, env }) {
     '<link rel="stylesheet" href="/css/concertos-novo-informe.css?v=1">',
     '<link rel="stylesheet" href="/css/concertos-seccions.css?v=1">',
     '<script type="module" src="/js/concertos-novo-clasico.js?v=2"></script>',
+    '<script type="module" src="/js/concertos-cartel-r2.js?v=1"></script>',
     '<script type="module" src="/js/concertos-seccions.js?v=1"></script>'
   ];
 
