@@ -6,6 +6,7 @@ const root = process.cwd();
 const previewDir = path.join(root, 'apps-script-preview');
 const claspPath = path.join(previewDir, '.clasp.json');
 const concertosSource = path.join(root, 'apps-script', 'concertos-administracion.gs');
+const concertosEliminarSource = path.join(root, 'apps-script', 'concertos-eliminar.gs');
 const ensaiosSource = path.join(root, 'apps-script', 'ensaios-administracion.gs');
 const asistenciasConcertosSource = path.join(root, 'apps-script', 'canonical-2026-08-03', 'asistencias-concertos.gs');
 
@@ -28,6 +29,7 @@ if (String(clasp.scriptId || '').trim() !== PREVIEW_SCRIPT_ID) {
 
 for (const [file, message] of [
   [concertosSource, 'Non se atopou apps-script/concertos-administracion.gs.'],
+  [concertosEliminarSource, 'Non se atopou apps-script/concertos-eliminar.gs.'],
   [ensaiosSource, 'Non se atopou apps-script/ensaios-administracion.gs.'],
   [asistenciasConcertosSource, 'Non se atopou a fonte canónica de asistencias de concertos.']
 ]) {
@@ -57,8 +59,11 @@ if (!codigo.includes(concertosMarker)) codigo = codigo.replace(anchor, concertos
 const concertosXestionMarker = "accion === 'gardarConcertoAdministracionPortal'";
 const concertosXestionBlock = `    if (accion === 'gardarConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'obterXestionConcertoAdministracionPortal') {\n      return respostaJSON(obterXestionConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarProgramaConcertoAdministracionPortal') {\n      return respostaJSON(gardarProgramaConcertoAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarAsistentesConcertoAdministracionPortal') {\n      return respostaJSON(gardarAsistentesConcertoAdministracionPortal_(datos));\n    }\n\n`;
 const concertosMedioBlock = `    if (accion === 'actualizarMedioConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(actualizarMedioConcertoAdministracionPortal_(datos));\n    }\n\n`;
+const concertosEliminarMarker = "accion === 'eliminarConcertoAdministracionPortal'";
+const concertosEliminarBlock = `    if (accion === 'eliminarConcertoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(eliminarConcertoAdministracionPortal_(datos));\n    }\n\n`;
 if (!codigo.includes(concertosXestionMarker)) codigo = codigo.replace(anchor, concertosXestionBlock + anchor);
 if (!codigo.includes("accion === 'actualizarMedioConcertoAdministracionPortal'")) codigo = codigo.replace(anchor, concertosMedioBlock + anchor);
+if (!codigo.includes(concertosEliminarMarker)) codigo = codigo.replace(anchor, concertosEliminarBlock + anchor);
 
 // As escrituras de programa e asistencias son chamadas consecutivas desde a mesma
 // finalización e afectan follas distintas. Non deben competir polo bloqueo global
@@ -82,7 +87,8 @@ const required = [
   "accion === 'obterXestionConcertoAdministracionPortal'",
   "accion === 'gardarProgramaConcertoAdministracionPortal'",
   "accion === 'gardarAsistentesConcertoAdministracionPortal'",
-  "accion === 'actualizarMedioConcertoAdministracionPortal'"
+  "accion === 'actualizarMedioConcertoAdministracionPortal'",
+  concertosEliminarMarker
 ];
 if (required.some((marker) => !codigo.includes(marker))) {
   fail('A integración administrativa non quedou completa. Non se escribiu o dispatcher.');
@@ -90,6 +96,7 @@ if (required.some((marker) => !codigo.includes(marker))) {
 
 fs.writeFileSync(codigoPath, codigo, 'utf8');
 fs.copyFileSync(concertosSource, path.join(previewDir, 'concertos-administracion.js'));
+fs.copyFileSync(concertosEliminarSource, path.join(previewDir, 'concertos-eliminar.js'));
 fs.copyFileSync(ensaiosSource, path.join(previewDir, 'ensaios-administracion.js'));
 fs.copyFileSync(asistenciasConcertosSource, path.join(previewDir, 'asistencias-concertos.js'));
 
@@ -97,7 +104,9 @@ console.log('Apps Script PREVIEW preparado con seguridade.');
 console.log(`- Script ID verificado: ${PREVIEW_SCRIPT_ID}`);
 console.log(`- Dispatcher actualizado: ${path.basename(codigoPath)}`);
 console.log('- concertos-administracion.js copiado.');
+console.log('- concertos-eliminar.js copiado.');
 console.log('- ensaios-administracion.js copiado.');
 console.log('- asistencias-concertos.js copiado.');
 console.log('- Programa e asistencias de Concertos quedan sen o bloqueo global de 10 s.');
+console.log('- Eliminación de concertos habilitada só no Apps Script de Preview.');
 console.log('- Aínda NON se executou clasp push. Revisa e, despois, executa clasp push dentro de apps-script-preview.');
