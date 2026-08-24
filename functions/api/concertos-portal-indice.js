@@ -16,6 +16,14 @@ const normalizarEstado = (value = '') => clean(value).toLowerCase();
 const rama = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
 const indiceKey = (env) => rama(env) === 'main' ? INDEX_KEY_MAIN : INDEX_KEY_PREVIEW;
 
+function dataCanon(value = '') {
+  const texto = clean(value).slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
+  const partes = texto.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (!partes) return '';
+  return `${partes[3]}-${String(partes[2]).padStart(2, '0')}-${String(partes[1]).padStart(2, '0')}`;
+}
+
 function prepararPrograma(programa = []) {
   if (!Array.isArray(programa)) return [];
   return programa.map((item) => {
@@ -29,16 +37,15 @@ function prepararPrograma(programa = []) {
 }
 
 function prepararConcertosPortal(concertos = []) {
-  const estadosVisibles = new Set(['previsto', 'confirmado', 'realizado']);
-
   return concertos
     .filter((concerto) => clean(concerto?.id))
     .map((concerto) => {
       const id = clean(concerto.id);
-      // Os concertos actuais poden ter NumeroConcerto/OrdeHistorica e deben seguir
-      // aparecendo no portal. Só os rexistros importados do histórico usan id hist-*.
       const historico = id.startsWith('hist-');
-      const visibleNoPortal = !historico && estadosVisibles.has(normalizarEstado(concerto.estado));
+      const estado = normalizarEstado(concerto.estado);
+      const futuroVisible = estado === 'previsto' || estado === 'confirmado';
+      const realizadoVisible = estado === 'realizado' && dataCanon(concerto.data) >= '2026-04-01';
+      const visibleNoPortal = !historico && (futuroVisible || realizadoVisible);
 
       return {
         ...concerto,
@@ -94,11 +101,11 @@ export async function onRequest({ request, env }) {
     concertos,
     cache: 'R2',
     rama: rama(env),
-    regraPortal: 'Previsto+Confirmado+Realizado; Aprazado/Cancelado só Administración; só id hist-* vai ao Histórico',
+    regraPortal: 'Previsto+Confirmado; Realizado desde 2026-04-01; Aprazado/Cancelado só Administración; só id hist-* vai ao Histórico',
     tempoRespostaMs: duracion
   }, {
     'X-SCPP-Concertos-Index': rama(env) === 'main' ? 'R2-PRIVADO-MAIN' : 'R2-PRIVADO-PREVIEW',
-    'X-SCPP-Concertos-Portal-Rule': 'previsto-confirmado-realizado',
+    'X-SCPP-Concertos-Portal-Rule': 'previsto-confirmado-realizado-desde-2026-04-01',
     'Server-Timing': `r2;dur=${duracion}`
   });
 }
