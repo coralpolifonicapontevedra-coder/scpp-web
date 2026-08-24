@@ -403,9 +403,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         </a>
       </li>`;
         }
+        // Fallback: link to repertorio search by obra name when no canonical id
+        const queryLink = `/portal/repertorio/?q=${encodeURIComponent(String(item.obra || ''))}`;
         return `<li>
         <span class="program-order">${order}</span>
-        <strong>${escapar(item.obra)}</strong><span>${escapar(item.autor)}</span>${item.solista ? `<small>${escapar(item.solista)}</small>` : ''}
+        <a class="program-work" href="${queryLink}" aria-label="Pesquisar ${escapar(item.obra)} no repertorio">
+          <strong>${escapar(item.obra)}</strong><span>${escapar(item.autor)}</span>${item.solista ? `<small>${escapar(item.solista)}</small>` : ''}
+        </a>
       </li>`;
       }).join('');
     }
