@@ -12,8 +12,14 @@ export async function onRequest({ request, env }) {
   }
 
   let html = await resposta.text();
-  const recurso = '<script src="/js/concertos-admin-eliminar.js?v=1"></script>';
-  if (!html.includes('/js/concertos-admin-eliminar.js')) {
+  const recursos = [
+    '<script src="/js/concertos-admin-sheet-source.js?v=1"></script>',
+    '<script src="/js/concertos-admin-eliminar.js?v=1"></script>'
+  ];
+
+  for (const recurso of recursos) {
+    const src = recurso.match(/src="([^"]+)"/)?.[1]?.split('?')[0] || '';
+    if (!src || html.includes(src)) continue;
     if (html.includes('</head>')) html = html.replace('</head>', `${recurso}</head>`);
     else html = `${recurso}${html}`;
   }
@@ -23,7 +29,7 @@ export async function onRequest({ request, env }) {
   headers.delete('Content-Encoding');
   headers.delete('ETag');
   headers.set('Cache-Control', 'private, no-store');
-  headers.set('X-SCPP-Admin-Concertos', 'preview-delete-v1');
+  headers.set('X-SCPP-Admin-Concertos', 'preview-sheet-source-delete-v1');
 
   return new Response(html, {
     status: resposta.status,
