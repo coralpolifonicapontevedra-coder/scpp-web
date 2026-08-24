@@ -16,6 +16,18 @@ const normalizarEstado = (value = '') => clean(value).toLowerCase();
 const rama = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
 const indiceKey = (env) => rama(env) === 'main' ? INDEX_KEY_MAIN : INDEX_KEY_PREVIEW;
 
+function prepararPrograma(programa = []) {
+  if (!Array.isArray(programa)) return [];
+  return programa.map((item) => {
+    const idObra = clean(item?.id || item?.idRepertorio);
+    return {
+      ...item,
+      id: idObra,
+      idRepertorio: clean(item?.idRepertorio || item?.id)
+    };
+  });
+}
+
 function prepararConcertosPortal(concertos = []) {
   const estadosVisibles = new Set(['previsto', 'confirmado', 'realizado']);
 
@@ -30,6 +42,7 @@ function prepararConcertosPortal(concertos = []) {
 
       return {
         ...concerto,
+        programa: prepararPrograma(concerto.programa),
         mostrarWeb: visibleNoPortal
       };
     });
