@@ -395,7 +395,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       list.innerHTML = concerto.programa.map((item) => {
         const workId = String(item.id || item.idRepertorio || item.idObra || '').trim();
         const order = String(item.orde).padStart(2, '0');
-        if (workId) {
+        
+        if (workId && workId !== 'undefined' && workId !== 'null') {
           return `<li>
         <span class="program-order">${order}</span>
         <a class="program-work" href="/portal/repertorio/?id=${encodeURIComponent(workId)}" data-work-id="${encodeURIComponent(workId)}" aria-label="Abrir ${escapar(item.obra)} no repertorio">
@@ -403,7 +404,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         </a>
       </li>`;
         }
-        // Fallback: link to repertorio search by obra name when no canonical id
+        
         const queryLink = `/portal/repertorio/?q=${encodeURIComponent(String(item.obra || ''))}`;
         return `<li>
         <span class="program-order">${order}</span>
@@ -539,10 +540,16 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         solicitarAsistencias().catch(() => ({ asistenciasPorConcerto: {} }))
       ]);
       const asistenciasPorConcerto = asistenciasResult.asistenciasPorConcerto || {};
-      const obras = new Map(repertorioRaw.map((fila) => [valor(fila, 'Id', 'Row ID'), {
-        nome: valor(fila, 'NomeObra', 'Nome', 'Obra'),
-        autor: valor(fila, 'Compositor', 'Autor')
-      }]));
+      
+      const obras = new Map(repertorioRaw.map((fila) => {
+        const idObra = valor(fila, 'Id', 'Row ID', 'ID', 'Id_Obra');
+        return [idObra, {
+          id: idObra,
+          nome: valor(fila, 'NomeObra', 'Nome', 'Obra'),
+          autor: valor(fila, 'Compositor', 'Autor')
+        }];
+      }));
+
       todosConcertos = concertosRaw.map((fila) => {
         const id = valor(fila, 'Id', 'Row ID');
         const dataVal = valor(fila, 'Data');
@@ -552,12 +559,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
         const programa = programasRaw.filter((p) => valor(p, 'Id_Conciertos', 'Id_Concertos') === id)
           .map((p) => {
-            const obra = obras.get(valor(p, 'Id_Obras')) || {};
+            const idObraRel = valor(p, 'Id_Obras', 'Id_Obra', 'Id_Repertorio');
+            const obra = obras.get(idObraRel) || {};
             return {
-              id: valor(p, 'Id_Obras'),
+              id: obra.id || idObraRel,
               orde: Number(valor(p, 'Orde')) || 999,
-              obra: obra.nome || valor(p, 'Id_Obras'),
-              autor: obra.autor || '',
+              obra: obra.nome || valor(p, 'NomeObra', 'Obra') || idObraRel,
+              autor: obra.autor || valor(p, 'Autor') || '',
               solista: valor(p, 'Solista')
             };
           }).sort((a, b) => a.orde - b.orde);
