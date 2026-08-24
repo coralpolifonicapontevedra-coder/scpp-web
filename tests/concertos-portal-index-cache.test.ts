@@ -23,12 +23,19 @@ describe('índices rápidos de concertos por contorno', () => {
     expect(endpoint).toContain("new Set(['previsto', 'confirmado', 'realizado'])");
   });
 
+  it('normaliza os identificadores de repertorio escritos pola administración', () => {
+    expect(endpoint).toContain('const idObra = clean(item?.id || item?.idRepertorio);');
+    expect(endpoint).toContain('id: idObra');
+    expect(endpoint).toContain('idRepertorio: clean(item?.idRepertorio || item?.id)');
+    expect(page).toContain('href="/portal/repertorio/?id=${encodeURIComponent(p.id)}"');
+  });
+
   it('illa a Axenda de Preview do índice público de main', () => {
     expect(publicEndpoint).toContain("INDEX_KEY_MAIN = 'indices/concertos-v1.json'");
     expect(publicEndpoint).toContain("INDEX_KEY_PREVIEW = 'indices/preview/concertos-privado-v1.json'");
     expect(publicEndpoint).toContain('const bucket = preview ? env.R2_PRIVADO : env.R2_PUBLICO;');
     expect(publicEndpoint).toContain('concerto?.mostrarWeb === true');
-    expect(publicEndpoint).toContain("['confirmado', 'realizado']");
+    expect(publicEndpoint).toContain("['previsto', 'confirmado', 'realizado']");
   });
 
   it('non toca a carga independente de asistentes', () => {
