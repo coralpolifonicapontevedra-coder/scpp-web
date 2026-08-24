@@ -9,10 +9,12 @@ const page = readFileSync(resolve(root, 'src/pages/portal/concertos-novo.astro')
 const classic = readFileSync(resolve(root, 'public/js/concertos-novo-clasico.js'), 'utf8');
 
 describe('índice privado rápido de concertos', () => {
-  it('le o índice privado de R2 tras validar a sesión', () => {
-    expect(endpoint).toContain("INDEX_KEY = 'indices/concertos-privado-v1.json'");
+  it('le o índice privado de R2 correspondente ao contorno tras validar a sesión', () => {
+    expect(endpoint).toContain("INDEX_KEY_MAIN = 'indices/concertos-privado-v1.json'");
+    expect(endpoint).toContain("INDEX_KEY_PREVIEW = 'indices/preview/concertos-privado-v1.json'");
     expect(endpoint).toContain('verificarTokenFirebase');
-    expect(endpoint).toContain('env.R2_PRIVADO.get(INDEX_KEY)');
+    expect(endpoint).toContain('const key = indiceKey(env)');
+    expect(endpoint).toContain('env.R2_PRIVADO.get(key)');
   });
 
   it('non toca a carga independente de asistentes', () => {
