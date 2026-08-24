@@ -14,7 +14,8 @@ export async function onRequest({ request, env }) {
   let html = await resposta.text();
   const recursos = [
     '<script src="/js/concertos-admin-sheet-source.js?v=1"></script>',
-    '<script src="/js/concertos-admin-eliminar.js?v=1"></script>'
+    '<script src="/js/concertos-admin-eliminar.js?v=1"></script>',
+    '<script src="/js/concertos-admin-informe.js?v=1"></script>'
   ];
 
   for (const recurso of recursos) {
@@ -29,7 +30,7 @@ export async function onRequest({ request, env }) {
   headers.delete('Content-Encoding');
   headers.delete('ETag');
   headers.set('Cache-Control', 'private, no-store');
-  headers.set('X-SCPP-Admin-Concertos', 'preview-sheet-source-delete-v1');
+  headers.set('X-SCPP-Admin-Concertos', 'preview-sheet-source-delete-report-v1');
 
   return new Response(html, {
     status: resposta.status,
