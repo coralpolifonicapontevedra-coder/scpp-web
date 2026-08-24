@@ -56,26 +56,51 @@ function dataCanon(value) {
   const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const local = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
-  return local ? `${local[3]}-${String(local[2]).padStart(2, '0')}-${String(local[1]).padStart(2, '0')}` : text;
+  return local ? `${local[3]}-${String(local[2]).padStart(2, '0')}-${String(local[1]).padStart(2, '0')}` : '';
 }
 
-function crearInforme(indiceConcertos, indiceAsistencias, user) {
+function dataValida(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(clean(value));
+}
+
+function estadoRealizado(value) {
+  return clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'realizado';
+}
+
+function crearInforme(indiceConcertos, indiceAsistencias, user, inicio, fin) {
   const concertos = Array.isArray(indiceConcertos?.concertos) ? indiceConcertos.concertos : [];
   const porId = new Map(concertos.map((c) => [clean(c?.id), c]));
-  const porConcerto = indiceAsistencias?.resultado?.asistenciasPorConcerto || {};
+  const porConcertoCompleto = indiceAsistencias?.resultado?.asistenciasPorConcerto || {};
+  const porConcertoPeriodo = {};
   const persoas = new Map();
   let totalAsistencias = 0;
   let concertosConAsistencia = 0;
+  let concertosRealizadosPeriodo = 0;
 
-  for (const [id, asistentesRaw] of Object.entries(porConcerto)) {
+  for (const concerto of concertos) {
+    const id = clean(concerto?.id);
+    const data = dataCanon(concerto?.data);
+    if (!id || id.startsWith('hist-') || !estadoRealizado(concerto?.estado) || !data || data < inicio || data > fin) continue;
+    concertosRealizadosPeriodo += 1;
+  }
+
+  for (const [idRaw, asistentesRaw] of Object.entries(porConcertoCompleto)) {
+    const id = clean(idRaw);
+    const concerto = porId.get(id);
+    if (!concerto || id.startsWith('hist-') || !estadoRealizado(concerto.estado)) continue;
+
+    const data = dataCanon(concerto.data);
+    if (!data || data < inicio || data > fin) continue;
+
     const asistentes = Array.isArray(asistentesRaw) ? asistentesRaw : [];
+    porConcertoPeriodo[id] = asistentes;
     if (!asistentes.length) continue;
+
     concertosConAsistencia += 1;
-    const concerto = porId.get(clean(id)) || {};
     const referencia = {
-      id: clean(id),
-      data: clean(concerto.data),
-      nome: clean(concerto.nome) || `Concerto ${clean(id)}`
+      id,
+      data,
+      nome: clean(concerto.nome) || `Concerto ${id}`
     };
 
     for (const asistente of asistentes) {
@@ -110,16 +135,23 @@ function crearInforme(indiceConcertos, indiceAsistencias, user) {
 
   return {
     ok: true,
-    version: 1,
+    version: 2,
     gardadoEn: Date.now(),
     xeradoEn: new Date().toISOString(),
     xeradoPor: user.email,
+    periodo: { inicio, fin },
+    criterios: {
+      estados: ['Realizado'],
+      computa: 'Só asistentes con estado Asiste',
+      agrupacion: 'Número de concertos, corda e orde alfabética'
+    },
     resumo: {
       persoas: lista.length,
       asistencias: totalAsistencias,
-      concertos: concertosConAsistencia
+      concertos: concertosConAsistencia,
+      concertosRealizadosPeriodo
     },
-    asistenciasPorConcerto: porConcerto,
+    asistenciasPorConcerto: porConcertoPeriodo,
     informe: { niveis }
   };
 }
@@ -141,6 +173,15 @@ export async function onRequest({ request, env }) {
   }
   if (accion !== 'xerar') return json(400, { ok:false, erro:'Acción non válida.' });
 
+  const inicio = clean(body?.inicio);
+  const fin = clean(body?.fin);
+  if (!dataValida(inicio) || !dataValida(fin)) {
+    return json(400, { ok:false, erro:'Indica unha data inicial e unha data final válidas.' });
+  }
+  if (inicio > fin) {
+    return json(400, { ok:false, erro:'A data inicial non pode ser posterior á data final.' });
+  }
+
   const [concertos, asistencias] = await Promise.all([
     lerJson(env.R2_PRIVADO, CONCERT_INDEX_KEY),
     lerJson(env.R2_PRIVADO, ATTENDANCE_INDEX_KEY)
@@ -148,10 +189,10 @@ export async function onRequest({ request, env }) {
   if (!concertos?.ok || !Array.isArray(concertos.concertos)) return json(409, { ok:false, erro:'Non está dispoñible o índice de concertos de Preview.' });
   if (!asistencias?.resultado?.asistenciasPorConcerto) return json(409, { ok:false, erro:'Non está dispoñible o índice de asistencias de Preview.' });
 
-  const informe = crearInforme(concertos, asistencias, user);
+  const informe = crearInforme(concertos, asistencias, user, inicio, fin);
   await env.R2_PRIVADO.put(REPORT_KEY, JSON.stringify(informe), {
     httpMetadata: { contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' },
-    customMetadata: { tipo:'informe-asistencia-concertos', version:'1' }
+    customMetadata: { tipo:'informe-asistencia-concertos', version:'2' }
   });
 
   return json(200, informe);
