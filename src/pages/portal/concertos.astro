@@ -392,12 +392,22 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     const list = dialog.querySelector('#program-list');
     const empty = dialog.querySelector('#program-empty');
     if (list instanceof HTMLOListElement) {
-      list.innerHTML = concerto.programa.map((item) => `<li>
-        <span class="program-order">${String(item.orde).padStart(2, '0')}</span>
-        <a class="program-work" href="/portal/repertorio/?id=${encodeURIComponent(item.id)}" aria-label="Abrir ${escapar(item.obra)} no repertorio">
+      list.innerHTML = concerto.programa.map((item) => {
+        const workId = String(item.id || item.idRepertorio || item.idObra || '').trim();
+        const order = String(item.orde).padStart(2, '0');
+        if (workId) {
+          return `<li>
+        <span class="program-order">${order}</span>
+        <a class="program-work" href="/portal/repertorio/?id=${encodeURIComponent(workId)}" data-work-id="${encodeURIComponent(workId)}" aria-label="Abrir ${escapar(item.obra)} no repertorio">
           <strong>${escapar(item.obra)}</strong><span>${escapar(item.autor)}</span>${item.solista ? `<small>${escapar(item.solista)}</small>` : ''}
         </a>
-      </li>`).join('');
+      </li>`;
+        }
+        return `<li>
+        <span class="program-order">${order}</span>
+        <strong>${escapar(item.obra)}</strong><span>${escapar(item.autor)}</span>${item.solista ? `<small>${escapar(item.solista)}</small>` : ''}
+      </li>`;
+      }).join('');
     }
     if (empty instanceof HTMLElement) empty.hidden = concerto.programa.length > 0;
 
