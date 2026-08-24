@@ -162,6 +162,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const normalizar = (value) => String(value || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
+  const canonIdObra = (value = '') => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const numero = Number(raw.replace(',', '.'));
+    return Number.isFinite(numero) ? String(Math.trunc(numero)) : raw;
+  };
+
   async function aceptacionVixente(user) {
     const idToken = await user.getIdToken(true);
     const response = await fetch('/api/aceptacion', {
@@ -267,7 +274,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (workDetail instanceof HTMLElement) workDetail.hidden = false;
 
     const url = new URL(window.location.href);
-    url.searchParams.set('id', obra.id);
+    url.searchParams.set('id', canonIdObra(obra.id) || obra.id);
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 
     text('#work-id', `Obra ${obra.id}`);
@@ -364,8 +371,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       if (!obras.length) throw new Error('O repertorio non contén obras dispoñibles.');
 
       actualizarSelector();
-      const requested = new URLSearchParams(window.location.search).get('id');
-      const seleccionada = requested ? obras.find((obra) => obra.id === requested) : null;
+      const requested = canonIdObra(new URLSearchParams(window.location.search).get('id'));
+      const seleccionada = requested
+        ? obras.find((obra) => canonIdObra(obra.id) === requested)
+        : null;
       if (seleccionada) debuxarObra(seleccionada);
       else limparSeleccion();
 
