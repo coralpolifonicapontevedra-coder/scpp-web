@@ -40,14 +40,31 @@ if (dispatchers.length !== 1) {
 
 const dispatcherPath = dispatchers[0];
 let dispatcher = fs.readFileSync(dispatcherPath, 'utf8');
-const marker = "accion === 'gardarFotoAdministracionPortal'";
-const block = `    if (accion === 'comprobarFotosAdministracionPortal') {\n      return respostaJSON(comprobarFotosAdministracionPortal_(datos));\n    }\n\n    if (accion === 'gardarFotoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarFotoAdministracionPortal_(datos));\n    }\n\n`;
+const actionBlocks = [
+  {
+    marker: "accion === 'comprobarFotosAdministracionPortal'",
+    block: "    if (accion === 'comprobarFotosAdministracionPortal') {\n      return respostaJSON(comprobarFotosAdministracionPortal_(datos));\n    }\n\n"
+  },
+  {
+    marker: "accion === 'gardarFotoAdministracionPortal'",
+    block: "    if (accion === 'gardarFotoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarFotoAdministracionPortal_(datos));\n    }\n\n"
+  },
+  {
+    marker: "accion === 'eliminarFotoAdministracionPortal'",
+    block: "    if (accion === 'eliminarFotoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(eliminarFotoAdministracionPortal_(datos));\n    }\n\n"
+  }
+];
 
-if (!dispatcher.includes(marker)) {
-  dispatcher = dispatcher.replace(anchor, block + anchor);
+for (const action of actionBlocks) {
+  if (!dispatcher.includes(action.marker)) {
+    dispatcher = dispatcher.replace(anchor, action.block + anchor);
+  }
 }
-if (!dispatcher.includes("accion === 'comprobarFotosAdministracionPortal'") || !dispatcher.includes(marker)) {
-  fail('Non se puideron inserir as accións novas de Fotografías no dispatcher.');
+
+for (const action of actionBlocks) {
+  if (!dispatcher.includes(action.marker)) {
+    fail(`Non se puido inserir a acción ${action.marker} no dispatcher.`);
+  }
 }
 
 fs.writeFileSync(dispatcherPath, dispatcher, 'utf8');
@@ -59,6 +76,7 @@ console.log(`- Script ID verificado: ${PREVIEW_SCRIPT_ID}`);
 console.log(`- Dispatcher: ${path.basename(dispatcherPath)}`);
 console.log('- Acción comprobarFotosAdministracionPortal conectada.');
 console.log('- Acción gardarFotoAdministracionPortal conectada cun único lock.');
+console.log('- Acción eliminarFotoAdministracionPortal conectada cun único lock e garda física de Preview.');
 console.log('- fotos-administracion-v2.js copiado.');
 console.log('- permisos-portal.js actualizado co resolvedor central.');
 console.log('- NON se executou clasp push. Revisa e executa clasp push dentro de apps-script-preview.');

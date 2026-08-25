@@ -1,34 +1,134 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
+const PREVIEW_HOST = 'preview.coralpolifonicapontevedra.org';
+const INDEX_PUBLICO = 'indices/galeria-publica-v1.json';
+const INDEX_PRIVADO = 'indices/galeria-privada.json';
+const INDEX_REVISION = 'indices/revision-fotos-v1.json';
+const CATALOGO = 'indices/catalogo-fotos.json';
+const CACHE_REVISION = 'cache/fotos/listar-revision.json';
+
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    'X-SCPP-Delete-Version': 'apps-script-principal-r2-index-v3'
+    'X-SCPP-Delete-Version': 'FOTOS-ADMIN-DELETE-V2',
+    'X-Content-Type-Options': 'nosniff'
   }
 });
 
-async function verificarTokenFirebase(idToken, apiKey) {
-  const resposta = await fetch(
+const texto = (valor) => String(valor ?? '').trim();
+const idFoto = (foto) => texto(
+  foto?.idFoto || foto?.Id_Foto || foto?.id || foto?.Id || foto?.ID || foto?.rowId || foto?.['Row ID']
+);
+
+async function verificarToken(idToken, apiKey) {
+  const response = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
+      body: JSON.stringify({ idToken: texto(idToken) })
     }
   );
-  if (!resposta.ok) return null;
-  const usuario = (await resposta.json())?.users?.[0];
-  if (!usuario?.email || usuario.emailVerified !== true) return null;
+  if (!response.ok) return null;
+  const user = (await response.json())?.users?.[0];
+  return user?.email && user.emailVerified === true
+    ? { uid: texto(user.localId), email: texto(user.email).toLowerCase() }
+    : null;
+}
+
+async function comprobarAdministracion(env, usuario) {
+  const { resultado } = await obterJsonAppsScript(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion: 'comprobarFotosAdministracionPortal',
+    email: usuario.email,
+    uidFirebase: usuario.uid
+  }, { timeoutMs: 35_000, attemptTimeoutMs: 12_000 });
+
+  if (!resultado?.ok || resultado?.administrador !== true) {
+    throw new Error(resultado?.erro || 'Administración non autorizada');
+  }
+}
+
+async function ler(bucket, clave) {
+  const object = await bucket.get(clave);
+  if (!object) return { ok: true, fotos: [], total: 0 };
+  const datos = await object.json().catch(() => null);
+  if (!datos || !Array.isArray(datos.fotos)) throw new Error(`Índice R2 non válido: ${clave}`);
+  return datos;
+}
+
+async function gardar(bucket, clave, indice, publico = false) {
+  await bucket.put(clave, JSON.stringify(indice), {
+    httpMetadata: {
+      contentType: 'application/json; charset=utf-8',
+      cacheControl: publico
+        ? 'public, max-age=0, no-cache, must-revalidate'
+        : 'private, max-age=0, no-cache, must-revalidate'
+    }
+  });
+}
+
+function preparar(indice, fotos, operacionId) {
+  const agora = new Date();
   return {
-    uid: String(usuario.localId || ''),
-    email: String(usuario.email).trim().toLowerCase()
+    ...indice,
+    ok: true,
+    fotos,
+    total: fotos.length,
+    xeradoEn: agora.toISOString(),
+    xeradoEnMs: agora.getTime(),
+    actualizadoDesde: `FOTOS-DELETE-V2-${operacionId}`,
+    version: '8'
   };
 }
 
+function rutasFoto(foto) {
+  return new Set([
+    foto?.rutaR2Publica,
+    foto?.rutaR2_Publica,
+    foto?.RutaR2_Publica,
+    foto?.rutaR2Privada,
+    foto?.rutaR2_Privada,
+    foto?.RutaR2_Privada,
+    foto?.rutaR2Traballo,
+    foto?.rutaR2,
+    foto?.RutaR2,
+    foto?.rutaMiniaturaPublica,
+    foto?.rutaMiniatura_Publica,
+    foto?.RutaMiniaturaPublica,
+    foto?.rutaMiniaturaPrivada,
+    foto?.rutaMiniaturaRevision,
+    foto?.rutaMiniatura_Privada,
+    foto?.rutaMiniatura
+  ].map(texto).filter(Boolean));
+}
+
+function fotoMarcadaPreview(head) {
+  if (!head) return false;
+  const meta = head.customMetadata || {};
+  return texto(meta.previewClone).toLowerCase() === 'true' ||
+    Boolean(texto(meta.previewCloneSourceEtag)) ||
+    texto(meta.backend).toLowerCase() === 'fotos-administracion-v2';
+}
+
+async function comprobarR2Preview(env, fotosObxectivo) {
+  const rutas = [...new Set(fotosObxectivo.flatMap((foto) => [...rutasFoto(foto)]))];
+  if (!rutas.length) throw new Error('Borrado bloqueado: a fotografía non ten rutas R2 verificables.');
+
+  for (const clave of rutas) {
+    const [privado, publico] = await Promise.all([
+      env.R2_PRIVADO.head(clave).catch(() => null),
+      env.R2_PUBLICO.head(clave).catch(() => null)
+    ]);
+    if (fotoMarcadaPreview(privado) || fotoMarcadaPreview(publico)) return true;
+  }
+
+  throw new Error('Borrado bloqueado: non se confirmou que os obxectos pertenzan aos buckets clonados de Preview.');
+}
+
 async function eliminarPorPrefix(bucket, prefix) {
-  if (!bucket || typeof bucket.list !== 'function') return 0;
   let cursor;
   let total = 0;
   do {
@@ -43,157 +143,174 @@ async function eliminarPorPrefix(bucket, prefix) {
   return total;
 }
 
-
-async function retirarDoIndiceRevision(env, idFoto) {
-  if (!env.R2_PRIVADO) return false;
-  const key = 'indices/revision-fotos-v1.json';
-  const object = await env.R2_PRIVADO.get(key);
-  if (!object) return false;
-  const index = await object.json().catch(() => null);
-  if (!index?.ok || !Array.isArray(index.fotos)) return false;
-
-  const fotos = index.fotos.filter((foto) =>
-    String(foto?.rowId || foto?.idFoto || '').trim() !== idFoto
-  );
-  if (fotos.length === index.fotos.length) return false;
-
-  await env.R2_PRIVADO.put(key, JSON.stringify({
-    ...index,
-    fotos,
-    total: fotos.length,
-    actualizadoEn: new Date().toISOString(),
-    actualizadoPor: 'eliminarFotoPortal'
-  }), {
-    httpMetadata: {
-      contentType: 'application/json; charset=utf-8',
-      cacheControl: 'private, max-age=300'
-    }
-  });
-  return true;
+async function eliminarAssetsNonCompartidos(bucket, rutas, rutasRestantes) {
+  const eliminables = [...rutas].filter((clave) => !rutasRestantes.has(clave));
+  if (!eliminables.length) return 0;
+  const existentes = [];
+  for (const clave of eliminables) {
+    if (await bucket.head(clave).catch(() => null)) existentes.push(clave);
+  }
+  if (existentes.length) await bucket.delete(existentes);
+  return existentes.length;
 }
 
-async function limparR2(env, idFoto) {
-  const resumo = {
-    privados: 0,
-    publicos: 0,
-    indiceTraballo: false,
-    estadoEdicion: false,
-    cachePendentes: false,
-    indiceRevision: false
-  };
+async function chamarBorradoSheet(env, usuario, id) {
+  const { resultado } = await obterJsonAppsScript(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion: 'eliminarFotoAdministracionPortal',
+    email: usuario.email,
+    uidFirebase: usuario.uid,
+    idFoto: id
+  }, { timeoutMs: 60_000, attemptTimeoutMs: 25_000 });
 
-  if (env.R2_PRIVADO) {
-    const indiceKey = `fotos/traballo/${idFoto}.json`;
-    const indice = await env.R2_PRIVADO.get(indiceKey);
-    if (indice) {
-      const datos = await indice.json().catch(() => null);
-      const rutas = new Set([
-        datos?.ruta,
-        datos?.rutaOrixinal,
-        datos?.rutaBorrador,
-        datos?.rutaMiniatura
-      ].map((ruta) => String(ruta || '').trim()).filter(Boolean));
-      if (rutas.size) {
-        await env.R2_PRIVADO.delete([...rutas]);
-        resumo.privados += rutas.size;
-      }
-      await env.R2_PRIVADO.delete(indiceKey);
-      resumo.indiceTraballo = true;
-    }
-
-    resumo.privados += await eliminarPorPrefix(env.R2_PRIVADO, `fotos/editadas/${idFoto}-`);
-    await env.R2_PRIVADO.delete([
-      `fotos/borradores/${idFoto}`,
-      `fotos/traballo-miniaturas/${idFoto}.webp`
-    ]);
-
-    await env.R2_PRIVADO.delete(`fotos/estado-edicion/${idFoto}.json`);
-    resumo.estadoEdicion = true;
-
-    resumo.indiceRevision = await retirarDoIndiceRevision(env, idFoto);
-    await env.R2_PRIVADO.delete('cache/fotos/listar-revision.json');
-    resumo.cachePendentes = true;
+  if (!resultado?.ok) {
+    const erro = new Error(resultado?.erro || 'Non se puido eliminar a fotografía na Sheet de Preview.');
+    erro.codigo = resultado?.codigo || '';
+    throw erro;
   }
+  if (resultado.entorno !== 'preview') throw new Error('Apps Script non confirmou o entorno Preview.');
+  return resultado;
+}
 
-  if (env.R2_PUBLICO) {
-    resumo.publicos += await eliminarPorPrefix(env.R2_PUBLICO, `fotos/editadas/${idFoto}-`);
-  }
-
-  return resumo;
+async function rollbackIndices(env, backup) {
+  await Promise.allSettled([
+    gardar(env.R2_PUBLICO, INDEX_PUBLICO, backup.pub, true),
+    gardar(env.R2_PRIVADO, INDEX_PRIVADO, backup.pri, false),
+    gardar(env.R2_PRIVADO, INDEX_REVISION, backup.rev, false),
+    gardar(env.R2_PRIVADO, CATALOGO, backup.cat, false)
+  ]);
 }
 
 export async function onRequest({ request, env }) {
-  if (request.method !== 'POST') {
-    return json(405, { ok: false, erro: 'Método non permitido' });
-  }
-  if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN || !env.R2_PRIVADO) {
-    return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
+  if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
+
+  const host = new URL(request.url).hostname.toLowerCase();
+  if (host !== PREVIEW_HOST) {
+    return json(403, { ok: false, erro: 'O borrado v2 está habilitado exclusivamente no dominio Preview.' });
   }
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return json(400, { ok: false, erro: 'Solicitude non válida' });
+  if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN || !env.R2_PUBLICO || !env.R2_PRIVADO) {
+    return json(500, { ok: false, erro: 'O borrado v2 de fotografías non está configurado.' });
   }
 
-  const idFoto = String(body.idFoto || body.rowId || '').trim();
-  if (!idFoto) return json(400, { ok: false, erro: 'Falta identificar a fotografía.' });
+  let datos;
+  try { datos = await request.json(); }
+  catch { return json(400, { ok: false, erro: 'Solicitude non válida' }); }
 
-  let usuario;
-  try {
-    usuario = await verificarTokenFirebase(String(body.idToken || ''), env.FIREBASE_API_KEY);
-  } catch (erro) {
-    console.error('Erro Firebase ao eliminar fotografía:', erro);
-  }
-  if (!usuario) {
-    return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
-  }
+  const id = texto(datos.idFoto || datos.rowId);
+  if (!id) return json(400, { ok: false, erro: 'Falta identificar a fotografía.' });
+
+  const usuario = await verificarToken(datos.idToken, env.FIREBASE_API_KEY).catch(() => null);
+  if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou.' });
+
+  let backup = null;
+  let indicesActualizados = false;
 
   try {
-    const { resultado } = await obterJsonAppsScript(env, {
-      token: env.WEB_WRITE_TOKEN,
-      accion: 'eliminarFotoPortal',
-      email: usuario.email,
-      uidFirebase: usuario.uid,
-      idFoto,
-      rowId: idFoto
-    }, { timeoutMs: 60_000, attemptTimeoutMs: 55_000 });
+    await comprobarAdministracion(env, usuario);
 
-    const xaEliminada = resultado?.codigo === 'NOT_FOUND';
-    if (!resultado?.ok && !xaEliminada) {
-      const forbidden = resultado?.codigo === 'FORBIDDEN' || /non autorizado/i.test(String(resultado?.erro || ''));
-      return json(forbidden ? 403 : 400, {
-        ok: false,
-        erro: resultado?.erro || 'Non se puido eliminar a fotografía.'
-      });
+    const [pub0, pri0, rev0, cat0] = await Promise.all([
+      ler(env.R2_PUBLICO, INDEX_PUBLICO),
+      ler(env.R2_PRIVADO, INDEX_PRIVADO),
+      ler(env.R2_PRIVADO, INDEX_REVISION),
+      ler(env.R2_PRIVADO, CATALOGO)
+    ]);
+    backup = { pub: pub0, pri: pri0, rev: rev0, cat: cat0 };
+
+    const todas = [...pub0.fotos, ...pri0.fotos, ...rev0.fotos, ...cat0.fotos];
+    const obxectivo = todas.filter((foto) => idFoto(foto) === id);
+    if (!obxectivo.length) return json(404, { ok: false, erro: 'Fotografía non localizada nos índices R2 de Preview.' });
+
+    await comprobarR2Preview(env, obxectivo);
+
+    const operacionId = crypto.randomUUID();
+    const filtrar = (indice) => indice.fotos.filter((foto) => idFoto(foto) !== id);
+    const pubNovo = preparar(pub0, filtrar(pub0), operacionId);
+    const priNovo = preparar(pri0, filtrar(pri0), operacionId);
+    const revNovo = preparar(rev0, filtrar(rev0), operacionId);
+    const catNovo = preparar(cat0, filtrar(cat0), operacionId);
+
+    await Promise.all([
+      gardar(env.R2_PUBLICO, INDEX_PUBLICO, pubNovo, true),
+      gardar(env.R2_PRIVADO, INDEX_PRIVADO, priNovo, false),
+      gardar(env.R2_PRIVADO, INDEX_REVISION, revNovo, false),
+      gardar(env.R2_PRIVADO, CATALOGO, catNovo, false)
+    ]);
+    indicesActualizados = true;
+
+    const [pubCheck, priCheck, revCheck, catCheck] = await Promise.all([
+      ler(env.R2_PUBLICO, INDEX_PUBLICO),
+      ler(env.R2_PRIVADO, INDEX_PRIVADO),
+      ler(env.R2_PRIVADO, INDEX_REVISION),
+      ler(env.R2_PRIVADO, CATALOGO)
+    ]);
+    if ([pubCheck, priCheck, revCheck, catCheck].some((indice) => indice.fotos.some((foto) => idFoto(foto) === id))) {
+      throw new Error('R2 non confirmou a retirada da fotografía de todos os índices.');
     }
 
-    let limpezaR2 = null;
-    let aviso = '';
+    let sheet;
     try {
-      limpezaR2 = await limparR2(env, idFoto);
-    } catch (erroR2) {
-      console.error('A fotografía eliminouse da Sheet/Drive pero fallou parte da limpeza R2:', erroR2);
-      aviso = 'A fotografía eliminouse do arquivo, pero parte da limpeza de R2 quedou pendente.';
-      try { await env.R2_PRIVADO.delete('cache/fotos/listar-revision.json'); } catch {}
+      sheet = await chamarBorradoSheet(env, usuario, id);
+    } catch (erroSheet) {
+      await rollbackIndices(env, backup);
+      indicesActualizados = false;
+      throw erroSheet;
+    }
+
+    const rutasObxectivo = new Set(obxectivo.flatMap((foto) => [...rutasFoto(foto)]));
+    const restantes = [...pubNovo.fotos, ...priNovo.fotos, ...revNovo.fotos, ...catNovo.fotos];
+    const rutasRestantes = new Set(restantes.flatMap((foto) => [...rutasFoto(foto)]));
+
+    const limpeza = { publicos: 0, privados: 0, prefixos: 0, aviso: '' };
+    try {
+      const [publicos, privados] = await Promise.all([
+        eliminarAssetsNonCompartidos(env.R2_PUBLICO, rutasObxectivo, rutasRestantes),
+        eliminarAssetsNonCompartidos(env.R2_PRIVADO, rutasObxectivo, rutasRestantes)
+      ]);
+      limpeza.publicos = publicos;
+      limpeza.privados = privados;
+
+      const prefixos = [
+        `fotos/editadas/${id}-`,
+        `fotos/editadas-miniaturas/${id}-`
+      ];
+      for (const prefix of prefixos) {
+        limpeza.prefixos += await eliminarPorPrefix(env.R2_PUBLICO, prefix);
+        limpeza.prefixos += await eliminarPorPrefix(env.R2_PRIVADO, prefix);
+      }
+
+      await Promise.allSettled([
+        env.R2_PRIVADO.delete(`fotos/traballo/${id}.json`),
+        env.R2_PRIVADO.delete(`fotos/estado-edicion/${id}.json`),
+        env.R2_PRIVADO.delete(`fotos/traballo-miniaturas/${id}.webp`),
+        env.R2_PRIVADO.delete(`fotos/borradores/${id}`),
+        env.R2_PRIVADO.delete(CACHE_REVISION)
+      ]);
+    } catch (erroLimpeza) {
+      console.error('Borrado confirmado, pero quedaron obxectos R2 orfos:', erroLimpeza);
+      limpeza.aviso = 'A fotografía foi eliminada dos índices, Sheet e Drive de Preview, pero pode quedar algún ficheiro R2 orfo.';
     }
 
     return json(200, {
       ok: true,
-      idFoto,
-      resultado: resultado.resultado || null,
-      limpezaR2,
-      aviso,
-      mensaxe: aviso || resultado.mensaxe || (xaEliminada
-        ? 'A fotografía xa non estaba na Sheet; completouse a limpeza de R2.'
-        : 'Fotografía eliminada correctamente.')
+      backend: 'FOTOS-ADMIN-DELETE-V2',
+      entorno: 'preview',
+      idFoto: id,
+      sheet,
+      limpeza,
+      mensaxe: limpeza.aviso || sheet.avisoDrive || 'Fotografía eliminada e verificada en Preview.'
     });
   } catch (erro) {
-    console.error('Erro ao eliminar fotografía en revisión:', erro);
-    const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
+    if (indicesActualizados && backup) await rollbackIndices(env, backup);
+    console.error('Erro no borrado v2 de fotografía:', erro);
+    const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT'
+      ? 504
+      : texto(erro?.codigo) === 'FORBIDDEN'
+        ? 403
+        : 409;
     return json(status, {
       ok: false,
+      backend: 'FOTOS-ADMIN-DELETE-V2',
       erro: erro instanceof Error ? erro.message : 'Non foi posible eliminar a fotografía.'
     });
   }

@@ -13,6 +13,7 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'listarFotosPendentesR2',
   'comprobarFotosAdministracionPortal',
   'gardarFotoAdministracionPortal',
+  'eliminarFotoAdministracionPortal',
   'listarAsistenciasConcertosPortal',
   'listarConcertosAdministracionPortal',
   'obterXestionConcertoAdministracionPortal',
