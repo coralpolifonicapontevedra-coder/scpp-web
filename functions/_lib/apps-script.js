@@ -14,6 +14,7 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'comprobarFotosAdministracionPortal',
   'gardarFotoAdministracionPortal',
   'eliminarFotoAdministracionPortal',
+  'eliminarFotoHuerfanaAdministracionPortal',
   'listarAsistenciasConcertosPortal',
   'listarConcertosAdministracionPortal',
   'obterXestionConcertoAdministracionPortal',
