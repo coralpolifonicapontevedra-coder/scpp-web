@@ -1,0 +1,210 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+import AdministracionNav from '../../../components/AdministracionNav.astro';
+---
+
+<BaseLayout title="Migración R2 de Preview" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="administracion" logoutId="migracion-r2-logout" />
+    <main class="migration-main">
+      <header class="page-head">
+        <span>Administración · Infraestrutura</span>
+        <h1>Separar R2 de Preview</h1>
+        <p>Clonación segura dos buckets actuais cara aos novos buckets de Preview. Esta ferramenta non elimina nin modifica ningún obxecto do bucket de orixe.</p>
+      </header>
+
+      <AdministracionNav active="fotografias" />
+
+      <section class="warning">
+        <strong>Operación temporal e só para Preview</strong>
+        <p>Primeiro comprobaremos fisicamente que cada bucket novo é distinto do bucket real. Só se esa proba é correcta se habilitará a copia.</p>
+      </section>
+
+      <section class="actions">
+        <button id="check" type="button">1. Comprobar illamento</button>
+        <button id="clone" type="button" disabled>2. Copiar e verificar os dous buckets</button>
+      </section>
+
+      <section class="status-grid">
+        <article>
+          <h2>R2 público</h2>
+          <p id="public-status">Pendente de comprobación.</p>
+          <progress id="public-progress" max="100" value="0"></progress>
+          <small id="public-meta"></small>
+        </article>
+        <article>
+          <h2>R2 privado</h2>
+          <p id="private-status">Pendente de comprobación.</p>
+          <progress id="private-progress" max="100" value="0"></progress>
+          <small id="private-meta"></small>
+        </article>
+      </section>
+
+      <section id="final" class="final" hidden></section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+
+  const byId = (id) => document.getElementById(id);
+  const checkButton = byId('check');
+  const cloneButton = byId('clone');
+  const finalBox = byId('final');
+  let illamentoOk = false;
+
+  async function token(force = false) {
+    const user = auth.currentUser || await waitForPortalUser();
+    if (!user?.email) throw new Error('Non hai unha sesión válida.');
+    return user.getIdToken(force);
+  }
+
+  async function api(body, retry = true) {
+    const response = await fetch('/api/migrar-r2-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({ idToken: await token(), ...body })
+    });
+    const result = await response.json().catch(() => null);
+    if (response.status === 401 && retry) {
+      await token(true);
+      return api(body, false);
+    }
+    if (!response.ok || !result?.ok) {
+      const detalle = Array.isArray(result?.fallos) && result.fallos.length
+        ? ` ${result.fallos.map((item) => item.clave || item.erro).filter(Boolean).slice(0, 3).join(', ')}`
+        : '';
+      throw new Error((result?.erro || `Erro HTTP ${response.status}`) + detalle);
+    }
+    return result;
+  }
+
+  function refs(tipo) {
+    const prefix = tipo === 'publico' ? 'public' : 'private';
+    return {
+      status: byId(`${prefix}-status`),
+      progress: byId(`${prefix}-progress`),
+      meta: byId(`${prefix}-meta`)
+    };
+  }
+
+  function estado(tipo, texto, percent = null, meta = '') {
+    const r = refs(tipo);
+    if (r.status) r.status.textContent = texto;
+    if (r.progress instanceof HTMLProgressElement) {
+      if (percent == null) r.progress.removeAttribute('value');
+      else r.progress.value = percent;
+    }
+    if (r.meta) r.meta.textContent = meta;
+  }
+
+  async function comprobarTipo(tipo) {
+    estado(tipo, 'Comprobando que orixe e destino sexan buckets distintos…', null);
+    const result = await api({ accion: 'comprobar', tipo });
+    if (!result.illado) throw new Error(`O bucket ${tipo} non está illado.`);
+    estado(tipo, 'Illamento físico confirmado.', 0, 'O marcador temporal non foi visible no bucket real.');
+  }
+
+  async function comprobarTodo() {
+    if (checkButton instanceof HTMLButtonElement) checkButton.disabled = true;
+    if (cloneButton instanceof HTMLButtonElement) cloneButton.disabled = true;
+    if (finalBox instanceof HTMLElement) finalBox.hidden = true;
+    illamentoOk = false;
+    try {
+      await waitForPortalUser();
+      await comprobarTipo('publico');
+      await comprobarTipo('privado');
+      illamentoOk = true;
+      if (cloneButton instanceof HTMLButtonElement) cloneButton.disabled = false;
+      if (finalBox instanceof HTMLElement) {
+        finalBox.hidden = false;
+        finalBox.dataset.error = 'false';
+        finalBox.textContent = 'Illamento confirmado nos dous pares de buckets. Xa é seguro iniciar a clonación.';
+      }
+    } catch (error) {
+      if (finalBox instanceof HTMLElement) {
+        finalBox.hidden = false;
+        finalBox.dataset.error = 'true';
+        finalBox.textContent = error instanceof Error ? error.message : 'Non se puido comprobar o illamento.';
+      }
+    } finally {
+      if (checkButton instanceof HTMLButtonElement) checkButton.disabled = false;
+    }
+  }
+
+  async function recorrer(tipo, accion, etiqueta) {
+    let cursor = '';
+    let procesados = 0;
+    let copiados = 0;
+    let omitidos = 0;
+    let bytes = 0;
+    let lotes = 0;
+
+    do {
+      estado(tipo, `${etiqueta}… ${procesados} obxectos procesados`, null, `Lote ${lotes + 1}`);
+      const result = await api({ accion, tipo, cursor });
+      lotes += 1;
+      procesados += Number(result.procesados || 0);
+      copiados += Number(result.copiados || result.coinciden || 0);
+      omitidos += Number(result.omitidos || 0);
+      bytes += Number(result.bytes || 0);
+      cursor = result.truncated ? String(result.cursor || '') : '';
+      const mb = (bytes / 1024 / 1024).toFixed(1);
+      estado(tipo, `${etiqueta}… ${procesados} obxectos`, null, `${mb} MB · ${copiados} correctos${omitidos ? ` · ${omitidos} xa estaban copiados` : ''}`);
+    } while (cursor);
+
+    return { procesados, copiados, omitidos, bytes, lotes };
+  }
+
+  async function clonarTipo(tipo) {
+    estado(tipo, 'Copiando desde o bucket real ao bucket Preview…', null);
+    const copia = await recorrer(tipo, 'copiar', 'Copiando');
+    estado(tipo, 'Copia rematada. Verificando obxecto por obxecto…', null);
+    const verificacion = await recorrer(tipo, 'verificar', 'Verificando');
+    if (verificacion.procesados !== copia.procesados || verificacion.copiados !== verificacion.procesados) {
+      throw new Error(`A verificación do bucket ${tipo} non coincide coa copia.`);
+    }
+    const mb = (verificacion.bytes / 1024 / 1024).toFixed(1);
+    estado(tipo, 'Copia completa e verificada.', 100, `${verificacion.procesados} obxectos · ${mb} MB verificados`);
+    return verificacion;
+  }
+
+  async function clonarTodo() {
+    if (!illamentoOk) return;
+    if (cloneButton instanceof HTMLButtonElement) cloneButton.disabled = true;
+    if (checkButton instanceof HTMLButtonElement) checkButton.disabled = true;
+    if (finalBox instanceof HTMLElement) finalBox.hidden = true;
+    try {
+      const publico = await clonarTipo('publico');
+      const privado = await clonarTipo('privado');
+      if (finalBox instanceof HTMLElement) {
+        finalBox.hidden = false;
+        finalBox.dataset.error = 'false';
+        finalBox.textContent = `Clonación terminada e verificada: ${publico.procesados} obxectos públicos e ${privado.procesados} privados. Xa podemos cambiar os bindings principais de Preview.`;
+      }
+    } catch (error) {
+      if (finalBox instanceof HTMLElement) {
+        finalBox.hidden = false;
+        finalBox.dataset.error = 'true';
+        finalBox.textContent = `${error instanceof Error ? error.message : 'Erro na clonación.'} Pódese repetir a operación: os obxectos xa copiados verifícanse e omítense.`;
+      }
+    } finally {
+      if (cloneButton instanceof HTMLButtonElement) cloneButton.disabled = !illamentoOk;
+      if (checkButton instanceof HTMLButtonElement) checkButton.disabled = false;
+    }
+  }
+
+  checkButton?.addEventListener('click', comprobarTodo);
+  cloneButton?.addEventListener('click', clonarTodo);
+  byId('migracion-r2-logout')?.addEventListener('click', async () => {
+    await closePortalSession();
+    window.location.href = '/';
+  });
+</script>
+
+<style>
+  :global(body){background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.private-layout>:global(.private-sidebar){flex:0 0 282px}.migration-main{flex:1;min-width:0;padding:clamp(1.6rem,3vw,3rem) clamp(1.4rem,3vw,3.5rem) 4rem;font-family:Aptos,'Segoe UI',Arial,sans-serif}.page-head{padding-bottom:1.3rem;border-bottom:1px solid #ddd5cf}.page-head span{color:#9a7b35;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.page-head h1{margin:.3rem 0 .55rem;color:#5d142b;font-size:clamp(2rem,3vw,2.8rem);font-weight:500}.page-head p{max-width:850px;margin:0;color:#625c58}.warning,.actions,.status-grid article,.final{margin-top:1rem;padding:1rem 1.1rem;border:1px solid #ddd5cf;background:#fff}.warning{border-left:4px solid #9a7b35}.warning p{margin:.4rem 0 0}.actions{display:flex;gap:.75rem;flex-wrap:wrap}.actions button{min-height:2.7rem;padding:.6rem .9rem;border:1px solid #5d142b;background:#5d142b;color:#fff;font:inherit;font-weight:700;cursor:pointer}.actions button:disabled{opacity:.45;cursor:not-allowed}.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.status-grid article{margin-top:0}.status-grid h2{margin:0 0 .5rem;color:#5d142b;font-size:1.1rem}.status-grid p{min-height:2.4em;margin:.2rem 0 .7rem}.status-grid progress{width:100%;height:.8rem}.status-grid small{display:block;margin-top:.55rem;color:#6f6661}.final[data-error='true']{border-left:4px solid #9a3944}.final[data-error='false']{border-left:4px solid #4f7654}@media(max-width:850px){.private-layout{display:block}.private-layout>:global(.private-sidebar){width:100%}.status-grid{grid-template-columns:1fr}}
+</style>
