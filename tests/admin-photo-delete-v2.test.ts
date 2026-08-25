@@ -4,24 +4,40 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const worker = readFileSync(resolve(root, 'functions/api/eliminar-foto-revision.js'), 'utf8');
+const route = readFileSync(resolve(root, 'functions/api/eliminar-foto-revision.js'), 'utf8');
+const worker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v3.js'), 'utf8');
 const appsScript = readFileSync(resolve(root, 'apps-script/fotos-administracion-v2.gs'), 'utf8');
+const orphanAppsScript = readFileSync(resolve(root, 'apps-script/fotos-huerfanas-v2.gs'), 'utf8');
 const prepare = readFileSync(resolve(root, 'scripts/prepare-fotos-admin-v2-preview.mjs'), 'utf8');
 const dispatcherClient = readFileSync(resolve(root, 'functions/_lib/apps-script.js'), 'utf8');
 const middleware = readFileSync(resolve(root, 'functions/portal/_middleware.js'), 'utf8');
 
-describe('Borrado de fotografías v2 en Preview', () => {
+describe('Borrado de fotografías v3 en Preview', () => {
+  it('mantén a ruta pública e delega no backend v3', () => {
+    expect(route).toContain("../_lib/fotos-delete-v3.js");
+    expect(route).toContain('onRequestFotosDeleteV3');
+  });
+
   it('non usa o borrado histórico nin fallback a produción', () => {
-    expect(worker).toContain("accion: 'eliminarFotoAdministracionPortal'");
+    expect(worker).toContain("'eliminarFotoAdministracionPortal'");
+    expect(worker).toContain("'eliminarFotoHuerfanaAdministracionPortal'");
     expect(worker).not.toContain("accion: 'eliminarFotoPortal'");
     expect(dispatcherClient).toContain("'eliminarFotoAdministracionPortal'");
+    expect(dispatcherClient).toContain("'eliminarFotoHuerfanaAdministracionPortal'");
   });
 
   it('está restrinxido ao host Preview e comproba marcadores dos buckets clonados', () => {
     expect(worker).toContain("const PREVIEW_HOST = 'preview.coralpolifonicapontevedra.org'");
     expect(worker).toContain('previewCloneSourceEtag');
-    expect(worker).toContain("meta.previewClone");
-    expect(worker).toContain("meta.backend");
+    expect(worker).toContain('meta.previewClone');
+    expect(worker).toContain('meta.backend');
+  });
+
+  it('só clasifica como huérfano un rexistro sen rutas nin residuos R2 coñecidos', () => {
+    expect(worker).toContain('residuosCoId');
+    expect(worker).toContain('ORPHAN_HAS_R2_RESIDUES');
+    expect(worker).toContain('huerfana: true');
+    expect(worker).toContain('fotos/editadas-miniaturas/${id}-');
   });
 
   it('retira primeiro os índices e fai rollback se falla a Sheet', () => {
@@ -37,9 +53,20 @@ describe('Borrado de fotografías v2 en Preview', () => {
     expect(appsScript).toContain('resolverPermisosPortal_');
   });
 
-  it('o preparador conecta a nova acción só no Apps Script de Preview', () => {
+  it('a limpeza huérfana non borra ficheiros e esixe que non existan en Drive', () => {
+    expect(orphanAppsScript).toContain('eliminarFotoHuerfanaAdministracionPortal_');
+    expect(orphanAppsScript).toContain('ORPHAN_HAS_R2_ROUTE');
+    expect(orphanAppsScript).toContain('ORPHAN_HAS_DRIVE_FILE');
+    expect(orphanAppsScript).toContain('getFilesByName');
+    expect(orphanAppsScript).not.toContain('setTrashed(true)');
+    expect(orphanAppsScript).not.toContain('DriveApp.getFileById');
+  });
+
+  it('o preparador conecta as dúas accións de borrado só no Apps Script de Preview', () => {
     expect(prepare).toContain("const PREVIEW_SCRIPT_ID = '1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF'");
     expect(prepare).toContain("accion === 'eliminarFotoAdministracionPortal'");
+    expect(prepare).toContain("accion === 'eliminarFotoHuerfanaAdministracionPortal'");
+    expect(prepare).toContain("fotos-huerfanas-v2.js");
   });
 
   it('retira a ferramenta temporal de migración e o bloqueo visual antigo', () => {
