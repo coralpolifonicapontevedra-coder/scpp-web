@@ -1,5 +1,5 @@
-import { onRequestFotosDeleteV3 } from '../_lib/fotos-delete-v3.js';
+import { onRequestFotosDeleteV4 } from '../_lib/fotos-delete-v4.js';
 
 export async function onRequest(context) {
-  return onRequestFotosDeleteV3(context);
+  return onRequestFotosDeleteV4(context);
 }
