@@ -1,0 +1,503 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+import AdministracionNav from '../../../components/AdministracionNav.astro';
+---
+
+<BaseLayout title="Administración de fotografías" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="administracion" logoutId="admin-fotos-logout" />
+    <main class="photos-main">
+      <header class="private-page-header">
+        <div>
+          <span class="section-kicker">Administración</span>
+          <h1>Fotografías</h1>
+          <p>Revisa o arquivo, comproba as miniaturas e cambia a publicación usando R2 como fonte rápida. A Sheet só se toca ao gardar cambios.</p>
+        </div>
+        <div class="account-card">
+          <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
+          <span><small>Fonte de apertura</small><strong id="source-label">R2</strong></span>
+        </div>
+      </header>
+
+      <AdministracionNav active="fotografias" />
+
+      <section id="loading" class="state-box">Abrindo o catálogo e as miniaturas desde R2…</section>
+      <section id="error-state" class="state-box error-box" hidden>
+        <strong>Non foi posible abrir Fotografías</strong>
+        <p id="error-message"></p>
+        <button id="retry" type="button" class="secondary">Tentar de novo</button>
+      </section>
+
+      <section id="app" hidden>
+        <div id="summary" class="summary-grid" aria-label="Resumo do arquivo"></div>
+
+        <div class="photos-toolbar">
+          <label class="search-field">
+            <span>Buscar</span>
+            <input id="search" type="search" placeholder="Título, pé de foto, lugar…" autocomplete="off" />
+          </label>
+          <label>
+            <span>Estado</span>
+            <select id="filter">
+              <option value="todas">Todas</option>
+              <option value="pendente">Pendentes de revisión</option>
+              <option value="publica">Galería pública</option>
+              <option value="privada">Galería privada</option>
+              <option value="nonpublicada">Non publicadas</option>
+              <option value="rexeitada">Rexeitadas</option>
+            </select>
+          </label>
+          <div class="toolbar-meta">
+            <strong id="visible-count">0 fotografías</strong>
+            <small id="generated-at">Índice R2</small>
+          </div>
+        </div>
+
+        <div id="photos-grid" class="photos-grid" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="photo-dialog" class="photo-dialog">
+    <form id="photo-form" method="dialog">
+      <header class="dialog-head">
+        <div><small>Administración · Fotografías</small><h2 id="dialog-title">Fotografía</h2></div>
+        <button id="dialog-close" type="button" class="icon-button" aria-label="Pechar">×</button>
+      </header>
+
+      <div class="dialog-body">
+        <section class="dialog-image-panel">
+          <div class="dialog-image-wrap">
+            <img id="dialog-image" alt="Fotografía seleccionada" />
+            <div id="dialog-image-placeholder" class="image-placeholder">Miniatura non dispoñible</div>
+          </div>
+          <div class="image-actions">
+            <a id="open-editor" class="secondary-link" href="/portal/revision-fotos/">Editar imaxe</a>
+            <small>O editor completo só carga o orixinal cando o abres.</small>
+          </div>
+        </section>
+
+        <section class="dialog-fields">
+          <label><span>Título ou descrición</span><input id="title" maxlength="120" /></label>
+          <label><span>Pé de foto</span><textarea id="caption" rows="4" maxlength="600"></textarea></label>
+          <label><span>Observacións privadas</span><textarea id="notes" rows="3" maxlength="500"></textarea></label>
+
+          <fieldset>
+            <legend>Destino da publicación</legend>
+            <label class="check-row"><input id="publish-public" type="checkbox" /><span><strong>Galería pública</strong><small>Visible para calquera visitante</small></span></label>
+            <label class="check-row"><input id="publish-private" type="checkbox" /><span><strong>Galería privada</strong><small>Visible para persoas autorizadas</small></span></label>
+          </fieldset>
+
+          <div id="dialog-meta" class="dialog-meta"></div>
+          <p id="dialog-message" class="dialog-message" role="status"></p>
+        </section>
+      </div>
+
+      <footer class="dialog-footer">
+        <button id="delete-photo" type="button" class="danger">Eliminar definitivamente</button>
+        <div>
+          <button id="cancel-dialog" type="button" class="secondary">Cancelar</button>
+          <button id="save-photo" type="button" class="primary">Gardar e verificar</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
+</BaseLayout>
+
+<script>
+  import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+
+  const $ = (selector) => document.querySelector(selector);
+  const loading = $('#loading');
+  const errorState = $('#error-state');
+  const errorMessage = $('#error-message');
+  const app = $('#app');
+  const grid = $('#photos-grid');
+  const summary = $('#summary');
+  const search = $('#search');
+  const filter = $('#filter');
+  const visibleCount = $('#visible-count');
+  const generatedAt = $('#generated-at');
+  const sourceLabel = $('#source-label');
+  const userEmail = $('#user-email');
+  const dialog = $('#photo-dialog');
+  const dialogTitle = $('#dialog-title');
+  const dialogImage = $('#dialog-image');
+  const dialogImagePlaceholder = $('#dialog-image-placeholder');
+  const dialogMeta = $('#dialog-meta');
+  const dialogMessage = $('#dialog-message');
+  const publishPublic = $('#publish-public');
+  const publishPrivate = $('#publish-private');
+  const titleInput = $('#title');
+  const captionInput = $('#caption');
+  const notesInput = $('#notes');
+  const openEditor = $('#open-editor');
+
+  let fotos = [];
+  let resumo = {};
+  let seleccionada = null;
+  let thumbObserver = null;
+  let queueTimer = 0;
+  const thumbQueue = new Set();
+  const thumbCache = new Map();
+
+  const texto = (v = '') => String(v ?? '').trim();
+  const esc = (v = '') => texto(v)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+  async function token(force = false) {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('A sesión non está activa.');
+    return user.getIdToken(force);
+  }
+
+  async function apiFotos(body, retryAuth = true) {
+    const response = await fetch('/api/administracion-fotografias', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({ idToken: await token(), ...body })
+    });
+    const result = await response.json().catch(() => null);
+    if (response.status === 401 && retryAuth) {
+      await token(true);
+      return apiFotos(body, false);
+    }
+    if (response.status === 403 && retryAuth) {
+      await prepararPermisoAdministracion();
+      return apiFotos(body, false);
+    }
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro HTTP ${response.status}`);
+    return result;
+  }
+
+  async function prepararPermisoAdministracion() {
+    const response = await fetch('/api/persoas-v2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({ idToken: await token(true), accion: 'listarPersoasAdministracion' })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok || result?.perfil?.nivel !== 'Administración') {
+      throw new Error(result?.erro || 'Non se puido verificar o permiso de administración.');
+    }
+  }
+
+  async function apiPublicacion(body) {
+    const response = await fetch('/api/xestion-publicacion-foto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({ idToken: await token(), ...body })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro HTTP ${response.status}`);
+    return result;
+  }
+
+  async function apiDelete(idFoto) {
+    const response = await fetch('/api/eliminar-foto-revision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({ idToken: await token(), idFoto, rowId: idFoto })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro HTTP ${response.status}`);
+    return result;
+  }
+
+  function labelEstado(foto) {
+    if (foto.publicarPublica && foto.publicarPrivada) return 'Pública e privada';
+    if (foto.publicarPublica) return 'Pública';
+    if (foto.publicarPrivada) return 'Privada';
+    if (foto.estadoXestion === 'pendente') return 'Pendente';
+    if (foto.estadoXestion === 'rexeitada') return 'Rexeitada';
+    return 'Non publicada';
+  }
+
+  function claseEstado(foto) {
+    if (foto.publicarPublica && foto.publicarPrivada) return 'both';
+    if (foto.publicarPublica) return 'public';
+    if (foto.publicarPrivada) return 'private';
+    return foto.estadoXestion || 'none';
+  }
+
+  function coincide(foto) {
+    const q = texto(search instanceof HTMLInputElement ? search.value : '').toLowerCase();
+    const estado = texto(filter instanceof HTMLSelectElement ? filter.value : 'todas');
+    const haystack = [foto.titulo, foto.peFoto, foto.lugar, foto.autoria, foto.procedencia, foto.evento, foto.concerto]
+      .map(texto).join(' ').toLowerCase();
+    const buscaOk = !q || haystack.includes(q);
+    let estadoOk = true;
+    if (estado === 'pendente') estadoOk = foto.estadoXestion === 'pendente';
+    if (estado === 'publica') estadoOk = foto.publicarPublica === true;
+    if (estado === 'privada') estadoOk = foto.publicarPrivada === true;
+    if (estado === 'nonpublicada') estadoOk = foto.publicarPublica !== true && foto.publicarPrivada !== true && foto.estadoXestion !== 'pendente' && foto.estadoXestion !== 'rexeitada';
+    if (estado === 'rexeitada') estadoOk = foto.estadoXestion === 'rexeitada';
+    return buscaOk && estadoOk;
+  }
+
+  function pintarResumo() {
+    if (!(summary instanceof HTMLElement)) return;
+    const items = [
+      ['todas', resumo.total || fotos.length, 'Todas'],
+      ['pendente', resumo.pendentes || 0, 'Pendentes'],
+      ['publica', resumo.publicas || 0, 'Públicas'],
+      ['privada', resumo.privadas || 0, 'Privadas'],
+      ['nonpublicada', resumo.nonPublicadas || 0, 'Non publicadas']
+    ];
+    summary.innerHTML = items.map(([value, number, label]) => `
+      <button type="button" data-filter="${value}">
+        <strong>${number}</strong><span>${label}</span>
+      </button>`).join('');
+    summary.querySelectorAll('button').forEach((button) => button.addEventListener('click', () => {
+      if (filter instanceof HTMLSelectElement) filter.value = button.dataset.filter || 'todas';
+      pintar();
+    }));
+  }
+
+  function placeholderSvg() {
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450"><rect width="600" height="450" fill="#eeeae6"/><path d="M160 315l95-105 65 67 50-53 70 91" fill="none" stroke="#b9afa8" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/><circle cx="220" cy="150" r="35" fill="none" stroke="#b9afa8" stroke-width="18"/></svg>')}`;
+  }
+
+  function pintar() {
+    if (!(grid instanceof HTMLElement)) return;
+    const lista = fotos.filter(coincide);
+    if (visibleCount instanceof HTMLElement) visibleCount.textContent = `${lista.length} fotografía${lista.length === 1 ? '' : 's'}`;
+    if (!lista.length) {
+      grid.innerHTML = '<section class="state-box empty-state">Non hai fotografías que coincidan con este filtro.</section>';
+      return;
+    }
+
+    grid.innerHTML = lista.map((foto) => {
+      const cached = thumbCache.get(foto.idFoto);
+      const meta = [foto.data || foto.anoAproximado, foto.lugar].filter(Boolean).join(' · ');
+      return `<article class="photo-card" data-id="${esc(foto.idFoto)}">
+        <button type="button" class="photo-open" data-open="${esc(foto.idFoto)}">
+          <div class="thumb-wrap">
+            <img class="photo-thumb${cached ? ' is-ready' : ''}" data-thumb-id="${esc(foto.idFoto)}" src="${cached || placeholderSvg()}" alt="${esc(foto.titulo)}" loading="lazy" />
+            <span class="status-badge status-${claseEstado(foto)}">${esc(labelEstado(foto))}</span>
+          </div>
+          <div class="photo-copy">
+            <h2>${esc(foto.titulo)}</h2>
+            <p>${esc(foto.peFoto || meta || 'Sen descrición adicional')}</p>
+            ${meta ? `<small>${esc(meta)}</small>` : ''}
+          </div>
+        </button>
+      </article>`;
+    }).join('');
+
+    grid.querySelectorAll('[data-open]').forEach((button) => button.addEventListener('click', () => abrirFoto(button.dataset.open || '')));
+    observarMiniaturas();
+  }
+
+  function observarMiniaturas() {
+    thumbObserver?.disconnect();
+    thumbObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const img = entry.target;
+        const id = img instanceof HTMLImageElement ? texto(img.dataset.thumbId) : '';
+        if (id && !thumbCache.has(id)) encolarMiniatura(id);
+        thumbObserver.unobserve(entry.target);
+      }
+    }, { rootMargin: '320px' });
+    document.querySelectorAll('.photo-thumb').forEach((img) => {
+      if (img instanceof HTMLImageElement && !thumbCache.has(texto(img.dataset.thumbId))) thumbObserver.observe(img);
+    });
+  }
+
+  function encolarMiniatura(id) {
+    thumbQueue.add(id);
+    if (queueTimer) return;
+    queueTimer = window.setTimeout(cargarLoteMiniaturas, 55);
+  }
+
+  async function cargarLoteMiniaturas() {
+    queueTimer = 0;
+    const ids = [...thumbQueue].slice(0, 18);
+    ids.forEach((id) => thumbQueue.delete(id));
+    if (!ids.length) return;
+    try {
+      const result = await apiFotos({ accion: 'miniaturas', ids });
+      for (const item of result.imaxes || []) {
+        if (!item?.ok || !item.idFoto || !item.base64) continue;
+        const src = `data:${item.mimeType || 'image/jpeg'};base64,${item.base64}`;
+        thumbCache.set(item.idFoto, src);
+        document.querySelectorAll(`[data-thumb-id="${CSS.escape(item.idFoto)}"]`).forEach((img) => {
+          if (img instanceof HTMLImageElement) {
+            img.src = src;
+            img.classList.add('is-ready');
+          }
+        });
+        if (seleccionada?.idFoto === item.idFoto) pintarImaxeDialog();
+      }
+    } catch (error) {
+      console.warn('Non se puido cargar un lote de miniaturas:', error);
+    } finally {
+      if (thumbQueue.size) queueTimer = window.setTimeout(cargarLoteMiniaturas, 80);
+    }
+  }
+
+  function pintarImaxeDialog() {
+    if (!(dialogImage instanceof HTMLImageElement) || !(dialogImagePlaceholder instanceof HTMLElement) || !seleccionada) return;
+    const src = thumbCache.get(seleccionada.idFoto);
+    dialogImage.hidden = !src;
+    dialogImagePlaceholder.hidden = Boolean(src);
+    if (src) dialogImage.src = src;
+    else encolarMiniatura(seleccionada.idFoto);
+  }
+
+  function abrirFoto(id) {
+    const foto = fotos.find((item) => item.idFoto === id);
+    if (!foto || !(dialog instanceof HTMLDialogElement)) return;
+    seleccionada = foto;
+    if (dialogTitle instanceof HTMLElement) dialogTitle.textContent = foto.titulo;
+    if (titleInput instanceof HTMLInputElement) titleInput.value = foto.titulo;
+    if (captionInput instanceof HTMLTextAreaElement) captionInput.value = foto.peFoto || '';
+    if (notesInput instanceof HTMLTextAreaElement) notesInput.value = foto.observacions || '';
+    if (publishPublic instanceof HTMLInputElement) publishPublic.checked = foto.publicarPublica === true;
+    if (publishPrivate instanceof HTMLInputElement) publishPrivate.checked = foto.publicarPrivada === true;
+    if (openEditor instanceof HTMLAnchorElement) openEditor.href = `/portal/revision-fotos/?idFoto=${encodeURIComponent(id)}`;
+    if (dialogMeta instanceof HTMLElement) {
+      const valores = [
+        foto.data || foto.anoAproximado ? `<span><small>Data</small><strong>${esc(foto.data || foto.anoAproximado)}</strong></span>` : '',
+        foto.lugar ? `<span><small>Lugar</small><strong>${esc(foto.lugar)}</strong></span>` : '',
+        foto.autoria ? `<span><small>Autoría</small><strong>${esc(foto.autoria)}</strong></span>` : '',
+        `<span><small>Estado</small><strong>${esc(labelEstado(foto))}</strong></span>`
+      ].filter(Boolean);
+      dialogMeta.innerHTML = valores.join('');
+    }
+    if (dialogMessage instanceof HTMLElement) {
+      dialogMessage.textContent = 'Os cambios de publicación actualizan e verifican R2 e Sheet antes de confirmar.';
+      dialogMessage.dataset.error = 'false';
+    }
+    pintarImaxeDialog();
+    dialog.showModal();
+  }
+
+  function pecharDialog() {
+    if (dialog instanceof HTMLDialogElement) dialog.close();
+    seleccionada = null;
+  }
+
+  async function gardarSeleccionada() {
+    if (!seleccionada) return;
+    const button = $('#save-photo');
+    if (button instanceof HTMLButtonElement) button.disabled = true;
+    if (dialogMessage instanceof HTMLElement) {
+      dialogMessage.textContent = 'Gardando e verificando Sheet e índices R2…';
+      dialogMessage.dataset.error = 'false';
+    }
+    try {
+      const result = await apiPublicacion({
+        accion: 'gardar',
+        idFoto: seleccionada.idFoto,
+        publicarPublica: publishPublic instanceof HTMLInputElement && publishPublic.checked,
+        publicarPrivada: publishPrivate instanceof HTMLInputElement && publishPrivate.checked,
+        titulo: titleInput instanceof HTMLInputElement ? titleInput.value : seleccionada.titulo,
+        peFoto: captionInput instanceof HTMLTextAreaElement ? captionInput.value : seleccionada.peFoto,
+        observacions: notesInput instanceof HTMLTextAreaElement ? notesInput.value : seleccionada.observacions
+      });
+      if (dialogMessage instanceof HTMLElement) dialogMessage.textContent = result.mensaxe || 'Cambios gardados e verificados.';
+      const id = seleccionada.idFoto;
+      await cargar(false);
+      const actualizada = fotos.find((foto) => foto.idFoto === id);
+      if (actualizada) {
+        seleccionada = actualizada;
+        window.setTimeout(() => abrirFoto(id), 0);
+      }
+    } catch (error) {
+      if (dialogMessage instanceof HTMLElement) {
+        dialogMessage.textContent = error instanceof Error ? error.message : 'Non se puido gardar.';
+        dialogMessage.dataset.error = 'true';
+      }
+    } finally {
+      if (button instanceof HTMLButtonElement) button.disabled = false;
+    }
+  }
+
+  async function eliminarSeleccionada() {
+    if (!seleccionada) return;
+    const nome = seleccionada.titulo || 'esta fotografía';
+    if (!window.confirm(`Eliminar definitivamente «${nome}»?\n\nEliminarase o rexistro da Sheet, o orixinal de Drive e as copias de R2. Esta acción non se pode desfacer.`)) return;
+    const button = $('#delete-photo');
+    if (button instanceof HTMLButtonElement) button.disabled = true;
+    if (dialogMessage instanceof HTMLElement) dialogMessage.textContent = 'Eliminando a fotografía…';
+    try {
+      await apiDelete(seleccionada.idFoto);
+      thumbCache.delete(seleccionada.idFoto);
+      pecharDialog();
+      await cargar(false);
+    } catch (error) {
+      if (dialogMessage instanceof HTMLElement) {
+        dialogMessage.textContent = error instanceof Error ? error.message : 'Non se puido eliminar.';
+        dialogMessage.dataset.error = 'true';
+      }
+    } finally {
+      if (button instanceof HTMLButtonElement) button.disabled = false;
+    }
+  }
+
+  function formatoDataIndice(value) {
+    const raw = texto(value);
+    if (!raw) return 'Índice R2 preparado';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return 'Índice R2 preparado';
+    return `Índice R2 · ${new Intl.DateTimeFormat('gl-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(d)}`;
+  }
+
+  async function cargar(showLoading = true) {
+    if (showLoading && loading instanceof HTMLElement) loading.hidden = false;
+    if (errorState instanceof HTMLElement) errorState.hidden = true;
+    try {
+      const user = await waitForPortalUser();
+      if (!user?.email) throw new Error('Non hai unha sesión válida.');
+      if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
+      const started = performance.now();
+      const result = await apiFotos({ accion: 'listar' });
+      fotos = Array.isArray(result.fotos) ? result.fotos : [];
+      resumo = result;
+      if (sourceLabel instanceof HTMLElement) sourceLabel.textContent = `${result.orixe || 'R2'} · ${Math.round(performance.now() - started)} ms`;
+      if (generatedAt instanceof HTMLElement) generatedAt.textContent = formatoDataIndice(result.xeradoEn);
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (app instanceof HTMLElement) app.hidden = false;
+      pintarResumo();
+      pintar();
+    } catch (error) {
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (app instanceof HTMLElement) app.hidden = true;
+      if (errorState instanceof HTMLElement) errorState.hidden = false;
+      if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Produciuse un erro inesperado.';
+    }
+  }
+
+  search?.addEventListener('input', pintar);
+  filter?.addEventListener('change', pintar);
+  $('#retry')?.addEventListener('click', () => cargar(true));
+  $('#dialog-close')?.addEventListener('click', pecharDialog);
+  $('#cancel-dialog')?.addEventListener('click', pecharDialog);
+  $('#save-photo')?.addEventListener('click', gardarSeleccionada);
+  $('#delete-photo')?.addEventListener('click', eliminarSeleccionada);
+  $('#admin-fotos-logout')?.addEventListener('click', async () => {
+    await closePortalSession();
+    window.location.href = '/';
+  });
+  dialog?.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    pecharDialog();
+  });
+
+  cargar(true);
+</script>
+
+<style>
+  :global(body){background:#f5f3f1}.private-layout{display:flex;width:100%;min-height:100vh}.private-layout>:global(.private-sidebar){flex:0 0 282px}.photos-main{flex:1 1 auto;min-width:0;padding:clamp(1.6rem,3vw,3rem) clamp(1.4rem,3vw,3.5rem) 4rem;font-family:Aptos,'Segoe UI',Arial,sans-serif}.private-page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:2rem;margin-bottom:1.8rem;padding-bottom:1.35rem;border-bottom:1px solid #ded8d3}.private-page-header h1{margin:.25rem 0 .55rem;color:#5d142b;font-size:clamp(2rem,3vw,2.8rem);font-weight:500}.private-page-header p{max-width:780px;margin:0;color:#625c58}.section-kicker{color:#9a7b35;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.account-card{display:grid;flex:0 0 min(330px,32vw);gap:.75rem;min-width:260px;padding:1rem 1.15rem;border:1px solid #ded8d3;background:#fff}.account-card span{display:grid;gap:.18rem}.account-card span+span{padding-top:.7rem;border-top:1px solid #eee8e5}.account-card small,.toolbar-meta small{color:#7c726d;font-size:.68rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase}.account-card strong{overflow-wrap:anywhere;color:#34312f;font-size:.88rem}.state-box{padding:1.1rem 1.2rem;border:1px solid #ded8d3;background:#fff}.error-box{border-left:4px solid #9a3944}.error-box p{margin:.5rem 0 1rem}.summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}.summary-grid button{display:grid;gap:.18rem;padding:.9rem 1rem;border:1px solid #ded8d3;background:#fff;text-align:left;cursor:pointer}.summary-grid button:hover{border-color:#8f6672}.summary-grid strong{color:#5d142b;font-size:1.45rem}.summary-grid span{color:#6e6661;font-size:.77rem;font-weight:700}.photos-toolbar{display:grid;grid-template-columns:minmax(280px,1fr) 230px auto;gap:.75rem;align-items:end;margin-bottom:1.1rem;padding:.85rem 1rem;border:1px solid #ded8d3;background:#fff}.photos-toolbar label{display:grid;gap:.3rem}.photos-toolbar label>span{color:#6c625e;font-size:.67rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase}.photos-toolbar input,.photos-toolbar select{min-height:2.55rem;padding:.55rem .65rem;border:1px solid #d4ccc6;background:#fff;font:inherit}.toolbar-meta{display:grid;gap:.18rem;justify-items:end;padding-bottom:.25rem}.toolbar-meta strong{font-size:.86rem}.photos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1rem}.photo-card{min-width:0;border:1px solid #ddd6d1;background:#fff;box-shadow:0 3px 12px rgba(51,42,39,.035)}.photo-open{display:block;width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.thumb-wrap{position:relative;aspect-ratio:4/3;overflow:hidden;background:#eeeae6}.photo-thumb{display:block;width:100%;height:100%;object-fit:cover;filter:saturate(.9);transition:opacity .18s ease,transform .18s ease}.photo-open:hover .photo-thumb{transform:scale(1.015)}.status-badge{position:absolute;top:.7rem;right:.7rem;padding:.33rem .55rem;border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.94);box-shadow:0 2px 8px rgba(0,0,0,.08);font-size:.68rem;font-weight:800}.status-public{color:#36546e}.status-private{color:#62436b}.status-both{color:#315d37}.status-pendente{color:#7a5a16}.status-rexeitada{color:#873838}.status-nonpublicada{color:#706963}.photo-copy{display:grid;gap:.38rem;padding:.9rem 1rem 1rem}.photo-copy h2{margin:0;color:#442932;font-size:1rem;line-height:1.3}.photo-copy p{display:-webkit-box;overflow:hidden;margin:0;color:#69615d;font-size:.8rem;line-height:1.45;-webkit-line-clamp:2;-webkit-box-orient:vertical}.photo-copy small{color:#8a7c76;font-size:.7rem}.empty-state{grid-column:1/-1}.secondary,.primary,.danger,.secondary-link{min-height:2.5rem;padding:.55rem .8rem;border:1px solid #cfc7c1;background:#fff;color:#4b4642;font:inherit;font-size:.82rem;font-weight:700;text-decoration:none;cursor:pointer}.primary{border-color:#5d142b;background:#5d142b;color:#fff}.danger{border-color:#b78d91;color:#8b3038;background:#fff8f8}.secondary-link{display:inline-flex;align-items:center;justify-content:center}.photo-dialog{width:min(1120px,94vw);max-height:92vh;padding:0;border:1px solid #cfc7c1;background:#fff}.photo-dialog::backdrop{background:rgba(33,26,28,.45)}.photo-dialog form{display:grid;max-height:92vh}.dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.05rem 1.2rem;border-bottom:1px solid #e3ddd8}.dialog-head small{color:#9a7b35;font-size:.66rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.dialog-head h2{margin:.18rem 0 0;color:#5d142b;font-size:1.35rem}.icon-button{width:2.2rem;height:2.2rem;border:0;background:transparent;font-size:1.65rem;cursor:pointer}.dialog-body{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(330px,.75fr);min-height:0;overflow:auto}.dialog-image-panel{padding:1rem;background:#eeeae6}.dialog-image-wrap{display:grid;min-height:470px;place-items:center;overflow:hidden;background:#ddd7d2}.dialog-image-wrap img{display:block;max-width:100%;max-height:68vh;object-fit:contain}.image-placeholder{color:#80746d;font-size:.85rem}.image-actions{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.75rem}.image-actions small{color:#756c67;font-size:.72rem}.dialog-fields{display:grid;align-content:start;gap:.8rem;padding:1rem 1.15rem}.dialog-fields>label{display:grid;gap:.3rem}.dialog-fields>label>span,.dialog-fields legend{color:#665d59;font-size:.67rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase}.dialog-fields input[type=text],.dialog-fields input:not([type]),.dialog-fields textarea{width:100%;padding:.6rem .65rem;border:1px solid #d4ccc6;background:#fff;font:inherit;resize:vertical}.dialog-fields fieldset{display:grid;gap:.15rem;margin:.25rem 0 0;padding:.75rem;border:1px solid #ddd6d1}.check-row{display:grid;grid-template-columns:auto 1fr;gap:.65rem;align-items:start;padding:.55rem 0}.check-row input{margin-top:.2rem}.check-row span{display:grid;gap:.1rem}.check-row strong{font-size:.82rem}.check-row small{color:#776f6a;font-size:.71rem}.dialog-meta{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #eee8e5}.dialog-meta span{display:grid;gap:.15rem;padding:.65rem 0;border-bottom:1px solid #eee8e5}.dialog-meta small{color:#81736e;font-size:.62rem;font-weight:800;text-transform:uppercase}.dialog-meta strong{font-size:.78rem}.dialog-message{min-height:2.4rem;margin:0;padding:.65rem;border-left:3px solid #9a7b35;background:#faf8f6;color:#655d59;font-size:.77rem}.dialog-message[data-error=true]{border-left-color:#9a3944;color:#873838}.dialog-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 1.15rem;border-top:1px solid #e3ddd8}.dialog-footer>div{display:flex;gap:.55rem}.dialog-footer button:disabled{opacity:.55;cursor:wait}@media(max-width:1100px){.summary-grid{grid-template-columns:repeat(3,1fr)}.photos-toolbar{grid-template-columns:1fr 220px}.toolbar-meta{grid-column:1/-1;justify-items:start}.dialog-body{grid-template-columns:1fr}.dialog-image-wrap{min-height:360px}}@media(max-width:820px){.private-layout{display:block}.private-layout>:global(.private-sidebar){width:100%;height:auto}.photos-main{padding:1.2rem 1rem 3rem}.private-page-header{display:block}.account-card{min-width:0;margin-top:1rem}.summary-grid{grid-template-columns:repeat(2,1fr)}.photos-toolbar{grid-template-columns:1fr}.photos-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}.toolbar-meta{grid-column:auto}.dialog-footer{align-items:stretch;flex-direction:column}.dialog-footer>div{display:grid;grid-template-columns:1fr 1fr}.danger{width:100%}}@media(max-width:560px){.summary-grid{grid-template-columns:1fr 1fr}.photos-grid{grid-template-columns:1fr}.photo-dialog{width:96vw}.dialog-image-wrap{min-height:260px}.dialog-meta{grid-template-columns:1fr}.image-actions{align-items:stretch;flex-direction:column}.secondary-link{width:100%}}
+</style>
