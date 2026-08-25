@@ -150,3 +150,102 @@ function gardarFotoAdministracionPortal_(datos) {
     mensaxe: 'Fotografía gardada e verificada coa autorización central de Administración'
   };
 }
+
+/*
+ * Borrado v2: deliberadamente restrinxido aos recursos físicos de Preview.
+ * Esta garda evita que unha configuración accidental do Web App poida eliminar
+ * unha fotografía da Sheet ou da carpeta de produción.
+ */
+var FOTOS_PREVIEW_SPREADSHEET_ID_V2_ = '1QnsnM2dTpsme0-xPynEZVOAEdY4gKkvnvhKKtKPVEDY';
+var FOTOS_PREVIEW_FOLDER_ID_V2_ = '1dlNy6ht2AZcSRJF_CkWH-XbGIsTijMiO';
+
+function validarEntornoEliminacionFotosV2_() {
+  var props = PropertiesService.getScriptProperties();
+  var spreadsheetId = String(props.getProperty('FOTOS_SPREADSHEET_ID') || '').trim();
+  var folderId = String(props.getProperty('FOTOS_FOLDER_ID') || '').trim();
+  if (spreadsheetId !== FOTOS_PREVIEW_SPREADSHEET_ID_V2_ || folderId !== FOTOS_PREVIEW_FOLDER_ID_V2_) {
+    return {
+      ok: false,
+      codigo: 'ENVIRONMENT_MISMATCH',
+      erro: 'Borrado bloqueado: os recursos configurados non son os de Preview.'
+    };
+  }
+  return { ok: true, spreadsheetId: spreadsheetId, folderId: folderId };
+}
+
+function eliminarFotoAdministracionPortal_(datos) {
+  datos = datos || {};
+  var permiso = permisoFotosAdministracionV2_(datos.email);
+  if (!permiso.ok) {
+    return { ok: false, codigo: 'FORBIDDEN', erro: 'Administración non autorizada' };
+  }
+
+  var entorno = validarEntornoEliminacionFotosV2_();
+  if (!entorno.ok) return entorno;
+
+  var idFoto = String(datos.idFoto || '').trim();
+  if (!idFoto) return { ok: false, codigo: 'BAD_REQUEST', erro: 'Falta o identificador da fotografía' };
+
+  var contexto = contextoFotosAdministracionV2_();
+  var sheet = contexto.sheet;
+  var index = contexto.index;
+  var values = sheet.getDataRange().getValues();
+  var rowIndex = values.findIndex(function (row, i) {
+    return i > 0 && String(row[index.Id_Foto] || '').trim() === idFoto;
+  });
+
+  if (rowIndex === -1) {
+    return {
+      ok: true,
+      idFoto: idFoto,
+      xaEliminada: true,
+      entorno: 'preview',
+      mensaxe: 'A fotografía xa non estaba na Sheet de Preview.'
+    };
+  }
+
+  var row = values[rowIndex];
+  var rutaDrive = typeof index.Foto === 'number' ? String(row[index.Foto] || '').trim() : '';
+  var nomeDrive = rutaDrive ? rutaDrive.split('/').pop() : '';
+  var rowNumber = rowIndex + 1;
+
+  sheet.deleteRow(rowNumber);
+  SpreadsheetApp.flush();
+
+  var idsAfter = sheet.getLastRow() > 1
+    ? sheet.getRange(2, index.Id_Foto + 1, sheet.getLastRow() - 1, 1).getValues()
+    : [];
+  var segueNaSheet = idsAfter.some(function (fila) {
+    return String(fila[0] || '').trim() === idFoto;
+  });
+  if (segueNaSheet) {
+    return { ok: false, codigo: 'VERIFY_FAILED', erro: 'A fotografía segue presente na Sheet tras o borrado.' };
+  }
+
+  var driveEliminados = 0;
+  var avisoDrive = '';
+  if (nomeDrive) {
+    try {
+      var carpeta = DriveApp.getFolderById(entorno.folderId);
+      var ficheiros = carpeta.getFilesByName(nomeDrive);
+      while (ficheiros.hasNext()) {
+        ficheiros.next().setTrashed(true);
+        driveEliminados++;
+      }
+    } catch (erroDrive) {
+      avisoDrive = 'A fila eliminouse, pero non se puido enviar o ficheiro de Drive á papeleira.';
+      console.error(avisoDrive + ' ' + erroDrive);
+    }
+  }
+
+  return {
+    ok: true,
+    idFoto: idFoto,
+    xaEliminada: false,
+    entorno: 'preview',
+    driveEliminados: driveEliminados,
+    avisoDrive: avisoDrive,
+    permisoFonte: permiso.fonte,
+    mensaxe: avisoDrive || 'Fotografía eliminada da Sheet e do Drive de Preview.'
+  };
+}
