@@ -71,9 +71,8 @@ function valorBooleanoFotosAdministracionV2_(valor) {
     .indexOf(String(valor || '').trim().toLowerCase()) !== -1;
 }
 
-function gardarCampoFotosAdministracionV2_(sheet, row, index, header, value) {
-  if (typeof index[header] !== 'number') return;
-  sheet.getRange(row, index[header] + 1).setValue(value);
+function asignarFotoAdministracionV2_(row, index, header, value) {
+  if (typeof index[header] === 'number') row[index[header]] = value;
 }
 
 function gardarFotoAdministracionPortal_(datos) {
@@ -96,42 +95,40 @@ function gardarFotoAdministracionPortal_(datos) {
   if (rowIndex === -1) return { ok: false, erro: 'Non se atopou a fotografía' };
 
   var rowNumber = rowIndex + 1;
+  var row = values[rowIndex].slice();
   var publicarPublica = datos.publicarPublica === true;
   var publicarPrivada = datos.publicarPrivada === true;
   var destacadaPublica = publicarPublica && datos.destacadaPublica === true;
   var destacadaPrivada = publicarPrivada && datos.destacadaPrivada === true;
   var agora = new Date();
 
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Titulo', String(datos.titulo || '').trim());
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'PeFoto', String(datos.peFoto || '').trim());
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Observacions', String(datos.observacions || '').trim());
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'EstadoRevision', 'Aprobada');
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Publicar_Publica', publicarPublica);
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Publicar_Privada', publicarPrivada);
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Destacada_Publica', destacadaPublica);
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Destacada_Privada', destacadaPrivada);
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Data_Revision', agora);
-  gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Revisada_Por', permiso.email);
+  asignarFotoAdministracionV2_(row, index, 'Titulo', String(datos.titulo || '').trim());
+  asignarFotoAdministracionV2_(row, index, 'PeFoto', String(datos.peFoto || '').trim());
+  asignarFotoAdministracionV2_(row, index, 'Observacions', String(datos.observacions || '').trim());
+  asignarFotoAdministracionV2_(row, index, 'EstadoRevision', 'Aprobada');
+  asignarFotoAdministracionV2_(row, index, 'Publicar_Publica', publicarPublica);
+  asignarFotoAdministracionV2_(row, index, 'Publicar_Privada', publicarPrivada);
+  asignarFotoAdministracionV2_(row, index, 'Destacada_Publica', destacadaPublica);
+  asignarFotoAdministracionV2_(row, index, 'Destacada_Privada', destacadaPrivada);
+  asignarFotoAdministracionV2_(row, index, 'Data_Revision', agora);
+  asignarFotoAdministracionV2_(row, index, 'Revisada_Por', permiso.email);
 
   var rutaPublica = String(datos.rutaR2Publica || '').trim();
   var rutaPrivada = String(datos.rutaR2Privada || '').trim();
-  if (rutaPublica) {
-    gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'RutaR2_Publica', rutaPublica);
-  }
-  if (rutaPrivada) {
-    gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'RutaR2_Privada', rutaPrivada);
-  }
+  if (rutaPublica) asignarFotoAdministracionV2_(row, index, 'RutaR2_Publica', rutaPublica);
+  if (rutaPrivada) asignarFotoAdministracionV2_(row, index, 'RutaR2_Privada', rutaPrivada);
 
   if (publicarPublica) {
-    gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Data_Publicacion_Publica', agora);
+    asignarFotoAdministracionV2_(row, index, 'Data_Publicacion_Publica', agora);
   }
   if (publicarPrivada) {
-    gardarCampoFotosAdministracionV2_(sheet, rowNumber, index, 'Data_Publicacion_Privada', agora);
+    asignarFotoAdministracionV2_(row, index, 'Data_Publicacion_Privada', agora);
   }
 
+  sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
   SpreadsheetApp.flush();
 
-  var rowAfter = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var rowAfter = sheet.getRange(rowNumber, 1, 1, row.length).getValues()[0];
   var publicaAfter = valorBooleanoFotosAdministracionV2_(rowAfter[index.Publicar_Publica]);
   var privadaAfter = valorBooleanoFotosAdministracionV2_(rowAfter[index.Publicar_Privada]);
   if (publicaAfter !== publicarPublica || privadaAfter !== publicarPrivada) {
