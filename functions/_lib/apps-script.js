@@ -11,6 +11,8 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'gardarRutasFotoR2',
   'listarFotosPublicadas',
   'listarFotosPendentesR2',
+  'comprobarFotosAdministracionPortal',
+  'gardarFotoAdministracionPortal',
   'listarAsistenciasConcertosPortal',
   'listarConcertosAdministracionPortal',
   'obterXestionConcertoAdministracionPortal',
