@@ -9,7 +9,7 @@ export async function onRequest({ request, env }) {
 
   let html = await resposta.text();
   const recursos = [
-    '<script src="/js/concertos-admin-sheet-source.js?v=1"></script>',
+    '<script src="/js/concertos-admin-sheet-source.js?v=2"></script>',
     '<script src="/js/concertos-admin-eliminar.js?v=1"></script>',
     '<script src="/js/concertos-admin-informe.js?v=2"></script>'
   ];
@@ -26,7 +26,7 @@ export async function onRequest({ request, env }) {
   headers.delete('Content-Encoding');
   headers.delete('ETag');
   headers.set('Cache-Control','private, no-store');
-  headers.set('X-SCPP-Admin-Concertos','final-sheet-delete-report-v2');
+  headers.set('X-SCPP-Admin-Concertos','final-sheet-delete-report-v3');
 
   return new Response(html, { status:resposta.status, statusText:resposta.statusText, headers });
 }
