@@ -8,10 +8,29 @@ const claspPath = path.join(previewDir, '.clasp.json');
 const concertosSource = path.join(root, 'apps-script', 'concertos-administracion.gs');
 const concertosEliminarSource = path.join(root, 'apps-script', 'concertos-eliminar.gs');
 const ensaiosSource = path.join(root, 'apps-script', 'ensaios-administracion.gs');
+const permisosSource = path.join(root, 'apps-script', 'permisos-portal.gs');
 const asistenciasConcertosSource = path.join(root, 'apps-script', 'canonical-2026-08-03', 'asistencias-concertos.gs');
 
 function fail(message) {
   throw new Error(`[PREVIEW SAFETY] ${message}`);
+}
+
+function substituIrFuncion(source, marker, replacement) {
+  const start = source.indexOf(marker);
+  if (start < 0) fail(`Non se atopou a función '${marker}'. Non se modificou o módulo.`);
+  const open = source.indexOf('{', start);
+  if (open < 0) fail(`A función '${marker}' non ten un bloque válido.`);
+  let depth = 0;
+  for (let i = open; i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1;
+    if (source[i] === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(0, start) + replacement + source.slice(i + 1);
+      }
+    }
+  }
+  fail(`Non se puido localizar o final da función '${marker}'.`);
 }
 
 if (!fs.existsSync(previewDir)) fail('Non existe apps-script-preview. Crea o cartafol e executa clasp pull contra o proxecto de probas.');
@@ -31,6 +50,7 @@ for (const [file, message] of [
   [concertosSource, 'Non se atopou apps-script/concertos-administracion.gs.'],
   [concertosEliminarSource, 'Non se atopou apps-script/concertos-eliminar.gs.'],
   [ensaiosSource, 'Non se atopou apps-script/ensaios-administracion.gs.'],
+  [permisosSource, 'Non se atopou apps-script/permisos-portal.gs.'],
   [asistenciasConcertosSource, 'Non se atopou a fonte canónica de asistencias de concertos.']
 ]) {
   if (!fs.existsSync(file)) fail(message);
@@ -43,6 +63,12 @@ const anchor = "    if (accion === 'gardarAsistenciaEnsaioPortal') {";
 const candidates = jsFiles.filter((file) => fs.readFileSync(file, 'utf8').includes(anchor));
 if (candidates.length !== 1) {
   fail(`Esperábase atopar exactamente un dispatcher con '${anchor.trim()}', pero atopáronse ${candidates.length}. Non se modificou o dispatcher.`);
+}
+
+const permisoEnsaiosMarker = 'function permisoEnsaiosPortal_(email) {';
+const ensaiosPortalCandidates = jsFiles.filter((file) => fs.readFileSync(file, 'utf8').includes(permisoEnsaiosMarker));
+if (ensaiosPortalCandidates.length !== 1) {
+  fail(`Esperábase atopar exactamente un módulo de Ensaios con '${permisoEnsaiosMarker}', pero atopáronse ${ensaiosPortalCandidates.length}.`);
 }
 
 const codigoPath = candidates[0];
@@ -94,15 +120,27 @@ if (required.some((marker) => !codigo.includes(marker))) {
   fail('A integración administrativa non quedou completa. Non se escribiu o dispatcher.');
 }
 
+const ensaiosPortalPath = ensaiosPortalCandidates[0];
+let ensaiosPortal = fs.readFileSync(ensaiosPortalPath, 'utf8');
+const permisoEnsaiosReplacement = `function permisoEnsaiosPortal_(email) {\n  var permiso = resolverPermisosPortal_(email);\n  return {\n    autorizado: permiso.autorizado === true,\n    escritura: permiso.escritura === true,\n    nivel: permiso.nivel || '',\n    cargo: permiso.cargo || permiso.funcion || '',\n    perfis: permiso.perfis || [],\n    fonte: permiso.fonte || ''\n  };\n}`;
+ensaiosPortal = substituIrFuncion(ensaiosPortal, permisoEnsaiosMarker, permisoEnsaiosReplacement);
+if (!ensaiosPortal.includes('resolverPermisosPortal_(email)')) {
+  fail('Ensaios non quedou conectado ao resolvedor central de permisos.');
+}
+
 fs.writeFileSync(codigoPath, codigo, 'utf8');
+fs.writeFileSync(ensaiosPortalPath, ensaiosPortal, 'utf8');
 fs.copyFileSync(concertosSource, path.join(previewDir, 'concertos-administracion.js'));
 fs.copyFileSync(concertosEliminarSource, path.join(previewDir, 'concertos-eliminar.js'));
 fs.copyFileSync(ensaiosSource, path.join(previewDir, 'ensaios-administracion.js'));
+fs.copyFileSync(permisosSource, path.join(previewDir, 'permisos-portal.js'));
 fs.copyFileSync(asistenciasConcertosSource, path.join(previewDir, 'asistencias-concertos.js'));
 
 console.log('Apps Script PREVIEW preparado con seguridade.');
 console.log(`- Script ID verificado: ${PREVIEW_SCRIPT_ID}`);
 console.log(`- Dispatcher actualizado: ${path.basename(codigoPath)}`);
+console.log(`- Permisos de Ensaios conectados ao resolvedor central: ${path.basename(ensaiosPortalPath)}`);
+console.log('- permisos-portal.js copiado coas Sheets de gobernanza de Preview.');
 console.log('- concertos-administracion.js copiado.');
 console.log('- concertos-eliminar.js copiado.');
 console.log('- ensaios-administracion.js copiado.');
