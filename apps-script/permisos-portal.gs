@@ -12,6 +12,8 @@
  */
 
 var PERMISOS_PORTAL_CONFIG_ = {
+  previewScriptId: '1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF',
+  productionScriptId: '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV',
   preview: {
     persoasId: '1o45U0odJynzPXNTBhOm11_sko13Sat-_r0saZ0BjBEg',
     xuntaDirectivaId: '12Fmoc41qMDRgZvlLMdbstLGjz1MA63SNCa4QfMJB7QM',
@@ -36,9 +38,20 @@ function normalizarPermisosPortal_(valor) {
 
 function ambientePermisosPortal_() {
   var props = PropertiesService.getScriptProperties();
+  var scriptId = '';
+  try {
+    scriptId = textoPermisosPortal_(ScriptApp.getScriptId());
+  } catch (erroScriptId) {
+    scriptId = '';
+  }
+  if (scriptId === PERMISOS_PORTAL_CONFIG_.previewScriptId) return 'preview';
+  if (scriptId === PERMISOS_PORTAL_CONFIG_.productionScriptId) return 'production';
+
   var branch = textoPermisosPortal_(props.getProperty('GITHUB_BRANCH')).toLowerCase();
   var environment = textoPermisosPortal_(props.getProperty('SCPP_ENVIRONMENT')).toLowerCase();
-  return branch === 'preview' || environment === 'preview' || environment === 'test' ? 'preview' : 'production';
+  var persoasId = textoPermisosPortal_(props.getProperty('PERSOAS_SPREADSHEET_ID'));
+  if (branch === 'preview' || environment === 'preview' || environment === 'test' || persoasId === PERMISOS_PORTAL_CONFIG_.preview.persoasId) return 'preview';
+  return 'production';
 }
 
 function configuracionPermisosPortal_() {
