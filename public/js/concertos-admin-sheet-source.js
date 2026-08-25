@@ -20,9 +20,14 @@
       if (typeof init?.body !== 'string') return fetchNativo(input, init);
 
       const body = JSON.parse(init.body);
-      if (body?.accion !== 'listar') return fetchNativo(input, init);
+      const destinoPorAccion = {
+        listar: '/api/concertos-admin-list',
+        subirMedio: '/api/concertos-admin-medio'
+      };
+      const destinoPath = destinoPorAccion[body?.accion];
+      if (!destinoPath) return fetchNativo(input, init);
 
-      url.pathname = '/api/concertos-admin-list';
+      url.pathname = destinoPath;
       const destino = typeof input === 'string'
         ? `${url.pathname}${url.search}`
         : new Request(url.toString(), input);
