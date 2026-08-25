@@ -8,6 +8,7 @@ const claspPath = path.join(previewDir, '.clasp.json');
 const concertosSource = path.join(root, 'apps-script', 'concertos-administracion.gs');
 const concertosEliminarSource = path.join(root, 'apps-script', 'concertos-eliminar.gs');
 const ensaiosSource = path.join(root, 'apps-script', 'ensaios-administracion.gs');
+const persoasSource = path.join(root, 'apps-script', 'persoas-administracion.gs');
 const permisosSource = path.join(root, 'apps-script', 'permisos-portal.gs');
 const asistenciasConcertosSource = path.join(root, 'apps-script', 'canonical-2026-08-03', 'asistencias-concertos.gs');
 
@@ -50,6 +51,7 @@ for (const [file, message] of [
   [concertosSource, 'Non se atopou apps-script/concertos-administracion.gs.'],
   [concertosEliminarSource, 'Non se atopou apps-script/concertos-eliminar.gs.'],
   [ensaiosSource, 'Non se atopou apps-script/ensaios-administracion.gs.'],
+  [persoasSource, 'Non se atopou apps-script/persoas-administracion.gs.'],
   [permisosSource, 'Non se atopou apps-script/permisos-portal.gs.'],
   [asistenciasConcertosSource, 'Non se atopou a fonte canónica de asistencias de concertos.']
 ]) {
@@ -133,6 +135,7 @@ fs.writeFileSync(ensaiosPortalPath, ensaiosPortal, 'utf8');
 fs.copyFileSync(concertosSource, path.join(previewDir, 'concertos-administracion.js'));
 fs.copyFileSync(concertosEliminarSource, path.join(previewDir, 'concertos-eliminar.js'));
 fs.copyFileSync(ensaiosSource, path.join(previewDir, 'ensaios-administracion.js'));
+fs.copyFileSync(persoasSource, path.join(previewDir, 'persoas-administracion.js'));
 fs.copyFileSync(permisosSource, path.join(previewDir, 'permisos-portal.js'));
 fs.copyFileSync(asistenciasConcertosSource, path.join(previewDir, 'asistencias-concertos.js'));
 

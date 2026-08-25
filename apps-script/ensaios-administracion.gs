@@ -7,8 +7,7 @@ function configuracionEnsaiosAdministracionPortal_() {
   return { ensaiosId:valores.ENSAIOS_SPREADSHEET_ID, asistenciasId:valores.ASISTENCIAS_ENSAIOS_SPREADSHEET_ID, ensaiosRepertorioId:valores.ENSAIOS_REPERTORIO_SPREADSHEET_ID };
 }
 function permisoEnsaiosAdministracionPortal_(email) {
-  var props=PropertiesService.getScriptProperties();var ambiente=String(props.getProperty('SCPP_ENVIRONMENT')||'').trim().toLowerCase();var correo=String(email||'').trim().toLowerCase();
-  if(ambiente==='test'){var correoProba=String(props.getProperty('WEB_TEST_EMAIL')||'').trim().toLowerCase();var autorizado=!!correo&&!!correoProba&&correo===correoProba;return{autorizado:autorizado,escritura:autorizado,nivel:autorizado?'Administración':''};}
+  var correo=String(email||'').trim().toLowerCase();
   return permisoEnsaiosPortal_(correo);
 }
 function abrirFollaEnsaiosAdministracionPortal_(spreadsheetId,nomeEsperado,propiedade) { var id=String(spreadsheetId||'').trim();var etiqueta=String(propiedade||'SPREADSHEET_ID');if(!id)throw new Error('Diagnóstico '+etiqueta+': ID baleiro');try{var ss=SpreadsheetApp.openById(id);var sheet=nomeEsperado?(ss.getSheetByName(nomeEsperado)||ss.getSheets()[0]):ss.getSheets()[0];if(!sheet)throw new Error('non existe ningunha folla no documento');return{spreadsheet:ss,sheet:sheet};}catch(erro){throw new Error('Diagnóstico '+etiqueta+' ('+id+'): non se puido abrir a folla "'+(nomeEsperado||'[primeira folla]')+'". '+String(erro&&erro.message?erro.message:erro));} }
