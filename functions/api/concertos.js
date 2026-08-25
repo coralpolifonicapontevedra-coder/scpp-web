@@ -1,6 +1,11 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 import { CONCERT_PROGRAM_BY_ID } from '../_data/concert-media-r2.js';
 
+const INDEX_MAIN = 'indices/concertos-privado-v1.json';
+const INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
+const clean = (value) => String(value ?? '').trim();
+const indexKey = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? INDEX_MAIN : INDEX_PREVIEW;
+
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -17,7 +22,6 @@ function mimePorNome(nome = '') {
   if (limpo.endsWith('.webp')) return 'image/webp';
   return 'application/octet-stream';
 }
-
 function mimeDocumento(mime = '', nome = '') {
   const indicado = String(mime || '').trim().toLowerCase();
   if (indicado && indicado !== 'application/octet-stream') return indicado;
@@ -33,29 +37,20 @@ async function verificarTokenFirebase(idToken, apiKey) {
       body: JSON.stringify({ idToken })
     }
   );
-
   if (!resposta.ok) return null;
   const usuario = (await resposta.json())?.users?.[0];
   if (!usuario?.email || usuario.emailVerified !== true) return null;
-
-  return {
-    uid: String(usuario.localId || ''),
-    email: String(usuario.email).trim().toLowerCase()
-  };
+  return { uid: String(usuario.localId || ''), email: String(usuario.email).trim().toLowerCase() };
 }
 
 function respostaFicheiro(resultado) {
   const base64 = String(resultado.base64 || '');
   if (!base64) return json(502, { ok: false, erro: 'O documento chegou baleiro' });
-
   const binario = atob(base64);
   const bytes = new Uint8Array(binario.length);
   for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
-
-  const nome = String(resultado.nomeFicheiro || 'programa-concerto')
-    .replace(/[\r\n"]/g, '');
+  const nome = String(resultado.nomeFicheiro || 'programa-concerto').replace(/[\r\n"]/g, '');
   const mime = mimeDocumento(resultado.mimeType, nome);
-
   return new Response(bytes, {
     status: 200,
     headers: {
@@ -67,47 +62,47 @@ function respostaFicheiro(resultado) {
   });
 }
 
+async function rutaTripticoExacta(env, concertoId) {
+  if (!env.R2_PRIVADO?.get) return '';
+  const object = await env.R2_PRIVADO.get(indexKey(env));
+  if (!object) return '';
+  const indice = await object.json().catch(() => null);
+  const concerto = (Array.isArray(indice?.concertos) ? indice.concertos : []).find((item) => clean(item?.id) === concertoId);
+  const ruta = clean(concerto?.triptico);
+  if (!ruta.startsWith('r2://')) return '';
+  const key = ruta.slice(5);
+  if (!key.startsWith('concertos/admin/') || !key.includes('/triptico/') || key.includes('..')) return '';
+  return key;
+}
+
+async function respostaObxectoR2(env, r2Key, nomeIndicado = '', mimeIndicado = '') {
+  if (!env.R2_PRIVADO || !r2Key) return null;
+  const obxecto = await env.R2_PRIVADO.get(r2Key);
+  if (!obxecto) return null;
+  const nome = String(nomeIndicado || r2Key.split('/').pop() || 'programa-concerto').replace(/[\r\n"]/g, '');
+  const mime = mimeDocumento(mimeIndicado || obxecto.httpMetadata?.contentType, nome);
+  const headers = new Headers();
+  obxecto.writeHttpMetadata(headers);
+  headers.set('Content-Type', mime);
+  headers.set('Content-Disposition', `inline; filename="${nome}"`);
+  headers.set('Cache-Control', 'private, max-age=300');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-SCPP-Storage', 'R2-INDICE-EXACTO');
+  return new Response(obxecto.body, { status: 200, headers });
+}
+
 async function respostaProgramaR2(env, concertoId) {
-  const entrada = CONCERT_PROGRAM_BY_ID[concertoId];
   if (!env.R2_PRIVADO) return null;
-
   try {
-    let resolta = entrada;
-
-    if (!resolta) {
-      const prefix = `concertos/admin/${encodeURIComponent(concertoId)}/triptico/`;
-      const lista = await env.R2_PRIVADO.list({ prefix, limit: 10 });
-      const ultima = [...lista.objects]
-        .sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded)))[0];
-
-      if (ultima) {
-        const nome = ultima.key.split('/').pop() || 'programa-concerto';
-        resolta = {
-          r2Key: ultima.key,
-          name: nome,
-          mimeType: mimeDocumento(ultima.httpMetadata?.contentType, nome)
-        };
-      }
+    const exacta = await rutaTripticoExacta(env, concertoId);
+    if (exacta) {
+      const resposta = await respostaObxectoR2(env, exacta);
+      if (resposta) return resposta;
     }
 
-    if (!resolta) return null;
-
-    const obxecto = await env.R2_PRIVADO.get(resolta.r2Key);
-    if (!obxecto) return null;
-
-    const nome = String(resolta.name || resolta.r2Key.split('/').pop() || 'programa-concerto')
-      .replace(/[\r\n"]/g, '');
-    const mime = mimeDocumento(resolta.mimeType || obxecto.httpMetadata?.contentType, nome);
-    const headers = new Headers();
-
-    obxecto.writeHttpMetadata(headers);
-    headers.set('Content-Type', mime);
-    headers.set('Content-Disposition', `inline; filename="${nome}"`);
-    headers.set('Cache-Control', 'private, max-age=300');
-    headers.set('X-Content-Type-Options', 'nosniff');
-    headers.set('X-SCPP-Storage', 'R2');
-
-    return new Response(obxecto.body, { status: 200, headers });
+    const entrada = CONCERT_PROGRAM_BY_ID[concertoId];
+    if (!entrada) return null;
+    return respostaObxectoR2(env, entrada.r2Key, entrada.name, entrada.mimeType);
   } catch (erro) {
     console.warn('Non foi posible abrir o programa do concerto desde R2:', erro);
     return null;
@@ -115,44 +110,23 @@ async function respostaProgramaR2(env, concertoId) {
 }
 
 export async function onRequest({ request, env }) {
-  if (request.method !== 'POST') {
-    return json(405, { ok: false, erro: 'Método non permitido' });
-  }
-
-  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
-    return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
-  }
+  if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
+  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
 
   let datos;
-  try {
-    datos = await request.json();
-  } catch {
-    return json(400, { ok: false, erro: 'Solicitude non válida' });
-  }
+  try { datos = await request.json(); }
+  catch { return json(400, { ok: false, erro: 'Solicitude non válida' }); }
 
   let usuario;
-  try {
-    usuario = await verificarTokenFirebase(
-      String(datos.idToken || '').trim(),
-      env.FIREBASE_API_KEY
-    );
-  } catch (erro) {
-    console.error('Erro ao validar Firebase:', erro);
-  }
-
-  if (!usuario) {
-    return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
-  }
+  try { usuario = await verificarTokenFirebase(String(datos.idToken || '').trim(), env.FIREBASE_API_KEY); }
+  catch (erro) { console.error('Erro ao validar Firebase:', erro); }
+  if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
   const accion = String(datos.accion || '').trim();
-  if (accion !== 'obterDocumentoConcerto') {
-    return json(400, { ok: false, erro: 'Acción non permitida' });
-  }
+  if (accion !== 'obterDocumentoConcerto') return json(400, { ok: false, erro: 'Acción non permitida' });
 
   const concertoId = String(datos.concertoId || '').trim();
-  if (!concertoId || concertoId.length > 120) {
-    return json(400, { ok: false, erro: 'O concerto indicado non é válido' });
-  }
+  if (!concertoId || concertoId.length > 120) return json(400, { ok: false, erro: 'O concerto indicado non é válido' });
 
   const programaR2 = await respostaProgramaR2(env, concertoId);
   if (programaR2) return programaR2;
@@ -172,10 +146,7 @@ export async function onRequest({ request, env }) {
 
     if (!resultado?.ok) {
       const estado = resultado?.erro === 'Usuario non autorizado' ? 403 : 400;
-      return json(estado, {
-        ok: false,
-        erro: resultado?.erro || 'Non foi posible abrir o documento do concerto.'
-      });
+      return json(estado, { ok: false, erro: resultado?.erro || 'Non foi posible abrir o documento do concerto.' });
     }
 
     const resposta = respostaFicheiro(resultado);
@@ -184,9 +155,6 @@ export async function onRequest({ request, env }) {
   } catch (erro) {
     console.error('Erro no servizo de concertos:', erro);
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
-    return json(status, {
-      ok: false,
-      erro: 'O documento do concerto non está dispoñible neste momento. Tenta de novo nuns segundos.'
-    });
+    return json(status, { ok: false, erro: 'O documento do concerto non está dispoñible neste momento. Tenta de novo nuns segundos.' });
   }
 }

@@ -29,7 +29,6 @@ function listarAsistenciasConcertosPortal_(datos) {
 
     // Compatibilidade cos rexistros históricos: antes de existir EstadoAsistencia,
     // unha fila con concerto e persoa representaba sempre unha asistencia real.
-    // Nota: a validación anterior xa filtra por valores positivos de asistencia.
     if (!idConcerto || !nome) return;
     if (!porConcerto[idConcerto]) porConcerto[idConcerto] = [];
 
@@ -62,8 +61,17 @@ function listarAsistenciasConcertosPortal_(datos) {
 }
 
 function lerFollaAsistenciasConcertos_() {
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = String(
+    props.getProperty('ASISTENCIAS_CONCERTOS_SPREADSHEET_ID') || ''
+  ).trim();
+
+  if (!spreadsheetId) {
+    throw new Error('Falta a propiedade ASISTENCIAS_CONCERTOS_SPREADSHEET_ID');
+  }
+
   const folla = SpreadsheetApp
-    .openById('1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0')
+    .openById(spreadsheetId)
     .getSheetByName('AsistenciasConcertos');
 
   if (!folla) {
