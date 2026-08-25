@@ -297,164 +297,78 @@ function obterAdministradorPersoasAdmin_(
   if (!email) return null;
 
   const cache = CacheService.getScriptCache();
-  const claveCache =
-    'persoas-admin-v5:' + email;
+  const claveCache = 'persoas-admin-v6-gobernanza:' + email;
   const cacheado = cache.get(claveCache);
 
   if (cacheado) {
     try {
       return JSON.parse(cacheado);
     } catch (erroCache) {
-      console.warn(
-        'Cache de administración non válida:',
-        erroCache
-      );
+      console.warn('Cache de administraci\u00f3n non v\u00e1lida:', erroCache);
     }
   }
 
   const valoresUsuarios =
     contexto.usuarios.getDataRange().getValues();
 
-  if (valoresUsuarios.length < 2) {
-    return null;
-  }
+  if (valoresUsuarios.length < 2) return null;
 
-  const iu = indicesPersoasAdmin_(
-    valoresUsuarios[0]
-  );
+  const iu = indicesPersoasAdmin_(valoresUsuarios[0]);
 
-  requireHeaderPersoasAdmin_(
-    iu,
-    'Email',
-    'UsuariosWeb'
-  );
-  requireHeaderPersoasAdmin_(
-    iu,
-    'Activo',
-    'UsuariosWeb'
-  );
-  requireHeaderPersoasAdmin_(
-    iu,
-    'Persoa',
-    'UsuariosWeb'
-  );
+  requireHeaderPersoasAdmin_(iu, 'Email', 'UsuariosWeb');
+  requireHeaderPersoasAdmin_(iu, 'Activo', 'UsuariosWeb');
+  requireHeaderPersoasAdmin_(iu, 'Persoa', 'UsuariosWeb');
 
   const usuario = valoresUsuarios
     .slice(1)
     .find(function(fila) {
       return (
-        normalizarEmailPersoasAdmin_(
-          fila[iu.Email]
-        ) === email &&
-        booleanoPersoasAdmin_(
-          fila[iu.Activo]
-        )
+        normalizarEmailPersoasAdmin_(fila[iu.Email]) === email &&
+        booleanoPersoasAdmin_(fila[iu.Activo])
       );
     });
 
   if (!usuario) return null;
 
-  const referencia = textoPersoasAdmin_(
-    usuario[iu.Persoa]
-  );
+  const permiso = resolverPermisosPortal_(email);
+
+  if (!permiso || permiso.escritura !== true) {
+    return null;
+  }
 
   const persoas =
     valoresPersoas ||
     contexto.persoas.getDataRange().getValues();
 
-  const ip = indicesPersoasAdmin_(
-    persoas[0] || []
-  );
+  const ip = indicesPersoasAdmin_(persoas[0] || []);
 
-  requireHeaderPersoasAdmin_(
-    ip,
-    'Id',
-    'Persoas'
-  );
+  requireHeaderPersoasAdmin_(ip, 'Id', 'Persoas');
+
+  const referencia = textoPersoasAdmin_(usuario[iu.Persoa]);
 
   const persoa = persoas
     .slice(1)
     .find(function(fila) {
-      const id = textoPersoasAdmin_(
-        fila[ip.Id]
-      );
+      const id = textoPersoasAdmin_(fila[ip.Id]);
       const rowId =
         ip['Row ID'] === undefined
           ? ''
-          : textoPersoasAdmin_(
-              fila[ip['Row ID']]
-            );
+          : textoPersoasAdmin_(fila[ip['Row ID']]);
       const correo =
-        ip['Correo electrónico'] === undefined
+        ip['Correo electr\u00f3nico'] === undefined
           ? ''
           : normalizarEmailPersoasAdmin_(
-              fila[ip['Correo electrónico']]
+              fila[ip['Correo electr\u00f3nico']]
             );
 
       return (
         (referencia &&
-          (
-            referencia === id ||
-            referencia === rowId
-          )) ||
+          (referencia === id || referencia === rowId)) ||
         correo === email
       );
     });
 
   if (!persoa) return null;
-
-  const administradorExplicito =
-    iu.Administrador !== undefined &&
-    booleanoPersoasAdmin_(
-      usuario[iu.Administrador]
-    );
-
-  const cargo =
-    ip.Cargo === undefined
-      ? ''
-      : normalizarTextoPersoasAdmin_(
-          persoa[ip.Cargo]
-        );
-
-  const administradorPorCargo = [
-    'presidente',
-    'presidenta',
-    'vicepresidente',
-    'vicepresidenta',
-    'secretario',
-    'secretaria',
-    'vicesecretario',
-    'vicesecretaria',
-    'tesoureiro',
-    'tesoureira',
-    'contador',
-    'contadora'
-  ].some(function(valor) {
-    return cargo.indexOf(valor) >= 0;
-  });
-
-  const modulos =
-    iu.ModulosPermitidos === undefined
-      ? ''
-      : normalizarTextoPersoasAdmin_(
-          usuario[iu.ModulosPermitidos]
-        );
-
-  const administradorPorModulo =
-    modulos
-      .split(',')
-      .map(function(valor) {
-        return valor.trim();
-      })
-      .indexOf('persoas') >= 0;
-
-  if (
-    !administradorExplicito &&
-    !administradorPorCargo &&
-    !administradorPorModulo
-  ) {
-    return null;
-  }
 
   const indiceNomeCompleto =
     ip.Nomecompleto !== undefined
@@ -463,16 +377,12 @@ function obterAdministradorPersoasAdmin_(
 
   const perfil = {
     email: email,
-    idPersoa: textoPersoasAdmin_(
-      persoa[ip.Id]
-    ),
+    idPersoa: textoPersoasAdmin_(persoa[ip.Id]),
     nome:
       (
         iu.Nome === undefined
           ? ''
-          : textoPersoasAdmin_(
-              usuario[iu.Nome]
-            )
+          : textoPersoasAdmin_(usuario[iu.Nome])
       ) ||
       (
         indiceNomeCompleto === undefined
@@ -481,13 +391,10 @@ function obterAdministradorPersoasAdmin_(
               persoa[indiceNomeCompleto]
             )
       ),
-    cargo:
-      ip.Cargo === undefined
-        ? ''
-        : textoPersoasAdmin_(
-            persoa[ip.Cargo]
-          ),
-    nivel: 'Administración'
+    cargo: permiso.cargo || permiso.funcion || '',
+    nivel: 'Administraci\u00f3n',
+    perfis: permiso.perfis || [],
+    fonte: permiso.fonte || ''
   };
 
   try {
@@ -497,10 +404,7 @@ function obterAdministradorPersoasAdmin_(
       PERSOAS_ADMIN_CACHE_SEGUNDOS
     );
   } catch (erroCache) {
-    console.warn(
-      'Non se puido gardar a cache:',
-      erroCache
-    );
+    console.warn('Non se puido gardar a cache:', erroCache);
   }
 
   return perfil;

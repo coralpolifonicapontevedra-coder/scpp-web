@@ -102,28 +102,14 @@ function serializarHoraEnsaiosPortal_(valor) {
 }
 
 function permisoEnsaiosPortal_(email) {
-  var cfg = configuracionEnsaiosPortal_();
-  var datos = filasEnsaiosPortal_(cfg.persoasId, 'Persoas');
-  var correo = textoEnsaiosPortal_(email).toLowerCase();
-  var row = datos.rows.find(function (item) {
-    return textoEnsaiosPortal_(campoEnsaiosPortal_(item, ['Email', 'Correo', 'CorreoElectronico'])).toLowerCase() === correo;
-  });
-  if (!row) return { autorizado: false, escritura: false, nivel: '' };
-
-  var activo = campoEnsaiosPortal_(row, ['Activo', 'Activa', 'Estado']);
-  if (activo !== '' && ['baixa', 'baja', 'inactivo', 'inactiva', 'false', '0'].indexOf(textoEnsaiosPortal_(activo).toLowerCase()) >= 0) {
-    return { autorizado: false, escritura: false, nivel: '' };
-  }
-
-  var cargo = normalizarEnsaiosPortal_(campoEnsaiosPortal_(row, ['Cargo']));
-  var cargosXunta = ['presidente', 'vicepresidente', 'vicepresidenta', 'secretario', 'secretaria', 'vicesecretario', 'vicesecretaria', 'tesoureiro', 'tesoureira', 'tesorero', 'tesorera', 'contador', 'contadora', 'arquiveirobibliotecario', 'arquiveirabibliotecaria', 'vogal', 'vogais', 'vocal', 'vocales'];
-  var escritura = cargosXunta.some(function (item) { return cargo === item || cargo.indexOf(item) === 0; });
-  var direccion = cargo.indexOf('director') === 0 || cargo.indexOf('directora') === 0 || cargo.indexOf('direccion') === 0;
+  var permiso = resolverPermisosPortal_(email);
   return {
-    autorizado: escritura || direccion,
-    escritura: escritura,
-    nivel: escritura ? 'Xunta Directiva' : (direccion ? 'Dirección' : ''),
-    cargo: textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Cargo']))
+    autorizado: permiso.autorizado === true,
+    escritura: permiso.escritura === true,
+    nivel: permiso.nivel || '',
+    cargo: permiso.cargo || permiso.funcion || '',
+    perfis: permiso.perfis || [],
+    fonte: permiso.fonte || ''
   };
 }
 
