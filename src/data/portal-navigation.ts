@@ -43,7 +43,7 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
     path: '/portal/revision-fotos/',
     enabled: true,
     order: 90,
-    surfaces: ['sidebar'],
+    surfaces: [],
     adminOnly: true,
   },
   {
