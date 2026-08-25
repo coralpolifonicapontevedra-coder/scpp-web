@@ -13,7 +13,11 @@
     appId: '1:506857659587:web:a7ed36b22f044f5f639676'
   };
 
-  const esCartelR2Novo = (ruta = '') => /^r2:\/\/concertos\/admin\/[^/]+\/cartel\//.test(String(ruta || ''));
+  // Acepta tanto o esquema legado:
+  //   r2://concertos/admin/<id>/cartel/<ficheiro>
+  // como o esquema illado por contorno:
+  //   r2://concertos/admin/<preview|main>/<id>/cartel/<ficheiro>
+  const esCartelR2Novo = (ruta = '') => /^r2:\/\/concertos\/admin\/(?:[^/]+\/)?[^/]+\/cartel\//.test(String(ruta || ''));
 
   async function obterUsuario() {
     const [authMod, appMod] = await Promise.all([
