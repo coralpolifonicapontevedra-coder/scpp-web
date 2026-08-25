@@ -213,7 +213,7 @@ function resolverPermisosPortal_(email) {
 
   // Un rexistro histórico/inactivo na nova gobernanza é unha denegación expresa:
   // non se debe reactivar un Cargo antigo desde Persoas.
-  if (existeGobernanza && xuntaOk && direccionOk) {
+  if (existeGobernanza) {
     return { autorizado: false, escritura: false, nivel: '', cargo: '', funcion: '', perfis: [], fonte: 'Gobernanza', email: correo, rowId: rowId };
   }
 
