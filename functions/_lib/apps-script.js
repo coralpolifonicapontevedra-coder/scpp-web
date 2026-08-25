@@ -1,6 +1,20 @@
 const URL_RESPALDO_SCPP = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
+const URL_PREVIEW_SCPP = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
 
 const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
+
+const ACCIONS_CONCERTOS_PROTEXIDAS = new Set([
+  'listarAsistenciasConcertosPortal',
+  'listarConcertosAdministracionPortal',
+  'obterXestionConcertoAdministracionPortal',
+  'actualizarConcertoAdministracionPortal',
+  'gardarConcertoAdministracionPortal',
+  'gardarProgramaConcertoAdministracionPortal',
+  'gardarAsistentesConcertoAdministracionPortal',
+  'actualizarMedioConcertoAdministracionPortal',
+  'eliminarConcertoAdministracionPortal',
+  'obterDocumentoConcerto'
+]);
 
 const ACCIONS_SO_PRINCIPAL = new Set([
   'subirFoto',
@@ -19,6 +33,8 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'gardarProgramaConcertoAdministracionPortal',
   'gardarAsistentesConcertoAdministracionPortal',
   'actualizarMedioConcertoAdministracionPortal',
+  'eliminarConcertoAdministracionPortal',
+  'obterDocumentoConcerto',
   'obterTextoLegalVixente',
   'comprobarAceptacion',
   'rexistrarAceptacion'
@@ -43,6 +59,22 @@ function urlsAppsScript(env = {}) {
     .filter((url, index, all) => /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) && all.indexOf(url) === index);
 }
 
+function ramaSCPP(env = {}) {
+  return String(env.CF_PAGES_BRANCH || '').trim() === 'main' ? 'main' : 'preview';
+}
+
+function verificarAppsScriptConcertos(env = {}, accion = '') {
+  if (!ACCIONS_CONCERTOS_PROTEXIDAS.has(accion)) return;
+  const configurada = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  const esperada = ramaSCPP(env) === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
+  if (configurada !== esperada) {
+    throw new AppsScriptError(
+      `Concertos: o contorno ${ramaSCPP(env)} non está conectado ao Apps Script esperado. Operación cancelada por seguridade.`,
+      'APPS_SCRIPT_ENV_MISMATCH'
+    );
+  }
+}
+
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
@@ -57,8 +89,9 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const timeoutTotalMs = Math.max(4000, Number(options.timeoutMs) || 20000);
   const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
   const expectJson = options.expectJson === true;
-  const urlsConfiguradas = urlsAppsScript(env);
   const accion = String(corpo?.accion || '').trim();
+  verificarAppsScriptConcertos(env, accion);
+  const urlsConfiguradas = urlsAppsScript(env);
   const urls = ACCIONS_SO_PRINCIPAL.has(accion)
     ? urlsConfiguradas.slice(0, 1)
     : urlsConfiguradas;

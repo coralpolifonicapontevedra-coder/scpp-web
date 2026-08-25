@@ -6,7 +6,7 @@ function requestImplementacion(request) {
   return new Request(url.toString(), request);
 }
 
-const SCRIPT_DIAGNOSTICO_ASISTENCIAS = `<script>
+const scriptAsistenciasPreview = `<script>
 (() => {
   const fetchOriginal = window.fetch.bind(window);
   window.fetch = (input, init) => {
@@ -14,12 +14,12 @@ const SCRIPT_DIAGNOSTICO_ASISTENCIAS = `<script>
       const valor = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input || '');
       const url = new URL(valor, window.location.href);
       if (url.pathname === '/api/asistencias-concertos') {
-        url.pathname = '/api/asistencias-concertos-debug';
+        url.pathname = '/api/asistencias-concertos-preview';
         const destino = typeof input === 'string' ? url.pathname + url.search : new Request(url.toString(), input);
         return fetchOriginal(destino, init);
       }
     } catch (erro) {
-      console.warn('Non foi posible activar o diagnóstico de asistencias.', erro);
+      console.warn('Non foi posible activar as asistencias illadas de Preview.', erro);
     }
     return fetchOriginal(input, init);
   };
@@ -35,19 +35,25 @@ export async function onRequestGet({ request, env }) {
   }
 
   let html = await resposta.text();
+  const branch = String(env.CF_PAGES_BRANCH || '').trim();
 
-  if (!html.includes('/api/asistencias-concertos-debug')) {
+  if (branch !== 'main' && !html.includes('/api/asistencias-concertos-preview')) {
     if (html.includes('</head>')) {
-      html = html.replace('</head>', `${SCRIPT_DIAGNOSTICO_ASISTENCIAS}</head>`);
+      html = html.replace('</head>', `${scriptAsistenciasPreview}</head>`);
     } else {
-      html = `${SCRIPT_DIAGNOSTICO_ASISTENCIAS}${html}`;
+      html = `${scriptAsistenciasPreview}${html}`;
     }
   }
 
   const recursos = [
     '<link rel="stylesheet" href="/css/concertos-novo-clasico.css?v=2">',
     '<link rel="stylesheet" href="/css/concertos-novo-informe.css?v=1">',
-    '<script type="module" src="/js/concertos-novo-clasico.js?v=2"></script>'
+    '<link rel="stylesheet" href="/css/concertos-seccions.css?v=1">',
+    '<script type="module" src="/js/concertos-novo-clasico.js?v=2"></script>',
+    '<script type="module" src="/js/concertos-program-links.js?v=1"></script>',
+    '<script type="module" src="/js/concertos-cartel-r2.js?v=1"></script>',
+    '<script type="module" src="/js/concertos-seccions.js?v=1"></script>',
+    '<script src="/js/concertos-informe-r2.js?v=2"></script>'
   ];
 
   recursos.forEach((recurso) => {
@@ -71,7 +77,7 @@ export async function onRequestGet({ request, env }) {
   cabeceiras.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   cabeceiras.set('Pragma', 'no-cache');
   cabeceiras.set('Expires', '0');
-  cabeceiras.set('X-SCPP-Concertos-Version', 'oficial-v2');
+  cabeceiras.set('X-SCPP-Concertos-Version', 'oficial-v6-informe-periodo-r2');
 
   return new Response(html, {
     status: resposta.status,
