@@ -6,19 +6,22 @@ import { describe, expect, it } from 'vitest';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const route = readFileSync(resolve(root, 'functions/api/eliminar-foto-revision.js'), 'utf8');
 const worker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v3.js'), 'utf8');
+const recoveryWorker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v4.js'), 'utf8');
 const appsScript = readFileSync(resolve(root, 'apps-script/fotos-administracion-v2.gs'), 'utf8');
 const orphanAppsScript = readFileSync(resolve(root, 'apps-script/fotos-huerfanas-v2.gs'), 'utf8');
 const prepare = readFileSync(resolve(root, 'scripts/prepare-fotos-admin-v2-preview.mjs'), 'utf8');
 const dispatcherClient = readFileSync(resolve(root, 'functions/_lib/apps-script.js'), 'utf8');
 const middleware = readFileSync(resolve(root, 'functions/portal/_middleware.js'), 'utf8');
 
-describe('Borrado de fotografías v3 en Preview', () => {
-  it('mantén a ruta pública e delega no backend v3', () => {
-    expect(route).toContain("../_lib/fotos-delete-v3.js");
-    expect(route).toContain('onRequestFotosDeleteV3');
+describe('Borrado de fotografías v4 en Preview', () => {
+  it('mantén a ruta pública e delega no backend v4', () => {
+    expect(route).toContain("../_lib/fotos-delete-v4.js");
+    expect(route).toContain('onRequestFotosDeleteV4');
   });
 
-  it('non usa o borrado histórico nin fallback a produción', () => {
+  it('conserva o borrado v3 como núcleo de autorización e transacción', () => {
+    expect(recoveryWorker).toContain("./fotos-delete-v3.js");
+    expect(recoveryWorker).toContain('onRequestFotosDeleteV3');
     expect(worker).toContain("'eliminarFotoAdministracionPortal'");
     expect(worker).toContain("'eliminarFotoHuerfanaAdministracionPortal'");
     expect(worker).not.toContain("accion: 'eliminarFotoPortal'");
@@ -31,6 +34,10 @@ describe('Borrado de fotografías v3 en Preview', () => {
     expect(worker).toContain('previewCloneSourceEtag');
     expect(worker).toContain('meta.previewClone');
     expect(worker).toContain('meta.backend');
+    expect(recoveryWorker).toContain("const PREVIEW_HOST = 'preview.coralpolifonicapontevedra.org'");
+    expect(recoveryWorker).toContain('previewCloneSourceEtag');
+    expect(recoveryWorker).toContain('meta.previewClone');
+    expect(recoveryWorker).toContain('meta.backend');
   });
 
   it('só clasifica como huérfano un rexistro sen rutas nin residuos R2 coñecidos', () => {
@@ -38,6 +45,16 @@ describe('Borrado de fotografías v3 en Preview', () => {
     expect(worker).toContain('ORPHAN_HAS_R2_RESIDUES');
     expect(worker).toContain('huerfana: true');
     expect(worker).toContain('fotos/editadas-miniaturas/${id}-');
+  });
+
+  it('recupera os residuos R2 só cando todos se verifican como propios de Preview', () => {
+    expect(recoveryWorker).toContain("'ORPHAN_HAS_R2_RESIDUES'");
+    expect(recoveryWorker).toContain('localizarResiduos');
+    expect(recoveryWorker).toContain('fotoMarcadaPreview');
+    expect(recoveryWorker).toContain('R2_RECOVERY_NOT_VERIFIED');
+    expect(recoveryWorker).toContain('inxectarRutaRecuperada');
+    expect(recoveryWorker).toContain('restaurarInxeccion');
+    expect(recoveryWorker).toContain('rutasRecuperadas: true');
   });
 
   it('retira primeiro os índices e fai rollback se falla a Sheet', () => {
