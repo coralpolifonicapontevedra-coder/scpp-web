@@ -51,7 +51,7 @@ export async function onRequestGet({ request, env }) {
     '<link rel="stylesheet" href="/css/concertos-seccions.css?v=1">',
     '<script type="module" src="/js/concertos-novo-clasico.js?v=2"></script>',
     '<script type="module" src="/js/concertos-program-links.js?v=1"></script>',
-    '<script type="module" src="/js/concertos-cartel-r2.js?v=1"></script>',
+    '<script type="module" src="/js/concertos-cartel-r2.js?v=2"></script>',
     '<script type="module" src="/js/concertos-seccions.js?v=1"></script>',
     '<script src="/js/concertos-informe-r2.js?v=2"></script>'
   ];
@@ -77,7 +77,7 @@ export async function onRequestGet({ request, env }) {
   cabeceiras.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   cabeceiras.set('Pragma', 'no-cache');
   cabeceiras.set('Expires', '0');
-  cabeceiras.set('X-SCPP-Concertos-Version', 'oficial-v6-informe-periodo-r2');
+  cabeceiras.set('X-SCPP-Concertos-Version', 'oficial-v7-cartel-r2-contorno');
 
   return new Response(html, {
     status: resposta.status,
