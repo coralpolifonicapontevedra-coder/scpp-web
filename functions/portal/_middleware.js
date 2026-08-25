@@ -21,7 +21,10 @@ const PORTAL_FONT_STYLE = `
   }
 </style>`;
 
-const ADMIN_PHOTOS_EDITOR_SCRIPT = '<script src="/js/admin-fotografias-editor.js?v=20260825-1"></script>';
+const ADMIN_PHOTOS_EDITOR_SCRIPT = [
+  '<script src="/js/admin-fotografias-editor.js?v=20260825-1"></script>',
+  '<script src="/js/admin-fotografias-autoopen.js?v=20260825-1" defer></script>'
+].join('');
 
 class PortalHeadRewriter {
   constructor(extra = '') { this.extra = extra; }
