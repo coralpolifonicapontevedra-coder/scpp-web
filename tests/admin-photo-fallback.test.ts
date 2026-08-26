@@ -9,7 +9,9 @@ const fallback = readFileSync(resolve(root, 'public/js/admin-fotografias-fallbac
 const middleware = readFileSync(resolve(root, 'functions/portal/_middleware.js'), 'utf8');
 
 describe('Fallback de fotografías aprobadas e miniaturas incompletas', () => {
-  it('o editor recupera rutas desde catálogo e índices público/privado', () => {
+  it('o editor mantén borradores/traballo como prioridade e recupera tamén os índices estables', () => {
+    expect(editorOriginal).toContain('fotos/borradores/${idFoto}');
+    expect(editorOriginal).toContain('fotos/traballo/${idFoto}.json');
     expect(editorOriginal).toContain("const CATALOGO = 'indices/catalogo-fotos.json'");
     expect(editorOriginal).toContain("const INDEX_PUBLICO = 'indices/galeria-publica-v1.json'");
     expect(editorOriginal).toContain("const INDEX_PRIVADO = 'indices/galeria-privada.json'");
