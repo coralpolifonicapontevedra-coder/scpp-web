@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const editorOriginal = readFileSync(resolve(root, 'functions/api/editor-fotos-original.js'), 'utf8');
+const miniatura = readFileSync(resolve(root, 'functions/api/editor-fotos-miniatura.js'), 'utf8');
 const fallback = readFileSync(resolve(root, 'public/js/admin-fotografias-fallback.js'), 'utf8');
 const middleware = readFileSync(resolve(root, 'functions/portal/_middleware.js'), 'utf8');
 
@@ -25,5 +26,19 @@ describe('Fallback de fotografías aprobadas e miniaturas incompletas', () => {
     expect(fallback).toContain('Authorization: `Bearer ${idToken}`');
     expect(fallback).toContain("node.dataset.fallbackOriginal = 'true'");
     expect(middleware).toContain('/js/admin-fotografias-fallback.js?v=20260826-1');
+  });
+
+  it('o fallback de miniatura acepta a caché central de Administración', () => {
+    expect(miniatura).toContain("const ADMIN_AUTH_PREFIX = 'persoas/cache/administracion/'");
+    expect(miniatura).toContain('datos?.payload?.perfil?.nivel === \'Administración\'');
+    expect(miniatura).toContain('30 * 24 * 60 * 60 * 1000');
+  });
+
+  it('non perde rutas por campos baleiros dun índice máis novo ou antigo', () => {
+    expect(miniatura).toContain('rutasCandidatasRexistros(rexistros');
+    expect(miniatura).toContain('localizarFoto(identificador, catalogo)');
+    expect(miniatura).toContain('localizarFoto(identificador, publica)');
+    expect(miniatura).toContain("'R2-PRIVADO-COPIA-PUBLICA'");
+    expect(miniatura).toContain("'R2-PUBLICO-COPIA-PRIVADA'");
   });
 });
