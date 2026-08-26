@@ -1,8 +1,8 @@
-import { obterJsonAppsScript } from '../_lib/apps-script.js';
-
 const AUTH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const AUTH_CACHE_VERSION = 2;
 const FIREBASE_TIMEOUT_MS = 8 * 1000;
+const PHOTO_AUTH_PREFIX = 'cache/autorizacion-fotos/';
+const ADMIN_AUTH_PREFIX = 'persoas/cache/administracion/';
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -48,19 +48,43 @@ async function claveCorreo(email) {
 
 async function comprobarAdministracion(env, usuario) {
   const clave = await claveCorreo(usuario.email);
-  const ruta = `cache/autorizacion-fotos/${clave}.json`;
-  const gardada = await env.R2_PRIVADO.get(ruta);
-  if (!gardada) return false;
+  const [fotoAuth, adminAuth] = await Promise.all([
+    env.R2_PRIVADO.get(`${PHOTO_AUTH_PREFIX}${clave}.json`),
+    env.R2_PRIVADO.get(`${ADMIN_AUTH_PREFIX}${clave}.json`)
+  ]);
 
-  const datos = await gardada.json().catch(() => null);
-  const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
-  const versionCompatible = datos?.version == null || datos.version === AUTH_CACHE_VERSION;
-  const mesmoCorreo = !datos?.email ||
-    String(datos.email).trim().toLowerCase() === usuario.email;
-  return versionCompatible && mesmoCorreo &&
-    datos?.administrador === true &&
-    Number.isFinite(verificadaEn) &&
-    Date.now() - verificadaEn < AUTH_TTL_MS;
+  if (fotoAuth) {
+    const datos = await fotoAuth.json().catch(() => null);
+    const verificadaEn = Date.parse(String(datos?.verificadaEn || ''));
+    const versionCompatible = datos?.version == null || datos.version === AUTH_CACHE_VERSION;
+    const mesmoCorreo = !datos?.email ||
+      String(datos.email).trim().toLowerCase() === usuario.email;
+    if (
+      versionCompatible &&
+      mesmoCorreo &&
+      datos?.administrador === true &&
+      Number.isFinite(verificadaEn) &&
+      Date.now() - verificadaEn < AUTH_TTL_MS
+    ) {
+      return true;
+    }
+  }
+
+  if (adminAuth) {
+    const datos = await adminAuth.json().catch(() => null);
+    const gardadoEn = Number(datos?.savedAt || 0);
+    if (
+      datos?.administrador === usuario.email &&
+      datos?.payload?.ok === true &&
+      datos?.payload?.perfil?.nivel === 'Administración' &&
+      Number.isFinite(gardadoEn) &&
+      Date.now() - gardadoEn < AUTH_TTL_MS
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function resolverRutaActual(env, idFoto) {
@@ -86,7 +110,7 @@ async function resolverRutaActual(env, idFoto) {
         obxecto: borrador,
         ruta: rutaBorrador,
         mimeType: String(estado?.mimeType || '').trim(),
-        fonte: 'R2-DRAFT-POINTER'
+        fonte: estado?.tipo === 'edicion-integrada' ? 'R2-EDITED' : 'R2-DRAFT-POINTER'
       };
     }
   }
@@ -102,7 +126,9 @@ async function resolverRutaActual(env, idFoto) {
     obxecto,
     ruta,
     mimeType: String(indice?.mimeType || '').trim(),
-    fonte: ruta.includes('/borradores/') || ruta.includes('/editadas/') ? 'R2-WORK-DRAFT' : 'R2-WORK-ORIGINAL'
+    fonte: ruta.includes('/borradores/') || ruta.includes('/editadas/')
+      ? 'R2-WORK-DRAFT'
+      : 'R2-WORK-ORIGINAL'
   };
 }
 

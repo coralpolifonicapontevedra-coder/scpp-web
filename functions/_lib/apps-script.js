@@ -16,6 +16,13 @@ const ACCIONS_CONCERTOS_PROTEXIDAS = new Set([
   'obterDocumentoConcerto'
 ]);
 
+const ACCIONS_FOTOS_ADMIN_PROTEXIDAS = new Set([
+  'comprobarFotosAdministracionPortal',
+  'gardarFotoAdministracionPortal',
+  'eliminarFotoAdministracionPortal',
+  'eliminarFotoHuerfanaAdministracionPortal'
+]);
+
 const ACCIONS_SO_PRINCIPAL = new Set([
   'subirFoto',
   'actualizarRevisionFoto',
@@ -25,6 +32,10 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'gardarRutasFotoR2',
   'listarFotosPublicadas',
   'listarFotosPendentesR2',
+  'comprobarFotosAdministracionPortal',
+  'gardarFotoAdministracionPortal',
+  'eliminarFotoAdministracionPortal',
+  'eliminarFotoHuerfanaAdministracionPortal',
   'listarAsistenciasConcertosPortal',
   'listarConcertosAdministracionPortal',
   'obterXestionConcertoAdministracionPortal',
@@ -75,6 +86,19 @@ function verificarAppsScriptConcertos(env = {}, accion = '') {
   }
 }
 
+function verificarAppsScriptFotos(env = {}, accion = '') {
+  if (!ACCIONS_FOTOS_ADMIN_PROTEXIDAS.has(accion)) return;
+  const rama = ramaSCPP(env);
+  const configurada = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  const esperada = rama === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
+  if (configurada !== esperada) {
+    throw new AppsScriptError(
+      `Fotografías: o contorno ${rama} non está conectado ao Apps Script esperado. Operación cancelada por seguridade.`,
+      'APPS_SCRIPT_ENV_MISMATCH'
+    );
+  }
+}
+
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
@@ -91,6 +115,7 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const expectJson = options.expectJson === true;
   const accion = String(corpo?.accion || '').trim();
   verificarAppsScriptConcertos(env, accion);
+  verificarAppsScriptFotos(env, accion);
   const urlsConfiguradas = urlsAppsScript(env);
   const urls = ACCIONS_SO_PRINCIPAL.has(accion)
     ? urlsConfiguradas.slice(0, 1)

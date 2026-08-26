@@ -21,11 +21,12 @@ const PORTAL_FONT_STYLE = `
   }
 </style>`;
 
-const PHOTO_MANAGER_SCRIPT = [
-  '<script src="/js/xestor-fotos-publicacion.js?v=20260805-4" defer></script>',
-  '<script src="/js/xestor-fotos-metadatos.js?v=20260805-4" defer></script>',
-  '<script src="/js/borrador-fotos-pendente.js?v=20260805-4" defer></script>',
-  '<script src="/js/renovar-borrador-foto.js?v=20260805-4" defer></script>'
+const ADMIN_PHOTOS_EDITOR_SCRIPT = [
+  '<link rel="stylesheet" href="/css/admin-fotografias-compactas.css?v=20260825-2">',
+  '<script src="/js/admin-fotografias-editor.js?v=20260825-1"></script>',
+  '<script src="/js/admin-fotografias-editor-reset.js?v=20260825-1"></script>',
+  '<script src="/js/admin-fotografias-autoopen.js?v=20260825-1" defer></script>',
+  '<script src="/js/admin-fotografias-filtros.js?v=20260825-1" defer></script>'
 ].join('');
 
 class PortalHeadRewriter {
@@ -42,7 +43,9 @@ export async function onRequest(context) {
 
   const pathname = new URL(context.request.url).pathname.replace(/\/+$/, '');
   let extra = '';
-  if (pathname === '/portal/revision-fotos') extra += PHOTO_MANAGER_SCRIPT;
+  if (pathname === '/portal/administracion/fotografias') {
+    extra += ADMIN_PHOTOS_EDITOR_SCRIPT;
+  }
 
   return new HTMLRewriter()
     .on('head', new PortalHeadRewriter(extra))

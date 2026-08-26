@@ -1,0 +1,61 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const route = readFileSync(resolve(root, 'functions/api/eliminar-foto-revision.js'), 'utf8');
+const worker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v3.js'), 'utf8');
+const recoveryWorker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v4.js'), 'utf8');
+const appsScript = readFileSync(resolve(root, 'apps-script/fotos-administracion-v2.gs'), 'utf8');
+const orphanAppsScript = readFileSync(resolve(root, 'apps-script/fotos-huerfanas-v2.gs'), 'utf8');
+const prepare = readFileSync(resolve(root, 'scripts/prepare-fotos-admin-v2-production.mjs'), 'utf8');
+const dispatcherClient = readFileSync(resolve(root, 'functions/_lib/apps-script.js'), 'utf8');
+
+describe('Borrado seguro de fotografías en Producción', () => {
+  it('queda bloqueado por defecto ata activalo explicitamente en Cloudflare', () => {
+    expect(route).toContain('FOTOS_DELETE_PRODUCTION_ENABLED');
+    expect(route).toContain('PRODUCTION_DELETE_DISABLED');
+    expect(route).toContain("=== 'true'");
+  });
+
+  it('delega no backend v4 e conserva v3 como núcleo transaccional', () => {
+    expect(route).toContain("../_lib/fotos-delete-v4.js");
+    expect(recoveryWorker).toContain("./fotos-delete-v3.js");
+    expect(worker).toContain('rollbackIndices');
+    expect(worker).toContain('await chamarBorradoSheet');
+  });
+
+  it('só admite hosts de Producción e non o host Preview', () => {
+    expect(worker).toContain("'scpp-web.pages.dev'");
+    expect(worker).toContain("'coralpolifonicapontevedra.org'");
+    expect(worker).not.toContain("const PREVIEW_HOST = 'preview.coralpolifonicapontevedra.org'");
+    expect(recoveryWorker).toContain('PRODUCTION_HOSTS');
+  });
+
+  it('bloquea obxectos R2 identificados como copias de Preview', () => {
+    expect(worker).toContain('previewCloneSourceEtag');
+    expect(worker).toContain('R2_PREVIEW_OBJECT');
+    expect(recoveryWorker).toContain('R2_RECOVERY_PREVIEW_OBJECT');
+  });
+
+  it('Apps Script esixe os recursos físicos exactos de Producción', () => {
+    expect(appsScript).toContain("FOTOS_PRODUCTION_SPREADSHEET_ID_V2_ = '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w'");
+    expect(appsScript).toContain("FOTOS_PRODUCTION_FOLDER_ID_V2_ = '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'");
+    expect(appsScript).toContain("entorno: 'production'");
+  });
+
+  it('a limpeza huérfana comproba Drive e non borra ficheiros por si mesma', () => {
+    expect(orphanAppsScript).toContain('ORPHAN_HAS_R2_ROUTE');
+    expect(orphanAppsScript).toContain('ORPHAN_HAS_DRIVE_FILE');
+    expect(orphanAppsScript).not.toContain('setTrashed(true)');
+  });
+
+  it('as accións administrativas só usan a implementación principal esperada', () => {
+    expect(dispatcherClient).toContain("'comprobarFotosAdministracionPortal'");
+    expect(dispatcherClient).toContain("'gardarFotoAdministracionPortal'");
+    expect(dispatcherClient).toContain("'eliminarFotoAdministracionPortal'");
+    expect(dispatcherClient).toContain('verificarAppsScriptFotos');
+    expect(prepare).toContain("const PRODUCTION_SCRIPT_ID = '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'");
+  });
+});
