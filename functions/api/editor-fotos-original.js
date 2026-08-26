@@ -3,6 +3,15 @@ const AUTH_CACHE_VERSION = 2;
 const FIREBASE_TIMEOUT_MS = 8 * 1000;
 const PHOTO_AUTH_PREFIX = 'cache/autorizacion-fotos/';
 const ADMIN_AUTH_PREFIX = 'persoas/cache/administracion/';
+const INDEX_REVISION = 'indices/revision-fotos-v1.json';
+const INDEX_PUBLICO = 'indices/galeria-publica-v1.json';
+const INDEX_PRIVADO = 'indices/galeria-privada.json';
+const CATALOGO = 'indices/catalogo-fotos.json';
+
+const texto = (valor) => String(valor ?? '').trim();
+const idFotoDe = (foto) => texto(
+  foto?.idFoto || foto?.Id_Foto || foto?.id || foto?.Id || foto?.ID || foto?.rowId || foto?.['Row ID']
+);
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -87,6 +96,82 @@ async function comprobarAdministracion(env, usuario) {
   return false;
 }
 
+async function lerIndice(bucket, clave) {
+  if (!bucket) return [];
+  const obxecto = await bucket.get(clave);
+  if (!obxecto) return [];
+  const indice = await obxecto.json().catch(() => null);
+  return Array.isArray(indice?.fotos) ? indice.fotos : [];
+}
+
+function combinarFoto(id, ...listas) {
+  let resultado = null;
+  for (const lista of listas) {
+    const foto = (lista || []).find((item) => idFotoDe(item) === id);
+    if (foto) resultado = { ...(resultado || {}), ...foto, idFoto: id };
+  }
+  return resultado;
+}
+
+function rutasPrivadas(foto) {
+  return [...new Set([
+    foto?.rutaR2Privada,
+    foto?.rutaR2_Privada,
+    foto?.RutaR2_Privada,
+    foto?.rutaR2Traballo,
+    foto?.rutaR2Revision,
+    foto?.rutaR2,
+    foto?.RutaR2
+  ].map(texto).filter(Boolean))];
+}
+
+function rutasPublicas(foto) {
+  return [...new Set([
+    foto?.rutaR2Publica,
+    foto?.rutaR2_Publica,
+    foto?.RutaR2_Publica,
+    foto?.rutaR2,
+    foto?.RutaR2
+  ].map(texto).filter(Boolean))];
+}
+
+async function obterPrimeiro(bucket, rutas, fonte) {
+  if (!bucket) return null;
+  for (const ruta of rutas) {
+    const obxecto = await bucket.get(ruta);
+    if (!obxecto) continue;
+    return {
+      obxecto,
+      ruta,
+      mimeType: '',
+      fonte
+    };
+  }
+  return null;
+}
+
+async function resolverRutaIndices(env, idFoto) {
+  const [revision, catalogo, privada, publica] = await Promise.all([
+    lerIndice(env.R2_PRIVADO, INDEX_REVISION),
+    lerIndice(env.R2_PRIVADO, CATALOGO),
+    lerIndice(env.R2_PRIVADO, INDEX_PRIVADO),
+    lerIndice(env.R2_PUBLICO, INDEX_PUBLICO)
+  ]);
+
+  const foto = combinarFoto(idFoto, publica, privada, catalogo, revision);
+  if (!foto) return null;
+
+  const privadas = rutasPrivadas(foto);
+  const publicas = rutasPublicas(foto);
+
+  return (
+    await obterPrimeiro(env.R2_PRIVADO, privadas, 'R2-INDEX-PRIVATE') ||
+    await obterPrimeiro(env.R2_PRIVADO, publicas, 'R2-INDEX-PUBLIC-COPY') ||
+    await obterPrimeiro(env.R2_PUBLICO, publicas, 'R2-INDEX-PUBLIC') ||
+    await obterPrimeiro(env.R2_PUBLICO, privadas, 'R2-INDEX-PRIVATE-COPY')
+  );
+}
+
 async function resolverRutaActual(env, idFoto) {
   const rutaCanonica = `fotos/borradores/${idFoto}`;
   const canonico = await env.R2_PRIVADO.get(rutaCanonica);
@@ -116,20 +201,25 @@ async function resolverRutaActual(env, idFoto) {
   }
 
   const indiceObj = await env.R2_PRIVADO.get(`fotos/traballo/${idFoto}.json`);
-  if (!indiceObj) return null;
-  const indice = await indiceObj.json().catch(() => null);
-  const ruta = String(indice?.ruta || '').trim();
-  if (!ruta) return null;
-  const obxecto = await env.R2_PRIVADO.get(ruta);
-  if (!obxecto) return null;
-  return {
-    obxecto,
-    ruta,
-    mimeType: String(indice?.mimeType || '').trim(),
-    fonte: ruta.includes('/borradores/') || ruta.includes('/editadas/')
-      ? 'R2-WORK-DRAFT'
-      : 'R2-WORK-ORIGINAL'
-  };
+  if (indiceObj) {
+    const indice = await indiceObj.json().catch(() => null);
+    const ruta = String(indice?.ruta || '').trim();
+    if (ruta) {
+      const obxecto = await env.R2_PRIVADO.get(ruta);
+      if (obxecto) {
+        return {
+          obxecto,
+          ruta,
+          mimeType: String(indice?.mimeType || '').trim(),
+          fonte: ruta.includes('/borradores/') || ruta.includes('/editadas/')
+            ? 'R2-WORK-DRAFT'
+            : 'R2-WORK-ORIGINAL'
+        };
+      }
+    }
+  }
+
+  return resolverRutaIndices(env, idFoto);
 }
 
 export async function onRequest({ request, env }) {
