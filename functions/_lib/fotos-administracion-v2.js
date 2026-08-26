@@ -265,7 +265,7 @@ export async function onRequestFotosAdministracionV2({ request, env }) {
   const usuario = await verificarToken(datos.idToken, env.FIREBASE_API_KEY).catch(() => null);
   if (!usuario) return json(401, { ok: false, erro: 'Identificación non válida ou caducada' });
 
-  let edicion = null;
+  let edicion;
   try {
     await comprobarAdministracion(env, usuario);
 
