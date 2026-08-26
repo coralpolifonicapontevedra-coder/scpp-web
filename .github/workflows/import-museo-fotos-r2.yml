@@ -1,5 +1,6 @@
 name: Importar fotografías históricas do Museo
 
+# Reexecución idempotente 2026-08-26 para reconciliar índice público e miniaturas tras o smoke test de Fotografías v2.
 on:
   workflow_dispatch:
   push:
