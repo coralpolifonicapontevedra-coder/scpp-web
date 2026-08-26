@@ -13,6 +13,12 @@ const prepare = readFileSync(resolve(root, 'scripts/prepare-fotos-admin-v2-produ
 const dispatcherClient = readFileSync(resolve(root, 'functions/_lib/apps-script.js'), 'utf8');
 
 describe('Borrado seguro de fotografías en Producción', () => {
+  it('queda bloqueado por defecto ata activalo explicitamente en Cloudflare', () => {
+    expect(route).toContain('FOTOS_DELETE_PRODUCTION_ENABLED');
+    expect(route).toContain('PRODUCTION_DELETE_DISABLED');
+    expect(route).toContain("=== 'true'");
+  });
+
   it('delega no backend v4 e conserva v3 como núcleo transaccional', () => {
     expect(route).toContain("../_lib/fotos-delete-v4.js");
     expect(recoveryWorker).toContain("./fotos-delete-v3.js");
