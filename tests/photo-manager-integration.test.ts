@@ -36,6 +36,6 @@ describe('integración da administración de fotografías en Producción', () =>
   it('permite abrir o orixinal coa caché administrativa existente', () => {
     expect(originalApi).toContain("const ADMIN_AUTH_PREFIX = 'persoas/cache/administracion/'");
     expect(originalApi).toContain("datos?.payload?.perfil?.nivel === 'Administración'");
-    expect(originalApi).toContain("fonte: 'R2-EDITED'");
+    expect(originalApi).toContain("estado?.tipo === 'edicion-integrada' ? 'R2-EDITED' : 'R2-DRAFT-POINTER'");
   });
 });
