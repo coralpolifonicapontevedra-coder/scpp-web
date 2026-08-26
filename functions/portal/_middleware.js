@@ -24,6 +24,7 @@ const PORTAL_FONT_STYLE = `
 const ADMIN_PHOTOS_EDITOR_SCRIPT = [
   '<link rel="stylesheet" href="/css/admin-fotografias-compactas.css?v=20260825-2">',
   '<script src="/js/admin-fotografias-editor.js?v=20260825-1"></script>',
+  '<script src="/js/admin-fotografias-fallback.js?v=20260826-1"></script>',
   '<script src="/js/admin-fotografias-editor-reset.js?v=20260825-1"></script>',
   '<script src="/js/admin-fotografias-autoopen.js?v=20260825-1" defer></script>',
   '<script src="/js/admin-fotografias-filtros.js?v=20260825-1" defer></script>'
