@@ -5,7 +5,7 @@
  * - usa exclusivamente resolverPermisosPortal_ para autorizar;
  * - usa Id_Foto como clave estable;
  * - escribe metadatos, publicación e rutas R2 nunha única operación;
- * - non depende de UsuariosWeb, RevisarFotos nin funcións antigas de Fotos.
+ * - non depende do sistema histórico de autorización de Fotografías.
  */
 
 function permisoFotosAdministracionV2_(email) {
