@@ -1,0 +1,61 @@
+---
+import SpanishPublicLayout from '../../layouts/SpanishPublicLayout.astro';
+---
+
+<SpanishPublicLayout title="La Coral" description="Historia, personas y patrimonio de la Sociedad Coral Polifónica de Pontevedra.">
+  <div class="container coral-page-wrapper">
+    <main class="coral-content-elements">
+      <section id="historia" class="coral-section-card">
+        <h2>Historia</h2><div class="section-line"></div>
+        <p>Desde 1925, la Sociedad Coral Polifónica de Pontevedra forma parte esencial de la memoria cultural de la ciudad y de Galicia. Nacida del encuentro entre la música, el arte y el compromiso colectivo, construyó una identidad propia en torno a la gran polifonía, el repertorio gallego y una manera singular de entender la escena.</p>
+        <p>Más de un siglo después, aquel proyecto continúa vivo gracias a las generaciones de personas que le dieron voz, dirección y continuidad, haciendo de la Coral un patrimonio compartido y una institución abierta al futuro.</p>
+        <a href="/es/historia" class="btn-institucional">Descubrir nuestra historia</a>
+      </section>
+
+      <section id="centenario" class="coral-section-card">
+        <h2>Centenario</h2><div class="section-line"></div>
+        <p>Entre 2025 y 2026, la Sociedad Coral Polifónica de Pontevedra celebró su primer siglo de historia con un amplio programa de conciertos, exposiciones, conferencias y reconocimientos institucionales.</p>
+        <p>El concierto de San Francisco, el homenaje de la Sociedad Filarmónica, el Premio Otero Pedrayo, la Medalla Marcial del Adalid, la Vieira de Honor y el estreno de <em>Leucoíña. O canto das augas</em> forman parte de esta celebración.</p>
+        <a href="/es/centenario" class="btn-institucional">Descubrir el centenario</a>
+      </section>
+
+      <section id="directora" class="coral-section-card">
+        <h2>Directora</h2><div class="section-line"></div>
+        <p><strong>Nanette Sánchez Ordaz</strong> dirige la Sociedad Coral Polifónica de Pontevedra desde noviembre de 2013. Su formación en Dirección Coral en el Instituto Superior de Arte de La Habana acompaña una trayectoria desarrollada en escenarios de España, Portugal, Cuba y Bélgica. En la actualidad es también profesora de Coro y Educación Auditiva en el Conservatorio Profesional Manuel Quiroga de Pontevedra.</p>
+        <p>Bajo su dirección, la Coral afrontó la conmemoración del centenario de la entidad (2025–2026) y fue distinguida con la Medalla de Oro de la Sociedad en junio de 2019 por su labor artística y su dedicación a la institución.</p>
+        <a href="/es/directora" class="btn-institucional">Conocer a la directora</a>
+      </section>
+
+      <section id="xunta" class="coral-section-card">
+        <h2>Junta Directiva</h2><div class="section-line"></div>
+        <p>La Junta Directiva es el equipo de personas que coordina el día a día de la Sociedad, organiza la actividad de la Coral, cuida de su patrimonio y representa a la institución ante otras entidades.</p>
+        <p>El equipo elegido en 2026 desarrolla esta tarea de manera altruista, combinando la gestión de la asociación con la participación activa en la vida coral.</p>
+        <a href="/es/junta-directiva" class="btn-institucional">Conocer la Junta Directiva</a>
+      </section>
+
+      <section id="coralistas" class="coral-section-card">
+        <h2>Coralistas</h2><div class="section-line"></div>
+        <p>El corazón de nuestra coral: las voces activas —sopranos, contraltos, tenores y bajos— que dan vida a nuestro repertorio polifónico.</p>
+        <a href="/es/coralistas" class="btn-institucional">Conocer nuestras voces</a>
+      </section>
+
+      <section id="premios" class="coral-section-card">
+        <h2>Distinciones</h2><div class="section-line"></div>
+        <p>A lo largo de su historia, la Sociedad Coral Polifónica de Pontevedra ha recibido numerosos premios, medallas y reconocimientos institucionales por su aportación a la música, a la cultura gallega y a la vida de la ciudad.</p>
+        <p>Desde las primeras distinciones del siglo XX hasta los galardones concedidos en el año del centenario, estos homenajes forman parte de la memoria colectiva de la entidad.</p>
+        <a href="/es/distinciones" class="btn-institucional">Consultar las distinciones</a>
+      </section>
+
+      <section id="contratacion" class="coral-section-card contratacion-box">
+        <h2>Solicitar un concierto</h2><div class="section-line"></div>
+        <p>Información para ayuntamientos, entidades culturales, comisiones o eventos privados interesados en concertar una actuación o concierto de nuestra coral.</p>
+        <a href="/es/contacto" class="btn-institucional">Solicitar información</a>
+      </section>
+    </main>
+  </div>
+</SpanishPublicLayout>
+
+<style>
+.coral-page-wrapper{padding-top:2rem;padding-bottom:4.5rem}.coral-content-elements{display:flex;flex-direction:column;gap:4rem}.coral-section-card{scroll-margin-top:160px}.coral-section-card h2{margin:0;color:var(--color-principal);font-size:2rem;font-weight:700}.section-line{width:50px;height:2px;background-color:var(--color-acento);margin:.8rem 0 1.8rem}.coral-section-card p{color:var(--color-texto);font-size:1.08rem;line-height:1.75;opacity:.92;margin-bottom:1.35rem}.contratacion-box{background:var(--color-gris);padding:2.5rem;border-radius:4px;border-left:4px solid var(--color-principal)}.btn-institucional{display:inline-block;margin-top:.7rem;padding:.8rem 2.2rem;background-color:var(--color-principal);color:var(--color-blanco);text-transform:uppercase;font-size:.82rem;font-weight:600;letter-spacing:.05em;text-decoration:none;border-radius:4px;transition:background-color .2s ease}.btn-institucional:hover{background-color:var(--color-acento)}
+@media(max-width:720px){.coral-page-wrapper{padding-right:1.25rem;padding-left:1.25rem}.coral-content-elements{gap:3rem}.coral-section-card h2{font-size:1.65rem}.coral-section-card p{font-size:1rem}.contratacion-box{padding:1.6rem}}
+</style>

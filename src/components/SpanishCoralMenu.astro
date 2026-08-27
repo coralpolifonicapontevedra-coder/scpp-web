@@ -1,0 +1,74 @@
+---
+const { currentPath = '/es/' } = Astro.props;
+const rutaActual = String(currentPath || '/es/').replace(/\/$/, '') || '/es';
+const secciones = [
+  { nombre: 'La Coral', url: '/es/la-coral' },
+  { nombre: 'Historia', url: '/es/historia' },
+  { nombre: 'Centenario', url: '/es/centenario' },
+  { nombre: 'Directora', url: '/es/directora' },
+  { nombre: 'Junta Directiva', url: '/es/junta-directiva' },
+  { nombre: 'Coralistas', url: '/es/coralistas' },
+  { nombre: 'Distinciones recibidas', url: '/es/distinciones' },
+  { nombre: 'Honores concedidos', url: '/es/honores' },
+  { nombre: 'Solicitar un concierto', url: '/es/contacto' }
+];
+const esActiva = (url) => rutaActual === url || rutaActual.startsWith(`${url}/`);
+---
+
+<aside class="public-coral-menu" aria-label="Menú de La Coral" data-current-path={rutaActual}>
+  <button id="publicCoralMenuToggleEs" class="public-coral-toggle" type="button" aria-expanded="false" aria-controls="publicCoralMenuNavEs" aria-label="Abrir el menú de La Coral">
+    <span><small>Conoce la institución</small><strong>La Coral</strong></span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+  </button>
+
+  <nav id="publicCoralMenuNavEs" class="public-coral-nav" aria-label="Secciones de La Coral">
+    <header>
+      <span>Sociedad Coral</span>
+      <h2>La Coral</h2>
+      <p>Historia, personas y patrimonio de una institución centenaria.</p>
+    </header>
+    <ul>
+      {secciones.map((seccion) => (
+        <li><a href={seccion.url} class:list={[esActiva(seccion.url) && 'is-active']} aria-current={esActiva(seccion.url) ? 'page' : undefined}><span>{seccion.nombre}</span><span class="menu-arrow" aria-hidden="true">→</span></a></li>
+      ))}
+    </ul>
+  </nav>
+</aside>
+
+<script>
+  const menu = document.querySelector<HTMLElement>('.public-coral-menu');
+  const toggle = document.querySelector<HTMLButtonElement>('#publicCoralMenuToggleEs');
+  const nav = document.querySelector<HTMLElement>('#publicCoralMenuNavEs');
+  const mobileQuery = window.matchMedia('(max-width: 1180px)');
+  if (menu && toggle && nav) {
+    menu.classList.add('is-enhanced');
+    const setOpen = (open: boolean) => {
+      toggle.classList.toggle('is-open', open);
+      nav.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? 'Cerrar el menú de La Coral' : 'Abrir el menú de La Coral');
+    };
+    toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
+    nav.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => setOpen(false)));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') { setOpen(false); toggle.focus(); }
+    });
+    mobileQuery.addEventListener('change', (event) => { if (!event.matches) setOpen(false); });
+    if (menu.dataset.currentPath === '/es/distinciones') {
+      const moverBotonCentenario = () => {
+        const button = document.querySelector<HTMLElement>('.distincions-page .btn-centenario');
+        const destination = document.querySelector<HTMLElement>('.distincions-page .documentation-note');
+        if (button && destination) destination.append(button);
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', moverBotonCentenario, { once: true });
+      else moverBotonCentenario();
+    }
+  }
+</script>
+
+<style>
+.public-coral-menu{min-width:0;padding-top:1.25rem}.public-coral-toggle{display:none}.public-coral-nav{position:sticky;top:174px;overflow:hidden;border:1px solid rgba(106,27,41,.12);border-radius:5px;background:#f4f0e6;box-shadow:0 9px 24px rgba(53,35,37,.045)}.public-coral-nav header{padding:1.25rem 1.1rem 1rem;border-bottom:1px solid rgba(106,27,41,.1);background:rgba(255,255,255,.5)}.public-coral-nav header span{display:block;margin-bottom:.2rem;color:#98722f;font-size:.62rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase}.public-coral-nav h2{margin:0;color:var(--color-principal);font-size:1.18rem;line-height:1.2}.public-coral-nav p{margin:.52rem 0 0;color:#625b56;font-size:.75rem;line-height:1.5}.public-coral-nav ul{display:grid;gap:.08rem;margin:0;padding:.55rem;list-style:none}.public-coral-nav a{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.65rem;min-height:2.45rem;padding:.5rem .58rem;border-radius:3px;color:#48413d;font-size:.8rem;font-weight:600;line-height:1.25;text-decoration:none;transition:background .18s ease,color .18s ease}.public-coral-nav a:hover,.public-coral-nav a.is-active{background:#fff;color:var(--color-principal)}.public-coral-nav a.is-active{font-weight:800;box-shadow:inset 3px 0 0 var(--color-acento)}.menu-arrow{color:var(--color-acento);font-size:.92rem}
+:global(.public-site-main .centenario-page .centenario-intro h2),:global(.public-site-main .centenario-page .closing-section h2),:global(.public-site-main .coralistas-page .directory-heading h2),:global(.public-site-main .distincions-page .intro-section h2),:global(.public-site-main .distincions-page .section-heading h2),:global(.public-site-main .distincions-page .documentation-note h2),:global(.public-site-main .honras-page .directory-heading h2){font-size:clamp(1.55rem,2.6vw,2.2rem)!important;line-height:1.15!important;letter-spacing:-.02em!important}:global(.public-site-main .coral-page-wrapper #colaboracions){display:none!important}
+@media(max-width:1180px){.public-coral-menu{width:100%;padding:1rem clamp(1rem,3vw,2rem) 0}.public-coral-toggle{display:grid;grid-template-columns:minmax(0,1fr) 1.15rem;align-items:center;gap:.7rem;width:100%;min-height:3rem;padding:.5rem .7rem;border:1px solid rgba(106,27,41,.18);border-radius:5px;background:#f4f0e6;color:var(--color-principal);font:inherit;text-align:left;cursor:pointer}.public-coral-toggle span,.public-coral-toggle small,.public-coral-toggle strong{display:block}.public-coral-toggle small{margin-bottom:.03rem;color:#8a6a32;font-size:.59rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.public-coral-toggle strong{font-size:.87rem}.public-coral-toggle svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;transition:transform .2s ease}.public-coral-toggle.is-open svg{transform:rotate(180deg)}.public-coral-nav{position:static;margin-top:.42rem;box-shadow:none}.public-coral-menu.is-enhanced .public-coral-nav:not(.is-open){display:none}.public-coral-nav header{display:none}.public-coral-nav ul{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.public-coral-nav ul{grid-template-columns:1fr}}
+</style>

@@ -1,0 +1,168 @@
+---
+import SpanishHeader from '../components/SpanishHeader.astro';
+import SpanishFooter from '../components/SpanishFooter.astro';
+import SpanishCoralMenu from '../components/SpanishCoralMenu.astro';
+import SpanishPageHero from '../components/SpanishPageHero.astro';
+import '../styles/global.css';
+
+const {
+  title,
+  description = 'Web oficial de la Sociedad Coral Polifónica de Pontevedra, fundada en 1925.'
+} = Astro.props;
+
+const ruta = Astro.url.pathname;
+const rutaNormalizada = ruta.replace(/\/$/, '') || '/';
+const esPortada = rutaNormalizada === '/es';
+const esAgenda = rutaNormalizada === '/es/agenda';
+
+const equivalencias = {
+  '/es': '/',
+  '/es/la-coral': '/acoral',
+  '/es/historia': '/historia',
+  '/es/centenario': '/centenario',
+  '/es/directora': '/directora',
+  '/es/junta-directiva': '/xunta-directiva',
+  '/es/coralistas': '/coralistas',
+  '/es/distinciones': '/distincions',
+  '/es/honores': '/honras',
+  '/es/bienvenida': '/benvida',
+  '/es/agenda': '/axenda',
+  '/es/actualidad': '/actualidade',
+  '/es/galeria': '/galeria',
+  '/es/historico-conciertos': '/historico-concertos',
+  '/es/colabora': '/colabora',
+  '/es/colaboradores': '/colaboradores',
+  '/es/contacto': '/contacto',
+  '/es/privacidad': '/privacidade',
+  '/es/aviso-legal': '/aviso-legal',
+  '/es/cookies': '/cookies'
+};
+
+const rutaGl = equivalencias[rutaNormalizada] || '/';
+const alternaGl = new URL(rutaGl, Astro.url.origin).toString();
+const alternaEs = new URL(ruta, Astro.url.origin).toString();
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} | SCPP</title>
+    <meta name="description" content={description} />
+    <link rel="alternate" hreflang="gl" href={alternaGl} />
+    <link rel="alternate" hreflang="es" href={alternaEs} />
+    <link rel="alternate" hreflang="x-default" href={alternaGl} />
+  </head>
+  <body>
+    <SpanishHeader currentPath={ruta} galicianPath={rutaGl} />
+
+    <div class:list={['public-site-shell', esPortada && 'is-home']}>
+      {!esPortada && <SpanishCoralMenu currentPath={ruta} />}
+      <main class="public-site-main">
+        {!esPortada && (
+          <SpanishPageHero
+            currentPath={ruta}
+            pageTitle={title}
+            description={description}
+          />
+        )}
+        <slot />
+      </main>
+    </div>
+
+    <SpanishFooter />
+    {esAgenda && <script is:inline src="/js/poster-thumbnails.js" defer></script>}
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --color-principal: #6b1d2f;
+    --color-acento: #bd9648;
+    --color-blanco: #ffffff;
+    --color-texto: #2d2d2d;
+    --color-gris: #f7f7f7;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    font-family: 'Aptos', 'Calibri', system-ui, sans-serif;
+    color: var(--color-texto);
+    background-color: var(--color-blanco);
+    line-height: 1.6;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  .public-site-shell {
+    display: grid;
+    grid-template-columns: minmax(205px, 225px) minmax(0, 1fr);
+    align-items: start;
+    gap: clamp(1.2rem, 2vw, 1.8rem);
+    width: min(100%, 1400px);
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 1.8vw, 1.75rem);
+  }
+
+  .public-site-main { min-width: 0; }
+
+  .public-site-shell.is-home {
+    display: block;
+    width: min(100%, 1240px);
+    padding: 0 1.5rem;
+  }
+
+  .public-site-shell.is-home .public-site-main { width: 100%; }
+  .public-site-shell.is-home .hero-section { padding: 1.35rem 0 0 !important; }
+  .public-site-shell.is-home .hero-box {
+    width: 100% !important;
+    max-width: 1120px !important;
+    min-height: 325px !important;
+    margin: 0 auto !important;
+  }
+  .public-site-shell.is-home .hero-content { padding: 1.7rem 1.4rem !important; }
+  .public-site-shell.is-home .hero-logo-wrapper {
+    width: 116px !important;
+    height: 116px !important;
+    margin-bottom: 1.15rem !important;
+  }
+  .public-site-shell.is-home .hero-content h1 {
+    max-width: 650px;
+    font-size: clamp(1.85rem, 3.2vw, 2.35rem) !important;
+    line-height: 1.12 !important;
+  }
+  .public-site-shell.is-home .minimal-line { margin: .85rem 0 !important; }
+  .public-site-shell.is-home .hero-subtitle { font-size: .95rem !important; }
+
+  .public-site-main .coral-page-wrapper {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0 !important;
+  }
+  .public-site-main .coral-page-wrapper > .coral-sidebar { display: none !important; }
+
+  @media (max-width: 1180px) {
+    .public-site-shell {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      padding: 0;
+    }
+    .public-site-shell.is-home { width: 100%; padding: 0 1rem; }
+  }
+
+  @media (max-width: 640px) {
+    .public-site-shell.is-home .hero-box { min-height: 290px !important; }
+    .public-site-shell.is-home .hero-logo-wrapper {
+      width: 96px !important;
+      height: 96px !important;
+    }
+  }
+</style>

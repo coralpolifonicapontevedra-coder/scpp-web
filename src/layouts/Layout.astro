@@ -2,6 +2,8 @@
 /* src/layouts/Layout.astro */
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import SpanishHeader from '../components/SpanishHeader.astro';
+import SpanishFooter from '../components/SpanishFooter.astro';
 import PublicCoralMenu from '../components/PublicCoralMenu.astro';
 import PublicPageHero from '../components/PublicPageHero.astro';
 import PortalAcceptanceGate from '../components/PortalAcceptanceGate.astro';
@@ -16,7 +18,7 @@ const {
 
 const description = suppliedDescription || (
   lang === 'es'
-    ? 'Web oficial de la Sociedade Coral Polifónica de Pontevedra, fundada en 1925.'
+    ? 'Web oficial de la Sociedad Coral Polifónica de Pontevedra, fundada en 1925.'
     : 'Web oficial da Sociedade Coral Polifónica de Pontevedra, fundada en 1925.'
 );
 
@@ -43,7 +45,7 @@ const alternaEs = new URL('/es/', Astro.url.origin).toString();
     {ePortada && <link rel="alternate" hreflang="x-default" href={alternaGl} />}
   </head>
   <body class:list={[eZonaPortal && 'portal-private-body']}>
-    {!eZonaPortal && <Header lang={lang} />}
+    {!eZonaPortal && (lang === 'es' ? <SpanishHeader currentPath={ruta} galicianPath="/" /> : <Header lang={lang} />)}
 
     {eZonaPortal ? (
       <main>
@@ -65,13 +67,48 @@ const alternaEs = new URL('/es/', Astro.url.origin).toString();
       </div>
     )}
 
-    {!eZonaPortal && <Footer lang={lang} />}
+    {!eZonaPortal && (lang === 'es' ? <SpanishFooter /> : <Footer lang={lang} />)}
     {eInicioPortal && <PortalAcceptanceGate />}
     {eInicioPortal && <script is:inline src="/js/portal-auth-diagnostics.js" defer></script>}
     {eZonaPortal && <PortalReviewStyles />}
     {eAxenda && <script is:inline src="/js/poster-thumbnails.js" defer></script>}
     {eRepertorio && <script is:inline src="/js/portal-fast-load.js"></script>}
 
+    {lang === 'es' && (
+      <script is:inline>
+        (() => {
+          const rutas = {
+            '/acoral': '/es/la-coral',
+            '/historia': '/es/historia',
+            '/centenario': '/es/centenario',
+            '/directora': '/es/directora',
+            '/xunta-directiva': '/es/junta-directiva',
+            '/coralistas': '/es/coralistas',
+            '/distincions': '/es/distinciones',
+            '/honras': '/es/honores',
+            '/benvida': '/es/bienvenida',
+            '/axenda': '/es/agenda',
+            '/actualidade': '/es/actualidad',
+            '/galeria': '/es/galeria',
+            '/historico-concertos': '/es/historico-conciertos',
+            '/colabora': '/es/colabora',
+            '/colaboradores': '/es/colaboradores',
+            '/contacto': '/es/contacto',
+            '/privacidade': '/es/privacidad',
+            '/aviso-legal': '/es/aviso-legal',
+            '/cookies': '/es/cookies'
+          };
+          document.querySelectorAll('a[href^="/"]').forEach((enlace) => {
+            const href = enlace.getAttribute('href');
+            if (!href || href.startsWith('/portal') || href.startsWith('/es/')) return;
+            const url = new URL(href, location.origin);
+            const base = url.pathname.replace(/\/$/, '') || '/';
+            const destino = rutas[base];
+            if (destino) enlace.setAttribute('href', `${destino}${url.hash || ''}`);
+          });
+        })();
+      </script>
+    )}
   </body>
 </html>
 
