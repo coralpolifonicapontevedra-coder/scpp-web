@@ -44,33 +44,44 @@ const dispatcherPath = dispatchers[0];
 let dispatcher = fs.readFileSync(dispatcherPath, 'utf8');
 const actionBlocks = [
   {
-    marker: "accion === 'comprobarFotosAdministracionPortal'",
+    accion: 'comprobarFotosAdministracionPortal',
     block: "    if (accion === 'comprobarFotosAdministracionPortal') {\n      return respostaJSON(comprobarFotosAdministracionPortal_(datos));\n    }\n\n"
   },
   {
-    marker: "accion === 'gardarFotoAdministracionPortal'",
+    accion: 'gardarFotoAdministracionPortal',
     block: "    if (accion === 'gardarFotoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(gardarFotoAdministracionPortal_(datos));\n    }\n\n"
   },
   {
-    marker: "accion === 'eliminarFotoAdministracionPortal'",
+    accion: 'eliminarFotoAdministracionPortal',
     block: "    if (accion === 'eliminarFotoAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(eliminarFotoAdministracionPortal_(datos));\n    }\n\n"
   },
   {
-    marker: "accion === 'eliminarFotoHuerfanaAdministracionPortal'",
+    accion: 'eliminarFotoHuerfanaAdministracionPortal',
     block: "    if (accion === 'eliminarFotoHuerfanaAdministracionPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(eliminarFotoHuerfanaAdministracionPortal_(datos));\n    }\n\n"
   }
 ];
 
 for (const action of actionBlocks) {
-  if (!dispatcher.includes(action.marker)) {
+  const escaped = action.accion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`    if \\(accion === '${escaped}'\\) \\{[\\s\\S]*?\\r?\\n    \\}\\r?\\n\\r?\\n`);
+  if (regex.test(dispatcher)) {
+    dispatcher = dispatcher.replace(regex, action.block);
+  } else {
     dispatcher = dispatcher.replace(anchor, action.block + anchor);
   }
 }
 
 for (const action of actionBlocks) {
-  if (!dispatcher.includes(action.marker)) {
-    fail(`Non se puido inserir a acción ${action.marker} no dispatcher.`);
+  if (!dispatcher.includes(action.block)) {
+    fail(`A acción ${action.accion} non quedou restaurada á implementación v2.`);
   }
+}
+for (const chamadaV3 of [
+  'gardarFotoAdministracionPortalV3_(datos)',
+  'eliminarFotoAdministracionPortalV3_(datos)',
+  'eliminarFotoHuerfanaAdministracionPortalV3_(datos)'
+]) {
+  if (dispatcher.includes(chamadaV3)) fail(`Segue activa unha chamada v3: ${chamadaV3}`);
 }
 
 fs.writeFileSync(dispatcherPath, dispatcher, 'utf8');
@@ -78,14 +89,13 @@ fs.copyFileSync(fotosSource, path.join(previewDir, 'fotos-administracion-v2.js')
 fs.copyFileSync(huerfanasSource, path.join(previewDir, 'fotos-huerfanas-v2.js'));
 fs.copyFileSync(permisosSource, path.join(previewDir, 'permisos-portal.js'));
 
-console.log('Fotografías v2 preparadas para SCPP Script - Pruebas.');
+const operacionsV3 = path.join(previewDir, 'fotos-operacions-rapidas-v3.js');
+if (fs.existsSync(operacionsV3)) fs.unlinkSync(operacionsV3);
+
+console.log('Fotografías v2 restauradas para SCPP Script - Pruebas.');
 console.log(`- Script ID verificado: ${PREVIEW_SCRIPT_ID}`);
 console.log(`- Dispatcher: ${path.basename(dispatcherPath)}`);
-console.log('- Acción comprobarFotosAdministracionPortal conectada.');
-console.log('- Acción gardarFotoAdministracionPortal conectada cun único lock.');
-console.log('- Acción eliminarFotoAdministracionPortal conectada cun único lock e garda física de Preview.');
-console.log('- Acción eliminarFotoHuerfanaAdministracionPortal conectada cun único lock e comprobación de ausencia de ficheiros.');
-console.log('- fotos-administracion-v2.js copiado.');
-console.log('- fotos-huerfanas-v2.js copiado.');
-console.log('- permisos-portal.js actualizado co resolvedor central.');
-console.log('- NON se executou clasp push. Revisa e executa clasp push dentro de apps-script-preview.');
+console.log('- Só as catro accións de Fotografías quedan normalizadas á versión v2 validada.');
+console.log('- Gardar/eliminar recuperan o fluxo validado antes da promoción a Produción.');
+console.log('- fotos-operacions-rapidas-v3.js retirado do proxecto local se existía.');
+console.log('- NON se executou clasp push nin se creou unha nova versión.');
