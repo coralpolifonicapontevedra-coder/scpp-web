@@ -2,6 +2,9 @@
 /* src/components/Footer.astro */
 const { lang = 'gl' } = Astro.props;
 const year = new Date().getFullYear();
+const brandName = lang === 'es'
+  ? 'Sociedad Coral Polifónica de Pontevedra'
+  : 'Sociedade Coral Polifónica de Pontevedra';
 
 const contactInfo = {
   gl: {
@@ -101,7 +104,7 @@ const texts = contactInfo[lang] || contactInfo.gl;
   </div>
 
   <div class="footer-bottom">
-    <p>&copy; {year} Sociedade Coral Polifónica de Pontevedra. {texts.copyright}</p>
+    <p>&copy; {year} {brandName}. {texts.copyright}</p>
     <div class="footer-legal">
       {texts.legalLinks.map(([name, url], index) => (
         <>
