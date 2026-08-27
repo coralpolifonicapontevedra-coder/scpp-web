@@ -8,7 +8,7 @@ import rosetonImg from '../../assets/roseton.jpg';
 <BaseLayout
   title="Inicio"
   lang="es"
-  description="Web oficial de la Sociedade Coral Polifónica de Pontevedra, fundada en 1925. Cien años de patrimonio y polifonía en Galicia."
+  description="Web oficial de la Sociedad Coral Polifónica de Pontevedra, fundada en 1925. Cien años de patrimonio y polifonía en Galicia."
 >
   <section class="hero-section">
     <div class="hero-box">
@@ -22,7 +22,7 @@ import rosetonImg from '../../assets/roseton.jpg';
             class="center-roseton"
           />
         </div>
-        <h1>Sociedade Coral Polifónica de Pontevedra</h1>
+        <h1>Sociedad Coral Polifónica de Pontevedra</h1>
         <div class="minimal-line"></div>
         <p class="hero-subtitle">
           Fundada en 1925 • Cien años de patrimonio y polifonía en Galicia
@@ -89,7 +89,7 @@ import rosetonImg from '../../assets/roseton.jpg';
     <div class="video-frame">
       <iframe
         id="youtube-player"
-        title="Ave María de J. Busto interpretada por la Sociedade Coral Polifónica de Pontevedra"
+        title="Ave María de J. Busto interpretada por la Sociedad Coral Polifónica de Pontevedra"
         src=""
         allow="autoplay; encrypted-media; picture-in-picture"
         allowfullscreen
@@ -238,7 +238,7 @@ import rosetonImg from '../../assets/roseton.jpg';
   const reproducirVideo = (id, titulo) => {
     if (!reproductor || !id) return;
     reproductor.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
-    reproductor.title = `${titulo} interpretada por la Sociedade Coral Polifónica de Pontevedra`;
+    reproductor.title = `${titulo} interpretada por la Sociedad Coral Polifónica de Pontevedra`;
     if (tituloVideo) tituloVideo.textContent = titulo;
     document.querySelectorAll('.video-option').forEach((opcion) => {
       const actual = opcion.dataset.video === id;
