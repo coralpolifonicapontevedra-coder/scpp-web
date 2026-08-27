@@ -25,7 +25,13 @@ describe('Fallback de fotografías aprobadas e miniaturas incompletas', () => {
     expect(fallback).toContain('/api/editor-fotos-miniatura?idFoto=');
     expect(fallback).toContain('Authorization: `Bearer ${idToken}`');
     expect(fallback).toContain("node.dataset.fallbackOriginal = 'true'");
-    expect(middleware).toContain('/js/admin-fotografias-fallback.js?v=20260826-1');
+    expect(middleware).toContain('/js/admin-fotografias-fallback.js?v=20260827-1');
+  });
+
+  it('non reescribe a mesma src do diálogo nin observa src, evitando bucles en móbil', () => {
+    expect(fallback).toContain("if (image.getAttribute('src') !== src) image.src = src;");
+    expect(fallback).toContain("attributeFilter: ['class', 'href']");
+    expect(fallback).not.toContain("attributeFilter: ['class', 'src', 'href']");
   });
 
   it('o fallback de miniatura acepta a caché central de Administración', () => {

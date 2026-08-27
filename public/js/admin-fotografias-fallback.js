@@ -28,7 +28,7 @@
   function aplicar(id, src) {
     document.querySelectorAll(`[data-thumb-id="${CSS.escape(id)}"]`).forEach((node) => {
       if (node instanceof HTMLImageElement && !node.classList.contains('is-ready')) {
-        node.src = src;
+        if (node.getAttribute('src') !== src) node.src = src;
         node.classList.add('is-ready');
         node.dataset.fallbackOriginal = 'true';
       }
@@ -38,10 +38,10 @@
       const image = document.querySelector('#dialog-image');
       const placeholder = document.querySelector('#dialog-image-placeholder');
       if (image instanceof HTMLImageElement) {
-        image.src = src;
-        image.hidden = false;
+        if (image.getAttribute('src') !== src) image.src = src;
+        if (image.hidden) image.hidden = false;
       }
-      if (placeholder instanceof HTMLElement) placeholder.hidden = true;
+      if (placeholder instanceof HTMLElement && !placeholder.hidden) placeholder.hidden = true;
     }
   }
 
@@ -107,7 +107,12 @@
   const iniciar = () => {
     revisar();
     const observer = new MutationObserver(() => revisar());
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'src', 'href'] });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'href']
+    });
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar, { once: true });
