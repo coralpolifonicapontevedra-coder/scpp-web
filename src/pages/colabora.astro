@@ -35,6 +35,7 @@ const viasColaboracion = [
     destacado: false
   }
 ];
+
 ---
 
 <BaseLayout title="Colabora" lang="gl">
@@ -229,13 +230,17 @@ const viasColaboracion = [
     <aside class="empresas-adianto">
       <div>
         <p class="sobrelinea">Recoñecemento público</p>
-        <h2>Empresas e entidades colaboradoras</h2>
+        <h2>Institucións e entidades colaboradoras</h2>
       </div>
-      <p>
-        A futura páxina de entidades colaboradoras mostrará unicamente relacións
-        activas e formalizadas, co logo e a ligazón autorizados expresamente pola
-        empresa ou institución correspondente.
-      </p>
+      <div class="empresas-adianto__content">
+        <p>
+          Coñece as institucións, entidades e empresas que contribúen a manter
+          viva a actividade artística e o patrimonio da Sociedade.
+        </p>
+        <a class="btn-entidades" href="/colaboradores/">
+          Coñecer as entidades colaboradoras <span aria-hidden="true">→</span>
+        </a>
+      </div>
     </aside>
   </div>
 
@@ -385,7 +390,7 @@ const viasColaboracion = [
   }
 
   .formulario-intro p:last-child,
-  .empresas-adianto > p {
+  .empresas-adianto p {
     color: var(--color-texto);
     line-height: 1.65;
     opacity: .82;
@@ -490,7 +495,32 @@ const viasColaboracion = [
     background: var(--color-gris);
   }
 
-  .empresas-adianto p { margin-top: 0; }
+  .empresas-adianto p { margin: 0; }
+
+  .empresas-adianto__content {
+    display: grid;
+    gap: 1.35rem;
+    justify-items: start;
+  }
+
+  .btn-entidades {
+    display: inline-flex;
+    align-items: center;
+    gap: .65rem;
+    border-radius: 4px;
+    background: var(--color-principal);
+    color: var(--color-blanco);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: .85rem 1.2rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: background-color .2s ease;
+  }
+
+  .btn-entidades:hover,
+  .btn-entidades:focus-visible { background: var(--color-acento); }
 
   @media (max-width: 900px) {
     .formulario-colabora,
@@ -503,5 +533,6 @@ const viasColaboracion = [
     .colabora-card { min-height: 0; }
     .btn-colabora,
     .btn-enviar { width: 100%; }
+    .btn-entidades { justify-content: center; width: 100%; }
   }
 </style>
