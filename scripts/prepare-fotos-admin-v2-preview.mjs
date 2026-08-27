@@ -63,7 +63,7 @@ const actionBlocks = [
 
 for (const action of actionBlocks) {
   const escaped = action.accion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`    if \\(accion === '${escaped}'\\) \\{[\\s\\S]*?\\n    \\}\\n\\n`);
+  const regex = new RegExp(`    if \\(accion === '${escaped}'\\) \\{[\\s\\S]*?\\r?\\n    \\}\\r?\\n\\r?\\n`);
   if (regex.test(dispatcher)) {
     dispatcher = dispatcher.replace(regex, action.block);
   } else {
