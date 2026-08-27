@@ -104,13 +104,8 @@ async function lerIndice(bucket, clave) {
   return Array.isArray(indice?.fotos) ? indice.fotos : [];
 }
 
-function combinarFoto(id, ...listas) {
-  let resultado = null;
-  for (const lista of listas) {
-    const foto = (lista || []).find((item) => idFotoDe(item) === id);
-    if (foto) resultado = { ...(resultado || {}), ...foto, idFoto: id };
-  }
-  return resultado;
+function localizarFoto(id, lista) {
+  return (lista || []).find((item) => idFotoDe(item) === id) || null;
 }
 
 function rutasPrivadas(foto) {
@@ -133,6 +128,14 @@ function rutasPublicas(foto) {
     foto?.rutaR2,
     foto?.RutaR2
   ].map(texto).filter(Boolean))];
+}
+
+function rutasCandidatasRexistros(rexistros, tipo) {
+  const rutas = [];
+  for (const foto of rexistros || []) {
+    rutas.push(...(tipo === 'privada' ? rutasPrivadas(foto) : rutasPublicas(foto)));
+  }
+  return [...new Set(rutas.map(texto).filter(Boolean))];
 }
 
 async function obterPrimeiro(bucket, rutas, fonte) {
@@ -158,11 +161,18 @@ async function resolverRutaIndices(env, idFoto) {
     lerIndice(env.R2_PUBLICO, INDEX_PUBLICO)
   ]);
 
-  const foto = combinarFoto(idFoto, publica, privada, catalogo, revision);
-  if (!foto) return null;
+  const rexistros = [
+    localizarFoto(idFoto, revision),
+    localizarFoto(idFoto, catalogo),
+    localizarFoto(idFoto, privada),
+    localizarFoto(idFoto, publica)
+  ].filter(Boolean);
+  if (!rexistros.length) return null;
 
-  const privadas = rutasPrivadas(foto);
-  const publicas = rutasPublicas(foto);
+  // Non fusionar os rexistros: un campo baleiro dun índice non debe borrar
+  // unha ruta válida conservada noutro índice estable.
+  const privadas = rutasCandidatasRexistros(rexistros, 'privada');
+  const publicas = rutasCandidatasRexistros(rexistros, 'publica');
 
   return (
     await obterPrimeiro(env.R2_PRIVADO, privadas, 'R2-INDEX-PRIVATE') ||
