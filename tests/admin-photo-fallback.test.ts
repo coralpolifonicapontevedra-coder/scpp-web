@@ -21,6 +21,15 @@ describe('Fallback de fotografías aprobadas e miniaturas incompletas', () => {
     expect(editorOriginal).toContain("'R2-INDEX-PRIVATE'");
   });
 
+  it('o editor non perde unha ruta válida por campos baleiros doutro índice', () => {
+    expect(editorOriginal).toContain('rutasCandidatasRexistros(rexistros');
+    expect(editorOriginal).toContain('localizarFoto(idFoto, revision)');
+    expect(editorOriginal).toContain('localizarFoto(idFoto, catalogo)');
+    expect(editorOriginal).toContain('localizarFoto(idFoto, privada)');
+    expect(editorOriginal).toContain('localizarFoto(idFoto, publica)');
+    expect(editorOriginal).not.toContain('combinarFoto(idFoto, publica, privada, catalogo, revision)');
+  });
+
   it('usa o endpoint autenticado de miniatura como respaldo visual', () => {
     expect(fallback).toContain('/api/editor-fotos-miniatura?idFoto=');
     expect(fallback).toContain('Authorization: `Bearer ${idToken}`');
