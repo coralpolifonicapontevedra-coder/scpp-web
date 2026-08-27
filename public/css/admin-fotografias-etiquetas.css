@@ -1,0 +1,59 @@
+/* Regra visual do módulo: unha etiqueta nunca pode quedar pegada ao seu valor. */
+
+/* Datos de conta e metadatos da fotografía: etiqueta + valor na mesma liña cando caiban. */
+.account-card > span,
+.photo-dialog .dialog-meta > span {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: .55rem !important;
+  row-gap: .2rem !important;
+}
+
+.account-card > span > small,
+.photo-dialog .dialog-meta > span > small {
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+
+.account-card > span > strong,
+.photo-dialog .dialog-meta > span > strong {
+  min-width: 0;
+  margin: 0 !important;
+}
+
+/* O separador forma parte da etiqueta e garante lectura clara: «Data: 13/11/1928». */
+.account-card > span > small::after,
+.photo-dialog .dialog-meta > span > small::after {
+  content: ':';
+}
+
+/* Campos editables: título do campo claramente separado do control/valor. */
+.photos-toolbar label,
+.photo-dialog .dialog-fields > label,
+.xestor-metadatos label {
+  row-gap: .38rem !important;
+}
+
+/* O nome e a explicación dos destinos de publicación tampouco quedan pegados. */
+.photo-dialog .check-row > span {
+  display: grid !important;
+  row-gap: .18rem !important;
+}
+
+/* Resumos: número e concepto sempre teñen separación perceptible. */
+#summary.summary-grid button {
+  row-gap: .28rem !important;
+}
+
+/* Metadatos compactos das tarxetas: deixa aire entre bloques separados por punto medio. */
+#app .photo-copy small {
+  word-spacing: .08em;
+}
+
+@media (max-width: 560px) {
+  .account-card > span,
+  .photo-dialog .dialog-meta > span {
+    column-gap: .45rem !important;
+  }
+}
