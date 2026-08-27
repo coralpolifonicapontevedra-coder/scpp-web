@@ -9,6 +9,7 @@ const worker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v3.js'), 
 const recoveryWorker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v4.js'), 'utf8');
 const appsScript = readFileSync(resolve(root, 'apps-script/fotos-administracion-v2.gs'), 'utf8');
 const orphanAppsScript = readFileSync(resolve(root, 'apps-script/fotos-huerfanas-v2.gs'), 'utf8');
+const fastOperations = readFileSync(resolve(root, 'apps-script/fotos-operacions-rapidas-v3.gs'), 'utf8');
 const prepare = readFileSync(resolve(root, 'scripts/prepare-fotos-admin-v2-preview.mjs'), 'utf8');
 const dispatcherClient = readFileSync(resolve(root, 'functions/_lib/apps-script.js'), 'utf8');
 const middleware = readFileSync(resolve(root, 'functions/portal/_middleware.js'), 'utf8');
@@ -79,11 +80,25 @@ describe('Borrado de fotografías v4 en Preview', () => {
     expect(orphanAppsScript).not.toContain('DriveApp.getFileById');
   });
 
-  it('o preparador conecta as dúas accións de borrado só no Apps Script de Preview', () => {
+  it('limita o ScriptLock á mutación crítica e libérao antes de Drive', () => {
+    expect(fastOperations).toContain('FOTOS_LOCK_TIMEOUT_MS_V3_ = 2500');
+    expect(fastOperations).toContain('tryLock(FOTOS_LOCK_TIMEOUT_MS_V3_)');
+    expect(fastOperations).toContain('bloqueo.releaseLock()');
+    expect(fastOperations).toContain('eliminarFotoAdministracionPortalV3_');
+    expect(fastOperations).toContain('DriveApp.getFolderById');
+    const releasePos = fastOperations.indexOf('bloqueo.releaseLock()');
+    const drivePos = fastOperations.indexOf('DriveApp.getFolderById');
+    expect(releasePos).toBeGreaterThan(-1);
+    expect(drivePos).toBeGreaterThan(releasePos);
+  });
+
+  it('o preparador substitúe o waitLock global polas operacións v3', () => {
     expect(prepare).toContain("const PREVIEW_SCRIPT_ID = '1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF'");
-    expect(prepare).toContain("accion === 'eliminarFotoAdministracionPortal'");
-    expect(prepare).toContain("accion === 'eliminarFotoHuerfanaAdministracionPortal'");
-    expect(prepare).toContain("fotos-huerfanas-v2.js");
+    expect(prepare).toContain('gardarFotoAdministracionPortalV3_(datos)');
+    expect(prepare).toContain('eliminarFotoAdministracionPortalV3_(datos)');
+    expect(prepare).toContain('eliminarFotoHuerfanaAdministracionPortalV3_(datos)');
+    expect(prepare).toContain('fotos-operacions-rapidas-v3.js');
+    expect(prepare).toContain('Gardar Fotografías aínda conserva o bloqueo global antigo.');
   });
 
   it('retira a ferramenta temporal de migración e o bloqueo visual antigo', () => {
