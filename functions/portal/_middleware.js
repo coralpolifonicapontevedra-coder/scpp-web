@@ -23,7 +23,7 @@ const PORTAL_FONT_STYLE = `
 
 const ADMIN_PHOTOS_EDITOR_SCRIPT = [
   '<link rel="stylesheet" href="/css/admin-fotografias-compactas.css?v=20260825-2">',
-  '<link rel="stylesheet" href="/css/admin-fotografias-etiquetas.css?v=20260827-1">',
+  '<link rel="stylesheet" href="/css/admin-fotografias-etiquetas.css?v=20260827-2">',
   '<script src="/js/admin-fotografias-editor.js?v=20260825-1"></script>',
   '<script src="/js/admin-fotografias-fallback.js?v=20260827-1"></script>',
   '<script src="/js/admin-fotografias-editor-reset.js?v=20260825-1"></script>',
