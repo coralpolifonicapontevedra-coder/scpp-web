@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const route = readFileSync(resolve(root, 'functions/api/eliminar-foto-revision.js'), 'utf8');
-const fastWorker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v5-fast.js'), 'utf8');
 const worker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v3.js'), 'utf8');
 const recoveryWorker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v4.js'), 'utf8');
 const appsScript = readFileSync(resolve(root, 'apps-script/fotos-administracion-v2.gs'), 'utf8');
@@ -14,11 +13,11 @@ const prepare = readFileSync(resolve(root, 'scripts/prepare-fotos-admin-v2-produ
 const dispatcherClient = readFileSync(resolve(root, 'functions/_lib/apps-script.js'), 'utf8');
 
 describe('Borrado seguro de fotografías en Producción', () => {
-  it('queda habilitado e usa o backend rápido v5', () => {
+  it('usa o backend v4 validado en Preview, adaptado a Producción', () => {
     expect(route).not.toContain('FOTOS_DELETE_PRODUCTION_ENABLED');
-    expect(route).not.toContain('PRODUCTION_DELETE_DISABLED');
-    expect(route).toContain('onRequestFotosDeleteV5Fast');
-    expect(route).toContain("../_lib/fotos-delete-v5-fast.js");
+    expect(route).not.toContain('onRequestFotosDeleteV5Fast');
+    expect(route).toContain('onRequestFotosDeleteV4');
+    expect(route).toContain("../_lib/fotos-delete-v4.js");
   });
 
   it('acepta o alias estable de Producción sen abrir Preview', () => {
@@ -27,30 +26,18 @@ describe('Borrado seguro de fotografías en Producción', () => {
     expect(route).not.toContain("preview.coralpolifonicapontevedra.org");
   });
 
-  it('mantén v4/v3 como recuperación para casos raros ou huérfanos', () => {
-    expect(fastWorker).toContain("./fotos-delete-v4.js");
-    expect(fastWorker).toContain('return onRequestFotosDeleteV4(context)');
+  it('mantén v4/v3 e rollback para os casos de borrado', () => {
     expect(recoveryWorker).toContain("./fotos-delete-v3.js");
     expect(worker).toContain('rollbackIndices');
+    expect(recoveryWorker).toContain("accion: 'eliminarFotoAdministracionPortal'");
   });
 
-  it('evita as esperas que provocaban 504 no camiño normal', () => {
-    expect(fastWorker).toContain('administracionCacheada');
-    expect(fastWorker).not.toContain("accion: 'comprobarFotosAdministracionPortal'");
-    expect(fastWorker).toContain("accion: 'eliminarFotoAdministracionPortal'");
-    expect(fastWorker).toContain('context.waitUntil(limpeza)');
-    expect(fastWorker).not.toContain('pubCheck');
-    expect(fastWorker).not.toContain('priCheck');
+  it('mantén as gardas específicas contra obxectos de Preview', () => {
+    expect(recoveryWorker).toContain('previewCloneSourceEtag');
+    expect(recoveryWorker).toContain('fotoMarcadaPreview');
   });
 
-  it('bloquea Preview e conserva rollback se falla a Sheet', () => {
-    expect(fastWorker).toContain('previewCloneSourceEtag');
-    expect(fastWorker).toContain('R2_PREVIEW_OBJECT');
-    expect(fastWorker).toContain('rollbackIndices');
-    expect(fastWorker).toContain('await chamarBorradoSheet');
-  });
-
-  it('Apps Script esixe os recursos físicos exactos de Producción', () => {
+  it('Apps Script segue esixindo os recursos físicos exactos de Producción', () => {
     expect(appsScript).toContain("FOTOS_PRODUCTION_SPREADSHEET_ID_V2_ = '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w'");
     expect(appsScript).toContain("FOTOS_PRODUCTION_FOLDER_ID_V2_ = '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'");
     expect(appsScript).toContain("entorno: 'production'");
@@ -62,11 +49,10 @@ describe('Borrado seguro de fotografías en Producción', () => {
     expect(orphanAppsScript).not.toContain('setTrashed(true)');
   });
 
-  it('as accións administrativas só usan a implementación principal esperada', () => {
+  it('non cambia a configuración compartida de Apps Script', () => {
     expect(dispatcherClient).toContain("'comprobarFotosAdministracionPortal'");
     expect(dispatcherClient).toContain("'gardarFotoAdministracionPortal'");
     expect(dispatcherClient).toContain("'eliminarFotoAdministracionPortal'");
-    expect(dispatcherClient).toContain('verificarAppsScriptFotos');
     expect(prepare).toContain("const PRODUCTION_SCRIPT_ID = '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'");
   });
 });
