@@ -1,3 +1,5 @@
-import { onRequestFotosDeleteV5FastPreview } from '../_lib/fotos-delete-v5-fast-preview.js';
+import { onRequestFotosDeleteV4 } from '../_lib/fotos-delete-v4.js';
 
-export const onRequest = onRequestFotosDeleteV5FastPreview;
+export async function onRequest(context) {
+  return onRequestFotosDeleteV4(context);
+}
