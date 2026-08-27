@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const route = readFileSync(resolve(root, 'functions/api/eliminar-foto-revision.js'), 'utf8');
+const fastWorker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v5-fast.js'), 'utf8');
 const worker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v3.js'), 'utf8');
 const recoveryWorker = readFileSync(resolve(root, 'functions/_lib/fotos-delete-v4.js'), 'utf8');
 const appsScript = readFileSync(resolve(root, 'apps-script/fotos-administracion-v2.gs'), 'utf8');
@@ -13,10 +14,11 @@ const prepare = readFileSync(resolve(root, 'scripts/prepare-fotos-admin-v2-produ
 const dispatcherClient = readFileSync(resolve(root, 'functions/_lib/apps-script.js'), 'utf8');
 
 describe('Borrado seguro de fotografías en Producción', () => {
-  it('queda habilitado en Producción e delega no backend seguro v4', () => {
+  it('queda habilitado e usa o backend rápido v5', () => {
     expect(route).not.toContain('FOTOS_DELETE_PRODUCTION_ENABLED');
     expect(route).not.toContain('PRODUCTION_DELETE_DISABLED');
-    expect(route).toContain('onRequestFotosDeleteV4');
+    expect(route).toContain('onRequestFotosDeleteV5Fast');
+    expect(route).toContain("../_lib/fotos-delete-v5-fast.js");
   });
 
   it('acepta o alias estable de Producción sen abrir Preview', () => {
@@ -25,24 +27,27 @@ describe('Borrado seguro de fotografías en Producción', () => {
     expect(route).not.toContain("preview.coralpolifonicapontevedra.org");
   });
 
-  it('delega no backend v4 e conserva v3 como núcleo transaccional', () => {
-    expect(route).toContain("../_lib/fotos-delete-v4.js");
+  it('mantén v4/v3 como recuperación para casos raros ou huérfanos', () => {
+    expect(fastWorker).toContain("./fotos-delete-v4.js");
+    expect(fastWorker).toContain('return onRequestFotosDeleteV4(context)');
     expect(recoveryWorker).toContain("./fotos-delete-v3.js");
     expect(worker).toContain('rollbackIndices');
-    expect(worker).toContain('await chamarBorradoSheet');
   });
 
-  it('só admite hosts de Producción e non o host Preview', () => {
-    expect(worker).toContain("'scpp-web.pages.dev'");
-    expect(worker).toContain("'coralpolifonicapontevedra.org'");
-    expect(worker).not.toContain("const PREVIEW_HOST = 'preview.coralpolifonicapontevedra.org'");
-    expect(recoveryWorker).toContain('PRODUCTION_HOSTS');
+  it('evita as esperas que provocaban 504 no camiño normal', () => {
+    expect(fastWorker).toContain('administracionCacheada');
+    expect(fastWorker).not.toContain("accion: 'comprobarFotosAdministracionPortal'");
+    expect(fastWorker).toContain("accion: 'eliminarFotoAdministracionPortal'");
+    expect(fastWorker).toContain('context.waitUntil(limpeza)');
+    expect(fastWorker).not.toContain('pubCheck');
+    expect(fastWorker).not.toContain('priCheck');
   });
 
-  it('bloquea obxectos R2 identificados como copias de Preview', () => {
-    expect(worker).toContain('previewCloneSourceEtag');
-    expect(worker).toContain('R2_PREVIEW_OBJECT');
-    expect(recoveryWorker).toContain('R2_RECOVERY_PREVIEW_OBJECT');
+  it('bloquea Preview e conserva rollback se falla a Sheet', () => {
+    expect(fastWorker).toContain('previewCloneSourceEtag');
+    expect(fastWorker).toContain('R2_PREVIEW_OBJECT');
+    expect(fastWorker).toContain('rollbackIndices');
+    expect(fastWorker).toContain('await chamarBorradoSheet');
   });
 
   it('Apps Script esixe os recursos físicos exactos de Producción', () => {
