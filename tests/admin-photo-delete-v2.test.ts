@@ -13,10 +13,16 @@ const prepare = readFileSync(resolve(root, 'scripts/prepare-fotos-admin-v2-produ
 const dispatcherClient = readFileSync(resolve(root, 'functions/_lib/apps-script.js'), 'utf8');
 
 describe('Borrado seguro de fotografías en Producción', () => {
-  it('queda habilitado en Producción e delega directamente no backend seguro v4', () => {
+  it('queda habilitado en Producción e delega no backend seguro v4', () => {
     expect(route).not.toContain('FOTOS_DELETE_PRODUCTION_ENABLED');
     expect(route).not.toContain('PRODUCTION_DELETE_DISABLED');
-    expect(route).toContain('return onRequestFotosDeleteV4(context)');
+    expect(route).toContain('onRequestFotosDeleteV4');
+  });
+
+  it('acepta o alias estable de Producción sen abrir Preview', () => {
+    expect(route).toContain("PRODUCTION_ALIAS = 'produccion.coralpolifonicapontevedra.org'");
+    expect(route).toContain("PRODUCTION_CANONICAL_HOST = 'scpp-web.pages.dev'");
+    expect(route).not.toContain("preview.coralpolifonicapontevedra.org");
   });
 
   it('delega no backend v4 e conserva v3 como núcleo transaccional', () => {
