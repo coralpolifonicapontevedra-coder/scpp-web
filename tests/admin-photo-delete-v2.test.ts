@@ -29,7 +29,9 @@ describe('Borrado seguro de fotografías en Producción', () => {
   it('mantén v4/v3 e rollback para os casos de borrado', () => {
     expect(recoveryWorker).toContain("./fotos-delete-v3.js");
     expect(worker).toContain('rollbackIndices');
-    expect(worker).toContain("accion: 'eliminarFotoAdministracionPortal'");
+    expect(worker).toContain("'eliminarFotoAdministracionPortal'");
+    expect(worker).toContain("'eliminarFotoHuerfanaAdministracionPortal'");
+    expect(worker).toContain('accion,');
   });
 
   it('mantén as gardas específicas contra obxectos de Preview', () => {
