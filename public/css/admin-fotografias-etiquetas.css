@@ -1,0 +1,27 @@
+/* Separación estable entre nome de campo e valor en Administración → Fotografías. */
+.photo-dialog .dialog-meta > span {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: .55rem !important;
+  row-gap: .22rem !important;
+}
+
+.photo-dialog .dialog-meta > span > small,
+.photo-dialog .dialog-meta > span > strong {
+  margin: 0;
+}
+
+.photo-dialog .dialog-meta > span > small {
+  flex: 0 0 auto;
+}
+
+.photo-dialog .dialog-meta > span > strong {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Tamén mantén separación clara nos datos de conta do cabeceiro. */
+.account-card > span {
+  row-gap: .3rem !important;
+}
