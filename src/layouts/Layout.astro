@@ -11,16 +11,24 @@ import '../styles/global.css';
 const {
   title,
   lang = 'gl',
-  description =
-    'Web oficial da Sociedade Coral Polifónica de Pontevedra, fundada en 1925.'
+  description: suppliedDescription
 } = Astro.props;
 
+const description = suppliedDescription || (
+  lang === 'es'
+    ? 'Web oficial de la Sociedade Coral Polifónica de Pontevedra, fundada en 1925.'
+    : 'Web oficial da Sociedade Coral Polifónica de Pontevedra, fundada en 1925.'
+);
+
 const ruta = Astro.url.pathname;
+const rutaNormalizada = ruta.replace(/\/$/, '') || '/';
 const eZonaPortal = ruta === '/portal' || ruta.startsWith('/portal/');
 const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
 const eRepertorio = ruta === '/portal/repertorio' || ruta === '/portal/repertorio/';
 const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
-const ePortada = ruta === '/';
+const ePortada = rutaNormalizada === '/' || rutaNormalizada === '/es';
+const alternaGl = new URL('/', Astro.url.origin).toString();
+const alternaEs = new URL('/es/', Astro.url.origin).toString();
 ---
 
 <!DOCTYPE html>
@@ -30,6 +38,9 @@ const ePortada = ruta === '/';
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title} | SCPP</title>
     <meta name="description" content={description} />
+    {ePortada && <link rel="alternate" hreflang="gl" href={alternaGl} />}
+    {ePortada && <link rel="alternate" hreflang="es" href={alternaEs} />}
+    {ePortada && <link rel="alternate" hreflang="x-default" href={alternaGl} />}
   </head>
   <body class:list={[eZonaPortal && 'portal-private-body']}>
     {!eZonaPortal && <Header lang={lang} />}
@@ -40,13 +51,15 @@ const ePortada = ruta === '/';
       </main>
     ) : (
       <div class:list={['public-site-shell', ePortada && 'is-home']}>
-        <PublicCoralMenu currentPath={ruta} />
+        {!ePortada && <PublicCoralMenu currentPath={ruta} />}
         <main class="public-site-main">
-          <PublicPageHero
-            currentPath={ruta}
-            pageTitle={title}
-            description={description}
-          />
+          {!ePortada && (
+            <PublicPageHero
+              currentPath={ruta}
+              pageTitle={title}
+              description={description}
+            />
+          )}
           <slot />
         </main>
       </div>

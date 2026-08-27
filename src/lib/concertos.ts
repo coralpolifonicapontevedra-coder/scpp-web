@@ -10,9 +10,11 @@ export type Concerto = {
   id: string;
   data: string;
   nome: string;
+  nomeEs?: string;
   cidade?: string;
   lugar?: string;
   caracteristicas?: string;
+  caracteristicasEs?: string;
   cartel?: string;
   triptico?: string;
   prensa?: string;
@@ -133,9 +135,19 @@ export async function obterConcertos(): Promise<Concerto[]> {
         id,
         data: valor(fila, 'Data'),
         nome: valor(fila, 'Nome'),
+        nomeEs: valor(fila, 'Nome_ES', 'Nome ES', 'Nombre_ES', 'Nombre ES'),
         cidade: valor(fila, 'Cidade'),
         lugar: valor(fila, 'Lugar'),
         caracteristicas: valor(fila, 'Características', 'Caracteristicas'),
+        caracteristicasEs: valor(
+          fila,
+          'Características_ES',
+          'Caracteristicas_ES',
+          'Características ES',
+          'Caracteristicas ES',
+          'Descripción_ES',
+          'Descripcion_ES',
+        ),
         cartel: valor(fila, 'Cartel'),
         triptico: valor(fila, 'Triptico', 'Tríptico'),
         prensa: valor(fila, 'Prensa'),
