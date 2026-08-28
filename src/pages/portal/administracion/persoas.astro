@@ -12,7 +12,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
         <div>
           <span class="section-kicker">Administración</span>
           <h1>Xestión de persoas</h1>
-          <p>Alta, consulta, actualización e baixa de membros da Coral. As lecturas habituais sérvense desde caché/R2 e as modificacións actualizan a fonte de datos e rexeneran a caché.</p>
+          <p>Alta, consulta, actualización e baixa de persoas vinculadas á Coral. O estado e o tipo de vinculación xestiónanse de forma independente.</p>
         </div>
         <div class="account-card">
           <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
@@ -36,6 +36,9 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
           <div><small>Rexistradas</small><strong id="metric-total">0</strong></div>
           <div><small>Activas</small><strong id="metric-active">0</strong></div>
           <div><small>Baixas</small><strong id="metric-inactive">0</strong></div>
+          <div><small>Cantores</small><strong id="metric-singers">0</strong></div>
+          <div><small>Dirección</small><strong id="metric-director">0</strong></div>
+          <div><small>Socios protectores</small><strong id="metric-protectors">0</strong></div>
           <button id="new-person-button" type="button" class="primary-action">+ Alta de persoa</button>
         </section>
 
@@ -50,6 +53,16 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
               <option value="all">Todas</option>
               <option value="active">Activas</option>
               <option value="inactive">Baixas</option>
+            </select>
+          </label>
+          <label>
+            <span>Vinculación</span>
+            <select id="relation-filter">
+              <option value="all">Todas</option>
+              <option value="singer">Cantores</option>
+              <option value="director">Directora / dirección</option>
+              <option value="protector">Socios protectores</option>
+              <option value="other">Outras</option>
             </select>
           </label>
           <label>
@@ -70,14 +83,12 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
           <p id="people-count"></p>
         </div>
 
-        <section id="empty-selection" class="state-box">
-          Selecciona unha persoa para consultar ou modificar os seus datos.
-        </section>
+        <section id="empty-selection" class="state-box">Selecciona unha persoa para consultar ou modificar os seus datos.</section>
 
         <article id="person-card" class="person-card" hidden>
           <header class="person-card-header">
             <div>
-              <span id="person-status" class="status-badge"></span>
+              <div class="badges"><span id="person-status" class="status-badge"></span><span id="person-relation" class="relation-badge"></span></div>
               <h2 id="person-name"></h2>
               <p id="person-summary"></p>
             </div>
@@ -99,7 +110,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
         <div>
           <span class="section-kicker">Administración · Persoas</span>
           <h2 id="dialog-title">Nova persoa</h2>
-          <p>Cubre os datos dispoñibles. Os identificadores e os metadatos R2 non se modifican desde este formulario.</p>
+          <p>Cubre os datos dispoñibles. A vinculación calcúlase a partir do tipo de socio, cargo e voz.</p>
         </div>
         <button id="close-dialog" type="button" class="icon-close" aria-label="Pechar">×</button>
       </header>
@@ -156,10 +167,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       <datalist id="voices-list"></datalist>
       <datalist id="types-list"></datalist>
       <datalist id="roles-list"></datalist>
-      <datalist id="consent-list">
-        <option value="Si"></option>
-        <option value="Non"></option>
-      </datalist>
+      <datalist id="consent-list"><option value="Si"></option><option value="Non"></option></datalist>
 
       <footer class="dialog-footer">
         <p id="form-state"></p>
@@ -187,12 +195,14 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   const countNode = q('#people-count');
   const searchNode = q('#people-search');
   const statusFilter = q('#status-filter');
+  const relationFilter = q('#relation-filter');
   const voiceFilter = q('#voice-filter');
   const emptySelection = q('#empty-selection');
   const card = q('#person-card');
   const nameNode = q('#person-name');
   const summaryNode = q('#person-summary');
   const statusNode = q('#person-status');
+  const relationNode = q('#person-relation');
   const sectionsNode = q('#person-sections');
   const openFileButton = q('#open-file');
   const editButton = q('#edit-person');
@@ -204,6 +214,9 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   const metricTotal = q('#metric-total');
   const metricActive = q('#metric-active');
   const metricInactive = q('#metric-inactive');
+  const metricSingers = q('#metric-singers');
+  const metricDirector = q('#metric-director');
+  const metricProtectors = q('#metric-protectors');
   const dialog = q('#person-dialog');
   const personForm = q('#person-form');
   const dialogTitle = q('#dialog-title');
@@ -219,6 +232,24 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 
   const clean = (value) => value === true ? 'Si' : value === false ? 'Non' : String(value ?? '').trim();
   const normalise = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+  function classifyPerson(item) {
+    const tipo = normalise(item?.tipoSocio);
+    const cargo = normalise(item?.cargo);
+    const voz = normalise(item?.voz);
+    if (cargo.includes('directora') || cargo.includes('director musical') || tipo.includes('directora')) return 'director';
+    if (tipo.includes('protector')) return 'protector';
+    if (tipo.includes('cantor') || ['soprano', 'contralto', 'alto', 'tenor', 'baixo', 'bajo', 'baritono', 'barítono'].some((v) => voz.includes(normalise(v)))) return 'singer';
+    return 'other';
+  }
+
+  function relationLabel(item) {
+    const type = classifyPerson(item);
+    if (type === 'director') return 'Directora / dirección';
+    if (type === 'protector') return 'Socio protector';
+    if (type === 'singer') return 'Cantor/a';
+    return 'Outra vinculación';
+  }
 
   async function requestV2(action, extra = {}, blob = false) {
     const user = auth.currentUser;
@@ -244,11 +275,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     if (loading instanceof HTMLElement) loading.hidden = true;
     if (app instanceof HTMLElement) app.hidden = true;
     if (errorState instanceof HTMLElement) errorState.hidden = false;
-    if (errorStage instanceof HTMLElement) {
-      const stage = error?.stage || 'DESCOÑECIDA';
-      const code = error?.code ? ` · ${error.code}` : '';
-      errorStage.textContent = `Etapa: ${stage}${code}`;
-    }
+    if (errorStage instanceof HTMLElement) errorStage.textContent = `Etapa: ${error?.stage || 'DESCOÑECIDA'}${error?.code ? ` · ${error.code}` : ''}`;
     if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Produciuse un erro inesperado.';
   }
 
@@ -284,14 +311,12 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   }
 
   function uniqueValues(key) {
-    return Array.from(new Set(persoas.map((item) => clean(item?.[key])).filter(Boolean)))
-      .sort((a, b) => a.localeCompare(b, 'gl', { sensitivity: 'base' }));
+    return Array.from(new Set(persoas.map((item) => clean(item?.[key])).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'gl', { sensitivity: 'base' }));
   }
 
   function fillDatalist(selector, values) {
     const node = q(selector);
-    if (!(node instanceof HTMLDataListElement)) return;
-    node.replaceChildren(...values.map((value) => new Option(value)));
+    if (node instanceof HTMLDataListElement) node.replaceChildren(...values.map((value) => new Option(value)));
   }
 
   function refreshFilters() {
@@ -309,13 +334,15 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   function filteredPeople() {
     const query = normalise(searchNode instanceof HTMLInputElement ? searchNode.value : '');
     const state = statusFilter instanceof HTMLSelectElement ? statusFilter.value : 'all';
+    const relation = relationFilter instanceof HTMLSelectElement ? relationFilter.value : 'all';
     const voice = voiceFilter instanceof HTMLSelectElement ? voiceFilter.value : 'all';
     return persoas.filter((item) => {
       if (state === 'active' && !item.activo) return false;
       if (state === 'inactive' && item.activo) return false;
+      if (relation !== 'all' && classifyPerson(item) !== relation) return false;
       if (voice !== 'all' && clean(item.voz) !== voice) return false;
       if (!query) return true;
-      return normalise([item.nomeCompleto, item.nome, item.primeiroApelido, item.segundoApelido, item.correo, item.telefono, item.nif, item.cargo, item.tipoSocio].join(' ')).includes(query);
+      return normalise([item.nomeCompleto, item.nome, item.primeiroApelido, item.segundoApelido, item.correo, item.telefono, item.nif, item.cargo, item.tipoSocio, relationLabel(item)].join(' ')).includes(query);
     });
   }
 
@@ -327,21 +354,24 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     visible.forEach((item) => {
       const id = String(item.idPersoa || item.id || '');
       if (!id) return;
-      select.add(new Option(`${item.etiqueta || item.nomeCompleto}${item.activo ? '' : ' · BAIXA'}`, id));
+      select.add(new Option(`${item.etiqueta || item.nomeCompleto} · ${relationLabel(item)}${item.activo ? '' : ' · BAIXA'}`, id));
     });
     if (current && visible.some((item) => String(item.idPersoa || item.id || '') === current)) select.value = current;
     if (countNode instanceof HTMLElement) countNode.textContent = `${visible.length} de ${persoas.length} persoas`;
-    if (current && select.value !== current) {
-      selected = null;
-      drawPerson();
-    }
+    if (current && select.value !== current) { selected = null; drawPerson(); }
   }
 
   function updateMetrics() {
     const active = persoas.filter((item) => item.activo).length;
+    const singers = persoas.filter((item) => classifyPerson(item) === 'singer').length;
+    const directors = persoas.filter((item) => classifyPerson(item) === 'director').length;
+    const protectors = persoas.filter((item) => classifyPerson(item) === 'protector').length;
     if (metricTotal instanceof HTMLElement) metricTotal.textContent = String(persoas.length);
     if (metricActive instanceof HTMLElement) metricActive.textContent = String(active);
     if (metricInactive instanceof HTMLElement) metricInactive.textContent = String(persoas.length - active);
+    if (metricSingers instanceof HTMLElement) metricSingers.textContent = String(singers);
+    if (metricDirector instanceof HTMLElement) metricDirector.textContent = String(directors);
+    if (metricProtectors instanceof HTMLElement) metricProtectors.textContent = String(protectors);
   }
 
   function drawPerson() {
@@ -356,6 +386,10 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     if (statusNode instanceof HTMLElement) {
       statusNode.textContent = selected.activo ? 'Activa' : 'Baixa';
       statusNode.classList.toggle('is-inactive', !selected.activo);
+    }
+    if (relationNode instanceof HTMLElement) {
+      relationNode.textContent = relationLabel(selected);
+      relationNode.dataset.type = classifyPerson(selected);
     }
     if (openFileButton instanceof HTMLButtonElement) openFileButton.hidden = selected.fichaDisponibleR2 !== true;
     if (toggleButton instanceof HTMLButtonElement) {
@@ -379,7 +413,8 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
         { label: 'Persoa de contacto', value: selected.contactoEmerxencia, wide: true }, { label: 'Teléfono de emerxencia', value: selected.telefonoEmerxencia }
       ], { showEmpty: true, className: 'emergency-section' }),
       dataSection('Relación coa Coral', [
-        { label: 'Voz', value: selected.voz }, { label: 'Tipo de socio', value: selected.tipoSocio }, { label: 'Cargo', value: selected.cargo },
+        { label: 'Vinculación', value: relationLabel(selected) }, { label: 'Voz', value: selected.voz },
+        { label: 'Tipo de socio', value: selected.tipoSocio }, { label: 'Cargo', value: selected.cargo },
         { label: 'Data de incorporación', value: selected.dataIncorporacion }, { label: 'Consentimento foto', value: selected.consentimentoFoto },
         { label: 'Mostrar web', value: selected.mostrarWeb }, { label: 'Mostrar aniversario', value: selected.mostrarAniversario },
         { label: 'Estado da ficha R2', value: selected.fichaR2Estado }
@@ -393,9 +428,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 
   function applyPeopleResult(result, preserveId = '') {
     if (Array.isArray(result?.persoas)) persoas = result.persoas;
-    updateMetrics();
-    refreshFilters();
-    renderPeopleOptions(preserveId);
+    updateMetrics(); refreshFilters(); renderPeopleOptions(preserveId);
     if (preserveId && select instanceof HTMLSelectElement) {
       select.value = preserveId;
       selected = persoas.find((item) => String(item.idPersoa || item.id) === preserveId) || null;
@@ -413,9 +446,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       if (levelNode instanceof HTMLElement) levelNode.textContent = result.perfil?.nivel || '—';
       if (result.perfil?.nivel !== 'Administración') throw Object.assign(new Error('Non tes permiso para acceder a esta sección.'), { stage: 'PERMISOS' });
       persoas = Array.isArray(result.persoas) ? result.persoas : [];
-      updateMetrics();
-      refreshFilters();
-      renderPeopleOptions();
+      updateMetrics(); refreshFilters(); renderPeopleOptions();
       if (loading instanceof HTMLElement) loading.hidden = true;
       if (app instanceof HTMLElement) app.hidden = false;
     } catch (error) { showError(error); }
@@ -428,17 +459,13 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
   }
 
-  function setInput(id, value) {
-    const node = q(id);
-    if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) node.value = clean(value);
-  }
+  function setInput(id, value) { const node = q(id); if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) node.value = clean(value); }
   function setCheck(id, value) { const node = q(id); if (node instanceof HTMLInputElement) node.checked = value === true; }
   function checkValue(id) { const node = q(id); return node instanceof HTMLInputElement ? node.checked : false; }
 
   function openPersonForm(mode) {
     if (!(dialog instanceof HTMLDialogElement) || !(personForm instanceof HTMLFormElement)) return;
-    formMode = mode;
-    personForm.reset();
+    formMode = mode; personForm.reset();
     if (formState instanceof HTMLElement) formState.textContent = '';
     if (mode === 'edit' && selected) {
       if (dialogTitle instanceof HTMLElement) dialogTitle.textContent = `Editar · ${selected.nomeCompleto || ''}`;
@@ -475,8 +502,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     const person = collectFormData();
     if (!person.nome || !person.primeiroApelido) return;
     const previous = saveButton.textContent;
-    saveButton.disabled = true;
-    saveButton.textContent = 'Gardando…';
+    saveButton.disabled = true; saveButton.textContent = 'Gardando…';
     if (formState instanceof HTMLElement) formState.textContent = 'Actualizando datos e caché R2…';
     try {
       const action = formMode === 'edit' ? 'actualizarPersoaAdministracion' : 'crearPersoaAdministracion';
@@ -488,10 +514,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       notify(result.mensaxe || (formMode === 'edit' ? 'Datos actualizados.' : 'Persoa creada.'));
     } catch (error) {
       if (formState instanceof HTMLElement) formState.textContent = error instanceof Error ? error.message : 'Non foi posible gardar.';
-    } finally {
-      saveButton.disabled = false;
-      saveButton.textContent = previous || 'Gardar';
-    }
+    } finally { saveButton.disabled = false; saveButton.textContent = previous || 'Gardar'; }
   }
 
   async function togglePersonState() {
@@ -519,8 +542,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     previewWindow.document.title = 'Abrindo ficha…';
     previewWindow.document.body.textContent = 'Descargando a ficha segura desde R2…';
     previewWindow.document.body.style.cssText = 'margin:0;padding:2rem;font:16px system-ui;color:#24362f;background:#f7f5f1';
-    openFileButton.disabled = true;
-    openFileButton.textContent = 'Abrindo…';
+    openFileButton.disabled = true; openFileButton.textContent = 'Abrindo…';
     try {
       const blob = await requestV2('obterFichaPersoaAdministracion', { idPersoa }, true);
       if (fileUrl) URL.revokeObjectURL(fileUrl);
@@ -529,10 +551,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     } catch (error) {
       previewWindow.close();
       window.alert(`${error?.stage ? `[${error.stage}] ` : ''}${error instanceof Error ? error.message : 'Non foi posible abrir a ficha.'}`);
-    } finally {
-      openFileButton.disabled = false;
-      openFileButton.textContent = previous || 'Ver ficha escaneada';
-    }
+    } finally { openFileButton.disabled = false; openFileButton.textContent = previous || 'Ver ficha escaneada'; }
   }
 
   waitForPortalUser().then((user) => {
@@ -543,6 +562,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   select?.addEventListener('change', drawPerson);
   searchNode?.addEventListener('input', () => renderPeopleOptions());
   statusFilter?.addEventListener('change', () => renderPeopleOptions());
+  relationFilter?.addEventListener('change', () => renderPeopleOptions());
   voiceFilter?.addEventListener('change', () => renderPeopleOptions());
   newButton?.addEventListener('click', () => openPersonForm('create'));
   editButton?.addEventListener('click', () => openPersonForm('edit'));
@@ -571,10 +591,11 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   .error-box { border-color: #ba8f94; }
   #error-stage { color: var(--color-principal); font-weight: 800; }
   .people-app { display: grid; gap: 1.15rem; }
-  .people-summary { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)) auto; gap: .8rem; align-items: stretch; }
-  .people-summary > div { display: grid; gap: .15rem; padding: .9rem 1rem; border: 1px solid #ded8d3; background: #fff; }
-  .people-summary strong { color: var(--color-principal); font-size: 1.65rem; line-height: 1; }
-  .filters-panel { display: grid; grid-template-columns: minmax(260px, 2fr) minmax(150px, .7fr) minmax(160px, .8fr); gap: .8rem; padding: 1rem; border: 1px solid #ded8d3; background: #fff; }
+  .people-summary { display: grid; grid-template-columns: repeat(6, minmax(105px, 1fr)); gap: .7rem; align-items: stretch; }
+  .people-summary > div { display: grid; gap: .15rem; padding: .85rem .9rem; border: 1px solid #ded8d3; background: #fff; }
+  .people-summary strong { color: var(--color-principal); font-size: 1.55rem; line-height: 1; }
+  .people-summary .primary-action { grid-column: 1 / -1; justify-self: end; }
+  .filters-panel { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(130px, .7fr) minmax(180px, .9fr) minmax(150px, .8fr); gap: .8rem; padding: 1rem; border: 1px solid #ded8d3; background: #fff; }
   .filters-panel label, .toolbar label { display: grid; gap: .4rem; }
   .filters-panel label span, .toolbar label span, .form-grid label > span { font-size: .76rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
   input, select, textarea { width: 100%; border: 1px solid #cfc8c2; border-radius: 3px; background: #fff; color: #2d2a28; font: inherit; }
@@ -588,8 +609,14 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   .person-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1.3rem 1.4rem; border-bottom: 1px solid #ebe6e1; }
   .person-card h2 { margin: .35rem 0 .15rem; color: var(--color-principal); font-size: 1.65rem; }
   .person-card-header p { margin: 0; color: #706964; }
-  .status-badge { display: inline-block; padding: .28rem .55rem; border-radius: 999px; background: #e9f1eb; color: #31583c; font-size: .7rem; font-weight: 800; text-transform: uppercase; }
+  .badges { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .status-badge, .relation-badge { display: inline-block; padding: .28rem .55rem; border-radius: 999px; font-size: .7rem; font-weight: 800; text-transform: uppercase; }
+  .status-badge { background: #e9f1eb; color: #31583c; }
   .status-badge.is-inactive { background: #f0e7e7; color: #7b3f46; }
+  .relation-badge { background: #f0ede8; color: #564d47; }
+  .relation-badge[data-type='director'] { background: #eee8f2; color: #5b4265; }
+  .relation-badge[data-type='protector'] { background: #f4efe1; color: #69572f; }
+  .relation-badge[data-type='singer'] { background: #e8efed; color: #31554c; }
   .person-actions { display: flex; flex-wrap: wrap; gap: .55rem; justify-content: flex-end; }
   .primary-action, .secondary-action, .error-box button { min-height: 2.6rem; padding: .6rem .9rem; border-radius: 3px; font: inherit; font-weight: 750; cursor: pointer; }
   .primary-action, .error-box button { border: 1px solid var(--color-principal); background: var(--color-principal); color: #fff; }
@@ -623,20 +650,20 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   .dialog-footer { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.35rem; border-top: 1px solid #d9d1ca; background: #fff; }
   .dialog-footer p { margin: 0; color: #7b3440; font-size: .86rem; }
   .dialog-footer > div { display: flex; gap: .6rem; }
+  @media (max-width: 1100px) {
+    .people-summary { grid-template-columns: repeat(3, 1fr); }
+    .filters-panel { grid-template-columns: 1fr 1fr; }
+    .filters-panel .search-field { grid-column: 1 / -1; }
+  }
   @media (max-width: 900px) {
     .private-page-header { display: grid; }
     .account-card { min-width: 0; }
-    .people-summary { grid-template-columns: repeat(3, 1fr); }
-    .people-summary .primary-action { grid-column: 1 / -1; }
-    .filters-panel { grid-template-columns: 1fr 1fr; }
-    .filters-panel .search-field { grid-column: 1 / -1; }
     .person-card-header { display: grid; }
     .person-actions { justify-content: flex-start; }
   }
   @media (max-width: 680px) {
     .people-main { padding: 1.2rem .8rem 3rem; }
-    .people-summary { grid-template-columns: 1fr; }
-    .people-summary .primary-action { grid-column: auto; }
+    .people-summary { grid-template-columns: 1fr 1fr; }
     .filters-panel, .form-grid { grid-template-columns: 1fr; }
     .filters-panel .search-field, .form-grid .wide { grid-column: auto; }
     .toolbar { display: grid; gap: .4rem; }
