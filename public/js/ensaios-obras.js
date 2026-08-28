@@ -215,7 +215,7 @@
       if (study instanceof HTMLAnchorElement) {
         const params = new URLSearchParams({ obra: workId });
         if (rehearsalId) params.set('ensaio', rehearsalId);
-        study.href = `/portal/ensaios/estudo/?${params.toString()}`;
+        study.href = `/portal/ensaios/estudo-novo/?${params.toString()}`;
       }
     });
   }
