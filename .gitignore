@@ -10,8 +10,13 @@
 # Generated poster thumbnails
 /public/img/concertos/*.thumb.webp
 
-# Local Apps Script preview workspace
-/apps-script-preview/
+# Apps Script / clasp
+# O código dos proxectos Apps Script (incluído apps-script-preview/) debe estar versionado.
+# Só se exclúen os ficheiros locais de conexión/configuración de clasp.
+.clasp.json
+**/.clasp.json
+.clasp.*.json
+**/.clasp.*.json
 
 # Logs
 npm-debug.log*
