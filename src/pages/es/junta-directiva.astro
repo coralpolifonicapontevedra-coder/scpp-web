@@ -1,0 +1,43 @@
+---
+import SpanishPublicLayout from '../../layouts/SpanishPublicLayout.astro';
+
+const secretariaAdministracion = [
+  { nombre: 'Joaquín Cuiñas Rodríguez', cargo: 'Secretario', texto: 'Se encarga de la documentación de la asociación, de las comunicaciones oficiales y de la coordinación administrativa.' },
+  { nombre: 'Marta Valbuena Aguado', cargo: 'Vicesecretaria', texto: 'Colabora en las tareas organizativas y sustituye a la secretaría cuando es necesario.' },
+  { nombre: 'Gonzalo González González', cargo: 'Tesorero', texto: 'Gestiona los recursos económicos de la Sociedad y supervisa las cuentas y los pagos.' }
+];
+const organizacionPatrimonio = [
+  { nombre: 'M.ª del Carmen Martínez Lourido', cargo: 'Vicepresidenta', texto: 'Colabora con la presidencia y participa en la coordinación de las actividades de la Coral.' },
+  { nombre: 'Mercedes González Rosales', cargo: 'Contadora', texto: 'Supervisa la contabilidad y el seguimiento económico de la asociación.' },
+  { nombre: 'Antía Fonseca Roque', cargo: 'Archivera-bibliotecaria', texto: 'Custodia y organiza el archivo histórico, musical y documental de la Sociedad.' }
+];
+const vocales = [
+  { nombre: 'Gabriel Bravo Bueno', cuerda: 'Bajos' },
+  { nombre: 'Fernando Marín Gómez', cuerda: 'Tenores' },
+  { nombre: 'M.ª Pilar García Pinal', cuerda: 'Sopranos' },
+  { nombre: 'Raquel Paredes Álvarez', cuerda: 'Contraltos' }
+];
+---
+
+<SpanishPublicLayout title="Junta Directiva" description="Junta Directiva de la Sociedad Coral Polifónica de Pontevedra, mandato 2026.">
+  <main class="xunta-page">
+    <header class="page-header"><p class="eyebrow">Mandato 2026 — actualidad</p><h1>Junta Directiva</h1><p class="lead">La Junta Directiva es el equipo de personas que coordina el día a día de la Sociedad Coral Polifónica de Pontevedra.</p></header>
+    <figure class="group-photo"><img src="/img/xunta/xunta-directiva-2026.webp" alt="Junta Directiva de la Sociedad Coral Polifónica de Pontevedra, mandato 2026" /></figure>
+    <section class="intro-section"><p>Su función es organizar la actividad de la Coral, cuidar de su patrimonio histórico y musical y representar a la institución ante otras entidades.</p><p>Todos sus integrantes desarrollan esta tarea de manera altruista, combinando la gestión de la asociación con su participación activa en la vida coral.</p></section>
+
+    <section class="people-section"><p class="section-kicker">Presidencia</p><article class="person-card"><span class="index">01</span><div><h2>José Raposeiras Correa</h2><p>Representa institucionalmente a la Sociedad Coral Polifónica de Pontevedra y coordina el trabajo de la Junta Directiva y de las distintas actividades de la Coral.</p></div></article></section>
+
+    <section class="people-section"><p class="section-kicker">Secretaría y administración</p><div class="cards-grid">{secretariaAdministracion.map((persona,index)=><article class="person-card"><span class="index">{String(index+2).padStart(2,'0')}</span><div><h2>{persona.nombre}</h2><p class="role">{persona.cargo}</p><p>{persona.texto}</p></div></article>)}</div></section>
+
+    <section class="people-section soft-section"><p class="section-kicker">Organización y patrimonio</p><div class="cards-grid">{organizacionPatrimonio.map((persona,index)=><article class="person-card"><span class="index">{String(index+5).padStart(2,'0')}</span><div><h2>{persona.nombre}</h2><p class="role">{persona.cargo}</p><p>{persona.texto}</p></div></article>)}</div></section>
+
+    <section class="people-section"><p class="section-kicker">Representación de las cuerdas</p><p class="section-intro">Cada cuerda cuenta con una persona representante dentro de la Junta Directiva, que actúa como enlace entre los cantores y la organización de la asociación.</p><div class="voices-grid">{vocales.map((vocal,index)=><article class="voice-card"><span>{String(index+8).padStart(2,'0')}</span><h2>{vocal.nombre}</h2><p>{vocal.cuerda}</p></article>)}</div></section>
+
+    <section class="closing-section"><p>La Junta Directiva trabaja para garantizar la continuidad de una institución centenaria y para que la música siga formando parte de la vida cultural de Pontevedra.</p><a href="/es/bienvenida" class="essence-link">Conoce nuestra historia y los valores que nos inspiran <span aria-hidden="true">→</span></a><br/><a href="/es/la-coral" class="back-link">Volver a La Coral <span aria-hidden="true">→</span></a></section>
+  </main>
+</SpanishPublicLayout>
+
+<style>
+.xunta-page{--wine:var(--color-principal,#5c1926);--gold:var(--color-acento,#a3821a);--ink:#201d1d;--muted:#6f6965;--paper:#f7f5f0;--line:#ded8ce;width:min(1080px,calc(100% - 3rem));margin:0 auto;padding:4rem 0 7rem;color:var(--ink)}.page-header{max-width:760px;margin:0 auto 2.5rem;text-align:center}.eyebrow,.section-kicker{margin:0 0 .8rem;color:var(--gold);font-size:.76rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase}.page-header h1{margin:0;color:var(--wine);font-size:clamp(2.2rem,4vw,3rem);line-height:1.08;letter-spacing:-.03em}.lead{max-width:680px;margin:1rem auto 0;color:var(--muted);font-size:1.05rem;line-height:1.75}.group-photo{margin:0 auto;max-width:760px}.group-photo img{width:100%;height:auto;display:block;border:1px solid var(--line)}.intro-section{max-width:760px;margin:3rem auto 5rem;text-align:center}.intro-section p,.section-intro,.person-card p,.closing-section p{color:var(--muted);font-size:1rem;line-height:1.75}.essence-link,.back-link{display:inline-flex;align-items:center;gap:.6rem;margin-top:1.2rem;color:var(--wine);font-size:.8rem;font-weight:700;letter-spacing:.08em;text-decoration:none;text-transform:uppercase}.essence-link span,.back-link span{color:var(--gold)}.people-section{margin-top:4.5rem}.soft-section{padding:2.2rem;background:var(--paper)}.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}.person-card{display:grid;grid-template-columns:36px 1fr;gap:.9rem;padding:1.4rem 0;border-top:1px solid var(--line)}.cards-grid .person-card{padding:1.4rem;border:1px solid var(--line);background:white}.index{color:var(--gold);font-size:.72rem;font-weight:700;letter-spacing:.1em;padding-top:.2rem}.person-card h2,.voice-card h2{margin:0;color:var(--wine);font-size:1.05rem;line-height:1.35}.role{margin:.25rem 0 .7rem;color:var(--gold)!important;font-size:.76rem!important;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.voices-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1.5rem}.voice-card{padding:1.3rem;border:1px solid var(--line);background:white}.voice-card>span{color:var(--gold);font-size:.7rem;font-weight:700;letter-spacing:.1em}.voice-card h2{margin-top:.8rem}.voice-card p{margin:.35rem 0 0;color:var(--gold);font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.closing-section{max-width:760px;margin:5rem auto 0;padding:2rem 0 0;border-top:1px solid var(--line);text-align:center}
+@media(max-width:900px){.cards-grid{grid-template-columns:1fr}.voices-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.xunta-page{width:min(100% - 2rem,1080px);padding-top:2.5rem}.soft-section{padding:1.2rem}.voices-grid{grid-template-columns:1fr}}
+</style>

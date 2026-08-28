@@ -1,0 +1,71 @@
+---
+import SpanishPublicLayout from '../../layouts/SpanishPublicLayout.astro';
+---
+
+<SpanishPublicLayout title="Agenda" description="Próximos conciertos y actuaciones de la Sociedad Coral Polifónica de Pontevedra.">
+  <main class="container agenda-page">
+    <header class="agenda-header">
+      <p class="eyebrow">Programación</p>
+      <h1>Agenda</h1>
+      <div class="section-line-center"></div>
+      <p>Consulta los próximos conciertos de la Sociedad Coral Polifónica de Pontevedra y descubre también la memoria de las actuaciones ya finalizadas.</p>
+    </header>
+
+    <div id="aviso-carga" class="loading" role="status">Cargando la programación…</div>
+
+    <section id="proximos" class="agenda-block" hidden>
+      <div class="section-heading"><p class="eyebrow">Próximas actuaciones</p><h2>Próximos conciertos</h2></div>
+      <div id="lista-proximos" class="concert-list"></div>
+    </section>
+
+    <section id="aprazados" class="agenda-block" hidden>
+      <div class="section-heading"><p class="eyebrow">Información</p><h2>Conciertos aplazados</h2></div>
+      <div id="lista-aprazados" class="concert-list"></div>
+    </section>
+
+    <section id="realizados" class="agenda-block" hidden>
+      <div class="section-heading"><p class="eyebrow">Archivo reciente</p><h2>Conciertos finalizados</h2></div>
+      <div id="lista-realizados" class="historical-list"></div>
+    </section>
+
+    <div id="sen-resultados" class="empty-state" hidden>En este momento no hay conciertos publicados en la agenda.</div>
+  </main>
+
+  <dialog id="visor-cartel" class="poster-dialog" aria-label="Cartel ampliado">
+    <button type="button" class="poster-close" aria-label="Cerrar cartel">×</button>
+    <img id="cartel-ampliado" src="" alt="" />
+  </dialog>
+
+  <script>
+    const URL_CONCERTOS = '/api/concertos-indice';
+    const normalizar = (valor = '') => String(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    const corregirErratas = (valor = '') => String(valor).replaceAll('Liceo Casinto','Liceo Casino').replaceAll('Real Acadademia','Real Academia').replace(/\s+/g,' ').trim();
+    const escapar = (valor = '') => corregirErratas(valor).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+    const textoEs = (objeto, claves, fallback = '') => {
+      for (const clave of claves) {
+        const valor = objeto?.[clave];
+        if (typeof valor === 'string' && valor.trim()) return valor.trim();
+      }
+      return fallback;
+    };
+    const nombreConcierto = (c) => textoEs(c, ['nomeEs','nombreEs','Nome_ES','Nombre_ES'], c.nome || c.nombre || '');
+    const descripcionConcierto = (c) => textoEs(c, ['caracteristicasEs','descripcionEs','Características_ES','Caracteristicas_ES','Descripcion_ES'], c.caracteristicas || c.descripcion || '');
+    const dataISO = (data) => { const partes=String(data).split(/[\/-]/).map(Number); if(partes.length!==3||partes.some(Number.isNaN)) return String(data); if(partes[0]>31) return `${partes[0]}-${String(partes[1]).padStart(2,'0')}-${String(partes[2]).padStart(2,'0')}`; return `${partes[2]}-${String(partes[1]).padStart(2,'0')}-${String(partes[0]).padStart(2,'0')}`; };
+    const dataLocal = (data) => { const iso=dataISO(data); const d=new Date(`${iso}T12:00:00`); if(Number.isNaN(d.getTime())) return escapar(data); const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']; return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`; };
+    const horaLocal = (hora='') => String(hora).trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/,'$1');
+    const enlacePublico = (valor) => { const ruta=String(valor||'').trim().replaceAll('\\','/'); if(!ruta)return''; if(/^https?:\/\//i.test(ruta)||ruta.startsWith('/'))return ruta; const nombre=ruta.split('/').filter(Boolean).pop(); return nombre?`/media/concertos/${encodeURIComponent(nombre)}`:''; };
+    const renderPrograma = (programa) => { if(!programa.length)return''; return `<details class="programa"><summary>Ver programa</summary><ol>${programa.map((item)=>`<li><div class="obra-linea"><span class="obra">${escapar(item.obra)}</span>${item.autor?`<span class="autor">${escapar(item.autor)}</span>`:''}</div>${item.solista?`<small><strong>Solista:</strong> ${escapar(item.solista)}</small>`:''}${item.notas?`<small>${escapar(item.notas)}</small>`:''}</li>`).join('')}</ol></details>`; };
+    const renderDocumentos = (c) => { const documentos=[['Tríptico',enlacePublico(c.triptico)],['Prensa',enlacePublico(c.prensa)]].filter(([,url])=>url); return documentos.length?`<div class="documentos">${documentos.map(([nombre,url])=>`<a href="${escapar(url)}" target="_blank" rel="noopener noreferrer">${nombre}</a>`).join('')}</div>`:''; };
+    const renderCartel = (c) => { const original=enlacePublico(c.cartel); if(!original)return''; const cartel=/\.pdf(?:$|\?)/i.test(original)?original.replace(/\.pdf(?=$|\?)/i,'.jpg'):original; const alt=`Cartel de ${nombreConcierto(c)}`; return `<button type="button" class="poster-thumb" data-poster="${escapar(cartel)}" data-alt="${escapar(alt)}" aria-label="Ampliar ${escapar(alt)}"><img src="${escapar(cartel)}" alt="${escapar(alt)}" loading="lazy"/><span>Ampliar cartel</span></button>`; };
+    const renderConcierto = (c, etiqueta='Próximo concierto') => { const localizacion=[c.lugar,c.cidade||c.ciudad].filter(Boolean).join(' · '); const descripcion=descripcionConcierto(c); return `<article class="concert-card ${c.destacadoWeb?'is-featured':''} ${c.cartel?'has-poster':''}"><div class="concert-main"><div class="concert-content"><span class="concert-tag">${escapar(etiqueta)}</span><time datetime="${escapar(dataISO(c.data))}">${dataLocal(c.data)}</time><h3>${escapar(nombreConcierto(c))}</h3><div class="concert-meta">${c.hora?`<span><strong>Hora</strong> ${escapar(horaLocal(c.hora))}</span>`:''}${localizacion?`<span><strong>Lugar</strong> ${escapar(localizacion)}</span>`:''}</div>${descripcion?`<p class="description">${escapar(descripcion)}</p>`:''}</div>${renderCartel(c)}</div>${renderPrograma(c.programa)}${renderDocumentos(c)}</article>`; };
+    const renderRealizado = (c) => { const localizacion=[c.lugar,c.cidade||c.ciudad].filter(Boolean).join(' · '); return `<article class="historical-item ${c.cartel?'has-poster':''}"><div class="historical-main"><div class="historical-content"><time datetime="${escapar(dataISO(c.data))}">${dataLocal(c.data)}</time><h3>${escapar(nombreConcierto(c))}</h3>${localizacion?`<p>${escapar(localizacion)}</p>`:''}</div>${renderCartel(c)}</div>${renderPrograma(c.programa)}${renderDocumentos(c)}</article>`; };
+    function activarVisor(){const dialogo=document.querySelector('#visor-cartel');const imagen=document.querySelector('#cartel-ampliado');const cerrar=dialogo?.querySelector('.poster-close');if(!dialogo||!imagen||!cerrar)return;document.addEventListener('click',(evento)=>{const boton=evento.target.closest('.poster-thumb');if(!boton)return;imagen.src=boton.dataset.poster||'';imagen.alt=boton.dataset.alt||'Cartel ampliado';dialogo.showModal()});cerrar.addEventListener('click',()=>dialogo.close());dialogo.addEventListener('click',(evento)=>{if(evento.target===dialogo)dialogo.close()})}
+    async function cargarAgenda(){const aviso=document.querySelector('#aviso-carga');const sinResultados=document.querySelector('#sen-resultados');try{const respuesta=await fetch(URL_CONCERTOS,{cache:'no-store'});const indice=await respuesta.json().catch(()=>null);if(!respuesta.ok||indice?.ok!==true||!Array.isArray(indice?.concertos))throw new Error(indice?.erro||`Error ${respuesta.status}`);const conciertos=indice.concertos.filter((c)=>c?.id&&c?.data&&(c?.nome||c?.nombre)).map((c)=>({...c,estado:normalizar(c.estado),programa:Array.isArray(c.programa)?c.programa:[]}));const confirmados=conciertos.filter((c)=>c.estado==='confirmado').sort((a,b)=>Number(b.destacadoWeb)-Number(a.destacadoWeb)||dataISO(a.data).localeCompare(dataISO(b.data)));const aplazados=conciertos.filter((c)=>c.estado==='aprazado'||c.estado==='aplazado').sort((a,b)=>dataISO(a.data).localeCompare(dataISO(b.data)));const realizados=conciertos.filter((c)=>c.estado==='realizado').sort((a,b)=>dataISO(b.data).localeCompare(dataISO(a.data)));if(confirmados.length){document.querySelector('#lista-proximos').innerHTML=confirmados.map((c)=>renderConcierto(c)).join('');document.querySelector('#proximos').hidden=false}if(aplazados.length){document.querySelector('#lista-aprazados').innerHTML=aplazados.map((c)=>renderConcierto(c,'Concierto aplazado')).join('');document.querySelector('#aprazados').hidden=false}if(realizados.length){document.querySelector('#lista-realizados').innerHTML=realizados.map(renderRealizado).join('');document.querySelector('#realizados').hidden=false}aviso.hidden=true;sinResultados.hidden=Boolean(confirmados.length||aplazados.length||realizados.length)}catch(error){console.error(error);aviso.textContent='No ha sido posible cargar la agenda en este momento. Inténtalo de nuevo más tarde.';aviso.classList.add('error')}}
+    activarVisor(); cargarAgenda();
+  </script>
+</SpanishPublicLayout>
+
+<style is:global>
+.agenda-page{padding:4rem 1.25rem 6rem}.agenda-header{max-width:760px;margin:0 auto 4rem;text-align:center}.agenda-header h1{margin:.2rem 0;color:var(--color-principal);font-size:clamp(2rem,5vw,3rem)}.agenda-header>p:last-child{line-height:1.7;opacity:.82}.eyebrow{margin:0;color:var(--color-acento);font-size:.76rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}.section-line-center{width:48px;height:2px;margin:1.1rem auto 1.5rem;background:var(--color-acento)}.loading,.empty-state{padding:1.3rem;background:var(--color-gris);text-align:center}.loading.error{color:var(--color-principal)}.agenda-block{margin-top:4rem}.section-heading{margin-bottom:2rem;border-bottom:1px solid var(--color-gris);padding-bottom:1rem}.section-heading h2{margin:.25rem 0 0;color:var(--color-principal);font-size:clamp(1.5rem,3vw,2rem)}.concert-list,.historical-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem;align-items:stretch}.concert-card,.historical-item{height:100%;padding:clamp(1.4rem,3vw,2rem);background:var(--color-gris);border:1px solid rgba(106,27,41,.1);border-radius:8px;box-shadow:0 12px 30px rgba(64,43,30,.06)}.concert-card.is-featured{border-left:4px solid var(--color-acento)}.concert-main,.historical-main{display:block}.concert-card.has-poster .concert-main,.historical-item.has-poster .historical-main{display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:1.25rem;align-items:start}.concert-tag{display:inline-block;margin-bottom:.8rem;color:var(--color-principal);font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase}.concert-content time,.historical-content time{display:block;color:var(--color-acento);font-size:.92rem;font-weight:650;text-transform:capitalize}.concert-content h3,.historical-content h3{margin:.45rem 0 1rem;color:var(--color-texto);font-size:1.35rem;line-height:1.25}.concert-meta{display:flex;flex-wrap:wrap;gap:.65rem 1.4rem;margin-bottom:1.2rem}.concert-meta strong{margin-right:.35rem;color:var(--color-principal)}.description{line-height:1.7;opacity:.84}.poster-thumb{display:block;width:140px;border:0;background:transparent;cursor:pointer;color:var(--color-principal);font:inherit;font-size:.72rem;font-weight:700}.poster-thumb img{display:block;width:100%;height:auto;max-height:200px;object-fit:contain;background:#fff;border:1px solid rgba(0,0,0,.08);margin-bottom:.45rem}.programa{margin-top:1.5rem;border-top:1px solid rgba(106,27,41,.15);padding-top:1rem}.programa summary{cursor:pointer;color:var(--color-principal);font-weight:700}.programa ol{padding-left:1.3rem}.obra-linea{display:flex;justify-content:space-between;gap:1rem}.autor{color:#6b6561}.programa small{display:block;color:#6b6561}.documentos{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1rem}.documentos a{color:var(--color-principal);font-size:.78rem;font-weight:700}.poster-dialog{max-width:min(90vw,900px);max-height:90vh;border:0;border-radius:8px;padding:2.5rem 1rem 1rem;background:#fff}.poster-dialog::backdrop{background:rgba(0,0,0,.72)}.poster-dialog img{display:block;max-width:100%;max-height:78vh;margin:auto;object-fit:contain}.poster-close{position:absolute;top:.5rem;right:.7rem;border:0;background:transparent;font-size:2rem;cursor:pointer}
+@media(max-width:850px){.concert-list,.historical-list{grid-template-columns:1fr}}@media(max-width:520px){.concert-card.has-poster .concert-main,.historical-item.has-poster .historical-main{grid-template-columns:1fr}.poster-thumb{width:min(180px,100%)}}
+</style>
