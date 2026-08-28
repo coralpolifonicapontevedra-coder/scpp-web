@@ -211,7 +211,7 @@
         repertoire.href = `/portal/repertorio/?id=${encodeURIComponent(workId)}`;
       }
       if (study instanceof HTMLAnchorElement) {
-        study.href = `/portal/ensaios/estudo-novo/?obra=${encodeURIComponent(workId)}`;
+        study.href = `https://preview.coralpolifonicapontevedra.org/portal/ensaios/estudo-novo/?obra=${encodeURIComponent(workId)}`;
       }
     });
   }
