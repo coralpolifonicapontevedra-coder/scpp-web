@@ -181,8 +181,6 @@
   function enhanceWorks() {
     const list = document.querySelector('#works-list');
     if (!(list instanceof HTMLElement)) return;
-    const rehearsal = document.querySelector('#ensaio-select');
-    const rehearsalId = rehearsal instanceof HTMLSelectElement ? rehearsal.value : '';
 
     list.querySelectorAll('.work-card[data-work]').forEach((card) => {
       if (!(card instanceof HTMLElement)) return;
@@ -213,9 +211,7 @@
         repertoire.href = `/portal/repertorio/?id=${encodeURIComponent(workId)}`;
       }
       if (study instanceof HTMLAnchorElement) {
-        const params = new URLSearchParams({ obra: workId });
-        if (rehearsalId) params.set('ensaio', rehearsalId);
-        study.href = `/portal/ensaios/estudo-novo/?${params.toString()}`;
+        study.href = `/portal/ensaios/estudo-novo/?obra=${encodeURIComponent(workId)}`;
       }
     });
   }
@@ -228,10 +224,6 @@
     }
     enhanceWorks();
     new MutationObserver(enhanceWorks).observe(list, { childList: true, subtree: true });
-    const rehearsal = document.querySelector('#ensaio-select');
-    if (rehearsal instanceof HTMLSelectElement) {
-      rehearsal.addEventListener('change', () => window.setTimeout(enhanceWorks, 0));
-    }
   }
 
   function setupStudy() {
