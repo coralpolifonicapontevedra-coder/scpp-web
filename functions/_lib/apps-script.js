@@ -23,6 +23,17 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'gardarProgramaConcertoAdministracionPortal',
   'gardarAsistentesConcertoAdministracionPortal',
   'actualizarMedioConcertoAdministracionPortal',
+  // Ensaios é sensible ao ambiente: nunca debe saltar a unha implementación
+  // de respaldo que poida apuntar a outra configuración, permisos ou Sheets.
+  'listarEnsaiosPortal',
+  'gardarEnsaioPortal',
+  'gardarAsistenciaEnsaioPortal',
+  'gardarEnsaioRepertorioPortal',
+  'obterSeguimentoEnsaiosPortal',
+  'listarEnsaiosAdministracionPortal',
+  'actualizarEnsaioAdministracionPortal',
+  'eliminarEnsaioPortal',
+  'eliminarEnsaioRepertorioPortal',
   'obterTextoLegalVixente',
   'comprobarAceptacion',
   'rexistrarAceptacion'

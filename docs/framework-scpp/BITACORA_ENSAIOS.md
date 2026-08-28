@@ -139,9 +139,28 @@ Durante esta intervención se intentó preparar en local una simplificación de 
 
 La simplificación de `loadAll()` sigue siendo deseable, pero se hará después de estabilizar la autorización y mediante una edición que preserve UTF-8.
 
+## Intervención 28/08/2026 — aislamiento do Apps Script de Ensaios
+
+Tras la revalidación anterior, la pantalla seguía mostrando `Non tes permisos para realizar esta operación.`. Se verificó directamente en las Sheets de preview que la identidad administrativa es correcta: la persona está activa y `XuntaDirectiva` enlaza su `Row ID` con `Activo = TRUE` y `Perfil_Permisos = ADMINISTRACION`. También se comprobó en código que `listarEnsaiosPortal_()` devuelve `perfil.podeEditar` a partir de `permiso.escritura`, por lo que el modelo de permisos y el campo esperado por Cloudflare coinciden.
+
+Se detectó una diferencia de infraestructura respecto a las acciones administrativas de Concertos: el cliente común `functions/_lib/apps-script.js` permitía que las acciones de Ensaios probaran `APPS_SCRIPT_FALLBACK_URL` o el respaldo global si la implementación principal daba un error recuperable, timeout o respuesta no JSON. Eso podía llevar una petición de preview a una implementación antigua o configurada con otro entorno.
+
+Archivo modificado:
+
+- `functions/_lib/apps-script.js`
+
+Cambio aplicado:
+
+1. Todas las acciones conocidas de Ensaios quedan incluidas en `ACCIONS_SO_PRINCIPAL`.
+2. `listarEnsaiosPortal`, altas, asistencias, repertorio, seguimiento, administración y eliminación solo pueden usar `APPS_SCRIPT_WEBAPP_URL` del entorno actual.
+3. Para Ensaios se elimina por diseño cualquier fallback cruzado de Apps Script.
+4. No se modifica el resolvedor central ni las Sheets, porque ambos se verificaron correctos.
+
+Objetivo: eliminar resultados intermitentes o contradictorios causados por ejecutar Ensaios contra otra implementación de Apps Script.
+
 ## Próximo cambio a realizar
 
-1. Desplegar esta revalidación en `preview` y recargar `Administración → Ensaios` sin crear un nuevo ensayo.
+1. Desplegar el aislamiento del Apps Script en `preview` y recargar `Administración → Ensaios` sin crear un nuevo ensayo.
 2. Si abre correctamente, comprobar que aparecen los ensayos existentes y limpiar los dos duplicados de prueba.
 3. Verificar crear → ver → recargar → cambiar fecha → eliminar.
 4. Solo después, simplificar `loadAll()` a una única lectura, preservando estrictamente UTF-8.
