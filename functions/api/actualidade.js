@@ -5,21 +5,12 @@ const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const PREVIEW_PUBLICACIONS = [
   {
     id: 'preview-24',
-    titulo: 'Procúranse voces masculinas na Sociedade Coral Polifónica de Pontevedra',
+    titulo: 'A Polifónica abre o curso 2026/2027 e busca novas voces',
     tipo: 'Noticia',
-    medio: 'PontevedraViva',
+    medio: 'Faro de Vigo · PontevedraViva',
     data: '2026-08-28',
     destacada: true,
-    rutaWeb: '/documentos/publicacions/2026-08-28_ficha_pontevedraviva-voces-masculinas.pdf'
-  },
-  {
-    id: 'preview-25',
-    titulo: 'A Coral Polifónica busca novos talentos para reforzar as súas voces',
-    tipo: 'Noticia',
-    medio: 'Faro de Vigo',
-    data: '2026-08-28',
-    destacada: false,
-    rutaWeb: '/documentos/publicacions/2026-08-28_ficha_faro-novos-talentos.pdf'
+    rutaWeb: '/documentos/publicacions/2026-08-28_faro-vigo-novos-talentos-gl.pdf'
   }
 ];
 
@@ -54,9 +45,22 @@ function respostaValida(datos) {
 
 function engadirPreview(datos) {
   if (!respostaValida(datos)) return datos;
-  const idsPreview = new Set(PREVIEW_PUBLICACIONS.map((item) => item.id));
-  const rutasPreview = new Set(PREVIEW_PUBLICACIONS.map((item) => item.rutaWeb));
-  const base = datos.publicacions.filter((item) => !idsPreview.has(texto(item?.id)) && !rutasPreview.has(texto(item?.rutaWeb)));
+  const idsPreview = new Set(['preview-24', 'preview-25']);
+  const rutasAnteriores = new Set([
+    '/documentos/publicacions/2026-08-28_ficha_pontevedraviva-voces-masculinas.pdf',
+    '/documentos/publicacions/2026-08-28_ficha_faro-novos-talentos.pdf',
+    '/documentos/publicacions/2026-08-28_faro-vigo-novos-talentos-gl.pdf'
+  ]);
+  const titulosAnteriores = new Set([
+    'Procúranse voces masculinas na Sociedade Coral Polifónica de Pontevedra',
+    'A Coral Polifónica busca novos talentos para reforzar as súas voces',
+    'A Polifónica abre o curso 2026/2027 e busca novas voces'
+  ]);
+  const base = datos.publicacions.filter((item) =>
+    !idsPreview.has(texto(item?.id)) &&
+    !rutasAnteriores.has(texto(item?.rutaWeb || item?.RutaWeb)) &&
+    !titulosAnteriores.has(texto(item?.titulo || item?.Titulo))
+  );
   const publicacions = [...PREVIEW_PUBLICACIONS, ...base]
     .map(normalizar)
     .filter((item) => item.titulo && item.rutaWeb)
