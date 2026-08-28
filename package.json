@@ -8,8 +8,8 @@
   "scripts": {
     "posters:thumbs": "node scripts/generate-poster-thumbnails.mjs",
     "test-admin": "node scripts/test-admin.js",
-    "dev": "npm run posters:thumbs && astro dev",
-    "build": "npm run posters:thumbs && astro build",
+    "dev": "npm run posters:thumbs && node scripts/generate-publicaciones-es.mjs && astro dev",
+    "build": "npm run posters:thumbs && node scripts/generate-publicaciones-es.mjs && astro build",
     "check": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
