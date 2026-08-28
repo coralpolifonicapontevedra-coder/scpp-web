@@ -101,16 +101,33 @@ La pantalla administrativa ejecuta `loadAll()` y lanza en paralelo:
 
 El uso de `Promise.all()` provoca que, si cualquiera de las dos rutas devuelve `Non autorizado`, falle toda la página aunque la otra lectura sea válida.
 
-Además, `functions/api/ensaios-admin.js` mantiene lógica propia de caché administrativa R2 (`verificarAdministracionR2`) antes de recurrir a Apps Script. Aunque esa caché se usa como optimización y no debería ser la fuente de autoridad, esta duplicación aumenta el riesgo de resultados diferentes.
+Además, `functions/api/ensaios-admin.js` mantenía lógica propia de caché administrativa R2 (`verificarAdministracionR2`) antes de recurrir a Apps Script. Aunque esa caché se usaba como optimización y no debía ser la fuente de autoridad, esta duplicación aumentaba el riesgo de resultados diferentes.
+
+## Intervención 28/08/2026 — unificación de permisos administrativos
+
+Archivo modificado:
+
+- `functions/api/ensaios-admin.js`
+
+Cambio aplicado:
+
+1. Se elimina la comprobación paralela `verificarAdministracionR2` y la dependencia de `persoas/cache/administracion/` para decidir si se puede administrar Ensaios.
+2. Si existe el caché R2 de Ensaios, solo se acepta para Administración cuando el propio payload contiene `perfil.podeEditar === true`. Ese valor procede de `resolverPermisosPortal_()` a través de `listarEnsaiosPortal`.
+3. Si no existe caché válida, `/api/ensaios-admin` llama a `listarEnsaiosPortal`, no a `listarEnsaiosAdministracionPortal`, y vuelve a comprobar `perfil.podeEditar`.
+4. Las acciones `cambiarData` y `darBaixa` siguen pasando por Apps Script, donde `ensaios-administracion.gs` reutiliza `permisoEnsaiosPortal_()` y, por tanto, el resolvedor central.
+5. R2 queda expresamente como caché y nunca como fuente autónoma de autorización.
+
+Objetivo de esta intervención: eliminar el `Non autorizado` contradictorio al recargar Administración → Ensaios y hacer que el listado administrativo use la misma decisión de permisos que el resto del Portal.
+
+Pendiente inmediato tras desplegar el PR: recargar `Administración → Ensaios` sin crear nada nuevo y comprobar que aparecen los ensayos de preview. Si abre correctamente, limpiar los dos ensayos de prueba duplicados y continuar con el flujo crear → ver → cambiar fecha → eliminar.
 
 ## Próximo cambio a realizar
 
-1. Hacer que Administración → Ensaios utilice **una única resolución de permisos** basada en el módulo central del Portal.
-2. Evitar dos cargas autorizadas independientes para abrir la misma pantalla.
-3. No obligar a `listarEnsaiosPortal` a regenerar desde Sheet (`forzar:true`) en cada apertura administrativa salvo cuando sea necesario tras una escritura.
-4. Tras crear un ensayo, utilizar el resultado de la escritura / caché regenerada para refrescar la interfaz sin una segunda autorización innecesaria.
-5. Mantener R2 como caché, nunca como fuente de verdad del permiso.
-6. Comprobar y limpiar los dos ensayos de prueba duplicados una vez que la pantalla de administración vuelva a ser estable.
+1. Verificar el resultado de la unificación de permisos en preview.
+2. Si la pantalla abre estable, simplificar después `loadAll()` para no realizar dos lecturas paralelas de Ensaios ni usar `forzar:true` en cada apertura.
+3. Tras crear un ensayo, utilizar el resultado de la escritura / caché regenerada para refrescar la interfaz sin una segunda autorización innecesaria.
+4. Mantener R2 como caché, nunca como fuente de verdad del permiso.
+5. Limpiar los dos ensayos de prueba duplicados una vez que la pantalla de administración vuelva a ser estable.
 
 ## Criterio de aceptación antes de seguir con el ensayo por obra
 
