@@ -229,7 +229,8 @@
 
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   if (path === '/portal/ensaios/estudo') {
-    loadScript('/js/ensaios-estudo-ui.js?v=20260828-4', 'data-ensaios-estudo-ui');
+    loadScript('/js/ensaios-estudo-blob-bridge.js?v=20260828-1', 'data-ensaios-estudo-blob-bridge');
+    loadScript('/js/ensaios-estudo-ui.js?v=20260828-5', 'data-ensaios-estudo-ui');
     loadScript('/js/ensaios-estudo-diagnostico.js?v=20260828-1', 'data-ensaios-estudo-diagnostico');
   }
 })();
