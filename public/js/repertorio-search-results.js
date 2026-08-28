@@ -225,7 +225,7 @@
     document.head.append(script);
   };
 
-  loadScript('/js/ensaios-obras.js?v=20260828-4', 'data-ensaios-obras');
+  loadScript('/js/ensaios-obras.js?v=20260828-5', 'data-ensaios-obras');
 
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   if (path === '/portal/ensaios/estudo') {
