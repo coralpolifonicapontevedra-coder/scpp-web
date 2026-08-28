@@ -30,7 +30,10 @@ const ADMIN_PHOTOS_EDITOR_SCRIPT = [
   '<script src="/js/admin-fotografias-filtros.js?v=20260825-1" defer></script>'
 ].join('');
 
-const ADMIN_ENSAIOS_COMPAT_SCRIPT = '<script src="/js/ensaios-admin-cache-compat.js?v=20260828-1"></script>';
+const ADMIN_ENSAIOS_COMPAT_SCRIPT = [
+  '<link rel="stylesheet" href="/css/admin-ensaios-mobile.css?v=20260828-1">',
+  '<script src="/js/ensaios-admin-cache-compat.js?v=20260828-1"></script>'
+].join('');
 
 class PortalHeadRewriter {
   constructor(extra = '') { this.extra = extra; }
