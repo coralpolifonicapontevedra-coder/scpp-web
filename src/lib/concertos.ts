@@ -11,10 +11,12 @@ export type Concerto = {
   data: string;
   nome: string;
   nomeEs?: string;
+  nome_es?: string;
   cidade?: string;
   lugar?: string;
   caracteristicas?: string;
   caracteristicasEs?: string;
+  caracteristicas_es?: string;
   cartel?: string;
   triptico?: string;
   prensa?: string;
@@ -130,24 +132,28 @@ export async function obterConcertos(): Promise<Concerto[]> {
           };
         })
         .sort((a, b) => a.orde - b.orde);
+      const nomeEs = valor(fila, 'Nome_ES', 'Nome ES', 'Nombre_ES', 'Nombre ES');
+      const caracteristicasEs = valor(
+        fila,
+        'Características_ES',
+        'Caracteristicas_ES',
+        'Características ES',
+        'Caracteristicas ES',
+        'Descripción_ES',
+        'Descripcion_ES',
+      );
 
       return {
         id,
         data: valor(fila, 'Data'),
         nome: valor(fila, 'Nome'),
-        nomeEs: valor(fila, 'Nome_ES', 'Nome ES', 'Nombre_ES', 'Nombre ES'),
+        nomeEs,
+        nome_es: nomeEs,
         cidade: valor(fila, 'Cidade'),
         lugar: valor(fila, 'Lugar'),
         caracteristicas: valor(fila, 'Características', 'Caracteristicas'),
-        caracteristicasEs: valor(
-          fila,
-          'Características_ES',
-          'Caracteristicas_ES',
-          'Características ES',
-          'Caracteristicas ES',
-          'Descripción_ES',
-          'Descripcion_ES',
-        ),
+        caracteristicasEs,
+        caracteristicas_es: caracteristicasEs,
         cartel: valor(fila, 'Cartel'),
         triptico: valor(fila, 'Triptico', 'Tríptico'),
         prensa: valor(fila, 'Prensa'),
