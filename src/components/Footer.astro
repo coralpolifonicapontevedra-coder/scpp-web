@@ -2,6 +2,9 @@
 /* src/components/Footer.astro */
 const { lang = 'gl' } = Astro.props;
 const year = new Date().getFullYear();
+const brandName = lang === 'es'
+  ? 'Sociedad Coral Polifónica de Pontevedra'
+  : 'Sociedade Coral Polifónica de Pontevedra';
 
 const contactInfo = {
   gl: {
@@ -11,6 +14,20 @@ const contactInfo = {
     enlaces: 'Ligazóns',
     redes: 'Redes Sociais',
     legal: 'Legal',
+    tagline: 'Fundada en 1925. Cen anos de polifonía e patrimonio cultural en Galicia.',
+    copyright: 'Todos os dereitos reservados.',
+    links: [
+      ['Inicio', '/'],
+      ['A Coral', '/acoral'],
+      ['Axenda', '/axenda'],
+      ['Colabora', '/colabora'],
+      ['Portal', '/portal']
+    ],
+    legalLinks: [
+      ['Privacidade', '/privacidade/'],
+      ['Aviso legal', '/aviso-legal/'],
+      ['Cookies', '/cookies/']
+    ]
   },
   es: {
     direccion: 'Dirección de la Sede',
@@ -19,6 +36,21 @@ const contactInfo = {
     enlaces: 'Enlaces',
     redes: 'Redes Sociales',
     legal: 'Legal',
+    tagline: 'Fundada en 1925. Cien años de polifonía y patrimonio cultural en Galicia.',
+    copyright: 'Todos los derechos reservados.',
+    /* As páxinas interiores manteranse en galego ata completar a súa tradución. */
+    links: [
+      ['Inicio', '/es/'],
+      ['La Coral', '/acoral'],
+      ['Agenda', '/axenda'],
+      ['Colabora', '/colabora'],
+      ['Portal', '/portal']
+    ],
+    legalLinks: [
+      ['Privacidad', '/privacidade/'],
+      ['Aviso legal', '/aviso-legal/'],
+      ['Cookies', '/cookies/']
+    ]
   }
 };
 
@@ -27,21 +59,12 @@ const texts = contactInfo[lang] || contactInfo.gl;
 
 <footer class="site-footer">
   <div class="container footer-wrapper">
-    
-    <!-- Bloque Principal -->
     <div class="footer-brand">
       <h3>SCPP</h3>
-      <p class="tagline">
-        {lang === 'gl' 
-          ? 'Fundada en 1925. Cen anos de polifonía e patrimonio cultural en Galicia.' 
-          : 'Fundada en 1925. Cien años de polifonía y patrimonio cultural en Galicia.'}
-      </p>
+      <p class="tagline">{texts.tagline}</p>
     </div>
 
-    <!-- Contacto e Enlaces -->
     <div class="footer-sections">
-      
-      <!-- Contacto -->
       <div class="footer-section">
         <h4>{texts.direccion}</h4>
         <p>Rúa Luís Braille 40</p>
@@ -54,19 +77,15 @@ const texts = contactInfo[lang] || contactInfo.gl;
         </p>
       </div>
 
-      <!-- Enlaces Útiles -->
       <div class="footer-section">
         <h4>{texts.enlaces}</h4>
         <ul>
-          <li><a href="/">Inicio</a></li>
-          <li><a href="/acoral">A Coral</a></li>
-          <li><a href="/axenda">Axenda</a></li>
-          <li><a href="/colabora">Colabora</a></li>
-          <li><a href="/portal">Portal</a></li>
+          {texts.links.map(([name, url]) => (
+            <li><a href={url}>{name}</a></li>
+          ))}
         </ul>
       </div>
 
-      <!-- Redes Sociais con SVG -->
       <div class="footer-section">
         <h4>{texts.redes}</h4>
         <div class="social-footer">
@@ -81,19 +100,20 @@ const texts = contactInfo[lang] || contactInfo.gl;
           </a>
         </div>
       </div>
-
     </div>
-
   </div>
 
-  <!-- Copyright -->
   <div class="footer-bottom">
-    <p>&copy; {year} Sociedade Coral Polifónica de Pontevedra. Todos os dereitos reservados.</p>
+    <p>&copy; {year} {brandName}. {texts.copyright}</p>
     <div class="footer-legal">
-      <a href="/privacidade/">Privacidade</a> | <a href="/aviso-legal/">Aviso legal</a> | <a href="/cookies/">Cookies</a>
+      {texts.legalLinks.map(([name, url], index) => (
+        <>
+          {index > 0 && <span aria-hidden="true"> | </span>}
+          <a href={url}>{name}</a>
+        </>
+      ))}
     </div>
   </div>
-
 </footer>
 
 <style>
@@ -232,7 +252,6 @@ const texts = contactInfo[lang] || contactInfo.gl;
     color: var(--color-acento);
   }
 
-  /* Responsivo */
   @media (max-width: 992px) {
     .footer-wrapper {
       grid-template-columns: 1fr;
@@ -273,4 +292,3 @@ const texts = contactInfo[lang] || contactInfo.gl;
     }
   }
 </style>
-

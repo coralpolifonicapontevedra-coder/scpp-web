@@ -5,6 +5,10 @@ import escudoImg from '../assets/escudo-raw.svg';
 
 const { lang = 'gl' } = Astro.props;
 const currentPath = Astro.url.pathname;
+const homeUrl = lang === 'es' ? '/es/' : '/';
+const brandName = lang === 'es'
+  ? 'Sociedad Coral Polifónica de Pontevedra'
+  : 'Sociedade Coral Polifónica de Pontevedra';
 
 const menuItems = {
   gl: [
@@ -18,10 +22,11 @@ const menuItems = {
     { name: 'Portal', url: '/portal' }
   ],
   es: [
-    { name: 'Inicio', url: '/' },
+    { name: 'Inicio', url: '/es/' },
+    /* As restantes rutas manteranse na versión galega ata completar cada tradución. */
     { name: 'La Coral', url: '/acoral' },
     { name: 'Agenda', url: '/axenda' },
-    { name: 'Actualidad', url: '/actualidad' },
+    { name: 'Actualidad', url: '/actualidade' },
     { name: 'Galería', url: '/galeria' },
     { name: 'Colabora', url: '/colabora' },
     { name: 'Contacto', url: '/contacto' },
@@ -31,15 +36,18 @@ const menuItems = {
 
 const currentMenu = menuItems[lang] ?? menuItems.gl;
 const isActive = (url) =>
-  currentPath === url || (url !== '/' && currentPath.startsWith(url));
+  currentPath === url ||
+  currentPath === `${url}/` ||
+  (url !== '/' && url !== '/es/' && currentPath.startsWith(`${url}/`));
 const activeItem = currentMenu.find((item) => isActive(item.url)) ?? currentMenu[0];
-const openMenuLabel = lang === 'es' ? 'Abrir menú' : 'Abrir menú';
+const openMenuLabel = 'Abrir menú';
 const closeMenuLabel = lang === 'es' ? 'Cerrar menú' : 'Pechar menú';
+const languageLabel = lang === 'es' ? 'Cambiar idioma' : 'Cambiar idioma';
 ---
 
 <header class="site-header">
   <div class="header-wrap">
-    <a href="/" class="logo-link">
+    <a href={homeUrl} class="logo-link">
       <Image
         src={escudoImg}
         alt="Escudo SCPP"
@@ -48,9 +56,7 @@ const closeMenuLabel = lang === 'es' ? 'Cerrar menú' : 'Pechar menú';
 
       <div class="brand-text">
         <span class="brand-title">SCPP</span>
-        <span class="brand-sub">
-          Sociedade Coral Polifónica de Pontevedra
-        </span>
+        <span class="brand-sub">{brandName}</span>
       </div>
     </a>
 
@@ -78,11 +84,11 @@ const closeMenuLabel = lang === 'es' ? 'Cerrar menú' : 'Pechar menú';
         </a>
       </div>
 
-      <div class="lang-selector">
-        <span class={lang === 'gl' ? 'active-lang' : ''}>GL</span>
-        |
-        <span class={lang === 'es' ? 'active-lang' : ''}>ES</span>
-      </div>
+      <nav class="lang-selector" aria-label={languageLabel}>
+        <a href="/" lang="gl" hreflang="gl" class={lang === 'gl' ? 'active-lang' : ''} aria-current={lang === 'gl' ? 'page' : undefined}>GL</a>
+        <span aria-hidden="true">|</span>
+        <a href="/es/" lang="es" hreflang="es" class={lang === 'es' ? 'active-lang' : ''} aria-current={lang === 'es' ? 'page' : undefined}>ES</a>
+      </nav>
     </div>
 
     <button
@@ -101,6 +107,12 @@ const closeMenuLabel = lang === 'es' ? 'Cerrar menú' : 'Pechar menú';
       </span>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button>
+
+    <nav class="lang-selector lang-selector--mobile" aria-label={languageLabel}>
+      <a href="/" lang="gl" hreflang="gl" class={lang === 'gl' ? 'active-lang' : ''} aria-current={lang === 'gl' ? 'page' : undefined}>GL</a>
+      <span aria-hidden="true">|</span>
+      <a href="/es/" lang="es" hreflang="es" class={lang === 'es' ? 'active-lang' : ''} aria-current={lang === 'es' ? 'page' : undefined}>ES</a>
+    </nav>
   </div>
 </header>
 
@@ -248,13 +260,34 @@ const closeMenuLabel = lang === 'es' ? 'Cerrar menú' : 'Pechar menú';
 }
 
 .lang-selector{
+  display:flex;
+  align-items:center;
+  gap:.35rem;
   font-size:.8rem;
   font-weight:600;
   color:#bbb;
 }
 
-.active-lang{
+.lang-selector a{
+  color:#9d9895;
+  text-decoration:none;
+  text-underline-offset:3px;
+}
+
+.lang-selector a:hover,
+.lang-selector a:focus-visible{
+  color:var(--color-acento);
+  text-decoration:underline;
+}
+
+.lang-selector a.active-lang{
   color:var(--color-principal);
+  font-weight:800;
+  text-decoration:none;
+}
+
+.lang-selector--mobile{
+  display:none;
 }
 
 .menu-toggle{
@@ -353,6 +386,13 @@ const closeMenuLabel = lang === 'es' ? 'Cerrar menú' : 'Pechar menú';
 
   .menu-toggle.is-open svg{
     transform:rotate(180deg);
+  }
+
+  .lang-selector--mobile{
+    display:flex;
+    flex:0 0 100%;
+    justify-content:flex-end;
+    padding:0 .2rem;
   }
 
   .nav-menu{

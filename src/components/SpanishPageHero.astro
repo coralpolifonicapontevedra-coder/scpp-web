@@ -1,0 +1,44 @@
+---
+const { currentPath = '/es/', pageTitle = '', description = '' } = Astro.props;
+const ruta = String(currentPath || '/es/').replace(/\/$/, '') || '/es';
+const tituloFallback = String(pageTitle || '').split('|')[0].trim() || 'Sociedad Coral Polifónica de Pontevedra';
+const paginas = {
+  '/es/la-coral': { eyebrow: 'Institución centenaria', title: 'La Coral', lead: 'Historia, personas y patrimonio de una institución viva desde 1925.' },
+  '/es/historia': { eyebrow: 'Archivo histórico · Desde 1925', title: 'Historia', lead: 'Un siglo de música, arte, memoria y compromiso colectivo.' },
+  '/es/centenario': { eyebrow: '1925 — 2025', title: 'Centenario', lead: 'Conciertos, exposiciones, creaciones y reconocimientos de un siglo de voces.' },
+  '/es/directora': { eyebrow: 'Dirección artística', title: 'Directora', lead: 'Nanette Sánchez Ordaz dirige la Sociedad desde noviembre de 2013.' },
+  '/es/junta-directiva': { eyebrow: 'Mandato 2026 — actualidad', title: 'Junta Directiva', lead: 'El equipo responsable de la continuidad institucional y de la actividad de la Coral.' },
+  '/es/coralistas': { eyebrow: 'Las voces de la Sociedad', title: 'Coralistas', lead: 'Las personas que mantienen vivo el repertorio y la identidad de la Polifónica.' },
+  '/es/distinciones': { eyebrow: 'Reconocimientos institucionales', title: 'Distinciones', lead: 'Premios, medallas y homenajes que forman parte de la memoria de la Sociedad.' },
+  '/es/honores': { eyebrow: 'Reconocimiento a nuestro entorno', title: 'Honores concedidos', lead: 'Personas y entidades distinguidas por su vínculo y compromiso con la Coral.' },
+  '/es/bienvenida': { eyebrow: 'Descubre nuestra esencia', title: 'Bienvenida', lead: 'Una institución centenaria que conserva la memoria y continúa mirando al futuro.' },
+  '/es/agenda': { eyebrow: 'Programación', title: 'Agenda', lead: 'Próximos conciertos y memoria reciente de las actuaciones de la Coral.' },
+  '/es/actualidad': { eyebrow: 'Vida de la Sociedad', title: 'Actualidad', lead: 'Publicaciones, entrevistas y noticias sobre la actividad de la Coral.' },
+  '/es/galeria': { eyebrow: 'Archivo visual', title: 'Galería', lead: 'Un recorrido fotográfico por la actividad artística e institucional de la Sociedad.' },
+  '/es/historico-conciertos': { eyebrow: 'Archivo de actuaciones', title: 'Histórico de conciertos', lead: 'La memoria cronológica de las actuaciones de la Sociedad desde 1925.' },
+  '/es/colabora': { eyebrow: 'Forma parte del proyecto', title: 'Colabora', lead: 'Canta, participa o apoya la continuidad de una institución cultural centenaria.' },
+  '/es/colaboradores': { eyebrow: 'Apoyo institucional y social', title: 'Entidades colaboradoras', lead: 'Instituciones, entidades y empresas que caminan al lado de la Sociedad.' },
+  '/es/contacto': { eyebrow: 'Habla con nosotros', title: 'Contacto', lead: 'Consultas, visitas, prensa y solicitudes de actuación de la Coral.' },
+  '/es/privacidad': { eyebrow: 'Información legal', title: 'Política de privacidad', lead: 'Cómo tratamos y protegemos los datos personales de las personas usuarias.' },
+  '/es/aviso-legal': { eyebrow: 'Información legal', title: 'Aviso legal', lead: 'Condiciones de acceso y uso del sitio web oficial de la Sociedad.' },
+  '/es/cookies': { eyebrow: 'Privacidad en la navegación', title: 'Política de cookies', lead: 'Información sobre cookies y tecnologías de almacenamiento utilizadas en el sitio.' }
+};
+const datos = paginas[ruta] || { eyebrow: 'Sociedad Coral Polifónica de Pontevedra', title: tituloFallback, lead: String(description || '').trim() };
+const esHistoria = ruta === '/es/historia';
+---
+
+<header class:list={['public-page-hero', esHistoria && 'public-page-hero--history']} aria-labelledby="public-page-title">
+  <div class="public-page-hero__content">
+    <p class="public-page-hero__eyebrow">{datos.eyebrow}</p>
+    <h1 id="public-page-title">{datos.title}</h1>
+    {datos.lead && <p class="public-page-hero__lead">{datos.lead}</p>}
+    {esHistoria && <a class="public-page-hero__history-link" href="/es/historico-conciertos/">Histórico de conciertos <span aria-hidden="true">→</span></a>}
+  </div>
+</header>
+
+<style is:global>
+.public-page-hero{display:grid;width:min(100%,900px);min-height:168px;margin:1.25rem auto 0;padding:1.35rem 1.75rem 1.5rem;place-items:center;overflow:hidden;border-radius:3px;background:radial-gradient(circle at 82% 18%,rgba(212,177,91,.16),transparent 29%),linear-gradient(135deg,#551421,#741f32);color:#fff;text-align:center}.public-page-hero--history{background:linear-gradient(90deg,rgba(54,12,21,.88),rgba(92,24,39,.8)),url('/img/historia/coral-1928.webp');background-position:center 38%;background-size:cover}.public-page-hero__content{width:min(660px,100%)}.public-page-hero__eyebrow{margin:0 0 .45rem;color:#dfc273;font-size:.64rem;font-weight:800;letter-spacing:.16em;line-height:1.35;text-transform:uppercase}.public-page-hero h1{margin:0;color:#fffaf2;font-size:clamp(1.75rem,3vw,2.35rem);font-weight:700;letter-spacing:-.025em;line-height:1.08}.public-page-hero__lead{max-width:620px;margin:.65rem auto 0;color:rgba(255,255,255,.88);font-size:.86rem;line-height:1.55}.public-page-hero__history-link{display:inline-flex;align-items:center;gap:.4rem;margin-top:.7rem;color:#fff;font-size:.72rem;font-weight:700;text-decoration-color:#dfc273;text-underline-offset:4px}.public-page-hero__history-link span{color:#dfc273}
+.public-site-main :is(.historia-page>.historia-hero,.centenario-page>.centenario-hero,.distincions-page>.distincions-hero,.directora-page-wrapper>.directora-header,.xunta-page>.page-header,.coralistas-page>.page-header,.agenda-page>.agenda-header,.gallery-page-wrapper>.gallery-header,.contacto-page-wrapper>.contacto-header,.colabora-page-wrapper>.colabora-header,.actualidade>.cabeceira,.benvida-page-wrapper>.page-header){display:none!important}.public-site-main :is(.coral-page-wrapper,.directora-page-wrapper,.xunta-page,.coralistas-page,.agenda-page,.gallery-page-wrapper,.contacto-page-wrapper,.colabora-page-wrapper,.colaboradores-page,.actualidade,.benvida-page-wrapper){padding-top:2rem!important}.public-site-main .coral-page-wrapper{padding-bottom:4.5rem!important}.public-site-main .centenario-page .centenario-intro,.public-site-main .distincions-page .intro-section{padding-top:2.25rem!important;padding-bottom:2.25rem!important}.public-site-main .historia-page .archive-nav{width:min(100%,900px)!important;margin:1.15rem auto 2.6rem!important}.public-site-main .historia-page .archive-nav-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;box-shadow:none!important}.public-site-main .historia-page .archive-tab,.public-site-main .historia-page .archive-tab:nth-child(n){min-height:86px!important;padding:.72rem .85rem!important}.public-site-main .historia-page .tab-number{margin-bottom:.25rem!important;font-size:.62rem!important}.public-site-main .historia-page .tab-meta{margin-bottom:.12rem!important;font-size:.58rem!important}.public-site-main .historia-page .archive-tab strong{font-size:.92rem!important;line-height:1.18!important}.public-site-main .historia-page .archive-tab small{display:none!important}.public-site-main .historia-page .archive-content{width:min(100% - 1rem,900px)!important}.public-site-main .historia-page .section-heading{margin-bottom:2.25rem!important}.public-site-main .historia-page :is(.section-heading h2,.closing-statement h2){font-size:clamp(1.75rem,3.2vw,2.4rem)!important}.public-site-main .history-page>.history-hero{margin:0 auto 2rem!important;padding-top:2rem!important}.public-site-main .history-page>.history-hero>.eyebrow,.public-site-main .history-page>.history-hero>h1,.public-site-main .history-page>.history-hero>.section-line-center,.public-site-main .history-page>.history-hero>p:not(.eyebrow){display:none!important}
+@media(max-width:720px){.public-page-hero{width:calc(100% - 2rem);min-height:148px;margin-top:1rem;padding:1.15rem 1.1rem 1.25rem}.public-page-hero__lead{font-size:.81rem}.public-site-main .historia-page .archive-nav{width:calc(100% - 2rem)!important;margin-top:.85rem!important}.public-site-main .historia-page .archive-nav-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:460px){.public-page-hero{min-height:138px}.public-site-main .historia-page .archive-nav-grid{grid-template-columns:1fr!important}.public-site-main .historia-page .archive-tab,.public-site-main .historia-page .archive-tab:nth-child(n){min-height:70px!important;border-right:0!important;border-bottom:1px solid var(--line)!important}.public-site-main .historia-page .archive-tab:last-child{border-bottom:0!important}}
+</style>
