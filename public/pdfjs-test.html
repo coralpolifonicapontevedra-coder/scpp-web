@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="gl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Proba PDF.js · SCPP</title>
+  <style>
+    body{font-family:system-ui,sans-serif;margin:0;padding:1rem;background:#f7f5f3;color:#2f2927}
+    main{max-width:720px;margin:auto;background:#fff;border:1px solid #ddd5d0;border-radius:8px;padding:1rem}
+    h1{font-size:1.2rem;margin:.2rem 0 1rem;color:#6b1d2f}
+    .row{padding:.7rem 0;border-bottom:1px solid #eee7e2;word-break:break-word}
+    .ok{color:#24653f}.bad{color:#9b1d2e}.wait{color:#7a6f66}
+    code{font-size:.78rem}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Diagnóstico PDF.js · Preview</h1>
+  <div id="main" class="row wait">⏳ pdf.min.js: comprobando…</div>
+  <div id="worker" class="row wait">⏳ pdf.worker.min.js: comprobando…</div>
+  <div id="runtime" class="row wait">⏳ runtime: agardando…</div>
+  <div id="ua" class="row"><strong>Navegador:</strong><br><code></code></div>
+</main>
+<script>
+  document.querySelector('#ua code').textContent = navigator.userAgent;
+  const set=(id,ok,text)=>{const el=document.getElementById(id);el.className='row '+(ok?'ok':'bad');el.textContent=(ok?'✅ ':'❌ ')+text};
+  async function probe(id,url){
+    try{
+      const r=await fetch(url+'?t='+Date.now(),{cache:'no-store'});
+      const type=r.headers.get('content-type')||'sen content-type';
+      const text=await r.text();
+      if(!r.ok) throw new Error('HTTP '+r.status+' · '+type);
+      if(text.length<1000) throw new Error('resposta curta: '+text.length+' bytes');
+      set(id,true,url+' · HTTP '+r.status+' · '+text.length+' bytes · '+type);
+      return true;
+    }catch(e){set(id,false,url+' · '+(e&&e.message?e.message:e));return false;}
+  }
+  (async()=>{
+    const mainOk=await probe('main','/vendor/pdfjs/pdf.min.js');
+    const workerOk=await probe('worker','/vendor/pdfjs/pdf.worker.min.js');
+    if(!mainOk){set('runtime',false,'runtime: non se pode cargar PDF.js porque falta o ficheiro principal');return;}
+    const s=document.createElement('script');
+    s.src='/vendor/pdfjs/pdf.min.js?t='+Date.now();
+    s.onload=()=>set('runtime',!!window.pdfjsLib?.getDocument,'runtime: '+(window.pdfjsLib?.getDocument?'PDF.js '+(window.pdfjsLib.version||'cargado'):'o script cargou pero pdfjsLib non está dispoñible'));
+    s.onerror=()=>set('runtime',false,'runtime: erro ao executar pdf.min.js');
+    document.head.appendChild(s);
+  })();
+</script>
+</body>
+</html>
