@@ -119,15 +119,33 @@ Cambio aplicado:
 
 Objetivo de esta intervención: eliminar el `Non autorizado` contradictorio al recargar Administración → Ensaios y hacer que el listado administrativo use la misma decisión de permisos que el resto del Portal.
 
-Pendiente inmediato tras desplegar el PR: recargar `Administración → Ensaios` sin crear nada nuevo y comprobar que aparecen los ensayos de preview. Si abre correctamente, limpiar los dos ensayos de prueba duplicados y continuar con el flujo crear → ver → cambiar fecha → eliminar.
+## Intervención 28/08/2026 — revalidación frente a caché R2 antiga
+
+Tras desplegar la unificación anterior, la pantalla seguía devolviendo `Non autorizado`. Se detectó una causa adicional: `ensaios-admin` aceptaba una entrada R2 como base para **denegar** si el payload antiguo no contenía `perfil.podeEditar === true`.
+
+Archivo modificado:
+
+- `functions/api/ensaios-admin.js`
+
+Cambio aplicado:
+
+1. R2 ya no puede producir una denegación de permisos.
+2. Una entrada R2 solo se usa directamente cuando acredita `perfil.podeEditar === true`.
+3. Si la caché no contiene ese permiso o es antigua/incompleta, se ignora para autorización y se consulta `listarEnsaiosPortal` en Apps Script.
+4. Solo la respuesta fresca de Apps Script puede devolver `FORBIDDEN`.
+5. El diagnóstico distingue ahora `R2-PERMISO-CENTRAL`, `SHEET-PERMISO-CENTRAL` y `SHEET-REVALIDACION-PERMISO`.
+
+Durante esta intervención se intentó preparar en local una simplificación de `loadAll()` para eliminar la doble lectura. El uso de `Get-Content/Set-Content` de PowerShell alteró la codificación UTF-8 del archivo Astro (acentos y símbolos). El commit se detectó **antes de abrir/mergear PR**, se descartó por completo y la rama se restauró al estado de `preview`. No se incorporó esa corrupción a `preview`.
+
+La simplificación de `loadAll()` sigue siendo deseable, pero se hará después de estabilizar la autorización y mediante una edición que preserve UTF-8.
 
 ## Próximo cambio a realizar
 
-1. Verificar el resultado de la unificación de permisos en preview.
-2. Si la pantalla abre estable, simplificar después `loadAll()` para no realizar dos lecturas paralelas de Ensaios ni usar `forzar:true` en cada apertura.
-3. Tras crear un ensayo, utilizar el resultado de la escritura / caché regenerada para refrescar la interfaz sin una segunda autorización innecesaria.
-4. Mantener R2 como caché, nunca como fuente de verdad del permiso.
-5. Limpiar los dos ensayos de prueba duplicados una vez que la pantalla de administración vuelva a ser estable.
+1. Desplegar esta revalidación en `preview` y recargar `Administración → Ensaios` sin crear un nuevo ensayo.
+2. Si abre correctamente, comprobar que aparecen los ensayos existentes y limpiar los dos duplicados de prueba.
+3. Verificar crear → ver → recargar → cambiar fecha → eliminar.
+4. Solo después, simplificar `loadAll()` a una única lectura, preservando estrictamente UTF-8.
+5. Mantener R2 como caché, nunca como fuente de verdad del permiso.
 
 ## Criterio de aceptación antes de seguir con el ensayo por obra
 
