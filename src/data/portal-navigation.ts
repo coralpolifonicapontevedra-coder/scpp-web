@@ -87,14 +87,6 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
     homeNumber: '03',
   },
   {
-    id: 'estudo',
-    label: 'Estudo de ensaios',
-    path: '/portal/ensaios/estudo/',
-    enabled: true,
-    order: 71,
-    surfaces: ['sidebar'],
-  },
-  {
     id: 'galeria',
     label: 'Galería',
     path: '/portal/galeria/',
