@@ -1,0 +1,171 @@
+/* Axustes limitados á versión pública en español. */
+
+/*
+ * O histórico xera as décadas e as táboas con innerHTML.
+ * Estes estilos deben ser globais para que tamén alcancen ese contido dinámico.
+ */
+.history-page .history-years {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.history-page .card-decada {
+  width: 100%;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e2ddd7;
+  border-radius: 6px;
+}
+
+.history-page .card-decada summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.4rem;
+  background: #faf8f5;
+  cursor: pointer;
+  list-style: none;
+}
+
+.history-page .card-decada summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-page .card-decada summary > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+
+.history-page .period-label {
+  color: #a3821a;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.history-page .card-decada summary strong {
+  color: #5c1926;
+  font-size: 1.25rem;
+}
+
+.history-page .period-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.history-page .period-meta span {
+  padding: .25rem .75rem;
+  color: #555;
+  background: #eae4d9;
+  border-radius: 12px;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.history-page .period-meta b {
+  color: #5c1926;
+  font-size: .8rem;
+  transition: transform .18s ease;
+}
+
+.history-page .card-decada[open] .period-meta b {
+  transform: rotate(180deg);
+}
+
+.history-page .table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-top: 1px solid #e2ddd7;
+}
+
+.history-page .table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+  text-align: left;
+}
+
+.history-page .table-wrap thead {
+  background: #fcfbf9;
+  border-bottom: 2px solid #e2ddd7;
+}
+
+.history-page .table-wrap th {
+  padding: .8rem 1rem;
+  color: #5c1926;
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.history-page .table-wrap td {
+  padding: .8rem 1rem;
+  border-bottom: 1px solid #f0ebe3;
+  vertical-align: top;
+}
+
+.history-page .table-wrap .number {
+  color: #a3821a;
+  font-weight: 800;
+}
+
+/* O nome enlazado da directora debe conservar o mesmo aspecto ca os demais directores. */
+.historia-page .person-card h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.historia-page .person-card h3 a:hover,
+.historia-page .person-card h3 a:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: var(--color-acento);
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 720px) {
+  .history-page .table-wrap thead {
+    display: none;
+  }
+
+  .history-page .table-wrap table,
+  .history-page .table-wrap tbody,
+  .history-page .table-wrap tr,
+  .history-page .table-wrap td {
+    display: block;
+    width: 100%;
+  }
+
+  .history-page .table-wrap tr {
+    padding: .8rem;
+    border-bottom: 2px solid #e2ddd7;
+  }
+
+  .history-page .table-wrap td {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: .75rem;
+    padding: .4rem;
+    border: 0;
+  }
+
+  .history-page .table-wrap td::before {
+    content: attr(data-label);
+    color: #5c1926;
+    font-weight: 700;
+  }
+
+  .history-page .card-decada summary {
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .history-page .period-meta {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}

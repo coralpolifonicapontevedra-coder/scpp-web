@@ -4,6 +4,7 @@ import SpanishFooter from '../components/SpanishFooter.astro';
 import SpanishCoralMenu from '../components/SpanishCoralMenu.astro';
 import SpanishPageHero from '../components/SpanishPageHero.astro';
 import '../styles/global.css';
+import '../styles/spanish-public-fixes.css';
 
 const {
   title,
@@ -15,6 +16,7 @@ const rutaNormalizada = ruta.replace(/\/$/, '') || '/';
 const esPortada = rutaNormalizada === '/es';
 const esAgenda = rutaNormalizada === '/es/agenda';
 const esActualidad = rutaNormalizada === '/es/actualidad';
+const esHistorico = rutaNormalizada === '/es/historico-conciertos';
 
 const equivalencias = {
   '/es': '/',
@@ -61,7 +63,7 @@ const alternaEs = new URL(ruta, Astro.url.origin).toString();
     <div class:list={['public-site-shell', esPortada && 'is-home']}>
       {!esPortada && <SpanishCoralMenu currentPath={ruta} />}
       <main class="public-site-main">
-        {!esPortada && (
+        {!esPortada && !esHistorico && (
           <SpanishPageHero
             currentPath={ruta}
             pageTitle={title}
