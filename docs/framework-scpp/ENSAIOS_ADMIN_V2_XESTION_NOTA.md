@@ -1,0 +1,1 @@
+Implementación pendente en rama específica. Esta nota acompaña o desenvolvemento da primeira fase de `Xestionar` para asistencia.
