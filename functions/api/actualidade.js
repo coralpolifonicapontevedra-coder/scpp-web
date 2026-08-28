@@ -2,6 +2,18 @@ const INDEX_KEY = 'indices/actualidade-v1.json';
 const ORIXE = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec?recurso=publicacions';
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
+const PRODUCION_PUBLICACIONS = [
+  {
+    id: 'producion-2026-08-28-prensa',
+    titulo: 'A Polifónica abre o curso 2026/2027 e busca novas voces',
+    tipo: 'Noticia',
+    medio: 'Faro de Vigo · PontevedraViva',
+    data: '2026-08-28',
+    destacada: true,
+    rutaWeb: '/documentos/publicacions/2026-08-28_faro-vigo-novos-talentos-gl.pdf'
+  }
+];
+
 const json = (status, body, cache = 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400') =>
   new Response(JSON.stringify(body), {
     status,
@@ -29,6 +41,34 @@ function normalizar(publicacion) {
 
 function respostaValida(datos) {
   return datos?.ok === true && Array.isArray(datos?.publicacions);
+}
+
+function engadirPublicacionProducion(datos) {
+  if (!respostaValida(datos)) return datos;
+  const rutasAnteriores = new Set([
+    '/documentos/publicacions/2026-08-28_ficha_pontevedraviva-voces-masculinas.pdf',
+    '/documentos/publicacions/2026-08-28_ficha_faro-novos-talentos.pdf',
+    '/documentos/publicacions/2026-08-28_faro-vigo-novos-talentos-gl.pdf'
+  ]);
+  const titulosAnteriores = new Set([
+    'Procúranse voces masculinas na Sociedade Coral Polifónica de Pontevedra',
+    'A Coral Polifónica busca novos talentos para reforzar as súas voces',
+    'A Polifónica abre o curso 2026/2027 e busca novas voces'
+  ]);
+  const base = datos.publicacions.filter((item) =>
+    !rutasAnteriores.has(texto(item?.rutaWeb || item?.RutaWeb)) &&
+    !titulosAnteriores.has(texto(item?.titulo || item?.Titulo))
+  );
+  const publicacions = [...PRODUCION_PUBLICACIONS, ...base]
+    .map(normalizar)
+    .filter((item) => item.titulo && item.rutaWeb)
+    .sort((a, b) => b.data.localeCompare(a.data));
+
+  return {
+    ...datos,
+    publicacions,
+    total: publicacions.length
+  };
 }
 
 async function lerIndice(env) {
@@ -93,15 +133,15 @@ export async function onRequestGet({ env, waitUntil }) {
       if (typeof waitUntil === 'function') waitUntil(tarefa);
     }
 
-    return json(200, {
+    return json(200, engadirPublicacionProducion({
       ...indice,
       fonte: idade < MAX_AGE_MS ? 'R2-CACHE' : 'R2-STALE-REFRESH'
-    });
+    }));
   }
 
   try {
     const actualizado = await refrescar(env);
-    return json(200, actualizado);
+    return json(200, engadirPublicacionProducion(actualizado));
   } catch (erro) {
     return json(503, {
       ok: false,
