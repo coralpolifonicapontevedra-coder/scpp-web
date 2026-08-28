@@ -7,8 +7,8 @@
   const ZOOM_MIN = 50;
   const ZOOM_MAX = 200;
   const ZOOM_STEP = 10;
-  const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs';
-  const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs';
+  const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+  const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
   let zoom = 100;
   let pdfDocument = null;
@@ -43,36 +43,60 @@
     .study-compact-title small { margin-top: .08rem; color: #77706a; font-size: .68rem; line-height: 1.2; }
     .study-compact-audio { min-width: 0; }
     .study-compact-audio > span {
-      position: absolute; width: 1px; height: 1px; overflow: hidden;
-      clip: rect(0 0 0 0); white-space: nowrap;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
     }
     .study-compact-audio select {
-      width: 100%; min-width: 0; min-height: 2.08rem !important;
-      padding: .28rem .45rem !important; border: 1px solid #d4cec8;
-      border-radius: 4px; background: #fff; color: #302c29;
-      font: inherit; font-size: .78rem !important;
+      width: 100%;
+      min-width: 0;
+      min-height: 2.08rem !important;
+      padding: .28rem .45rem !important;
+      border: 1px solid #d4cec8;
+      border-radius: 4px;
+      background: #fff;
+      color: #302c29;
+      font: inherit;
+      font-size: .78rem !important;
     }
     .study-zoom {
-      display: inline-grid; grid-template-columns: 2rem 3rem 2rem;
-      align-items: center; overflow: hidden; border: 1px solid #d4cec8;
-      border-radius: 4px; background: #fff;
+      display: inline-grid;
+      grid-template-columns: 2rem 3rem 2rem;
+      align-items: center;
+      overflow: hidden;
+      border: 1px solid #d4cec8;
+      border-radius: 4px;
+      background: #fff;
     }
     .study-zoom button,
     .study-fullscreen {
-      min-height: 2.08rem; border: 0; background: #fff;
-      color: var(--color-principal, #6a1b29); font: inherit;
-      font-size: .8rem; font-weight: 800; cursor: pointer;
+      min-height: 2.08rem;
+      border: 0;
+      background: #fff;
+      color: var(--color-principal, #6a1b29);
+      font: inherit;
+      font-size: .8rem;
+      font-weight: 800;
+      cursor: pointer;
     }
     .study-zoom button:hover,
     .study-fullscreen:hover { background: #f7eff1; }
     .study-zoom strong { color: #4b4541; font-size: .68rem; text-align: center; white-space: nowrap; }
     .study-fullscreen {
-      min-width: 2.25rem; padding: 0 .48rem; border: 1px solid #d4cec8;
-      border-radius: 4px; font-size: 1rem; line-height: 1;
+      min-width: 2.25rem;
+      padding: 0 .48rem;
+      border: 1px solid #d4cec8;
+      border-radius: 4px;
+      font-size: 1rem;
+      line-height: 1;
     }
     .study-main.from-ensaios .audio-panel {
       grid-template-columns: minmax(120px, .23fr) minmax(260px, 1fr) !important;
-      gap: .5rem !important; padding: .38rem .55rem !important;
+      gap: .5rem !important;
+      padding: .38rem .55rem !important;
     }
     .study-main.from-ensaios #audio-player { height: 32px !important; }
     .study-main.from-ensaios .score-toolbar { padding: .28rem .45rem !important; gap: .35rem !important; }
@@ -85,11 +109,13 @@
       text-align: center;
       -webkit-overflow-scrolling: touch;
     }
-    .score-frame.is-pdfjs #score-viewer { display: none !important; }
+    .score-frame.is-pdfjs #score-viewer,
+    .score-frame.is-pdfjs #score-placeholder { display: none !important; }
     .study-pdf-canvas-wrap {
       display: inline-block;
       min-width: 100%;
       padding: .55rem;
+      box-sizing: border-box;
       line-height: 0;
       text-align: center;
     }
@@ -107,33 +133,38 @@
       color: #6f6964;
       font-size: .82rem;
       line-height: 1.4;
+      text-align: center;
     }
 
     .player-card:fullscreen,
     .player-card:-webkit-full-screen {
-      width: 100vw !important; height: 100vh !important; max-width: none !important;
-      border: 0 !important; border-radius: 0 !important; background: #fff !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: #fff !important;
     }
     .player-card:fullscreen .score-frame,
     .player-card:-webkit-full-screen .score-frame {
-      flex: 1 1 auto !important; height: auto !important; min-height: 0 !important;
+      flex: 1 1 auto !important;
+      height: auto !important;
+      min-height: 0 !important;
     }
-    .player-card:fullscreen .study-compact-line,
-    .player-card:-webkit-full-screen .study-compact-line,
-    .player-card:fullscreen .audio-panel,
-    .player-card:-webkit-full-screen .audio-panel,
-    .player-card:fullscreen .score-toolbar,
-    .player-card:-webkit-full-screen .score-toolbar { flex: 0 0 auto; }
 
     @media (max-width: 760px) {
       .study-main.from-ensaios { padding-top: .35rem !important; }
       .study-main.from-ensaios .study-header { margin-bottom: .35rem !important; }
       .study-compact-line {
         grid-template-columns: minmax(0, 1fr) auto auto;
-        gap: .35rem; padding: .38rem .42rem;
+        gap: .35rem;
+        padding: .38rem .42rem;
       }
       .study-compact-title {
-        grid-column: 1 / -1; display: flex; gap: .35rem; align-items: baseline;
+        grid-column: 1 / -1;
+        display: flex;
+        gap: .35rem;
+        align-items: baseline;
       }
       .study-compact-title strong { flex: 1 1 auto; font-size: .8rem; }
       .study-compact-title small { flex: 0 1 auto; margin: 0; font-size: .63rem; }
@@ -142,12 +173,15 @@
       .study-zoom button, .study-fullscreen { min-height: 1.95rem; }
       .study-fullscreen { min-width: 2rem; padding: 0 .35rem; }
       .study-main.from-ensaios .audio-panel {
-        grid-template-columns: 1fr !important; gap: .18rem !important; padding: .3rem .4rem !important;
+        grid-template-columns: 1fr !important;
+        gap: .18rem !important;
+        padding: .3rem .4rem !important;
       }
       .study-main.from-ensaios .audio-copy { display: none !important; }
       .study-main.from-ensaios #audio-player { height: 30px !important; }
       .study-main.from-ensaios .score-frame {
-        height: calc(100dvh - 165px) !important; min-height: 430px !important;
+        height: calc(100dvh - 165px) !important;
+        min-height: 430px !important;
       }
       .study-pdf-canvas-wrap { padding: .25rem; }
       .player-card:fullscreen .study-compact-title small,
@@ -173,13 +207,30 @@
     if (label instanceof HTMLElement) label.textContent = `${zoom}%`;
   }
 
-  async function loadPdfJs() {
-    if (!pdfjsPromise) {
-      pdfjsPromise = import(PDFJS_URL).then((lib) => {
-        lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-        return lib;
-      });
-    }
+  function loadPdfJs() {
+    if (window.pdfjsLib?.getDocument) return Promise.resolve(window.pdfjsLib);
+    if (pdfjsPromise) return pdfjsPromise;
+
+    pdfjsPromise = new Promise((resolve, reject) => {
+      const previous = document.querySelector('script[data-scpp-pdfjs]');
+      if (previous) previous.remove();
+
+      const script = document.createElement('script');
+      script.src = PDFJS_URL;
+      script.async = true;
+      script.dataset.scppPdfjs = 'true';
+      script.onload = () => {
+        if (!window.pdfjsLib?.getDocument) {
+          reject(new Error('PDF.js non quedou dispoñible.'));
+          return;
+        }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+        resolve(window.pdfjsLib);
+      };
+      script.onerror = () => reject(new Error('Non foi posible cargar PDF.js.'));
+      document.head.append(script);
+    });
+
     return pdfjsPromise;
   }
 
@@ -282,12 +333,13 @@
       renderTask = pdfPage.render({ canvasContext: context, viewport });
       await renderTask.promise;
       renderTask = null;
+      frame.scrollTo({ top: 0, left: 0 });
     } catch (error) {
       if (error?.name === 'RenderingCancelledException') return;
       console.error('Erro no visor PDF de estudo:', error);
       frame.classList.remove('is-pdfjs');
       viewer.hidden = false;
-      showPdfStatus('Non foi posible cargar o visor integrado. Podes usar «Abrir» como alternativa.');
+      showPdfStatus('Non foi posible cargar a partitura no visor integrado.');
     }
   }
 
