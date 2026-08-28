@@ -7,8 +7,8 @@
   const ZOOM_MIN = 50;
   const ZOOM_MAX = 200;
   const ZOOM_STEP = 10;
-  const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
-  const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  const PDFJS_URL = '/pdfjs/pdf.min.js';
+  const PDFJS_WORKER_URL = '/pdfjs/pdf.worker.min.js';
 
   let zoom = 100;
   let pdfDocument = null;
