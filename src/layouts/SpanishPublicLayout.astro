@@ -78,7 +78,8 @@ const alternaEs = new URL(ruta, Astro.url.origin).toString();
 
     <SpanishFooter />
     {esAgenda && <script is:inline src="/js/poster-thumbnails.js" defer></script>}
-    {esActualidad && <script is:inline src="/js/actualidad-contenido-es.js" defer></script>}
+    {esActualidad && <script is:inline src="/js/actualidad-contenido-es.js?v=20260828-3" defer></script>}
+    {esActualidad && <script is:inline src="/js/actualidad-enlace-es-v2.js?v=20260828-1" defer></script>}
     {esHistoria && <script is:inline src="/js/historico-historia-es.js" defer></script>}
   </body>
 </html>
