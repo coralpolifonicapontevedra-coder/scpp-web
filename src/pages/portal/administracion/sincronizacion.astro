@@ -1,0 +1,291 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Sincronización" lang="gl">
+  <div class="private-layout sync-layout">
+    <PortalSidebar active="administracion" logoutId="sync-logout" />
+    <main class="sync-main">
+      <header class="sync-header">
+        <div>
+          <span class="section-kicker">Administración · Preparación musical</span>
+          <h1>Sincronización</h1>
+          <p>Marca os cambios de páxina de cada audio de estudo. Cada voz sincronízase de maneira independente.</p>
+        </div>
+        <a class="back-link" href="/portal/administracion/">← Administración</a>
+      </header>
+
+      <section id="loading" class="state-card">Cargando repertorio…</section>
+      <section id="error" class="state-card error" hidden><strong>Non foi posible abrir o editor</strong><p id="error-text"></p></section>
+
+      <section id="editor" class="editor" hidden>
+        <section class="selector-card">
+          <label><span>Obra</span><select id="work-select"><option value="">Escolle unha obra…</option></select></label>
+          <label><span>Audio / voz</span><select id="audio-select" disabled><option value="">Escolle un audio…</option></select></label>
+          <div class="selection-info"><small>Partitura</small><strong id="score-name">—</strong></div>
+        </section>
+
+        <section id="workspace" class="workspace" hidden>
+          <div class="score-panel">
+            <div class="panel-heading">
+              <div><span>Partitura</span><strong id="work-name">—</strong></div>
+              <div class="page-controls">
+                <button id="prev-page" type="button">←</button>
+                <label>Páxina <input id="page-number" type="number" min="1" value="1" /></label>
+                <button id="next-page" type="button">→</button>
+              </div>
+            </div>
+            <iframe id="score-frame" title="Partitura sincronizada"></iframe>
+          </div>
+
+          <aside class="sync-panel">
+            <div class="audio-block">
+              <span>Audio de estudo</span>
+              <strong id="audio-name">—</strong>
+              <audio id="audio-player" controls preload="metadata"></audio>
+              <div class="time-row"><span>Tempo actual</span><strong id="current-time">00:00.00</strong></div>
+            </div>
+
+            <div class="mark-actions">
+              <button id="mark-current" class="primary" type="button">Marcar páxina actual</button>
+              <button id="mark-next" class="secondary" type="button">Seguinte páxina + marcar</button>
+              <p>O segundo exacto tómase automaticamente do audio.</p>
+            </div>
+
+            <div class="marks-heading"><div><span>Marcas gardadas</span><strong id="marks-count">0</strong></div><button id="reload-marks" type="button">Actualizar</button></div>
+            <div id="marks-list" class="marks-list"></div>
+          </aside>
+        </section>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const $ = (selector) => document.querySelector(selector);
+  const loading = $('#loading');
+  const errorBox = $('#error');
+  const errorText = $('#error-text');
+  const editor = $('#editor');
+  const workSelect = $('#work-select');
+  const audioSelect = $('#audio-select');
+  const workspace = $('#workspace');
+  const scoreFrame = $('#score-frame');
+  const pageNumber = $('#page-number');
+  const audioPlayer = $('#audio-player');
+  const marksList = $('#marks-list');
+
+  let obras = [];
+  let obra = null;
+  let audio = null;
+  let score = null;
+  let marks = [];
+  let scoreUrl = '';
+  let audioUrl = '';
+
+  const canon = (value) => {
+    const text = String(value ?? '').trim();
+    const n = Number(text.replace(',', '.'));
+    return Number.isFinite(n) ? String(Math.trunc(n)) : text;
+  };
+  const fmt = (seconds) => {
+    const value = Math.max(0, Number(seconds || 0));
+    const min = Math.floor(value / 60);
+    const sec = value - min * 60;
+    return `${String(min).padStart(2,'0')}:${sec.toFixed(2).padStart(5,'0')}`;
+  };
+
+  function showError(message) {
+    if (loading instanceof HTMLElement) loading.hidden = true;
+    if (editor instanceof HTMLElement) editor.hidden = true;
+    if (errorBox instanceof HTMLElement) errorBox.hidden = false;
+    if (errorText instanceof HTMLElement) errorText.textContent = message;
+  }
+
+  async function token() {
+    const user = auth.currentUser;
+    if (!user) throw new Error('A sesión xa non está activa.');
+    return user.getIdToken();
+  }
+
+  async function repertorio(accion, extra = {}) {
+    const response = await fetch('/api/repertorio', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ idToken: await token(), accion, ...extra })
+    });
+    if (accion === 'obterFicheiroRepertorio' && response.ok) return response.blob();
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Erro ao consultar Repertorio.');
+    return result;
+  }
+
+  async function sincronizacion(accion, extra = {}) {
+    const response = await fetch('/api/sincronizacion', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ idToken: await token(), accion, ...extra })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Erro ao xestionar a sincronización.');
+    return result;
+  }
+
+  function setPdfPage(page) {
+    const value = Math.max(1, Math.trunc(Number(page || 1)));
+    if (pageNumber instanceof HTMLInputElement) pageNumber.value = String(value);
+    if (scoreFrame instanceof HTMLIFrameElement && scoreUrl) scoreFrame.src = `${scoreUrl}#page=${value}&view=FitH`;
+  }
+
+  async function loadBlob(ruta, kind) {
+    const blob = await repertorio('obterFicheiroRepertorio', { ruta });
+    const url = URL.createObjectURL(blob);
+    if (kind === 'score') {
+      if (scoreUrl) URL.revokeObjectURL(scoreUrl);
+      scoreUrl = url;
+      setPdfPage(Number(pageNumber instanceof HTMLInputElement ? pageNumber.value : 1));
+    } else {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      audioUrl = url;
+      if (audioPlayer instanceof HTMLAudioElement) audioPlayer.src = url;
+    }
+  }
+
+  function labelObra(item) {
+    return `${item.nomeObra || 'Obra'} — ${item.compositor || item.autorLetra || ''}`;
+  }
+
+  function populateWorks() {
+    if (!(workSelect instanceof HTMLSelectElement)) return;
+    workSelect.replaceChildren(new Option('Escolle unha obra…',''));
+    obras.filter((item) => (item.partituras?.length || 0) && (item.audios?.length || 0))
+      .sort((a,b) => String(a.nomeObra||'').localeCompare(String(b.nomeObra||''),'gl'))
+      .forEach((item) => workSelect.add(new Option(labelObra(item), item.id)));
+    const requested = new URL(location.href).searchParams.get('obra');
+    if (requested && [...workSelect.options].some((option) => canon(option.value) === canon(requested))) {
+      workSelect.value = requested;
+      workSelect.dispatchEvent(new Event('change'));
+    }
+  }
+
+  async function selectWork(id) {
+    obra = obras.find((item) => canon(item.id) === canon(id)) || null;
+    audio = null; score = null; marks = [];
+    if (!(audioSelect instanceof HTMLSelectElement)) return;
+    audioSelect.replaceChildren(new Option('Escolle un audio…',''));
+    audioSelect.disabled = !obra;
+    if (workspace instanceof HTMLElement) workspace.hidden = true;
+    if (!obra) return;
+
+    score = (obra.partituras || []).find((item) => item.principal === true) || (obra.partituras || [])[0] || null;
+    $('#score-name').textContent = score?.nome || 'Sen partitura';
+    (obra.audios || []).forEach((item) => {
+      const idAudio = String(item.id || item.idAudio || item.Id_Audio || '').trim();
+      if (!idAudio) return;
+      audioSelect.add(new Option(`${item.voz || 'Audio'}${item.tipo ? ` · ${item.tipo}` : ''}`, idAudio));
+    });
+  }
+
+  async function selectAudio(id) {
+    if (!obra) return;
+    audio = (obra.audios || []).find((item) => String(item.id || item.idAudio || item.Id_Audio || '').trim() === String(id)) || null;
+    if (!audio || !score) {
+      if (workspace instanceof HTMLElement) workspace.hidden = true;
+      return;
+    }
+    if (workspace instanceof HTMLElement) workspace.hidden = false;
+    $('#work-name').textContent = obra.nomeObra || 'Obra';
+    $('#audio-name').textContent = audio.voz || 'Audio';
+    setPdfPage(1);
+    await Promise.all([loadBlob(score.ruta || score.r2Key, 'score'), loadBlob(audio.ruta || audio.r2Key, 'audio')]);
+    await loadMarks();
+  }
+
+  async function loadMarks() {
+    if (!obra || !audio) return;
+    const idAudio = String(audio.id || audio.idAudio || audio.Id_Audio || '').trim();
+    const result = await sincronizacion('listarSincronizacionPartiturasPortal', { idRepertorio: String(obra.id), idAudio });
+    marks = Array.isArray(result.marcas) ? result.marcas : [];
+    renderMarks();
+  }
+
+  function renderMarks() {
+    if (!(marksList instanceof HTMLElement)) return;
+    marksList.replaceChildren();
+    $('#marks-count').textContent = String(marks.length);
+    if (!marks.length) {
+      const empty = document.createElement('p'); empty.className='empty'; empty.textContent='Aínda non hai marcas para este audio.'; marksList.append(empty); return;
+    }
+    marks.forEach((mark) => {
+      const row = document.createElement('div'); row.className='mark-row';
+      const copy = document.createElement('button'); copy.type='button'; copy.className='mark-jump';
+      copy.innerHTML = `<strong>Páx. ${mark.pagina}</strong><span>${fmt(mark.segundo)}</span>`;
+      copy.addEventListener('click', () => {
+        setPdfPage(mark.pagina);
+        if (audioPlayer instanceof HTMLAudioElement) audioPlayer.currentTime = Number(mark.segundo || 0);
+      });
+      const del = document.createElement('button'); del.type='button'; del.className='mark-delete'; del.textContent='Eliminar';
+      del.addEventListener('click', async () => {
+        if (!confirm(`Eliminar a marca da páxina ${mark.pagina} en ${fmt(mark.segundo)}?`)) return;
+        del.disabled = true;
+        try { await sincronizacion('eliminarSincronizacionPartiturasPortal', { idSincronizacion: mark.idSincronizacion }); await loadMarks(); }
+        catch (error) { alert(error instanceof Error ? error.message : 'Non foi posible eliminar a marca.'); }
+        finally { del.disabled = false; }
+      });
+      row.append(copy, del); marksList.append(row);
+    });
+  }
+
+  async function saveCurrentMark(nextPage = false) {
+    if (!obra || !audio || !(audioPlayer instanceof HTMLAudioElement) || !(pageNumber instanceof HTMLInputElement)) return;
+    if (nextPage) setPdfPage(Number(pageNumber.value || 1) + 1);
+    const pagina = Math.max(1, Number(pageNumber.value || 1));
+    const segundo = Math.round(audioPlayer.currentTime * 100) / 100;
+    const idAudio = String(audio.id || audio.idAudio || audio.Id_Audio || '').trim();
+    const existing = marks.find((mark) => Number(mark.pagina) === pagina && Math.abs(Number(mark.segundo)-segundo) < .15);
+    if (existing) return;
+    const orde = marks.length ? Math.max(...marks.map((mark) => Number(mark.orde || 0))) + 1 : 1;
+    await sincronizacion('gardarSincronizacionPartiturasPortal', {
+      idRepertorio:String(obra.id), idAudio, voz:String(audio.voz || ''), pagina, segundo, orde, activo:true
+    });
+    await loadMarks();
+  }
+
+  workSelect?.addEventListener('change', () => selectWork(workSelect instanceof HTMLSelectElement ? workSelect.value : '').catch((e)=>showError(e.message)));
+  audioSelect?.addEventListener('change', () => selectAudio(audioSelect instanceof HTMLSelectElement ? audioSelect.value : '').catch((e)=>showError(e.message)));
+  $('#prev-page')?.addEventListener('click', () => setPdfPage(Number(pageNumber instanceof HTMLInputElement ? pageNumber.value : 1)-1));
+  $('#next-page')?.addEventListener('click', () => setPdfPage(Number(pageNumber instanceof HTMLInputElement ? pageNumber.value : 1)+1));
+  pageNumber?.addEventListener('change', () => setPdfPage(Number(pageNumber instanceof HTMLInputElement ? pageNumber.value : 1)));
+  audioPlayer?.addEventListener('timeupdate', () => { $('#current-time').textContent = fmt(audioPlayer instanceof HTMLAudioElement ? audioPlayer.currentTime : 0); });
+  $('#mark-current')?.addEventListener('click', async (event) => { const b=event.currentTarget; if(b instanceof HTMLButtonElement)b.disabled=true; try{await saveCurrentMark(false);}catch(e){alert(e.message||e);}finally{if(b instanceof HTMLButtonElement)b.disabled=false;} });
+  $('#mark-next')?.addEventListener('click', async (event) => { const b=event.currentTarget; if(b instanceof HTMLButtonElement)b.disabled=true; try{await saveCurrentMark(true);}catch(e){alert(e.message||e);}finally{if(b instanceof HTMLButtonElement)b.disabled=false;} });
+  $('#reload-marks')?.addEventListener('click', () => loadMarks().catch((e)=>alert(e.message)));
+  $('#sync-logout')?.addEventListener('click', async () => { await signOut(auth); location.href='/portal/'; });
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user?.email) { location.href='/portal/'; return; }
+    try {
+      const catalog = await repertorio('listarRepertorioPortal');
+      obras = Array.isArray(catalog.obras) ? catalog.obras : [];
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (editor instanceof HTMLElement) editor.hidden = false;
+      populateWorks();
+    } catch (error) { showError(error instanceof Error ? error.message : 'Erro inesperado'); }
+  });
+</script>
+
+<style is:global>
+  body{background:#f5f3f1}.sync-layout{display:flex;min-height:100vh}.sync-main{flex:1;min-width:0;padding:2rem clamp(1rem,2.8vw,3rem) 4rem}.sync-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-end;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid #ddd5cf}.sync-header h1{margin:.2rem 0 .4rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.2rem)}.sync-header p{margin:0;max-width:780px;color:#655e59}.section-kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.back-link{color:var(--color-principal);font-weight:700;text-decoration:none}.state-card,.selector-card,.score-panel,.sync-panel{border:1px solid #ded8d3;background:#fff}.state-card{padding:1.2rem}.state-card.error{border-color:#b68c8c}.selector-card{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:1rem;padding:1rem;margin-bottom:1rem}.selector-card label,.selection-info{display:grid;gap:.35rem}.selector-card span,.selection-info small,.panel-heading span,.audio-block>span,.marks-heading span{font-size:.72rem;font-weight:800;color:#766d67;text-transform:uppercase;letter-spacing:.05em}.selector-card select,.page-controls input{min-height:42px;border:1px solid #d6cfca;background:#fff;padding:.55rem .65rem;font:inherit}.workspace{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(310px,.75fr);gap:1rem}.score-panel{min-height:720px;display:flex;flex-direction:column}.panel-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.9rem 1rem;border-bottom:1px solid #e6e0db}.panel-heading>div:first-child{display:grid;gap:.25rem}.page-controls{display:flex;align-items:center;gap:.4rem}.page-controls button{width:38px;height:38px}.page-controls label{display:flex;align-items:center;gap:.4rem;font-size:.8rem}.page-controls input{width:68px;min-height:38px}.score-panel iframe{width:100%;flex:1;border:0;background:#ece9e6}.sync-panel{padding:1rem;align-self:start;position:sticky;top:1rem}.audio-block{display:grid;gap:.55rem;padding-bottom:1rem;border-bottom:1px solid #e5dfda}.audio-block audio{width:100%}.time-row{display:flex;justify-content:space-between}.mark-actions{display:grid;gap:.55rem;padding:1rem 0;border-bottom:1px solid #e5dfda}.mark-actions button{min-height:46px;border:1px solid var(--color-principal);font:inherit;font-weight:800;cursor:pointer}.mark-actions .primary{background:var(--color-principal);color:#fff}.mark-actions .secondary{background:#fff;color:var(--color-principal)}.mark-actions p{margin:0;color:#756d68;font-size:.8rem}.marks-heading{display:flex;justify-content:space-between;align-items:center;padding:1rem 0 .6rem}.marks-heading>div{display:grid}.marks-heading button{border:0;background:transparent;color:var(--color-principal);font-weight:700;cursor:pointer}.marks-list{display:grid;gap:.4rem}.mark-row{display:grid;grid-template-columns:1fr auto;gap:.4rem}.mark-jump{display:flex;justify-content:space-between;border:1px solid #ded8d3;background:#faf9f8;padding:.65rem .7rem;cursor:pointer}.mark-delete{border:1px solid #d8c4c4;background:#fff;color:#7f2435;padding:.5rem .65rem;cursor:pointer}.empty{color:#7a716b;font-size:.86rem}.editor[hidden],.workspace[hidden],.state-card[hidden]{display:none!important}@media(max-width:1050px){.selector-card{grid-template-columns:1fr 1fr}.selection-info{grid-column:1/-1}.workspace{grid-template-columns:1fr}.sync-panel{position:static}.score-panel{min-height:620px}}@media(max-width:700px){.sync-layout{display:block}.sync-main{padding:1rem .8rem 2.5rem}.sync-header{display:grid}.selector-card{grid-template-columns:1fr}.selection-info{grid-column:auto}.score-panel{min-height:540px}.panel-heading{align-items:flex-start;flex-direction:column}}
+</style>
