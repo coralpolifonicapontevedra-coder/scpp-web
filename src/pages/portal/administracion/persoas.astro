@@ -6,7 +6,6 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 <BaseLayout title="Administración de persoas" lang="gl">
   <div class="private-layout">
     <PortalSidebar active="administracion" logoutId="persoas-v2-logout" />
-
     <main class="people-main">
       <header class="private-page-header">
         <div>
@@ -21,82 +20,41 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       </header>
 
       <section id="loading" class="state-box">Comprobando permisos e cargando persoas…</section>
-
       <section id="error-state" class="state-box error-box" hidden>
         <strong>Non foi posible abrir a administración</strong>
-        <p id="error-stage"></p>
-        <p id="error-message"></p>
+        <p id="error-stage"></p><p id="error-message"></p>
         <button id="retry-button" type="button">Tentar de novo</button>
       </section>
 
       <section id="people-app" class="people-app" hidden>
         <div id="feedback" class="feedback" role="status" hidden></div>
-
         <section class="people-summary" aria-label="Resumo de persoas">
           <div><small>Rexistradas</small><strong id="metric-total">0</strong></div>
           <div><small>Activas</small><strong id="metric-active">0</strong></div>
           <div><small>Baixas</small><strong id="metric-inactive">0</strong></div>
           <div><small>Cantores</small><strong id="metric-singers">0</strong></div>
           <div><small>Dirección</small><strong id="metric-director">0</strong></div>
-          <div><small>Socios protectores</small><strong id="metric-protectors">0</strong></div>
+          <div><small>Colaboradores/as</small><strong id="metric-collaborators">0</strong></div>
           <button id="new-person-button" type="button" class="primary-action">+ Alta de persoa</button>
         </section>
 
         <section class="filters-panel">
-          <label class="search-field">
-            <span>Buscar</span>
-            <input id="people-search" type="search" placeholder="Nome, apelidos, correo, teléfono…" autocomplete="off" />
-          </label>
-          <label>
-            <span>Estado</span>
-            <select id="status-filter">
-              <option value="all">Todas</option>
-              <option value="active">Activas</option>
-              <option value="inactive">Baixas</option>
-            </select>
-          </label>
-          <label>
-            <span>Vinculación</span>
-            <select id="relation-filter">
-              <option value="all">Todas</option>
-              <option value="singer">Cantores</option>
-              <option value="director">Directora / dirección</option>
-              <option value="protector">Socios protectores</option>
-              <option value="other">Outras</option>
-            </select>
-          </label>
-          <label>
-            <span>Voz</span>
-            <select id="voice-filter">
-              <option value="all">Todas as voces</option>
-            </select>
-          </label>
+          <label class="search-field"><span>Buscar</span><input id="people-search" type="search" placeholder="Nome, apelidos, correo, teléfono…" autocomplete="off" /></label>
+          <label><span>Estado</span><select id="status-filter"><option value="all">Todas</option><option value="active">Activas</option><option value="inactive">Baixas</option></select></label>
+          <label><span>Vinculación</span><select id="relation-filter"><option value="all">Todas</option><option value="singer">Cantores</option><option value="director">Directora / dirección</option><option value="collaborator">Colaboradores/as</option><option value="other">Outras</option></select></label>
+          <label><span>Voz</span><select id="voice-filter"><option value="all">Todas as voces</option></select></label>
         </section>
 
         <div class="toolbar">
-          <label>
-            <span>Seleccionar persoa</span>
-            <select id="person-select">
-              <option value="">Escolle unha persoa…</option>
-            </select>
-          </label>
+          <label><span>Seleccionar persoa</span><select id="person-select"><option value="">Escolle unha persoa…</option></select></label>
           <p id="people-count"></p>
         </div>
 
         <section id="empty-selection" class="state-box">Selecciona unha persoa para consultar ou modificar os seus datos.</section>
-
         <article id="person-card" class="person-card" hidden>
           <header class="person-card-header">
-            <div>
-              <div class="badges"><span id="person-status" class="status-badge"></span><span id="person-relation" class="relation-badge"></span></div>
-              <h2 id="person-name"></h2>
-              <p id="person-summary"></p>
-            </div>
-            <div class="person-actions">
-              <button id="edit-person" type="button" class="secondary-action">Editar datos</button>
-              <button id="toggle-person" type="button" class="secondary-action danger-action"></button>
-              <button id="open-file" type="button" class="primary-action" hidden>Ver ficha escaneada</button>
-            </div>
+            <div><div class="badges"><span id="person-status" class="status-badge"></span><span id="person-relation" class="relation-badge"></span></div><h2 id="person-name"></h2><p id="person-summary"></p></div>
+            <div class="person-actions"><button id="edit-person" type="button" class="secondary-action">Editar datos</button><button id="toggle-person" type="button" class="secondary-action danger-action"></button><button id="open-file" type="button" class="primary-action" hidden>Ver ficha escaneada</button></div>
           </header>
           <div id="person-sections" class="person-sections"></div>
         </article>
@@ -106,76 +64,16 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 
   <dialog id="person-dialog" class="person-dialog">
     <form id="person-form" method="dialog">
-      <header class="dialog-header">
-        <div>
-          <span class="section-kicker">Administración · Persoas</span>
-          <h2 id="dialog-title">Nova persoa</h2>
-          <p>Cubre os datos dispoñibles. A vinculación calcúlase a partir do tipo de socio, cargo e voz.</p>
-        </div>
-        <button id="close-dialog" type="button" class="icon-close" aria-label="Pechar">×</button>
-      </header>
-
+      <header class="dialog-header"><div><span class="section-kicker">Administración · Persoas</span><h2 id="dialog-title">Nova persoa</h2><p>Cubre os datos dispoñibles. Os identificadores e os metadatos R2 non se modifican desde este formulario.</p></div><button id="close-dialog" type="button" class="icon-close" aria-label="Pechar">×</button></header>
       <div class="form-grid">
-        <label><span>Nome *</span><input id="f-nome" required /></label>
-        <label><span>Primeiro apelido *</span><input id="f-primeiro" required /></label>
-        <label><span>Segundo apelido</span><input id="f-segundo" /></label>
-        <label><span>NIF</span><input id="f-nif" autocomplete="off" /></label>
-        <label><span>Data de nacemento</span><input id="f-nacemento" type="date" /></label>
-        <label><span>Teléfono</span><input id="f-telefono" type="tel" /></label>
-        <label class="wide"><span>Correo electrónico</span><input id="f-correo" type="email" /></label>
-        <label class="wide"><span>Enderezo</span><input id="f-enderezo" /></label>
-        <label><span>Cidade</span><input id="f-cidade" /></label>
-        <label><span>Código postal</span><input id="f-cp" /></label>
+        <label><span>Nome *</span><input id="f-nome" required /></label><label><span>Primeiro apelido *</span><input id="f-primeiro" required /></label><label><span>Segundo apelido</span><input id="f-segundo" /></label><label><span>NIF</span><input id="f-nif" autocomplete="off" /></label><label><span>Data de nacemento</span><input id="f-nacemento" type="date" /></label><label><span>Teléfono</span><input id="f-telefono" type="tel" /></label><label class="wide"><span>Correo electrónico</span><input id="f-correo" type="email" /></label><label class="wide"><span>Enderezo</span><input id="f-enderezo" /></label><label><span>Cidade</span><input id="f-cidade" /></label><label><span>Código postal</span><input id="f-cp" /></label>
       </div>
-
-      <fieldset>
-        <legend>Relación coa Coral</legend>
-        <div class="form-grid">
-          <label><span>Voz</span><input id="f-voz" list="voices-list" /></label>
-          <label><span>Tipo de socio</span><input id="f-tipo" list="types-list" /></label>
-          <label class="wide"><span>Cargo actual</span><input id="f-cargo" list="roles-list" /></label>
-          <label><span>Data de incorporación</span><input id="f-incorporacion" type="date" /></label>
-          <label><span>Preferencia de comunicación</span><input id="f-comunicacion" /></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Contacto de emerxencia</legend>
-        <div class="form-grid">
-          <label class="wide"><span>Persoa de contacto</span><input id="f-emerxencia" /></label>
-          <label><span>Teléfono de emerxencia</span><input id="f-telefono-emerxencia" type="tel" /></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Privacidade e presenza pública</legend>
-        <div class="form-grid">
-          <label><span>Consentimento de fotografía</span><input id="f-consentimento" list="consent-list" /></label>
-          <label class="check-line"><input id="f-mostrar-web" type="checkbox" /><span>Mostrar na web cando corresponda</span></label>
-          <label class="check-line"><input id="f-aniversario" type="checkbox" /><span>Mostrar aniversario</span></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Información interna</legend>
-        <div class="form-grid">
-          <label class="wide"><span>Observacións</span><textarea id="f-observacions" rows="3"></textarea></label>
-          <label class="wide"><span>Observacións privadas</span><textarea id="f-observacions-privadas" rows="3"></textarea></label>
-        </div>
-      </fieldset>
-
-      <datalist id="voices-list"></datalist>
-      <datalist id="types-list"></datalist>
-      <datalist id="roles-list"></datalist>
-      <datalist id="consent-list"><option value="Si"></option><option value="Non"></option></datalist>
-
-      <footer class="dialog-footer">
-        <p id="form-state"></p>
-        <div>
-          <button id="cancel-form" type="button" class="secondary-action">Cancelar</button>
-          <button id="save-person" type="submit" class="primary-action">Gardar</button>
-        </div>
-      </footer>
+      <fieldset><legend>Relación coa Coral</legend><div class="form-grid"><label><span>Voz</span><input id="f-voz" list="voices-list" /></label><label><span>Tipo de socio</span><input id="f-tipo" list="types-list" /></label><label class="wide"><span>Cargo actual</span><input id="f-cargo" list="roles-list" /></label><label><span>Data de incorporación</span><input id="f-incorporacion" type="date" /></label><label><span>Preferencia de comunicación</span><input id="f-comunicacion" /></label></div></fieldset>
+      <fieldset><legend>Contacto de emerxencia</legend><div class="form-grid"><label class="wide"><span>Persoa de contacto</span><input id="f-emerxencia" /></label><label><span>Teléfono de emerxencia</span><input id="f-telefono-emerxencia" type="tel" /></label></div></fieldset>
+      <fieldset><legend>Privacidade e presenza pública</legend><div class="form-grid"><label><span>Consentimento de fotografía</span><input id="f-consentimento" list="consent-list" /></label><label class="check-line"><input id="f-mostrar-web" type="checkbox" /><span>Mostrar na web cando corresponda</span></label><label class="check-line"><input id="f-aniversario" type="checkbox" /><span>Mostrar aniversario</span></label></div></fieldset>
+      <fieldset><legend>Información interna</legend><div class="form-grid"><label class="wide"><span>Observacións</span><textarea id="f-observacions" rows="3"></textarea></label><label class="wide"><span>Observacións privadas</span><textarea id="f-observacions-privadas" rows="3"></textarea></label></div></fieldset>
+      <datalist id="voices-list"></datalist><datalist id="types-list"></datalist><datalist id="roles-list"></datalist><datalist id="consent-list"><option value="Si"></option><option value="Non"></option></datalist>
+      <footer class="dialog-footer"><p id="form-state"></p><div><button id="cancel-form" type="button" class="secondary-action">Cancelar</button><button id="save-person" type="submit" class="primary-action">Gardar</button></div></footer>
     </form>
   </dialog>
 </BaseLayout>
@@ -183,493 +81,65 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 <script>
   import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
 
-  const q = (selector) => document.querySelector(selector);
-  const loading = q('#loading');
-  const errorState = q('#error-state');
-  const errorStage = q('#error-stage');
-  const errorMessage = q('#error-message');
-  const retryButton = q('#retry-button');
-  const app = q('#people-app');
-  const feedback = q('#feedback');
-  const select = q('#person-select');
-  const countNode = q('#people-count');
-  const searchNode = q('#people-search');
-  const statusFilter = q('#status-filter');
-  const relationFilter = q('#relation-filter');
-  const voiceFilter = q('#voice-filter');
-  const emptySelection = q('#empty-selection');
-  const card = q('#person-card');
-  const nameNode = q('#person-name');
-  const summaryNode = q('#person-summary');
-  const statusNode = q('#person-status');
-  const relationNode = q('#person-relation');
-  const sectionsNode = q('#person-sections');
-  const openFileButton = q('#open-file');
-  const editButton = q('#edit-person');
-  const toggleButton = q('#toggle-person');
-  const newButton = q('#new-person-button');
-  const emailNode = q('#user-email');
-  const levelNode = q('#user-level');
-  const logout = q('#persoas-v2-logout');
-  const metricTotal = q('#metric-total');
-  const metricActive = q('#metric-active');
-  const metricInactive = q('#metric-inactive');
-  const metricSingers = q('#metric-singers');
-  const metricDirector = q('#metric-director');
-  const metricProtectors = q('#metric-protectors');
-  const dialog = q('#person-dialog');
-  const personForm = q('#person-form');
-  const dialogTitle = q('#dialog-title');
-  const formState = q('#form-state');
-  const closeDialog = q('#close-dialog');
-  const cancelForm = q('#cancel-form');
-  const saveButton = q('#save-person');
+  const q = (s) => document.querySelector(s);
+  const loading=q('#loading'), errorState=q('#error-state'), errorStage=q('#error-stage'), errorMessage=q('#error-message'), retryButton=q('#retry-button'), app=q('#people-app'), feedback=q('#feedback');
+  const select=q('#person-select'), countNode=q('#people-count'), searchNode=q('#people-search'), statusFilter=q('#status-filter'), relationFilter=q('#relation-filter'), voiceFilter=q('#voice-filter');
+  const emptySelection=q('#empty-selection'), card=q('#person-card'), nameNode=q('#person-name'), summaryNode=q('#person-summary'), statusNode=q('#person-status'), relationNode=q('#person-relation'), sectionsNode=q('#person-sections');
+  const openFileButton=q('#open-file'), editButton=q('#edit-person'), toggleButton=q('#toggle-person'), newButton=q('#new-person-button'), emailNode=q('#user-email'), levelNode=q('#user-level'), logout=q('#persoas-v2-logout');
+  const metricTotal=q('#metric-total'), metricActive=q('#metric-active'), metricInactive=q('#metric-inactive'), metricSingers=q('#metric-singers'), metricDirector=q('#metric-director'), metricCollaborators=q('#metric-collaborators');
+  const dialog=q('#person-dialog'), personForm=q('#person-form'), dialogTitle=q('#dialog-title'), formState=q('#form-state'), closeDialog=q('#close-dialog'), cancelForm=q('#cancel-form'), saveButton=q('#save-person');
 
-  let persoas = [];
-  let selected = null;
-  let fileUrl = '';
-  let formMode = 'create';
+  let persoas=[], selected=null, fileUrl='', formMode='create';
+  const clean=(v)=>v===true?'Si':v===false?'Non':String(v??'').trim();
+  const normalise=(v)=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const personKey=(item)=>String(item?.idPersoa||item?.id||item?.rowId||'').trim();
 
-  const clean = (value) => value === true ? 'Si' : value === false ? 'Non' : String(value ?? '').trim();
-  const normalise = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
-  function classifyPerson(item) {
-    const tipo = normalise(item?.tipoSocio);
-    const cargo = normalise(item?.cargo);
-    const voz = normalise(item?.voz);
-    if (cargo.includes('directora') || cargo.includes('director musical') || tipo.includes('directora')) return 'director';
-    if (tipo.includes('protector')) return 'protector';
-    if (tipo.includes('cantor') || ['soprano', 'contralto', 'alto', 'tenor', 'baixo', 'bajo', 'baritono', 'barítono'].some((v) => voz.includes(normalise(v)))) return 'singer';
+  function classifyPerson(item){
+    const tipo=normalise(item?.tipoSocio), cargo=normalise(item?.cargo), voz=normalise(item?.voz);
+    if(cargo.includes('directora')||cargo.includes('director musical')||tipo.includes('directora')) return 'director';
+    if(tipo==='colaborador/a'||tipo==='colaborador' || tipo==='colaboradora') return 'collaborator';
+    if(tipo.includes('cantor')||['soprano','contralto','alto','tenor','baixo','bajo','baritono'].some(v=>voz.includes(v))) return 'singer';
     return 'other';
   }
+  function relationLabel(item){const t=classifyPerson(item); return t==='director'?'Directora / dirección':t==='collaborator'?'Colaborador/a':t==='singer'?'Cantor/a':'Outra vinculación';}
 
-  function relationLabel(item) {
-    const type = classifyPerson(item);
-    if (type === 'director') return 'Directora / dirección';
-    if (type === 'protector') return 'Socio protector';
-    if (type === 'singer') return 'Cantor/a';
-    return 'Outra vinculación';
+  async function requestV2(action,extra={},blob=false){
+    const user=auth.currentUser; if(!user?.email) throw Object.assign(new Error('A sesión non está activa.'),{stage:'AUTH'});
+    const idToken=await user.getIdToken();
+    const response=await fetch('/api/persoas-v2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,accion:action,...extra})});
+    if(blob&&response.ok) return response.blob();
+    const result=await response.json().catch(()=>null); if(!response.ok||!result?.ok){const e=new Error(result?.erro||`Erro HTTP ${response.status}`); e.stage=result?.etapa||'HTTP'; e.code=result?.codigo||''; throw e;} return result;
   }
+  function showError(error){if(loading instanceof HTMLElement)loading.hidden=true;if(app instanceof HTMLElement)app.hidden=true;if(errorState instanceof HTMLElement)errorState.hidden=false;if(errorStage instanceof HTMLElement)errorStage.textContent=`Etapa: ${error?.stage||'DESCOÑECIDA'}${error?.code?` · ${error.code}`:''}`;if(errorMessage instanceof HTMLElement)errorMessage.textContent=error instanceof Error?error.message:'Produciuse un erro inesperado.';}
+  function notify(message,kind='ok'){if(!(feedback instanceof HTMLElement))return;feedback.textContent=message;feedback.className=`feedback ${kind==='error'?'is-error':'is-ok'}`;feedback.hidden=false;setTimeout(()=>{feedback.hidden=true},5000);}
+  function uniqueValues(key){return Array.from(new Set(persoas.map(i=>clean(i?.[key])).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'gl',{sensitivity:'base'}));}
+  function fillDatalist(selector,values){const n=q(selector);if(n instanceof HTMLDataListElement)n.replaceChildren(...values.map(v=>new Option(v)));}
+  function refreshFilters(){if(voiceFilter instanceof HTMLSelectElement){const current=voiceFilter.value;voiceFilter.replaceChildren(new Option('Todas as voces','all'));uniqueValues('voz').forEach(v=>voiceFilter.add(new Option(v,v)));voiceFilter.value=Array.from(voiceFilter.options).some(o=>o.value===current)?current:'all';}fillDatalist('#voices-list',uniqueValues('voz'));fillDatalist('#types-list',uniqueValues('tipoSocio'));fillDatalist('#roles-list',uniqueValues('cargo'));}
+  function filteredPeople(){const query=normalise(searchNode instanceof HTMLInputElement?searchNode.value:''),state=statusFilter instanceof HTMLSelectElement?statusFilter.value:'all',relation=relationFilter instanceof HTMLSelectElement?relationFilter.value:'all',voice=voiceFilter instanceof HTMLSelectElement?voiceFilter.value:'all';return persoas.filter(item=>{if(state==='active'&&!item.activo)return false;if(state==='inactive'&&item.activo)return false;if(relation!=='all'&&classifyPerson(item)!==relation)return false;if(voice!=='all'&&clean(item.voz)!==voice)return false;if(!query)return true;return normalise([item.nomeCompleto,item.nome,item.primeiroApelido,item.segundoApelido,item.correo,item.telefono,item.nif,item.cargo,item.tipoSocio,relationLabel(item)].join(' ')).includes(query);});}
+  function renderPeopleOptions(preserveId=''){if(!(select instanceof HTMLSelectElement))return;const visible=filteredPeople(),current=preserveId||select.value;select.replaceChildren(new Option('Escolle unha persoa…',''));visible.forEach(item=>{const id=personKey(item);if(!id)return;select.add(new Option(`${item.etiqueta||item.nomeCompleto||'Persoa'} · ${relationLabel(item)}${item.activo?'':' · BAIXA'}`,id));});if(current&&visible.some(i=>personKey(i)===current))select.value=current;if(countNode instanceof HTMLElement)countNode.textContent=`${visible.length} de ${persoas.length} persoas`;if(current&&select.value!==current){selected=null;drawPerson();}}
+  function updateMetrics(){const active=persoas.filter(i=>i.activo).length;if(metricTotal instanceof HTMLElement)metricTotal.textContent=String(persoas.length);if(metricActive instanceof HTMLElement)metricActive.textContent=String(active);if(metricInactive instanceof HTMLElement)metricInactive.textContent=String(persoas.length-active);if(metricSingers instanceof HTMLElement)metricSingers.textContent=String(persoas.filter(i=>classifyPerson(i)==='singer').length);if(metricDirector instanceof HTMLElement)metricDirector.textContent=String(persoas.filter(i=>classifyPerson(i)==='director').length);if(metricCollaborators instanceof HTMLElement)metricCollaborators.textContent=String(persoas.filter(i=>classifyPerson(i)==='collaborator').length);}
+  function dataSection(title,fields,showEmpty=false){const visible=showEmpty?fields:fields.filter(i=>clean(i.value));if(!visible.length)return null;const s=document.createElement('section');s.className='data-section';const h=document.createElement('h3');h.textContent=title;const dl=document.createElement('dl');visible.forEach(({label,value,wide})=>{const w=document.createElement('div');if(wide)w.className='is-wide';const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=clean(value)||'Sen indicar';w.append(dt,dd);dl.append(w)});s.append(h,dl);return s;}
+  function drawPerson(){if(select instanceof HTMLSelectElement&&select.value)selected=persoas.find(i=>personKey(i)===select.value)||null;if(emptySelection instanceof HTMLElement)emptySelection.hidden=Boolean(selected);if(!(card instanceof HTMLElement))return;card.hidden=!selected;if(!selected)return;if(nameNode instanceof HTMLElement)nameNode.textContent=selected.nomeCompleto||[selected.nome,selected.primeiroApelido,selected.segundoApelido].filter(Boolean).join(' ')||'Persoa sen nome';if(summaryNode instanceof HTMLElement)summaryNode.textContent=[selected.voz,selected.tipoSocio,selected.cargo].filter(Boolean).join(' · ')||'Sen clasificación interna';if(statusNode instanceof HTMLElement){statusNode.textContent=selected.activo?'Activa':'Baixa';statusNode.classList.toggle('is-inactive',!selected.activo);}if(relationNode instanceof HTMLElement){relationNode.textContent=relationLabel(selected);relationNode.dataset.type=classifyPerson(selected);}if(openFileButton instanceof HTMLButtonElement)openFileButton.hidden=selected.fichaDisponibleR2!==true;if(toggleButton instanceof HTMLButtonElement){toggleButton.textContent=selected.activo?'Rexistrar baixa':'Reactivar persoa';toggleButton.classList.toggle('danger-action',selected.activo);}if(!(sectionsNode instanceof HTMLElement))return;sectionsNode.replaceChildren();[
+    dataSection('Identificación',[{label:'Nome',value:selected.nome},{label:'Primeiro apelido',value:selected.primeiroApelido},{label:'Segundo apelido',value:selected.segundoApelido},{label:'NIF',value:selected.nif},{label:'Data de nacemento',value:selected.dataNacemento},{label:'Identificador',value:personKey(selected)}]),
+    dataSection('Contacto e domicilio',[{label:'Teléfono',value:selected.telefono},{label:'Correo electrónico',value:selected.correo},{label:'Enderezo',value:selected.enderezo,wide:true},{label:'Cidade',value:selected.cidade},{label:'Código postal',value:selected.cp}]),
+    dataSection('Contacto de emerxencia',[{label:'Persoa de contacto',value:selected.contactoEmerxencia,wide:true},{label:'Teléfono de emerxencia',value:selected.telefonoEmerxencia}],true),
+    dataSection('Relación coa Coral',[{label:'Vinculación',value:relationLabel(selected)},{label:'Voz',value:selected.voz},{label:'Tipo de socio',value:selected.tipoSocio},{label:'Cargo',value:selected.cargo},{label:'Data de incorporación',value:selected.dataIncorporacion},{label:'Consentimento foto',value:selected.consentimentoFoto},{label:'Mostrar web',value:selected.mostrarWeb},{label:'Mostrar aniversario',value:selected.mostrarAniversario},{label:'Estado da ficha R2',value:selected.fichaR2Estado}]),
+    dataSection('Información interna',[{label:'Observacións',value:selected.observacions,wide:true},{label:'Observacións privadas',value:selected.observacionsPrivadas,wide:true},{label:'Última actualización',value:selected.dataActualizacion},{label:'Actualizado por',value:selected.actualizadoPor}])
+  ].filter(Boolean).forEach(n=>sectionsNode.append(n));}
+  function applyPeopleResult(result,preserveId=''){if(Array.isArray(result?.persoas))persoas=result.persoas;updateMetrics();refreshFilters();renderPeopleOptions(preserveId);if(preserveId&&select instanceof HTMLSelectElement){select.value=preserveId;selected=persoas.find(i=>personKey(i)===preserveId)||null;drawPerson();}}
+  async function loadPeople(){if(loading instanceof HTMLElement)loading.hidden=false;if(errorState instanceof HTMLElement)errorState.hidden=true;if(app instanceof HTMLElement)app.hidden=true;try{const result=await requestV2('listarPersoasAdministracion');if(emailNode instanceof HTMLElement)emailNode.textContent=result.perfil?.email||auth.currentUser?.email||'—';if(levelNode instanceof HTMLElement)levelNode.textContent=result.perfil?.nivel||'—';if(result.perfil?.nivel!=='Administración')throw Object.assign(new Error('Non tes permiso para acceder a esta sección.'),{stage:'PERMISOS'});persoas=Array.isArray(result.persoas)?result.persoas:[];updateMetrics();refreshFilters();renderPeopleOptions();if(loading instanceof HTMLElement)loading.hidden=true;if(app instanceof HTMLElement)app.hidden=false;}catch(e){showError(e);}}
+  function toInputDate(value){const t=clean(value),m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);if(m)return`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;return/^\d{4}-\d{2}-\d{2}$/.test(t)?t:'';}
+  function setInput(id,value){const n=q(id);if(n instanceof HTMLInputElement||n instanceof HTMLTextAreaElement)n.value=clean(value);}function setCheck(id,value){const n=q(id);if(n instanceof HTMLInputElement)n.checked=value===true;}function checkValue(id){const n=q(id);return n instanceof HTMLInputElement?n.checked:false;}function formValue(id){const n=q(id);return n instanceof HTMLInputElement||n instanceof HTMLTextAreaElement?n.value.trim():'';}
+  function openPersonForm(mode){if(!(dialog instanceof HTMLDialogElement)||!(personForm instanceof HTMLFormElement))return;formMode=mode;personForm.reset();if(formState instanceof HTMLElement)formState.textContent='';if(mode==='edit'&&selected){if(dialogTitle instanceof HTMLElement)dialogTitle.textContent=`Editar · ${selected.nomeCompleto||''}`;setInput('#f-nome',selected.nome);setInput('#f-primeiro',selected.primeiroApelido);setInput('#f-segundo',selected.segundoApelido);setInput('#f-nif',selected.nif);setInput('#f-nacemento',toInputDate(selected.dataNacemento));setInput('#f-telefono',selected.telefono);setInput('#f-correo',selected.correo);setInput('#f-enderezo',selected.enderezo);setInput('#f-cidade',selected.cidade);setInput('#f-cp',selected.cp);setInput('#f-voz',selected.voz);setInput('#f-tipo',selected.tipoSocio);setInput('#f-cargo',selected.cargo);setInput('#f-incorporacion',toInputDate(selected.dataIncorporacion));setInput('#f-comunicacion',selected.preferenciaComunicacion);setInput('#f-emerxencia',selected.contactoEmerxencia);setInput('#f-telefono-emerxencia',selected.telefonoEmerxencia);setInput('#f-consentimento',selected.consentimentoFoto);setInput('#f-observacions',selected.observacions);setInput('#f-observacions-privadas',selected.observacionsPrivadas);setCheck('#f-mostrar-web',selected.mostrarWeb);setCheck('#f-aniversario',selected.mostrarAniversario);}else{if(dialogTitle instanceof HTMLElement)dialogTitle.textContent='Alta manual de persoa';}dialog.showModal();}
+  function collectFormData(){return{nome:formValue('#f-nome'),primeiroApelido:formValue('#f-primeiro'),segundoApelido:formValue('#f-segundo'),nif:formValue('#f-nif'),dataNacemento:formValue('#f-nacemento'),telefono:formValue('#f-telefono'),correo:formValue('#f-correo'),enderezo:formValue('#f-enderezo'),cidade:formValue('#f-cidade'),cp:formValue('#f-cp'),voz:formValue('#f-voz'),tipoSocio:formValue('#f-tipo'),cargo:formValue('#f-cargo'),dataIncorporacion:formValue('#f-incorporacion'),preferenciaComunicacion:formValue('#f-comunicacion'),contactoEmerxencia:formValue('#f-emerxencia'),telefonoEmerxencia:formValue('#f-telefono-emerxencia'),consentimentoFoto:formValue('#f-consentimento'),mostrarWeb:checkValue('#f-mostrar-web'),mostrarAniversario:checkValue('#f-aniversario'),observacions:formValue('#f-observacions'),observacionsPrivadas:formValue('#f-observacions-privadas')}}
+  async function savePerson(event){event.preventDefault();if(!(saveButton instanceof HTMLButtonElement))return;const person=collectFormData();if(!person.nome||!person.primeiroApelido)return;const previous=saveButton.textContent;saveButton.disabled=true;saveButton.textContent='Gardando…';try{const action=formMode==='edit'?'actualizarPersoaAdministracion':'crearPersoaAdministracion',idPersoa=formMode==='edit'?personKey(selected):'';const result=await requestV2(action,{idPersoa,persoa:person});const preserveId=String(result.idPersoa||idPersoa||'');if(Array.isArray(result.persoas))applyPeopleResult(result,preserveId);else await loadPeople();if(dialog instanceof HTMLDialogElement)dialog.close();notify(result.mensaxe||'Datos gardados.');}catch(e){if(formState instanceof HTMLElement)formState.textContent=e instanceof Error?e.message:'Non foi posible gardar.';}finally{saveButton.disabled=false;saveButton.textContent=previous||'Gardar';}}
+  async function togglePersonState(){if(!selected||!(toggleButton instanceof HTMLButtonElement))return;const activar=!selected.activo;if(!confirm(`Queres ${activar?'reactivar':'dar de baixa'} a ${selected.nomeCompleto}?\n\nA persoa non se eliminará.`))return;toggleButton.disabled=true;try{const idPersoa=personKey(selected),result=await requestV2('cambiarEstadoPersoaAdministracion',{idPersoa,activo:activar});if(Array.isArray(result.persoas))applyPeopleResult(result,idPersoa);else await loadPeople();notify(result.mensaxe||'Estado actualizado.');}catch(e){notify(e instanceof Error?e.message:'Non foi posible modificar o estado.','error');}finally{toggleButton.disabled=false;}}
+  async function openFile(){const idPersoa=personKey(selected);if(!idPersoa||!(openFileButton instanceof HTMLButtonElement))return;const w=window.open('','_blank');if(!w){alert('O navegador bloqueou a nova lapela.');return;}w.opener=null;try{const blob=await requestV2('obterFichaPersoaAdministracion',{idPersoa},true);if(fileUrl)URL.revokeObjectURL(fileUrl);fileUrl=URL.createObjectURL(blob);w.location.replace(fileUrl);}catch(e){w.close();alert(e instanceof Error?e.message:'Non foi posible abrir a ficha.');}}
 
-  async function requestV2(action, extra = {}, blob = false) {
-    const user = auth.currentUser;
-    if (!user?.email) throw Object.assign(new Error('A sesión non está activa.'), { stage: 'AUTH' });
-    const idToken = await user.getIdToken();
-    const response = await fetch('/api/persoas-v2', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion: action, ...extra })
-    });
-    if (blob && response.ok) return response.blob();
-    const result = await response.json().catch(() => null);
-    if (!response.ok || !result?.ok) {
-      const error = new Error(result?.erro || `Erro HTTP ${response.status}`);
-      error.stage = result?.etapa || 'HTTP';
-      error.code = result?.codigo || '';
-      throw error;
-    }
-    return result;
-  }
-
-  function showError(error) {
-    if (loading instanceof HTMLElement) loading.hidden = true;
-    if (app instanceof HTMLElement) app.hidden = true;
-    if (errorState instanceof HTMLElement) errorState.hidden = false;
-    if (errorStage instanceof HTMLElement) errorStage.textContent = `Etapa: ${error?.stage || 'DESCOÑECIDA'}${error?.code ? ` · ${error.code}` : ''}`;
-    if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Produciuse un erro inesperado.';
-  }
-
-  function notify(message, kind = 'ok') {
-    if (!(feedback instanceof HTMLElement)) return;
-    feedback.textContent = message;
-    feedback.className = `feedback ${kind === 'error' ? 'is-error' : 'is-ok'}`;
-    feedback.hidden = false;
-    window.setTimeout(() => { if (feedback instanceof HTMLElement) feedback.hidden = true; }, 5000);
-  }
-
-  function dataSection(title, fields, options = {}) {
-    const visible = options.showEmpty ? fields : fields.filter((item) => clean(item.value));
-    if (!visible.length) return null;
-    const section = document.createElement('section');
-    section.className = 'data-section';
-    if (options.className) section.classList.add(options.className);
-    const heading = document.createElement('h3');
-    heading.textContent = title;
-    const dl = document.createElement('dl');
-    visible.forEach(({ label, value, wide }) => {
-      const wrapper = document.createElement('div');
-      if (wide) wrapper.className = 'is-wide';
-      const dt = document.createElement('dt');
-      const dd = document.createElement('dd');
-      dt.textContent = label;
-      dd.textContent = clean(value) || 'Sen indicar';
-      wrapper.append(dt, dd);
-      dl.append(wrapper);
-    });
-    section.append(heading, dl);
-    return section;
-  }
-
-  function uniqueValues(key) {
-    return Array.from(new Set(persoas.map((item) => clean(item?.[key])).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'gl', { sensitivity: 'base' }));
-  }
-
-  function fillDatalist(selector, values) {
-    const node = q(selector);
-    if (node instanceof HTMLDataListElement) node.replaceChildren(...values.map((value) => new Option(value)));
-  }
-
-  function refreshFilters() {
-    if (voiceFilter instanceof HTMLSelectElement) {
-      const current = voiceFilter.value;
-      voiceFilter.replaceChildren(new Option('Todas as voces', 'all'));
-      uniqueValues('voz').forEach((value) => voiceFilter.add(new Option(value, value)));
-      voiceFilter.value = Array.from(voiceFilter.options).some((option) => option.value === current) ? current : 'all';
-    }
-    fillDatalist('#voices-list', uniqueValues('voz'));
-    fillDatalist('#types-list', uniqueValues('tipoSocio'));
-    fillDatalist('#roles-list', uniqueValues('cargo'));
-  }
-
-  function filteredPeople() {
-    const query = normalise(searchNode instanceof HTMLInputElement ? searchNode.value : '');
-    const state = statusFilter instanceof HTMLSelectElement ? statusFilter.value : 'all';
-    const relation = relationFilter instanceof HTMLSelectElement ? relationFilter.value : 'all';
-    const voice = voiceFilter instanceof HTMLSelectElement ? voiceFilter.value : 'all';
-    return persoas.filter((item) => {
-      if (state === 'active' && !item.activo) return false;
-      if (state === 'inactive' && item.activo) return false;
-      if (relation !== 'all' && classifyPerson(item) !== relation) return false;
-      if (voice !== 'all' && clean(item.voz) !== voice) return false;
-      if (!query) return true;
-      return normalise([item.nomeCompleto, item.nome, item.primeiroApelido, item.segundoApelido, item.correo, item.telefono, item.nif, item.cargo, item.tipoSocio, relationLabel(item)].join(' ')).includes(query);
-    });
-  }
-
-  function renderPeopleOptions(preserveId = '') {
-    if (!(select instanceof HTMLSelectElement)) return;
-    const visible = filteredPeople();
-    const current = preserveId || select.value;
-    select.replaceChildren(new Option('Escolle unha persoa…', ''));
-    visible.forEach((item) => {
-      const id = String(item.idPersoa || item.id || '');
-      if (!id) return;
-      select.add(new Option(`${item.etiqueta || item.nomeCompleto} · ${relationLabel(item)}${item.activo ? '' : ' · BAIXA'}`, id));
-    });
-    if (current && visible.some((item) => String(item.idPersoa || item.id || '') === current)) select.value = current;
-    if (countNode instanceof HTMLElement) countNode.textContent = `${visible.length} de ${persoas.length} persoas`;
-    if (current && select.value !== current) { selected = null; drawPerson(); }
-  }
-
-  function updateMetrics() {
-    const active = persoas.filter((item) => item.activo).length;
-    const singers = persoas.filter((item) => classifyPerson(item) === 'singer').length;
-    const directors = persoas.filter((item) => classifyPerson(item) === 'director').length;
-    const protectors = persoas.filter((item) => classifyPerson(item) === 'protector').length;
-    if (metricTotal instanceof HTMLElement) metricTotal.textContent = String(persoas.length);
-    if (metricActive instanceof HTMLElement) metricActive.textContent = String(active);
-    if (metricInactive instanceof HTMLElement) metricInactive.textContent = String(persoas.length - active);
-    if (metricSingers instanceof HTMLElement) metricSingers.textContent = String(singers);
-    if (metricDirector instanceof HTMLElement) metricDirector.textContent = String(directors);
-    if (metricProtectors instanceof HTMLElement) metricProtectors.textContent = String(protectors);
-  }
-
-  function drawPerson() {
-    if (select instanceof HTMLSelectElement && select.value) selected = persoas.find((item) => String(item.idPersoa || item.id) === select.value) || null;
-    if (emptySelection instanceof HTMLElement) emptySelection.hidden = Boolean(selected);
-    if (!(card instanceof HTMLElement)) return;
-    card.hidden = !selected;
-    if (!selected) return;
-
-    if (nameNode instanceof HTMLElement) nameNode.textContent = selected.nomeCompleto || 'Persoa sen nome';
-    if (summaryNode instanceof HTMLElement) summaryNode.textContent = [selected.voz, selected.tipoSocio, selected.cargo].filter(Boolean).join(' · ') || 'Sen clasificación interna';
-    if (statusNode instanceof HTMLElement) {
-      statusNode.textContent = selected.activo ? 'Activa' : 'Baixa';
-      statusNode.classList.toggle('is-inactive', !selected.activo);
-    }
-    if (relationNode instanceof HTMLElement) {
-      relationNode.textContent = relationLabel(selected);
-      relationNode.dataset.type = classifyPerson(selected);
-    }
-    if (openFileButton instanceof HTMLButtonElement) openFileButton.hidden = selected.fichaDisponibleR2 !== true;
-    if (toggleButton instanceof HTMLButtonElement) {
-      toggleButton.textContent = selected.activo ? 'Rexistrar baixa' : 'Reactivar persoa';
-      toggleButton.classList.toggle('danger-action', selected.activo);
-    }
-
-    if (!(sectionsNode instanceof HTMLElement)) return;
-    sectionsNode.replaceChildren();
-    [
-      dataSection('Identificación', [
-        { label: 'Nome', value: selected.nome }, { label: 'Primeiro apelido', value: selected.primeiroApelido },
-        { label: 'Segundo apelido', value: selected.segundoApelido }, { label: 'NIF', value: selected.nif },
-        { label: 'Data de nacemento', value: selected.dataNacemento }, { label: 'Identificador', value: selected.idPersoa || selected.id }
-      ]),
-      dataSection('Contacto e domicilio', [
-        { label: 'Teléfono', value: selected.telefono }, { label: 'Correo electrónico', value: selected.correo },
-        { label: 'Enderezo', value: selected.enderezo, wide: true }, { label: 'Cidade', value: selected.cidade }, { label: 'Código postal', value: selected.cp }
-      ]),
-      dataSection('Contacto de emerxencia', [
-        { label: 'Persoa de contacto', value: selected.contactoEmerxencia, wide: true }, { label: 'Teléfono de emerxencia', value: selected.telefonoEmerxencia }
-      ], { showEmpty: true, className: 'emergency-section' }),
-      dataSection('Relación coa Coral', [
-        { label: 'Vinculación', value: relationLabel(selected) }, { label: 'Voz', value: selected.voz },
-        { label: 'Tipo de socio', value: selected.tipoSocio }, { label: 'Cargo', value: selected.cargo },
-        { label: 'Data de incorporación', value: selected.dataIncorporacion }, { label: 'Consentimento foto', value: selected.consentimentoFoto },
-        { label: 'Mostrar web', value: selected.mostrarWeb }, { label: 'Mostrar aniversario', value: selected.mostrarAniversario },
-        { label: 'Estado da ficha R2', value: selected.fichaR2Estado }
-      ]),
-      dataSection('Información interna', [
-        { label: 'Observacións', value: selected.observacions, wide: true }, { label: 'Observacións privadas', value: selected.observacionsPrivadas, wide: true },
-        { label: 'Última actualización', value: selected.dataActualizacion }, { label: 'Actualizado por', value: selected.actualizadoPor }
-      ])
-    ].filter(Boolean).forEach((node) => sectionsNode.append(node));
-  }
-
-  function applyPeopleResult(result, preserveId = '') {
-    if (Array.isArray(result?.persoas)) persoas = result.persoas;
-    updateMetrics(); refreshFilters(); renderPeopleOptions(preserveId);
-    if (preserveId && select instanceof HTMLSelectElement) {
-      select.value = preserveId;
-      selected = persoas.find((item) => String(item.idPersoa || item.id) === preserveId) || null;
-      drawPerson();
-    }
-  }
-
-  async function loadPeople() {
-    if (loading instanceof HTMLElement) loading.hidden = false;
-    if (errorState instanceof HTMLElement) errorState.hidden = true;
-    if (app instanceof HTMLElement) app.hidden = true;
-    try {
-      const result = await requestV2('listarPersoasAdministracion');
-      if (emailNode instanceof HTMLElement) emailNode.textContent = result.perfil?.email || auth.currentUser?.email || '—';
-      if (levelNode instanceof HTMLElement) levelNode.textContent = result.perfil?.nivel || '—';
-      if (result.perfil?.nivel !== 'Administración') throw Object.assign(new Error('Non tes permiso para acceder a esta sección.'), { stage: 'PERMISOS' });
-      persoas = Array.isArray(result.persoas) ? result.persoas : [];
-      updateMetrics(); refreshFilters(); renderPeopleOptions();
-      if (loading instanceof HTMLElement) loading.hidden = true;
-      if (app instanceof HTMLElement) app.hidden = false;
-    } catch (error) { showError(error); }
-  }
-
-  function toInputDate(value) {
-    const text = clean(value);
-    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text);
-    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-    return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
-  }
-
-  function setInput(id, value) { const node = q(id); if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) node.value = clean(value); }
-  function setCheck(id, value) { const node = q(id); if (node instanceof HTMLInputElement) node.checked = value === true; }
-  function checkValue(id) { const node = q(id); return node instanceof HTMLInputElement ? node.checked : false; }
-
-  function openPersonForm(mode) {
-    if (!(dialog instanceof HTMLDialogElement) || !(personForm instanceof HTMLFormElement)) return;
-    formMode = mode; personForm.reset();
-    if (formState instanceof HTMLElement) formState.textContent = '';
-    if (mode === 'edit' && selected) {
-      if (dialogTitle instanceof HTMLElement) dialogTitle.textContent = `Editar · ${selected.nomeCompleto || ''}`;
-      setInput('#f-nome', selected.nome); setInput('#f-primeiro', selected.primeiroApelido); setInput('#f-segundo', selected.segundoApelido);
-      setInput('#f-nif', selected.nif); setInput('#f-nacemento', toInputDate(selected.dataNacemento)); setInput('#f-telefono', selected.telefono);
-      setInput('#f-correo', selected.correo); setInput('#f-enderezo', selected.enderezo); setInput('#f-cidade', selected.cidade); setInput('#f-cp', selected.cp);
-      setInput('#f-voz', selected.voz); setInput('#f-tipo', selected.tipoSocio); setInput('#f-cargo', selected.cargo);
-      setInput('#f-incorporacion', toInputDate(selected.dataIncorporacion)); setInput('#f-comunicacion', selected.preferenciaComunicacion);
-      setInput('#f-emerxencia', selected.contactoEmerxencia); setInput('#f-telefono-emerxencia', selected.telefonoEmerxencia);
-      setInput('#f-consentimento', selected.consentimentoFoto); setInput('#f-observacions', selected.observacions); setInput('#f-observacions-privadas', selected.observacionsPrivadas);
-      setCheck('#f-mostrar-web', selected.mostrarWeb); setCheck('#f-aniversario', selected.mostrarAniversario);
-    } else {
-      if (dialogTitle instanceof HTMLElement) dialogTitle.textContent = 'Alta manual de persoa';
-      setInput('#f-tipo', 'Cantor/a');
-    }
-    dialog.showModal();
-  }
-
-  function formValue(id) { const node = q(id); return node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement ? node.value.trim() : ''; }
-  function collectFormData() {
-    return {
-      nome: formValue('#f-nome'), primeiroApelido: formValue('#f-primeiro'), segundoApelido: formValue('#f-segundo'), nif: formValue('#f-nif'),
-      dataNacemento: formValue('#f-nacemento'), telefono: formValue('#f-telefono'), correo: formValue('#f-correo'), enderezo: formValue('#f-enderezo'),
-      cidade: formValue('#f-cidade'), cp: formValue('#f-cp'), voz: formValue('#f-voz'), tipoSocio: formValue('#f-tipo'), cargo: formValue('#f-cargo'),
-      dataIncorporacion: formValue('#f-incorporacion'), preferenciaComunicacion: formValue('#f-comunicacion'), contactoEmerxencia: formValue('#f-emerxencia'),
-      telefonoEmerxencia: formValue('#f-telefono-emerxencia'), consentimentoFoto: formValue('#f-consentimento'), mostrarWeb: checkValue('#f-mostrar-web'),
-      mostrarAniversario: checkValue('#f-aniversario'), observacions: formValue('#f-observacions'), observacionsPrivadas: formValue('#f-observacions-privadas')
-    };
-  }
-
-  async function savePerson(event) {
-    event.preventDefault();
-    if (!(saveButton instanceof HTMLButtonElement)) return;
-    const person = collectFormData();
-    if (!person.nome || !person.primeiroApelido) return;
-    const previous = saveButton.textContent;
-    saveButton.disabled = true; saveButton.textContent = 'Gardando…';
-    if (formState instanceof HTMLElement) formState.textContent = 'Actualizando datos e caché R2…';
-    try {
-      const action = formMode === 'edit' ? 'actualizarPersoaAdministracion' : 'crearPersoaAdministracion';
-      const idPersoa = formMode === 'edit' ? String(selected?.idPersoa || selected?.id || '') : '';
-      const result = await requestV2(action, { idPersoa, persoa: person });
-      const preserveId = String(result.idPersoa || idPersoa || '');
-      if (Array.isArray(result.persoas)) applyPeopleResult(result, preserveId); else await loadPeople();
-      if (dialog instanceof HTMLDialogElement) dialog.close();
-      notify(result.mensaxe || (formMode === 'edit' ? 'Datos actualizados.' : 'Persoa creada.'));
-    } catch (error) {
-      if (formState instanceof HTMLElement) formState.textContent = error instanceof Error ? error.message : 'Non foi posible gardar.';
-    } finally { saveButton.disabled = false; saveButton.textContent = previous || 'Gardar'; }
-  }
-
-  async function togglePersonState() {
-    if (!selected || !(toggleButton instanceof HTMLButtonElement)) return;
-    const activar = !selected.activo;
-    const actionText = activar ? 'reactivar' : 'dar de baixa';
-    if (!window.confirm(`Queres ${actionText} a ${selected.nomeCompleto}?\n\nA persoa non se eliminará e conservará o seu identificador e historial.`)) return;
-    toggleButton.disabled = true;
-    try {
-      const idPersoa = String(selected.idPersoa || selected.id || '');
-      const result = await requestV2('cambiarEstadoPersoaAdministracion', { idPersoa, activo: activar });
-      if (Array.isArray(result.persoas)) applyPeopleResult(result, idPersoa); else await loadPeople();
-      notify(result.mensaxe || 'Estado actualizado.');
-    } catch (error) { notify(error instanceof Error ? error.message : 'Non foi posible modificar o estado.', 'error'); }
-    finally { toggleButton.disabled = false; }
-  }
-
-  async function openFile() {
-    const idPersoa = String(selected?.idPersoa || selected?.id || '');
-    if (!idPersoa || !(openFileButton instanceof HTMLButtonElement)) return;
-    const previous = openFileButton.textContent;
-    const previewWindow = window.open('', '_blank');
-    if (!previewWindow) { window.alert('O navegador bloqueou a nova lapela. Permite as ventás emerxentes para este sitio e téntao de novo.'); return; }
-    previewWindow.opener = null;
-    previewWindow.document.title = 'Abrindo ficha…';
-    previewWindow.document.body.textContent = 'Descargando a ficha segura desde R2…';
-    previewWindow.document.body.style.cssText = 'margin:0;padding:2rem;font:16px system-ui;color:#24362f;background:#f7f5f1';
-    openFileButton.disabled = true; openFileButton.textContent = 'Abrindo…';
-    try {
-      const blob = await requestV2('obterFichaPersoaAdministracion', { idPersoa }, true);
-      if (fileUrl) URL.revokeObjectURL(fileUrl);
-      fileUrl = URL.createObjectURL(blob);
-      previewWindow.location.replace(fileUrl);
-    } catch (error) {
-      previewWindow.close();
-      window.alert(`${error?.stage ? `[${error.stage}] ` : ''}${error instanceof Error ? error.message : 'Non foi posible abrir a ficha.'}`);
-    } finally { openFileButton.disabled = false; openFileButton.textContent = previous || 'Ver ficha escaneada'; }
-  }
-
-  waitForPortalUser().then((user) => {
-    if (!user?.email) { window.location.href = '/portal/'; return; }
-    loadPeople();
-  });
-
-  select?.addEventListener('change', drawPerson);
-  searchNode?.addEventListener('input', () => renderPeopleOptions());
-  statusFilter?.addEventListener('change', () => renderPeopleOptions());
-  relationFilter?.addEventListener('change', () => renderPeopleOptions());
-  voiceFilter?.addEventListener('change', () => renderPeopleOptions());
-  newButton?.addEventListener('click', () => openPersonForm('create'));
-  editButton?.addEventListener('click', () => openPersonForm('edit'));
-  toggleButton?.addEventListener('click', togglePersonState);
-  personForm?.addEventListener('submit', savePerson);
-  closeDialog?.addEventListener('click', () => dialog instanceof HTMLDialogElement && dialog.close());
-  cancelForm?.addEventListener('click', () => dialog instanceof HTMLDialogElement && dialog.close());
-  openFileButton?.addEventListener('click', openFile);
-  retryButton?.addEventListener('click', loadPeople);
-  logout?.addEventListener('click', () => closePortalSession());
-  window.addEventListener('beforeunload', () => { if (fileUrl) URL.revokeObjectURL(fileUrl); });
+  waitForPortalUser().then(user=>{if(!user?.email){location.href='/portal/';return;}loadPeople();});
+  select?.addEventListener('change',drawPerson);searchNode?.addEventListener('input',()=>renderPeopleOptions());statusFilter?.addEventListener('change',()=>renderPeopleOptions());relationFilter?.addEventListener('change',()=>renderPeopleOptions());voiceFilter?.addEventListener('change',()=>renderPeopleOptions());newButton?.addEventListener('click',()=>openPersonForm('create'));editButton?.addEventListener('click',()=>openPersonForm('edit'));toggleButton?.addEventListener('click',togglePersonState);personForm?.addEventListener('submit',savePerson);closeDialog?.addEventListener('click',()=>dialog instanceof HTMLDialogElement&&dialog.close());cancelForm?.addEventListener('click',()=>dialog instanceof HTMLDialogElement&&dialog.close());openFileButton?.addEventListener('click',openFile);retryButton?.addEventListener('click',loadPeople);logout?.addEventListener('click',()=>closePortalSession());window.addEventListener('beforeunload',()=>{if(fileUrl)URL.revokeObjectURL(fileUrl);});
 </script>
 
 <style is:global>
-  body { background: #f5f3f1; }
-  .private-layout { display: flex; min-height: 100vh; }
-  .people-main { flex: 1; min-width: 0; padding: 2.1rem clamp(1.25rem, 3vw, 3.5rem) 4rem; font-family: var(--fuente-minimalista); }
-  .private-page-header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; margin-bottom: 1.8rem; }
-  .section-kicker { color: var(--color-acento); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-  h1 { margin: .2rem 0 .55rem; color: var(--color-principal); font-size: clamp(2rem, 4vw, 3.5rem); }
-  .private-page-header p { max-width: 780px; margin: 0; color: #625c58; }
-  .account-card { display: grid; gap: .7rem; min-width: 250px; padding: 1rem 1.15rem; border: 1px solid #ded8d3; background: #fff; }
-  .account-card span { display: grid; gap: .18rem; }
-  .account-card small, .people-summary small { color: #77706b; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-  .state-box { padding: 1.35rem; border: 1px solid #ded8d3; background: #fff; color: #625c58; }
-  .error-box { border-color: #ba8f94; }
-  #error-stage { color: var(--color-principal); font-weight: 800; }
-  .people-app { display: grid; gap: 1.15rem; }
-  .people-summary { display: grid; grid-template-columns: repeat(6, minmax(105px, 1fr)); gap: .7rem; align-items: stretch; }
-  .people-summary > div { display: grid; gap: .15rem; padding: .85rem .9rem; border: 1px solid #ded8d3; background: #fff; }
-  .people-summary strong { color: var(--color-principal); font-size: 1.55rem; line-height: 1; }
-  .people-summary .primary-action { grid-column: 1 / -1; justify-self: end; }
-  .filters-panel { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(130px, .7fr) minmax(180px, .9fr) minmax(150px, .8fr); gap: .8rem; padding: 1rem; border: 1px solid #ded8d3; background: #fff; }
-  .filters-panel label, .toolbar label { display: grid; gap: .4rem; }
-  .filters-panel label span, .toolbar label span, .form-grid label > span { font-size: .76rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
-  input, select, textarea { width: 100%; border: 1px solid #cfc8c2; border-radius: 3px; background: #fff; color: #2d2a28; font: inherit; }
-  input, select { min-height: 2.8rem; padding: .6rem .75rem; }
-  textarea { padding: .7rem .75rem; resize: vertical; }
-  input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--color-acento) 45%, transparent); border-color: var(--color-acento); }
-  .toolbar { display: flex; gap: 1.5rem; align-items: end; justify-content: space-between; }
-  .toolbar label { width: min(760px, 100%); }
-  .toolbar p { margin: 0 0 .7rem; color: #77706b; font-size: .85rem; }
-  .person-card { border: 1px solid #d8d1cb; background: #fff; }
-  .person-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1.3rem 1.4rem; border-bottom: 1px solid #ebe6e1; }
-  .person-card h2 { margin: .35rem 0 .15rem; color: var(--color-principal); font-size: 1.65rem; }
-  .person-card-header p { margin: 0; color: #706964; }
-  .badges { display: flex; gap: .4rem; flex-wrap: wrap; }
-  .status-badge, .relation-badge { display: inline-block; padding: .28rem .55rem; border-radius: 999px; font-size: .7rem; font-weight: 800; text-transform: uppercase; }
-  .status-badge { background: #e9f1eb; color: #31583c; }
-  .status-badge.is-inactive { background: #f0e7e7; color: #7b3f46; }
-  .relation-badge { background: #f0ede8; color: #564d47; }
-  .relation-badge[data-type='director'] { background: #eee8f2; color: #5b4265; }
-  .relation-badge[data-type='protector'] { background: #f4efe1; color: #69572f; }
-  .relation-badge[data-type='singer'] { background: #e8efed; color: #31554c; }
-  .person-actions { display: flex; flex-wrap: wrap; gap: .55rem; justify-content: flex-end; }
-  .primary-action, .secondary-action, .error-box button { min-height: 2.6rem; padding: .6rem .9rem; border-radius: 3px; font: inherit; font-weight: 750; cursor: pointer; }
-  .primary-action, .error-box button { border: 1px solid var(--color-principal); background: var(--color-principal); color: #fff; }
-  .secondary-action { border: 1px solid #c7beb7; background: #fff; color: #393431; }
-  .danger-action { border-color: #9a5d65; color: #7b3440; }
-  button:disabled { opacity: .58; cursor: wait; }
-  .person-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: #e8e2dd; }
-  .data-section { padding: 1.25rem 1.35rem; background: #fff; }
-  .data-section h3 { margin: 0 0 .9rem; color: var(--color-principal); font-size: 1rem; }
-  .data-section dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem 1rem; margin: 0; }
-  .data-section dl > div.is-wide { grid-column: 1 / -1; }
-  .data-section dt { margin-bottom: .15rem; color: #79716c; font-size: .7rem; font-weight: 800; text-transform: uppercase; }
-  .data-section dd { margin: 0; overflow-wrap: anywhere; color: #302c29; }
-  .feedback { position: sticky; top: .75rem; z-index: 5; padding: .75rem 1rem; border: 1px solid; background: #fff; box-shadow: 0 4px 14px rgb(0 0 0 / .07); }
-  .feedback.is-ok { border-color: #8aaa91; color: #31583c; }
-  .feedback.is-error { border-color: #ba8f94; color: #7b3440; }
-  .person-dialog { width: min(920px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 0; border: 1px solid #cfc7c0; background: #f8f6f4; color: #2d2a28; }
-  .person-dialog::backdrop { background: rgb(35 27 29 / .48); }
-  .person-dialog form { display: grid; gap: 0; }
-  .dialog-header { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.35rem; border-bottom: 1px solid #ddd5cf; background: #fff; }
-  .dialog-header h2 { margin: .2rem 0 .25rem; color: var(--color-principal); }
-  .dialog-header p { margin: 0; color: #6b645f; font-size: .9rem; }
-  .icon-close { width: 2.5rem; height: 2.5rem; border: 0; background: transparent; color: #554e49; font-size: 1.8rem; cursor: pointer; }
-  .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem 1rem; padding: 1.15rem 1.35rem; }
-  .form-grid label { display: grid; gap: .35rem; align-content: start; }
-  .form-grid .wide { grid-column: 1 / -1; }
-  .form-grid .check-line { grid-template-columns: auto 1fr; align-items: center; align-self: end; min-height: 2.8rem; }
-  .form-grid .check-line input { width: 1.1rem; min-height: auto; }
-  .person-dialog fieldset { margin: 0; padding: 0; border: 0; border-top: 1px solid #e4ddd7; }
-  .person-dialog legend { padding: 1rem 1.35rem 0; color: var(--color-principal); font-weight: 800; }
-  .dialog-footer { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.35rem; border-top: 1px solid #d9d1ca; background: #fff; }
-  .dialog-footer p { margin: 0; color: #7b3440; font-size: .86rem; }
-  .dialog-footer > div { display: flex; gap: .6rem; }
-  @media (max-width: 1100px) {
-    .people-summary { grid-template-columns: repeat(3, 1fr); }
-    .filters-panel { grid-template-columns: 1fr 1fr; }
-    .filters-panel .search-field { grid-column: 1 / -1; }
-  }
-  @media (max-width: 900px) {
-    .private-page-header { display: grid; }
-    .account-card { min-width: 0; }
-    .person-card-header { display: grid; }
-    .person-actions { justify-content: flex-start; }
-  }
-  @media (max-width: 680px) {
-    .people-main { padding: 1.2rem .8rem 3rem; }
-    .people-summary { grid-template-columns: 1fr 1fr; }
-    .filters-panel, .form-grid { grid-template-columns: 1fr; }
-    .filters-panel .search-field, .form-grid .wide { grid-column: auto; }
-    .toolbar { display: grid; gap: .4rem; }
-    .person-sections { grid-template-columns: 1fr; }
-    .data-section dl { grid-template-columns: 1fr; }
-    .dialog-footer { display: grid; }
-    .dialog-footer > div { justify-content: end; }
-  }
+  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.people-main{flex:1;min-width:0;padding:2.1rem clamp(1.25rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.8rem}.section-kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}h1{margin:.2rem 0 .55rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.5rem)}.private-page-header p{max-width:780px;margin:0;color:#625c58}.account-card{display:grid;gap:.7rem;min-width:250px;padding:1rem 1.15rem;border:1px solid #ded8d3;background:#fff}.account-card span{display:grid;gap:.18rem}.account-card small,.people-summary small{color:#77706b;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.state-box{padding:1.35rem;border:1px solid #ded8d3;background:#fff;color:#625c58}.error-box{border-color:#ba8f94}.people-app{display:grid;gap:1.15rem}.people-summary{display:grid;grid-template-columns:repeat(6,minmax(105px,1fr));gap:.7rem}.people-summary>div{display:grid;gap:.15rem;padding:.85rem .9rem;border:1px solid #ded8d3;background:#fff}.people-summary strong{color:var(--color-principal);font-size:1.55rem}.people-summary .primary-action{grid-column:1/-1;justify-self:end}.filters-panel{display:grid;grid-template-columns:minmax(240px,2fr) minmax(130px,.7fr) minmax(180px,.9fr) minmax(150px,.8fr);gap:.8rem;padding:1rem;border:1px solid #ded8d3;background:#fff}.filters-panel label,.toolbar label{display:grid;gap:.4rem}.filters-panel label span,.toolbar label span,.form-grid label>span{font-size:.76rem;font-weight:800;text-transform:uppercase}input,select,textarea{width:100%;border:1px solid #cfc8c2;border-radius:3px;background:#fff;color:#2d2a28;font:inherit}input,select{min-height:2.8rem;padding:.6rem .75rem}textarea{padding:.7rem .75rem}.toolbar{display:flex;gap:1.5rem;align-items:end;justify-content:space-between}.toolbar label{width:min(760px,100%)}.person-card{border:1px solid #d8d1cb;background:#fff}.person-card-header{display:flex;justify-content:space-between;gap:1rem;padding:1.3rem 1.4rem;border-bottom:1px solid #ebe6e1}.person-card h2{margin:.35rem 0 .15rem;color:var(--color-principal)}.badges,.person-actions{display:flex;gap:.45rem;flex-wrap:wrap}.status-badge,.relation-badge{display:inline-block;padding:.28rem .55rem;border-radius:999px;background:#eef0ec;font-size:.7rem;font-weight:800;text-transform:uppercase}.status-badge.is-inactive{background:#f0e7e7;color:#7b3f46}.primary-action,.secondary-action,.error-box button{min-height:2.6rem;padding:.6rem .9rem;border-radius:3px;font:inherit;font-weight:750;cursor:pointer}.primary-action,.error-box button{border:1px solid var(--color-principal);background:var(--color-principal);color:#fff}.secondary-action{border:1px solid #c7beb7;background:#fff;color:#393431}.danger-action{border-color:#9a5d65;color:#7b3440}.person-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:#e8e2dd}.data-section{padding:1.25rem 1.35rem;background:#fff}.data-section h3{margin:0 0 .9rem;color:var(--color-principal)}.data-section dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem 1rem;margin:0}.data-section .is-wide{grid-column:1/-1}.data-section dt{color:#79716c;font-size:.7rem;font-weight:800;text-transform:uppercase}.data-section dd{margin:0;overflow-wrap:anywhere}.feedback{padding:.75rem 1rem;border:1px solid;background:#fff}.person-dialog{width:min(920px,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;border:1px solid #cfc7c0;background:#f8f6f4}.person-dialog::backdrop{background:rgb(35 27 29/.48)}.dialog-header,.dialog-footer{display:flex;justify-content:space-between;gap:1rem;padding:1.1rem 1.35rem;background:#fff}.dialog-header{border-bottom:1px solid #ddd5cf}.dialog-footer{border-top:1px solid #d9d1ca}.icon-close{border:0;background:transparent;font-size:1.8rem}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem 1rem;padding:1.15rem 1.35rem}.form-grid label{display:grid;gap:.35rem}.form-grid .wide{grid-column:1/-1}.check-line{grid-template-columns:auto 1fr!important;align-items:center}.check-line input{width:1rem}.person-dialog fieldset{margin:0;padding:0;border:0;border-top:1px solid #e4ddd7}.person-dialog legend{padding:1rem 1.35rem 0;color:var(--color-principal);font-weight:800}@media(max-width:1100px){.people-summary{grid-template-columns:repeat(3,1fr)}.filters-panel{grid-template-columns:1fr 1fr}.search-field{grid-column:1/-1}}@media(max-width:680px){.people-main{padding:1.2rem .8rem 3rem}.people-summary{grid-template-columns:1fr 1fr}.filters-panel,.form-grid{grid-template-columns:1fr}.search-field,.form-grid .wide{grid-column:auto}.toolbar{display:grid}.person-sections{grid-template-columns:1fr}.data-section dl{grid-template-columns:1fr}.private-page-header,.person-card-header,.dialog-footer{display:grid}}
 </style>
