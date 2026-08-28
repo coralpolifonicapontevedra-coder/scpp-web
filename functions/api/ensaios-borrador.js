@@ -109,18 +109,22 @@ function normalizarAsistencia(row, idEnsaio) {
 }
 
 function draftDesdePayload(result, idEnsaio) {
+  const repertorio = (Array.isArray(result?.ensaiosRepertorio) ? result.ensaiosRepertorio : [])
+    .filter((row) => idEnsaioDe(row) === idEnsaio)
+    .map((row, index) => normalizarObra(row, idEnsaio, index + 1))
+    .filter((row) => row.repertorio);
+  const asistencias = (Array.isArray(result?.asistencias) ? result.asistencias : [])
+    .filter((row) => idEnsaioDe(row) === idEnsaio)
+    .map((row) => normalizarAsistencia(row, idEnsaio))
+    .filter((row) => row.persoa);
   return {
     version:1,
     idEnsaio,
     updatedAt:new Date().toISOString(),
-    repertorio:(Array.isArray(result?.ensaiosRepertorio) ? result.ensaiosRepertorio : [])
-      .filter((row) => idEnsaioDe(row) === idEnsaio)
-      .map((row, index) => normalizarObra(row, idEnsaio, index + 1))
-      .filter((row) => row.repertorio),
-    asistencias:(Array.isArray(result?.asistencias) ? result.asistencias : [])
-      .filter((row) => idEnsaioDe(row) === idEnsaio)
-      .map((row) => normalizarAsistencia(row, idEnsaio))
-      .filter((row) => row.persoa)
+    repertorio,
+    asistencias,
+    baseRepertorio:repertorio.map((row) => ({ ...row })),
+    baseAsistencias:asistencias.map((row) => ({ ...row }))
   };
 }
 
@@ -206,20 +210,44 @@ function asistenciaIgual(a, b) {
     && aa.observacions === bb.observacions;
 }
 
-async function actualizarIndicePrincipalTrasFinalizar(env, user, fresh) {
+async function actualizarIndicePrincipalDesdeDraft(env, user, idEnsaio, draft) {
   const entry = await lerEntradaPrincipalR2(env, user);
-  const previo = entry?.payload || {};
+  if (!entry?.payload) throw Object.assign(new Error('Non foi posible actualizar o índice principal de R2.'), { code:'R2_MAIN_MISSING' });
+  const previo = entry.payload;
+  const repertorioEnsaio = draft.repertorio.map((row, index) => ({
+    idEnsaioRepertorio:'',
+    ensaio:idEnsaio,
+    repertorio:idRepertorioDe(row),
+    orde:Number(row.orde) || index + 1,
+    tipoTraballo:clean(row.tipoTraballo),
+    desde:clean(row.desde),
+    ata:clean(row.ata),
+    observacions:clean(row.observacions)
+  })).filter((row) => row.repertorio);
+  const asistenciasEnsaio = draft.asistencias.map((row) => ({
+    idAsistenciaEnsaio:'',
+    ensaio:idEnsaio,
+    persoa:idPersoaDe(row),
+    estadoAsistencia:clean(row.estadoAsistencia),
+    xustificada:row.xustificada === true,
+    motivo:clean(row.motivo),
+    observacions:clean(row.observacions)
+  })).filter((row) => row.persoa);
+  const ensaiosRepertorio = (Array.isArray(previo.ensaiosRepertorio) ? previo.ensaiosRepertorio : [])
+    .filter((row) => idEnsaioDe(row) !== idEnsaio)
+    .concat(repertorioEnsaio);
+  const asistencias = (Array.isArray(previo.asistencias) ? previo.asistencias : [])
+    .filter((row) => idEnsaioDe(row) !== idEnsaio)
+    .concat(asistenciasEnsaio);
+  const ensaios = (Array.isArray(previo.ensaios) ? previo.ensaios : []).map((row) => {
+    if (clean(row.idEnsaio || row.id) !== idEnsaio) return row;
+    return { ...row, obras:repertorioEnsaio.length, asistencias:asistenciasEnsaio.length };
+  });
   const payload = {
     ...previo,
-    ok:true,
-    version:2,
-    perfil:fresh.perfil || previo.perfil || {},
-    ensaios:Array.isArray(fresh.ensaios) ? fresh.ensaios : (previo.ensaios || []),
-    persoas:Array.isArray(fresh.persoas) ? fresh.persoas : (previo.persoas || []),
-    asistencias:Array.isArray(fresh.asistencias) ? fresh.asistencias : [],
-    ensaiosRepertorio:Array.isArray(fresh.ensaiosRepertorio) ? fresh.ensaiosRepertorio : [],
-    repertorio:Array.isArray(fresh.repertorio) ? fresh.repertorio : (previo.repertorio || []),
-    seguimento:fresh.seguimento || previo.seguimento || {},
+    ensaios,
+    ensaiosRepertorio,
+    asistencias,
     xeradoEn:new Date().toISOString()
   };
   await gardarPayloadPrincipalR2(env, user, payload);
@@ -228,20 +256,19 @@ async function actualizarIndicePrincipalTrasFinalizar(env, user, fresh) {
 
 async function finalizar(env, user, idEnsaio) {
   const draft = await obterOuCrearDraft(env, user, idEnsaio);
-  const sheet = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-  const obrasSheet = (Array.isArray(sheet.ensaiosRepertorio) ? sheet.ensaiosRepertorio : []).filter((row) => idEnsaioDe(row) === idEnsaio);
-  const asistSheet = (Array.isArray(sheet.asistencias) ? sheet.asistencias : []).filter((row) => idEnsaioDe(row) === idEnsaio);
-  const sheetWorks = new Map(obrasSheet.map((row) => [idRepertorioDe(row), row]));
+  const baseRepertorio = Array.isArray(draft.baseRepertorio) ? draft.baseRepertorio : [];
+  const baseAsistencias = Array.isArray(draft.baseAsistencias) ? draft.baseAsistencias : [];
+  const baseWorks = new Map(baseRepertorio.map((row) => [idRepertorioDe(row), row]));
   const draftWorks = new Map(draft.repertorio.map((row) => [idRepertorioDe(row), row]));
-  const sheetAttendance = new Map(asistSheet.map((row) => [idPersoaDe(row), row]));
+  const baseAttendance = new Map(baseAsistencias.map((row) => [idPersoaDe(row), row]));
 
-  const eliminar = [...sheetWorks.keys()].filter((id) => id && !draftWorks.has(id));
+  const eliminar = [...baseWorks.keys()].filter((id) => id && !draftWorks.has(id));
   const gardarObras = [...draftWorks.values()].filter((row) => {
-    const current = sheetWorks.get(idRepertorioDe(row));
+    const current = baseWorks.get(idRepertorioDe(row));
     return !current || !obraIgual(current, row);
   });
   const gardarAsistencias = draft.asistencias.filter((row) => {
-    const current = sheetAttendance.get(idPersoaDe(row));
+    const current = baseAttendance.get(idPersoaDe(row));
     return !current || !asistenciaIgual(current, row);
   });
 
@@ -263,9 +290,12 @@ async function finalizar(env, user, idEnsaio) {
     observacions:clean(row.observacions)
   }));
 
-  const fresh = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-  await actualizarIndicePrincipalTrasFinalizar(env, user, fresh);
-  const synced = await gardarDraft(env, draftDesdePayload(fresh, idEnsaio));
+  await actualizarIndicePrincipalDesdeDraft(env, user, idEnsaio, draft);
+  const synced = await gardarDraft(env, {
+    ...draft,
+    baseRepertorio:draft.repertorio.map((row) => ({ ...row })),
+    baseAsistencias:draft.asistencias.map((row) => ({ ...row }))
+  });
   return {
     draft:synced,
     resumo:{ obrasGardadas:gardarObras.length, obrasEliminadas:eliminar.length, asistenciasGardadas:gardarAsistencias.length }
