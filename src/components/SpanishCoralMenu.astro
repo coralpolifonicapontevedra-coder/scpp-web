@@ -63,6 +63,27 @@ const esActiva = (url) => rutaActual === url || rutaActual.startsWith(`${url}/`)
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', moverBotonCentenario, { once: true });
       else moverBotonCentenario();
     }
+
+    if (menu.dataset.currentPath === '/es/historia') {
+      const cargarHistoricoIntegrado = () => {
+        const panelHistorico = document.querySelector<HTMLElement>('#panel-historico');
+        if (!panelHistorico) return;
+        if (panelHistorico.querySelector('.history-summary-badge')) return;
+        if (document.querySelector('script[data-historico-historia-es]')) return;
+
+        const script = document.createElement('script');
+        script.src = '/js/historico-historia-es.js?v=20260828-4';
+        script.dataset.historicoHistoriaEs = 'true';
+        script.async = false;
+        document.body.appendChild(script);
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', cargarHistoricoIntegrado, { once: true });
+      } else {
+        cargarHistoricoIntegrado();
+      }
+    }
   }
 </script>
 
