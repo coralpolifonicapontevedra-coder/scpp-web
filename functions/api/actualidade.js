@@ -2,6 +2,27 @@ const INDEX_KEY = 'indices/actualidade-v1.json';
 const ORIXE = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec?recurso=publicacions';
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
+const PREVIEW_PUBLICACIONS = [
+  {
+    id: 'preview-24',
+    titulo: 'Procúranse voces masculinas na Sociedade Coral Polifónica de Pontevedra',
+    tipo: 'Noticia',
+    medio: 'PontevedraViva',
+    data: '2026-08-28',
+    destacada: true,
+    rutaWeb: '/documentos/publicacions/2026-08-28_ficha_pontevedraviva-voces-masculinas.pdf'
+  },
+  {
+    id: 'preview-25',
+    titulo: 'A Coral Polifónica busca novos talentos para reforzar as súas voces',
+    tipo: 'Noticia',
+    medio: 'Faro de Vigo',
+    data: '2026-08-28',
+    destacada: false,
+    rutaWeb: '/documentos/publicacions/2026-08-28_ficha_faro-novos-talentos.pdf'
+  }
+];
+
 const json = (status, body, cache = 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400') =>
   new Response(JSON.stringify(body), {
     status,
@@ -29,6 +50,24 @@ function normalizar(publicacion) {
 
 function respostaValida(datos) {
   return datos?.ok === true && Array.isArray(datos?.publicacions);
+}
+
+function engadirPreview(datos) {
+  if (!respostaValida(datos)) return datos;
+  const idsPreview = new Set(PREVIEW_PUBLICACIONS.map((item) => item.id));
+  const rutasPreview = new Set(PREVIEW_PUBLICACIONS.map((item) => item.rutaWeb));
+  const base = datos.publicacions.filter((item) => !idsPreview.has(texto(item?.id)) && !rutasPreview.has(texto(item?.rutaWeb)));
+  const publicacions = [...PREVIEW_PUBLICACIONS, ...base]
+    .map(normalizar)
+    .filter((item) => item.titulo && item.rutaWeb)
+    .sort((a, b) => b.data.localeCompare(a.data));
+
+  return {
+    ...datos,
+    publicacions,
+    total: publicacions.length,
+    fonte: `${datos.fonte || 'UNKNOWN'}+PREVIEW`
+  };
 }
 
 async function lerIndice(env) {
@@ -93,15 +132,15 @@ export async function onRequestGet({ env, waitUntil }) {
       if (typeof waitUntil === 'function') waitUntil(tarefa);
     }
 
-    return json(200, {
+    return json(200, engadirPreview({
       ...indice,
       fonte: idade < MAX_AGE_MS ? 'R2-CACHE' : 'R2-STALE-REFRESH'
-    });
+    }));
   }
 
   try {
     const actualizado = await refrescar(env);
-    return json(200, actualizado);
+    return json(200, engadirPreview(actualizado));
   } catch (erro) {
     return json(503, {
       ok: false,
