@@ -47,7 +47,7 @@ O diálogo `Xestionar` queda reservado ao traballo operativo do ensaio e contén
 1. `Asistencia`
 2. `Obras`
 
-`Análise` deixa de estar dentro dun ensaio concreto e pasa a ser unha páxina independente.
+`Análise` non pertence a un ensaio concreto: é unha ferramenta transversal sobre varios ensaios e vive nunha páxina independente.
 
 ### Asistencia
 
@@ -71,9 +71,23 @@ Ruta:
 
 `/portal/administracion/ensaios-analise-v2/`
 
-Permite indicar `Data inicial` e `Data final` e calcula:
+É unha páxina independente accesible desde o botón `Análise de asistencia`, situado xunto a `Alta de ensaio` na pantalla principal.
 
-- número de ensaios do período;
+Filtros combinables:
+
+- `Data inicial`;
+- `Data final`;
+- `Corda`;
+- `Coralista`;
+- `Tipo de ensaio`;
+- `Concerto relacionado`.
+
+Inclúe tamén `Limpar filtros` para recuperar a vista xeral do ano en curso.
+
+A análise calcula:
+
+- número de ensaios do período e filtros seleccionados;
+- número de persoas incluídas no filtro;
 - asistencia media global;
 - ausencias xustificadas e sen xustificar;
 - asistencia por corda;
@@ -126,7 +140,7 @@ Accións actuais:
 
 `/api/ensaios-analise-v2`
 
-Usa a mesma autorización administrativa e o mesmo paquete base cacheado para calcular os resultados por rango de datas.
+Usa a mesma autorización administrativa e o mesmo paquete base cacheado para calcular os resultados por rango de datas e os filtros opcionais de voz, persoa, tipo de ensaio e concerto.
 
 ## Ruta de proba
 
@@ -149,7 +163,7 @@ A v2 debe superar, sen erros intermedios:
 9. gardar asistencia e manter os estados tras recargar;
 10. engadir unha obra desde Repertorio;
 11. cargar o programa dun concerto;
-12. abrir a Análise e filtrar entre dúas datas;
+12. abrir a Análise e combinar data, corda, coralista, tipo e concerto;
 13. funcionar correctamente en escritorio e móbil.
 
 Só despois se cambiará a ruta oficial de Administración → Ensaios e se retirará a versión antiga.
