@@ -5,6 +5,7 @@ import SpanishCoralMenu from '../components/SpanishCoralMenu.astro';
 import SpanishPageHero from '../components/SpanishPageHero.astro';
 import '../styles/global.css';
 import '../styles/spanish-public-fixes.css';
+import '../styles/spanish-history-inline.css';
 
 const {
   title,
@@ -16,6 +17,7 @@ const rutaNormalizada = ruta.replace(/\/$/, '') || '/';
 const esPortada = rutaNormalizada === '/es';
 const esAgenda = rutaNormalizada === '/es/agenda';
 const esActualidad = rutaNormalizada === '/es/actualidad';
+const esHistoria = rutaNormalizada === '/es/historia';
 const esHistorico = rutaNormalizada === '/es/historico-conciertos';
 
 const equivalencias = {
@@ -77,6 +79,7 @@ const alternaEs = new URL(ruta, Astro.url.origin).toString();
     <SpanishFooter />
     {esAgenda && <script is:inline src="/js/poster-thumbnails.js" defer></script>}
     {esActualidad && <script is:inline src="/js/actualidad-contenido-es.js" defer></script>}
+    {esHistoria && <script is:inline src="/js/historico-historia-es.js" defer></script>}
   </body>
 </html>
 
