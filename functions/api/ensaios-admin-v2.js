@@ -4,6 +4,8 @@ const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const ENSAIOS_CACHE_PREFIX = 'ensaios/cache-v2/usuarios/';
+const ADMIN_V2_PREFIX = 'ensaios/admin-v2/';
+const LIST_TTL_MS = 5 * 60 * 1000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -15,6 +17,8 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 });
 
 const clean = (value) => String(value || '').trim();
+const branch = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
+const listCacheKey = (env) => `${ADMIN_V2_PREFIX}${branch(env)}/list.json`;
 
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
@@ -140,15 +144,48 @@ function prepararLista(result) {
     .sort((a, b) => String(b.data).localeCompare(String(a.data)));
 }
 
-async function invalidarCacheEnsaios(env) {
-  if (!env.R2_PRIVADO?.list) return;
+async function readJson(bucket, key) {
+  if (!bucket?.get) return null;
+  const object = await bucket.get(key);
+  if (!object) return null;
+  return object.json().catch(() => null);
+}
+
+async function writeJson(bucket, key, value) {
+  if (!bucket?.put) return;
+  await bucket.put(key, JSON.stringify(value), {
+    httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' },
+    customMetadata: { tipo: 'ensaios-admin-v2', version: '2' }
+  });
+}
+
+async function lerListaCache(env) {
+  const entry = await readJson(env.R2_PRIVADO, listCacheKey(env));
+  if (!entry?.payload || !entry?.createdAt) return null;
+  const age = Date.now() - Date.parse(entry.createdAt);
+  return Number.isFinite(age) && age >= 0 && age <= LIST_TTL_MS ? entry.payload : null;
+}
+
+async function gardarListaCache(env, payload) {
+  await writeJson(env.R2_PRIVADO, listCacheKey(env), { createdAt: new Date().toISOString(), payload });
+}
+
+async function deletePrefix(bucket, prefix) {
+  if (!bucket?.list || !bucket?.delete) return;
   let cursor;
   do {
-    const page = await env.R2_PRIVADO.list({ prefix: ENSAIOS_CACHE_PREFIX, cursor });
+    const page = await bucket.list({ prefix, cursor });
     const keys = (page.objects || []).map((item) => item.key);
-    if (keys.length) await env.R2_PRIVADO.delete(keys);
+    if (keys.length) await bucket.delete(keys);
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
+}
+
+async function invalidarCacheEnsaios(env) {
+  await Promise.all([
+    deletePrefix(env.R2_PRIVADO, ENSAIOS_CACHE_PREFIX),
+    deletePrefix(env.R2_PRIVADO, `${ADMIN_V2_PREFIX}${branch(env)}/`)
+  ]);
 }
 
 export async function onRequest({ request, env }) {
@@ -179,14 +216,18 @@ export async function onRequest({ request, env }) {
 
   try {
     if (accion === 'listar') {
+      const cached = await lerListaCache(env);
+      if (cached) return json(200, { ...cached, fonte: 'R2-ADMIN-V2' });
+
       const result = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-      return json(200, {
+      const payload = {
         ok: true,
         nivel: 'Administración',
         ensaios: prepararLista(result),
-        concertos: Array.isArray(result.concertos) ? result.concertos : [],
-        fonte: 'ADMIN-R2 + ENSAIOS-PORTAL'
-      });
+        fonte: 'APPS-SCRIPT-ADMIN-V2'
+      };
+      await gardarListaCache(env, payload).catch((error) => console.warn('Non se puido cachear a listaxe de Ensaios v2:', error));
+      return json(200, payload);
     }
 
     if (accion === 'crear') {
