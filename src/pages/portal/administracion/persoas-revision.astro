@@ -1,0 +1,123 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Revisión de datos persoais" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="administracion" logoutId="revision-persoas-logout" />
+    <main class="review-main">
+      <header class="page-header">
+        <div>
+          <span class="section-kicker">Administración · Persoas</span>
+          <h1>Revisión de datos</h1>
+          <p>Xera unha ligazón temporal para que unha persoa revise os seus datos. En preview non se envía ningún correo automaticamente.</p>
+        </div>
+        <a class="back-link" href="/portal/administracion/persoas/">← Volver a Persoas</a>
+      </header>
+
+      <section id="loading" class="state-box">Comprobando permisos e cargando persoas…</section>
+      <section id="error-state" class="state-box error-box" hidden><strong>Non foi posible cargar o módulo</strong><p id="error-message"></p></section>
+
+      <section id="app" class="review-card" hidden>
+        <div class="warning-box"><strong>Modo preview</strong><p>Esta pantalla só xera a ligazón. Non se envía nada ao coralista.</p></div>
+
+        <label>
+          <span>Persoa</span>
+          <select id="person-select"><option value="">Escolle unha persoa activa…</option></select>
+        </label>
+
+        <div id="person-summary" class="person-summary" hidden></div>
+        <button id="generate-button" type="button" disabled>Xerar ligazón de revisión</button>
+
+        <section id="result" class="result-box" hidden>
+          <strong>Ligazón xerada</strong>
+          <p id="expiry"></p>
+          <div class="link-row"><input id="generated-link" readonly /><button id="copy-button" type="button">Copiar</button></div>
+          <p class="small-note">Podes abrir esta ligazón ti mesmo para probar o formulario. Caduca automaticamente.</p>
+        </section>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+
+  const loading=document.querySelector('#loading');
+  const errorState=document.querySelector('#error-state');
+  const errorMessage=document.querySelector('#error-message');
+  const app=document.querySelector('#app');
+  const select=document.querySelector('#person-select');
+  const summary=document.querySelector('#person-summary');
+  const generateButton=document.querySelector('#generate-button');
+  const resultBox=document.querySelector('#result');
+  const generatedLink=document.querySelector('#generated-link');
+  const expiry=document.querySelector('#expiry');
+  const copyButton=document.querySelector('#copy-button');
+  const logout=document.querySelector('#revision-persoas-logout');
+  let persoas=[];
+
+  const personKey=(item)=>String(item?.idPersoa||item?.id||item?.rowId||'').trim();
+  const nameOf=(item)=>String(item?.nomeCompleto||[item?.nome,item?.primeiroApelido,item?.segundoApelido].filter(Boolean).join(' ')||'Persoa').trim();
+
+  async function api(path,body){
+    const user=auth.currentUser;
+    if(!user) throw new Error('A sesión non está activa.');
+    const idToken=await user.getIdToken();
+    const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,idToken})});
+    const data=await response.json().catch(()=>null);
+    if(!response.ok||!data?.ok) throw new Error(data?.erro||`Erro HTTP ${response.status}`);
+    return data;
+  }
+
+  function drawSummary(){
+    if(!(select instanceof HTMLSelectElement)||!(summary instanceof HTMLElement)||!(generateButton instanceof HTMLButtonElement)) return;
+    const person=persoas.find((item)=>personKey(item)===select.value);
+    generateButton.disabled=!person;
+    if(!person){summary.hidden=true;summary.textContent='';return;}
+    summary.hidden=false;
+    summary.textContent=[nameOf(person),person.correo||'sen correo',person.voz,person.tipoSocio].filter(Boolean).join(' · ');
+  }
+
+  async function load(){
+    try{
+      const data=await api('/api/persoas-v2',{accion:'listarPersoasAdministracion'});
+      if(data.perfil?.nivel!=='Administración') throw new Error('Non tes permiso de Administración.');
+      persoas=(Array.isArray(data.persoas)?data.persoas:[]).filter((item)=>item.activo===true);
+      if(select instanceof HTMLSelectElement){
+        persoas.forEach((item)=>select.add(new Option(`${nameOf(item)}${item.correo?` · ${item.correo}`:''}`,personKey(item))));
+      }
+      if(loading instanceof HTMLElement) loading.hidden=true;
+      if(app instanceof HTMLElement) app.hidden=false;
+    }catch(error){
+      if(loading instanceof HTMLElement) loading.hidden=true;
+      if(errorState instanceof HTMLElement) errorState.hidden=false;
+      if(errorMessage instanceof HTMLElement) errorMessage.textContent=error instanceof Error?error.message:'Erro descoñecido';
+    }
+  }
+
+  async function generate(){
+    if(!(select instanceof HTMLSelectElement)||!(generateButton instanceof HTMLButtonElement)||!select.value) return;
+    const old=generateButton.textContent;
+    generateButton.disabled=true;
+    generateButton.textContent='Xerando…';
+    try{
+      const data=await api('/api/persoas-revision',{accion:'xerarLigazon',idPersoa:select.value});
+      if(generatedLink instanceof HTMLInputElement) generatedLink.value=data.ligazon||'';
+      if(expiry instanceof HTMLElement) expiry.textContent=`Caduca: ${new Date(data.caducaEn).toLocaleString('gl-ES')}`;
+      if(resultBox instanceof HTMLElement) resultBox.hidden=false;
+    }catch(error){alert(error instanceof Error?error.message:'Non foi posible xerar a ligazón.');}
+    finally{generateButton.disabled=false;generateButton.textContent=old||'Xerar ligazón de revisión';}
+  }
+
+  select?.addEventListener('change',drawSummary);
+  generateButton?.addEventListener('click',generate);
+  copyButton?.addEventListener('click',async()=>{if(!(generatedLink instanceof HTMLInputElement)||!generatedLink.value)return;await navigator.clipboard.writeText(generatedLink.value);if(copyButton instanceof HTMLButtonElement){const old=copyButton.textContent;copyButton.textContent='Copiada';setTimeout(()=>copyButton.textContent=old||'Copiar',1400);}});
+  logout?.addEventListener('click',()=>closePortalSession());
+  waitForPortalUser().then((user)=>{if(!user?.email){location.href='/portal/';return;}load();});
+</script>
+
+<style is:global>
+  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.review-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,3rem) 4rem;font-family:var(--fuente-minimalista)}.page-header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1.5rem}.section-kicker{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--color-acento)}h1{margin:.2rem 0 .5rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.3rem)}.page-header p{max-width:760px;color:#625c58}.back-link{color:var(--color-principal);text-decoration:none;font-weight:700}.state-box,.review-card{padding:1.3rem;border:1px solid #d9d2cc;background:#fff}.review-card{display:grid;gap:1rem;max-width:900px}.warning-box{padding:.9rem 1rem;border:1px solid #d9cda8;background:#faf7ee}.warning-box p{margin:.25rem 0 0}.review-card label{display:grid;gap:.4rem}.review-card label>span{font-size:.76rem;font-weight:800;text-transform:uppercase}select,input{min-height:2.8rem;width:100%;padding:.6rem .75rem;border:1px solid #cfc8c2;background:#fff;font:inherit}.person-summary{padding:.8rem 1rem;background:#f6f3f0;border:1px solid #e4ddd7}.review-card button{min-height:2.7rem;padding:.6rem 1rem;border:1px solid var(--color-principal);background:var(--color-principal);color:#fff;font:inherit;font-weight:750;cursor:pointer}.review-card button:disabled{opacity:.45;cursor:not-allowed}.result-box{display:grid;gap:.6rem;padding:1rem;border:1px solid #d8d1cb;background:#faf9f7}.result-box p{margin:0}.link-row{display:grid;grid-template-columns:1fr auto;gap:.6rem}.small-note{font-size:.86rem;color:#6c655f}.error-box{border-color:#b98b91}@media(max-width:720px){.page-header{display:grid}.link-row{grid-template-columns:1fr}}
+</style>
