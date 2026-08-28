@@ -154,13 +154,11 @@ function ensaiosAdministracion(result) {
 }
 
 async function listarAdministracion(env, user) {
-  // R2 é só caché. A autorización procede sempre do perfil xerado polo
-  // resolvedor central de permisos do Portal (resolverPermisosPortal_).
+  // R2 é só caché. Nunca se usa unha entrada antiga/incompleta para denegar.
+  // Só se acepta a caché cando o propio payload acredita podeEditar=true;
+  // en calquera outro caso consúltase Apps Script, que resolve o permiso central.
   const payload = await lerEnsaiosR2(env, user).catch(() => null);
-  if (payload) {
-    if (!podeAdministrar(payload)) {
-      throw Object.assign(new Error('Usuario non autorizado para administrar ensaios'), { code:'FORBIDDEN' });
-    }
+  if (payload && podeAdministrar(payload)) {
     return {
       nivel:payload.perfil?.nivel || 'Administración',
       ensaios:ensaiosAdministracion(payload),
@@ -176,7 +174,7 @@ async function listarAdministracion(env, user) {
   return {
     nivel:result.perfil?.nivel || 'Administración',
     ensaios:ensaiosAdministracion(result),
-    fonte:'SHEET-PERMISO-CENTRAL'
+    fonte:payload ? 'SHEET-REVALIDACION-PERMISO' : 'SHEET-PERMISO-CENTRAL'
   };
 }
 
