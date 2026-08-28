@@ -4,8 +4,15 @@ const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const ENSAIOS_CACHE_PREFIX = 'ensaios/cache-v2/usuarios/';
+const ADMIN_V2_PREFIX = 'ensaios/admin-v2/';
+const BASE_TTL_MS = 10 * 60 * 1000;
 
 const clean = (value) => String(value || '').trim();
+const branch = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
+const baseKey = (env) => `${ADMIN_V2_PREFIX}${branch(env)}/base.json`;
+const concertosKey = (env) => `${ADMIN_V2_PREFIX}${branch(env)}/concertos.json`;
+const listKey = (env) => `${ADMIN_V2_PREFIX}${branch(env)}/list.json`;
+
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -69,8 +76,51 @@ async function chamarAppsScript(env, user, accion, datos = {}) {
   return resultado;
 }
 
-async function invalidarCacheEnsaios(env) {
-  if (!env.R2_PRIVADO?.list) return;
+async function readJson(bucket, key) {
+  if (!bucket?.get) return null;
+  const object = await bucket.get(key);
+  if (!object) return null;
+  return object.json().catch(() => null);
+}
+
+async function writeJson(bucket, key, value, tipo = 'ensaios-admin-v2') {
+  if (!bucket?.put) return;
+  await bucket.put(key, JSON.stringify(value), {
+    httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' },
+    customMetadata: { tipo, version: '2' }
+  });
+}
+
+function cacheValida(entry) {
+  if (!entry?.payload || !entry?.createdAt) return false;
+  const age = Date.now() - Date.parse(entry.createdAt);
+  return Number.isFinite(age) && age >= 0 && age <= BASE_TTL_MS;
+}
+
+async function obterBase(env, user, forzar = false) {
+  if (!forzar) {
+    const cached = await readJson(env.R2_PRIVADO, baseKey(env));
+    if (cacheValida(cached)) return { payload: cached.payload, fonte: 'R2' };
+  }
+  const payload = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
+  await writeJson(env.R2_PRIVADO, baseKey(env), { createdAt: new Date().toISOString(), payload }).catch(() => {});
+  return { payload, fonte: 'APPS_SCRIPT' };
+}
+
+async function obterConcertos(env, user, forzar = false) {
+  if (!forzar) {
+    const cached = await readJson(env.R2_PRIVADO, concertosKey(env));
+    if (cacheValida(cached)) return { payload: cached.payload, fonte: 'R2' };
+  }
+  const result = await chamarAppsScript(env, user, 'listarConcertosAdministracionPortal');
+  const payload = Array.isArray(result.concertos) ? result.concertos : [];
+  await writeJson(env.R2_PRIVADO, concertosKey(env), { createdAt: new Date().toISOString(), payload }, 'ensaios-admin-v2-concertos').catch(() => {});
+  return { payload, fonte: 'APPS_SCRIPT' };
+}
+
+async function invalidarLista(env) {
+  if (env.R2_PRIVADO?.delete) await env.R2_PRIVADO.delete(listKey(env)).catch(() => {});
+  if (!env.R2_PRIVADO?.list || !env.R2_PRIVADO?.delete) return;
   let cursor;
   do {
     const page = await env.R2_PRIVADO.list({ prefix: ENSAIOS_CACHE_PREFIX, cursor });
@@ -103,6 +153,63 @@ function prepararPersoas(result, idEnsaio) {
   }).filter((p) => p.id && p.voz);
 }
 
+function prepararObras(result, idEnsaio) {
+  const catalogo = Array.isArray(result.repertorio) ? result.repertorio : [];
+  const relacions = Array.isArray(result.ensaiosRepertorio) ? result.ensaiosRepertorio : [];
+  const map = new Map(catalogo.map((obra) => [clean(obra.idRepertorio), obra]));
+  const obras = relacions
+    .filter((row) => clean(row.ensaio) === idEnsaio)
+    .map((row) => {
+      const id = clean(row.repertorio);
+      const obra = map.get(id) || {};
+      return {
+        idRepertorio: id,
+        nomeObra: clean(obra.nomeObra) || id,
+        compositor: clean(obra.compositor),
+        orde: Number(row.orde) || 0,
+        tipoTraballo: clean(row.tipoTraballo),
+        observacions: clean(row.observacions)
+      };
+    })
+    .sort((a, b) => (a.orde || 9999) - (b.orde || 9999) || a.nomeObra.localeCompare(b.nomeObra, 'gl'));
+  const repertorio = catalogo
+    .map((obra) => ({ idRepertorio: clean(obra.idRepertorio), nomeObra: clean(obra.nomeObra), compositor: clean(obra.compositor) }))
+    .filter((obra) => obra.idRepertorio && obra.nomeObra)
+    .sort((a, b) => a.nomeObra.localeCompare(b.nomeObra, 'gl'));
+  return { obras, repertorio };
+}
+
+async function actualizarBaseAsistencias(env, idEnsaio, persoas) {
+  const entry = await readJson(env.R2_PRIVADO, baseKey(env));
+  if (!entry?.payload) return;
+  const actual = Array.isArray(entry.payload.asistencias) ? entry.payload.asistencias : [];
+  const ids = new Set(persoas.map((p) => clean(p.id)).filter(Boolean));
+  const restantes = actual.filter((a) => !(clean(a.ensaio) === idEnsaio && ids.has(clean(a.persoa))));
+  const novas = persoas.map((p) => ({
+    idAsistenciaEnsaio: '',
+    ensaio: idEnsaio,
+    persoa: clean(p.id),
+    estadoAsistencia: clean(p.estado) === 'asiste' ? 'Asiste' : 'Non asiste',
+    xustificada: clean(p.estado) === 'xustificada',
+    motivo: clean(p.estado) === 'xustificada' ? clean(p.xustificacion) : '',
+    observacions: clean(p.estado) === 'xustificada' ? clean(p.xustificacion) : ''
+  }));
+  entry.payload.asistencias = restantes.concat(novas);
+  entry.createdAt = new Date().toISOString();
+  await writeJson(env.R2_PRIVADO, baseKey(env), entry).catch(() => {});
+}
+
+async function actualizarBaseObra(env, idEnsaio, idRepertorio) {
+  const entry = await readJson(env.R2_PRIVADO, baseKey(env));
+  if (!entry?.payload) return;
+  const rel = Array.isArray(entry.payload.ensaiosRepertorio) ? entry.payload.ensaiosRepertorio : [];
+  const existe = rel.some((r) => clean(r.ensaio) === idEnsaio && clean(r.repertorio) === idRepertorio);
+  if (!existe) rel.push({ idEnsaioRepertorio: '', ensaio: idEnsaio, repertorio: idRepertorio, orde: rel.filter((r) => clean(r.ensaio) === idEnsaio).length + 1 });
+  entry.payload.ensaiosRepertorio = rel;
+  entry.createdAt = new Date().toISOString();
+  await writeJson(env.R2_PRIVADO, baseKey(env), entry).catch(() => {});
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
   if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) return json(500, { ok: false, erro: 'O servizo non está configurado.' });
@@ -121,8 +228,24 @@ export async function onRequest({ request, env }) {
 
   try {
     if (accion === 'obterXestion') {
-      const result = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-      return json(200, { ok: true, persoas: prepararPersoas(result, idEnsaio) });
+      const { payload, fonte } = await obterBase(env, user);
+      return json(200, { ok: true, persoas: prepararPersoas(payload, idEnsaio), fonte });
+    }
+
+    if (accion === 'obterObras') {
+      const [base, concertos] = await Promise.all([obterBase(env, user), obterConcertos(env, user)]);
+      const obraData = prepararObras(base.payload, idEnsaio);
+      return json(200, {
+        ok: true,
+        ...obraData,
+        concertos: concertos.payload.map((c) => ({
+          idConcerto: clean(c.idConcerto),
+          data: clean(c.data),
+          nome: clean(c.nome) || 'Concerto',
+          repertorio: Array.isArray(c.repertorio) ? c.repertorio : []
+        })).filter((c) => c.idConcerto),
+        fonte: `${base.fonte}/${concertos.fonte}`
+      });
     }
 
     if (accion === 'gardarAsistencias') {
@@ -142,14 +265,52 @@ export async function onRequest({ request, env }) {
         });
         gardadas += 1;
       }
-      await invalidarCacheEnsaios(env);
+      await actualizarBaseAsistencias(env, idEnsaio, persoas.filter((p) => p.id && p.estado));
+      await invalidarLista(env);
       return json(200, { ok: true, gardadas });
+    }
+
+    if (accion === 'gardarObra') {
+      const idRepertorio = clean(body.idRepertorio);
+      if (!idRepertorio) return json(400, { ok: false, erro: 'Selecciona unha obra do repertorio.' });
+      await chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', {
+        idEnsaio,
+        idRepertorio,
+        tipoTraballo: clean(body.tipoTraballo),
+        observacions: clean(body.observacions)
+      });
+      await actualizarBaseObra(env, idEnsaio, idRepertorio);
+      await invalidarLista(env);
+      return json(200, { ok: true, idRepertorio });
+    }
+
+    if (accion === 'importarPrograma') {
+      const idConcerto = clean(body.idConcerto);
+      if (!idConcerto) return json(400, { ok: false, erro: 'Selecciona un concerto.' });
+      const { payload: concertos } = await obterConcertos(env, user);
+      const concerto = concertos.find((c) => clean(c.idConcerto) === idConcerto);
+      if (!concerto) return json(404, { ok: false, erro: 'Non se atopou o concerto seleccionado.' });
+      const programa = Array.isArray(concerto.repertorio) ? concerto.repertorio : [];
+      let engadidas = 0;
+      for (const obra of programa) {
+        const idRepertorio = clean(obra.idRepertorio || obra.obraId);
+        if (!idRepertorio) continue;
+        await chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', {
+          idEnsaio,
+          idRepertorio,
+          observacions: clean(obra.notas)
+        });
+        await actualizarBaseObra(env, idEnsaio, idRepertorio);
+        engadidas += 1;
+      }
+      await invalidarLista(env);
+      return json(200, { ok: true, engadidas, concerto: clean(concerto.nome) });
     }
 
     return json(400, { ok: false, erro: 'Acción non permitida.' });
   } catch (error) {
     const code = error?.code || 'UPSTREAM';
-    const status = code === 'FORBIDDEN' ? 403 : 502;
+    const status = code === 'FORBIDDEN' ? 403 : code === 'NOT_FOUND' ? 404 : 502;
     return json(status, { ok: false, codigo: code, erro: error?.message || 'Non foi posible completar a operación.' });
   }
 }
