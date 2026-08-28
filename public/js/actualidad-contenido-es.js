@@ -25,7 +25,9 @@
     ['Recoñecemento ás Persoas Galegas do Ano 2025', 'Reconocimiento a las Personas Gallegas del Año 2025'],
     ['Concerto homenaxe da Sociedade Filharmónica á Coral Polifónica polo centenario', 'Concierto homenaje de la Sociedad Filarmónica a la Coral Polifónica por el centenario'],
     ['Concerto de Nadal do centenario da Sociedade Coral Polifónica de Pontevedra', 'Concierto de Navidad del centenario de la Sociedad Coral Polifónica de Pontevedra'],
-    ['Bicentenario Marcial del Adalid: a memoria cantada', 'Bicentenario de Marcial del Adalid: la memoria cantada']
+    ['Bicentenario Marcial del Adalid: a memoria cantada', 'Bicentenario de Marcial del Adalid: la memoria cantada'],
+    ['Procúranse voces masculinas na Sociedade Coral Polifónica de Pontevedra', 'Se buscan voces masculinas en la Sociedad Coral Polifónica de Pontevedra'],
+    ['A Coral Polifónica busca novos talentos para reforzar as súas voces', 'La Coral Polifónica busca nuevos talentos para reforzar sus voces']
   ]);
 
   const tipos = new Map([
@@ -49,7 +51,9 @@
     ['/documentos/publicacions/2026-04-29_ficha_deputacion-recepcion-directiva.pdf', '/documentos/publicacions/2026-04-29_ficha_deputacion-recepcion-directiva-es.pdf'],
     ['/documentos/publicacions/2026-07-15_ficha_faro-agustin-bertomeu.pdf', '/documentos/publicacions/2026-07-15_ficha_faro-agustin-bertomeu-es.pdf'],
     ['/documentos/publicacions/2026-07-16_ficha_diario-agustin-bertomeu.pdf', '/documentos/publicacions/2026-07-16_ficha_diario-agustin-bertomeu-es.pdf'],
-    ['/documentos/publicacions/bicentenario-marcial-del-adalid.pdf', '/documentos/publicacions/bicentenario-marcial-del-adalid-es.pdf']
+    ['/documentos/publicacions/bicentenario-marcial-del-adalid.pdf', '/documentos/publicacions/bicentenario-marcial-del-adalid-es.pdf'],
+    ['/documentos/publicacions/2026-08-28_ficha_pontevedraviva-voces-masculinas.pdf', '/documentos/publicacions/2026-08-28_ficha_pontevedraviva-voces-masculinas-es.pdf'],
+    ['/documentos/publicacions/2026-08-28_ficha_faro-novos-talentos.pdf', '/documentos/publicacions/2026-08-28_ficha_faro-novos-talentos-es.pdf']
   ]);
 
   const rutaEspañola = (href) => {
@@ -92,8 +96,6 @@
   const raiz = document.querySelector('.actualidade');
   if (!raiz) return;
 
-  // Protección adicional: aunque la API vuelva a pintar el enlace gallego justo
-  // antes del clic, la navegación desde Actualidad ES siempre resuelve la ficha ES.
   raiz.addEventListener('click', (event) => {
     const enlace = event.target instanceof Element ? event.target.closest('a') : null;
     if (!(enlace instanceof HTMLAnchorElement)) return;
