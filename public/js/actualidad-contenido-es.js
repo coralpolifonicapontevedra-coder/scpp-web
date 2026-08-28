@@ -52,6 +52,16 @@
     ['/documentos/publicacions/bicentenario-marcial-del-adalid.pdf', '/documentos/publicacions/bicentenario-marcial-del-adalid-es.pdf']
   ]);
 
+  const rutaEspañola = (href) => {
+    if (!href) return '';
+    try {
+      const pathname = new URL(href, window.location.origin).pathname;
+      return rutasPdf.get(pathname) || '';
+    } catch {
+      return '';
+    }
+  };
+
   const traducirNodo = (nodo, mapa) => {
     if (!(nodo instanceof HTMLElement)) return;
     const actual = nodo.textContent?.trim() || '';
@@ -61,20 +71,8 @@
 
   const traducirEnlacePdf = (nodo) => {
     if (!(nodo instanceof HTMLAnchorElement)) return;
-    const href = nodo.getAttribute('href') || '';
-    if (!href) return;
-
-    let pathname = '';
-    try {
-      pathname = new URL(href, window.location.origin).pathname;
-    } catch {
-      return;
-    }
-
-    const rutaEs = rutasPdf.get(pathname);
-    if (rutaEs && nodo.getAttribute('href') !== rutaEs) {
-      nodo.setAttribute('href', rutaEs);
-    }
+    const rutaEs = rutaEspañola(nodo.getAttribute('href') || '');
+    if (rutaEs && nodo.getAttribute('href') !== rutaEs) nodo.setAttribute('href', rutaEs);
   };
 
   const traducir = () => {
@@ -94,7 +92,24 @@
   const raiz = document.querySelector('.actualidade');
   if (!raiz) return;
 
+  // Protección adicional: aunque la API vuelva a pintar el enlace gallego justo
+  // antes del clic, la navegación desde Actualidad ES siempre resuelve la ficha ES.
+  raiz.addEventListener('click', (event) => {
+    const enlace = event.target instanceof Element ? event.target.closest('a') : null;
+    if (!(enlace instanceof HTMLAnchorElement)) return;
+    const rutaEs = rutaEspañola(enlace.getAttribute('href') || '');
+    if (!rutaEs) return;
+    event.preventDefault();
+    window.location.assign(rutaEs);
+  }, true);
+
   traducir();
   const observador = new MutationObserver(traducir);
-  observador.observe(raiz, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['href'] });
+  observador.observe(raiz, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['href']
+  });
 })();
