@@ -48,6 +48,8 @@ O diálogo `Xestionar` queda reservado ao traballo operativo do ensaio e contén
 
 `Análise` non pertence a un ensaio concreto: é unha ferramenta transversal sobre varios ensaios e vive nunha páxina independente.
 
+Ao final do diálogo existe un botón `Aceptar` que pecha a xestión e recarga a listaxe principal cos contadores actualizados.
+
 ### Asistencia
 
 - coralistas agrupados por Soprano, Contralto, Tenor e Baixo;
@@ -63,6 +65,8 @@ A pestaña permite dúas vías:
 - `Cargar programa do concerto`: selección dun concerto e copia das obras do seu programa ao ensaio.
 
 As obras xa vinculadas móstranse ordenadas na mesma pantalla.
+
+**Corrección 28/08/2026:** a importación dun programa xa non confía no programa cacheado dentro do selector. Ao pulsar `Cargar programa do concerto`, o endpoint consulta `obterXestionConcertoAdministracionPortal` para ese concerto e importa o `programa` real empregado por `Administración → Concertos`. A listaxe de concertos da pestaña Obras tamén forza unha actualización do catálogo antes de mostrar o número de obras. Isto evita casos como un concerto con 5 obras en Concertos que aparecía incorrectamente como `0 obras` en Ensaios por unha caché R2 incompleta.
 
 ### Análise de asistencia
 
@@ -110,6 +114,8 @@ A v2 incorpora agora:
 - caché R2 dos programas de concertos durante 10 minutos;
 - carga diferida de `Obras`: repertorio e programas só se solicitan cando se entra nesa pestaña;
 - actualización/invalidez da caché tras escrituras para evitar datos obsoletos.
+
+Para a importación efectiva dun programa de concerto, a prioridade é a coherencia sobre a caché: faise unha lectura fresca da xestión real do concerto antes de escribir as obras no ensaio.
 
 ## Endpoint principal
 
@@ -167,8 +173,9 @@ A v2 debe superar, sen erros intermedios:
 8. abrir `Xestionar` e cargar asistencia con rapidez;
 9. gardar asistencia e manter os estados tras recargar;
 10. engadir unha obra desde Repertorio;
-11. cargar o programa dun concerto;
-12. abrir a Análise e combinar data, corda, coralista, tipo e concerto;
-13. funcionar correctamente en escritorio e móbil.
+11. cargar o programa real dun concerto e comprobar que coincide co programa de Administración → Concertos;
+12. pechar `Xestionar` con `Aceptar` e ver os contadores actualizados;
+13. abrir a Análise e combinar data, corda, coralista, tipo e concerto;
+14. funcionar correctamente en escritorio e móbil.
 
 Só despois se levará esta versión á ruta oficial de produción e se retirará a versión antiga nese entorno.
