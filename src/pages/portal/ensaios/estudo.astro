@@ -1,0 +1,511 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Estudo de ensaios" lang="gl">
+  <div class="private-layout study-layout">
+    <PortalSidebar active="estudo" logoutId="estudo-logout" />
+    <main class="private-main study-main">
+      <header class="study-header">
+        <div>
+          <span class="kicker">Portal do Coralista</span>
+          <h1>Estudo de ensaios</h1>
+          <p>Escoita a túa voz e segue a partitura ao teu ritmo. O cambio de páxina é manual e non interrompe o audio.</p>
+        </div>
+        <a class="back-link" href="/portal/ensaios/">← Volver a Ensaios</a>
+      </header>
+
+      <section id="loading" class="study-card">Cargando o material de estudo…</section>
+      <section id="error" class="study-card error" hidden></section>
+
+      <section id="app" class="study-app" hidden>
+        <section class="study-card selectors" aria-label="Selección do material">
+          <label>
+            <span>Ensaio</span>
+            <select id="rehearsal-select"></select>
+          </label>
+          <label>
+            <span>Obra</span>
+            <select id="work-select"></select>
+          </label>
+          <label>
+            <span>Audio / voz</span>
+            <select id="audio-select"></select>
+          </label>
+        </section>
+
+        <section class="study-card now-playing">
+          <div>
+            <span class="kicker">Agora estudando</span>
+            <h2 id="work-title">—</h2>
+            <p id="work-meta"></p>
+          </div>
+          <span id="voice-badge" class="voice-badge"></span>
+        </section>
+
+        <section id="missing" class="study-card notice" hidden></section>
+
+        <section class="player-card" id="player-card">
+          <div class="audio-panel">
+            <div class="audio-copy">
+              <strong id="audio-title">Audio de estudo</strong>
+              <small id="audio-help">Escolle unha voz e preme reproducir.</small>
+            </div>
+            <audio id="audio-player" controls preload="metadata"></audio>
+          </div>
+
+          <div class="score-toolbar" aria-label="Navegación da partitura">
+            <button id="prev-page" type="button" class="page-button">← Anterior</button>
+            <label class="page-field">
+              <span>Páxina</span>
+              <input id="page-number" type="number" min="1" value="1" inputmode="numeric" />
+              <small id="page-total"></small>
+            </label>
+            <button id="next-page" type="button" class="page-button primary-page">Seguinte →</button>
+          </div>
+
+          <div class="score-frame" id="score-frame">
+            <iframe id="score-viewer" title="Partitura" loading="eager"></iframe>
+            <div id="score-placeholder" class="score-placeholder">Selecciona unha obra con partitura dispoñible.</div>
+          </div>
+        </section>
+
+        <nav class="mobile-page-nav" aria-label="Cambio rápido de páxina">
+          <button id="mobile-prev" type="button">← <span>Anterior</span></button>
+          <strong id="mobile-page">Páx. 1</strong>
+          <button id="mobile-next" type="button"><span>Seguinte</span> →</button>
+        </nav>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getApp, getApps, initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged } from 'firebase/auth';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
+    authDomain: 'scpp-portal-privado.firebaseapp.com',
+    projectId: 'scpp-portal-privado',
+    storageBucket: 'scpp-portal-privado.firebasestorage.app',
+    messagingSenderId: '506857659587',
+    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
+  };
+
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
+  const $ = (selector) => document.querySelector(selector);
+  const norm = (value = '') => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const truthy = (value) => value === true || ['true', '1', 'si', 'sí', 'yes', 'y', 'x'].includes(norm(value));
+  const canon = (value) => {
+    const text = String(value ?? '').trim();
+    const number = Number(text.replace(',', '.'));
+    return Number.isFinite(number) ? String(Math.trunc(number)) : text;
+  };
+  const rehearsalId = (item) => canon(item?.idEnsaio ?? item?.id ?? item?.Id_Ensaio ?? item?.Id);
+  const repertoireId = (item) => canon(item?.idRepertorio ?? item?.repertorio ?? item?.Id_Repertorio ?? item?.id ?? item?.Id);
+  const workName = (item) => String(item?.nomeObra ?? item?.nome ?? item?.NomeObra ?? '').trim();
+
+  let rehearsalPayload = null;
+  let repertoirePayload = null;
+  let selectedRehearsal = null;
+  let selectedWorkId = '';
+  let selectedAudioId = '';
+  let scoreUrl = '';
+  let audioUrl = '';
+  let currentPage = 1;
+  let currentScore = null;
+
+  async function api(url, action, extra = {}) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('A sesión non está dispoñible.');
+    const idToken = await user.getIdToken();
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: action, ...extra })
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new Error(error?.erro || `Erro ${response.status}`);
+    }
+    return response;
+  }
+
+  async function apiJson(url, action, extra = {}) {
+    const response = await api(url, action, extra);
+    const data = await response.json();
+    if (!data?.ok) throw new Error(data?.erro || 'Non foi posible completar a operación.');
+    return data;
+  }
+
+  async function loadRehearsals() {
+    try {
+      return await apiJson('/api/ensaios-coralista', 'listar');
+    } catch (error) {
+      const message = String(error?.message || '');
+      if (!/non autorizado|forbidden|non tes permisos/i.test(message)) throw error;
+      return await apiJson('/api/ensaios', 'listarEnsaiosPortal');
+    }
+  }
+
+  function dateValue(value) {
+    if (!value) return null;
+    const text = String(value).trim();
+    const iso = /^\d{4}-\d{2}-\d{2}/.test(text)
+      ? text.slice(0, 10)
+      : text.split(/[\/-]/).reverse().join('-');
+    const date = new Date(`${iso}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function formatDate(value) {
+    const date = dateValue(value);
+    return date
+      ? new Intl.DateTimeFormat('gl-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date)
+      : String(value || '');
+  }
+
+  function activeRehearsals() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const rows = rehearsalPayload?.ensaios || [];
+    return [...new Map(rows.map((item) => [rehearsalId(item), item])).values()]
+      .filter((item) => !truthy(item?.cancelado) && (!dateValue(item?.data) || dateValue(item?.data) >= today))
+      .sort((a, b) => (dateValue(a?.data)?.getTime() || 0) - (dateValue(b?.data)?.getTime() || 0));
+  }
+
+  function rehearsalWorks(rehearsal) {
+    const id = rehearsalId(rehearsal);
+    const relations = rehearsalPayload?.ensaiosRepertorio || rehearsalPayload?.repertorioEnsaio || [];
+    const rows = relations
+      .filter((item) => canon(item?.ensaio ?? item?.idEnsaio ?? item?.Id_Ensaio) === id)
+      .sort((a, b) => Number(a?.orde || a?.Orde || 999) - Number(b?.orde || b?.Orde || 999));
+    if (rows.length) return rows.map((item) => canon(item?.repertorio ?? item?.idRepertorio ?? item?.Id_Repertorio)).filter(Boolean);
+
+    const direct = rehearsal?.repertorio || rehearsal?.obras || [];
+    return direct.map((item) => typeof item === 'object' ? repertoireId(item) : canon(item)).filter(Boolean);
+  }
+
+  function catalogWorks() {
+    return repertoirePayload?.obras || repertoirePayload?.repertorio || repertoirePayload?.datos || [];
+  }
+
+  function findWork(id) {
+    const target = canon(id);
+    return catalogWorks().find((item) => repertoireId(item) === target) ||
+      (rehearsalPayload?.repertorio || []).find((item) => repertoireId(item) === target) || null;
+  }
+
+  function scoreResources(work) {
+    return Array.isArray(work?.partituras) ? work.partituras.filter((item) => item?.ruta || item?.r2Key) : [];
+  }
+
+  function audioResources(work) {
+    return Array.isArray(work?.audios) ? work.audios.filter((item) => item?.ruta || item?.r2Key) : [];
+  }
+
+  function userVoice() {
+    return String(
+      rehearsalPayload?.perfil?.voz ||
+      rehearsalPayload?.usuario?.voz ||
+      rehearsalPayload?.persoa?.voz ||
+      ''
+    ).trim();
+  }
+
+  function preferredAudio(audios) {
+    const voice = norm(userVoice());
+    if (voice) {
+      const exact = audios.find((item) => norm(item?.voz) === voice);
+      if (exact) return exact;
+      const compatible = audios.find((item) => norm(item?.voz).includes(voice) || voice.includes(norm(item?.voz)));
+      if (compatible) return compatible;
+    }
+    return audios.find((item) => ['audioxeral', 'xeral', 'general', 'tutti'].includes(norm(item?.voz))) || audios[0] || null;
+  }
+
+  function renderRehearsals() {
+    const rows = activeRehearsals();
+    const select = $('#rehearsal-select');
+    select.innerHTML = rows.map((item) => `<option value="${rehearsalId(item)}">${formatDate(item?.data)}</option>`).join('');
+    selectedRehearsal = rows[0] || null;
+    if (selectedRehearsal) select.value = rehearsalId(selectedRehearsal);
+    renderWorks();
+  }
+
+  function renderWorks() {
+    const ids = selectedRehearsal ? rehearsalWorks(selectedRehearsal) : [];
+    const select = $('#work-select');
+    select.innerHTML = ids.map((id) => {
+      const work = findWork(id) || {};
+      return `<option value="${id}">${workName(work) || `Obra ${id}`}</option>`;
+    }).join('');
+    selectedWorkId = ids[0] || '';
+    if (selectedWorkId) select.value = selectedWorkId;
+    renderSelectedWork();
+  }
+
+  async function fetchPrivateFile(resource) {
+    const key = String(resource?.r2Key || resource?.ruta || '').trim();
+    if (!key) throw new Error('O recurso non ten un ficheiro asociado.');
+    const response = await api('/api/repertorio', 'obterFicheiroRepertorio', { r2Key: key, ruta: key });
+    return await response.blob();
+  }
+
+  function revokeScore() {
+    if (scoreUrl) URL.revokeObjectURL(scoreUrl);
+    scoreUrl = '';
+  }
+
+  function revokeAudio() {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    audioUrl = '';
+  }
+
+  function refreshPage() {
+    currentPage = Math.max(1, Math.trunc(Number(currentPage) || 1));
+    $('#page-number').value = String(currentPage);
+    $('#mobile-page').textContent = `Páx. ${currentPage}`;
+    $('#prev-page').disabled = currentPage <= 1;
+    $('#mobile-prev').disabled = currentPage <= 1;
+    if (scoreUrl) {
+      $('#score-viewer').src = `${scoreUrl}#page=${currentPage}&zoom=page-width&toolbar=0&navpanes=0`;
+    }
+  }
+
+  async function loadScore(score) {
+    currentScore = score || null;
+    revokeScore();
+    const iframe = $('#score-viewer');
+    const placeholder = $('#score-placeholder');
+    iframe.removeAttribute('src');
+    iframe.hidden = true;
+    placeholder.hidden = false;
+    $('#page-total').textContent = '';
+    currentPage = 1;
+    refreshPage();
+    if (!score) {
+      placeholder.textContent = 'Esta obra non ten partitura dispoñible.';
+      return;
+    }
+    placeholder.textContent = 'Cargando a partitura…';
+    try {
+      const blob = await fetchPrivateFile(score);
+      scoreUrl = URL.createObjectURL(blob);
+      iframe.hidden = false;
+      placeholder.hidden = true;
+      refreshPage();
+    } catch (error) {
+      placeholder.textContent = String(error?.message || 'Non foi posible abrir a partitura.');
+    }
+  }
+
+  async function loadAudio(audio) {
+    revokeAudio();
+    const player = $('#audio-player');
+    player.pause();
+    player.removeAttribute('src');
+    player.load();
+    if (!audio) {
+      $('#audio-title').textContent = 'Sen audio dispoñible';
+      $('#audio-help').textContent = 'Esta obra non ten audios de estudo.';
+      return;
+    }
+    $('#audio-title').textContent = [audio?.voz || 'Audio', audio?.tipo].filter(Boolean).join(' · ');
+    $('#audio-help').textContent = 'O audio continuará reproducíndose mentres cambias de páxina.';
+    try {
+      const blob = await fetchPrivateFile(audio);
+      audioUrl = URL.createObjectURL(blob);
+      player.src = audioUrl;
+      player.load();
+    } catch (error) {
+      $('#audio-help').textContent = String(error?.message || 'Non foi posible abrir o audio.');
+    }
+  }
+
+  function renderAudioOptions(work) {
+    const audios = audioResources(work);
+    const preferred = preferredAudio(audios);
+    const select = $('#audio-select');
+    select.innerHTML = audios.map((item, index) => {
+      const id = canon(item?.id ?? item?.idAudio ?? item?.Id_Audio ?? index);
+      const label = [item?.voz || 'Audio', item?.tipo].filter(Boolean).join(' — ');
+      return `<option value="${id}">${label}</option>`;
+    }).join('');
+    selectedAudioId = preferred ? canon(preferred?.id ?? preferred?.idAudio ?? preferred?.Id_Audio ?? audios.indexOf(preferred)) : '';
+    if (selectedAudioId) select.value = selectedAudioId;
+    $('#voice-badge').textContent = preferred?.voz || userVoice() || '';
+    loadAudio(preferred);
+  }
+
+  function selectedAudio(work) {
+    const audios = audioResources(work);
+    return audios.find((item, index) => canon(item?.id ?? item?.idAudio ?? item?.Id_Audio ?? index) === canon(selectedAudioId)) || null;
+  }
+
+  function renderSelectedWork() {
+    const work = findWork(selectedWorkId);
+    const missing = $('#missing');
+    if (!work) {
+      $('#work-title').textContent = selectedWorkId ? `Obra ${selectedWorkId}` : 'Sen obras neste ensaio';
+      $('#work-meta').textContent = '';
+      missing.hidden = false;
+      missing.textContent = selectedWorkId ? 'Non se atoparon os recursos desta obra no catálogo de Repertorio.' : 'Este ensaio non ten obras asignadas.';
+      loadScore(null);
+      loadAudio(null);
+      $('#audio-select').innerHTML = '';
+      return;
+    }
+    missing.hidden = true;
+    $('#work-title').textContent = workName(work) || `Obra ${selectedWorkId}`;
+    $('#work-meta').textContent = [work?.compositor, work?.autorLetra].filter(Boolean).join(' · ');
+    const scores = scoreResources(work);
+    loadScore(scores[0] || null);
+    renderAudioOptions(work);
+  }
+
+  function changePage(delta) {
+    currentPage = Math.max(1, currentPage + delta);
+    refreshPage();
+  }
+
+  $('#rehearsal-select').addEventListener('change', (event) => {
+    selectedRehearsal = activeRehearsals().find((item) => rehearsalId(item) === canon(event.target.value)) || null;
+    renderWorks();
+  });
+  $('#work-select').addEventListener('change', (event) => {
+    selectedWorkId = canon(event.target.value);
+    renderSelectedWork();
+  });
+  $('#audio-select').addEventListener('change', (event) => {
+    selectedAudioId = canon(event.target.value);
+    const work = findWork(selectedWorkId);
+    const audio = selectedAudio(work);
+    $('#voice-badge').textContent = audio?.voz || '';
+    loadAudio(audio);
+  });
+  $('#prev-page').addEventListener('click', () => changePage(-1));
+  $('#next-page').addEventListener('click', () => changePage(1));
+  $('#mobile-prev').addEventListener('click', () => changePage(-1));
+  $('#mobile-next').addEventListener('click', () => changePage(1));
+  $('#page-number').addEventListener('change', (event) => {
+    currentPage = Math.max(1, Math.trunc(Number(event.target.value) || 1));
+    refreshPage();
+  });
+
+  window.addEventListener('keydown', (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) return;
+    if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+      event.preventDefault();
+      changePage(-1);
+    }
+    if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+      event.preventDefault();
+      changePage(1);
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    revokeScore();
+    revokeAudio();
+  });
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      location.href = '/portal/';
+      return;
+    }
+    try {
+      [rehearsalPayload, repertoirePayload] = await Promise.all([
+        loadRehearsals(),
+        apiJson('/api/repertorio', 'listarRepertorioPortal')
+      ]);
+      renderRehearsals();
+      $('#loading').hidden = true;
+      $('#app').hidden = false;
+    } catch (error) {
+      $('#loading').hidden = true;
+      $('#error').hidden = false;
+      $('#error').textContent = String(error?.message || 'Non foi posible cargar o material de estudo.');
+    }
+  });
+</script>
+
+<style>
+  .study-layout { display: grid; grid-template-columns: 282px minmax(0, 1fr); min-height: 100vh; background: #f7f6f4; }
+  .study-main { min-width: 0; padding: clamp(1rem, 2vw, 2rem); }
+  .study-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: end; margin-bottom: 1rem; }
+  .study-header h1 { margin: .15rem 0 .35rem; color: #2e2a28; font-size: clamp(1.65rem, 3vw, 2.45rem); line-height: 1.1; }
+  .study-header p { max-width: 760px; margin: 0; color: #6b6560; }
+  .kicker { color: var(--color-principal); font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .back-link { flex: 0 0 auto; color: var(--color-principal); font-weight: 700; text-decoration: none; }
+  .study-app { display: grid; gap: 1rem; }
+  .study-card, .player-card { border: 1px solid #ded9d4; border-radius: 6px; background: #fff; box-shadow: 0 8px 24px rgba(40, 35, 32, .035); }
+  .study-card { padding: 1rem; }
+  .error { color: #7a263a; }
+  .notice { background: #fffaf0; color: #6e5730; }
+  .selectors { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: .85rem; }
+  .selectors label { display: grid; gap: .35rem; min-width: 0; }
+  .selectors label > span, .page-field > span { color: #55504c; font-size: .76rem; font-weight: 800; }
+  .selectors select, .page-field input { width: 100%; min-height: 2.85rem; border: 1px solid #d4cec8; border-radius: 4px; background: #fff; color: #302c29; font: inherit; }
+  .selectors select { padding: .6rem .7rem; }
+  .now-playing { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .now-playing h2 { margin: .12rem 0; color: #2d2927; font-size: 1.3rem; }
+  .now-playing p { margin: 0; color: #756e68; font-size: .87rem; }
+  .voice-badge { display: inline-flex; align-items: center; min-height: 2rem; padding: .35rem .7rem; border-radius: 999px; background: #f4ecee; color: var(--color-principal); font-size: .78rem; font-weight: 800; }
+  .voice-badge:empty { display: none; }
+  .player-card { min-width: 0; overflow: hidden; }
+  .audio-panel { display: grid; grid-template-columns: minmax(180px, .35fr) minmax(280px, 1fr); gap: 1rem; align-items: center; padding: 1rem; border-bottom: 1px solid #e7e2de; }
+  .audio-copy { display: grid; gap: .15rem; }
+  .audio-copy strong { color: #352f2c; }
+  .audio-copy small { color: #756e68; }
+  #audio-player { width: 100%; min-width: 0; }
+  .score-toolbar { display: grid; grid-template-columns: minmax(120px, .35fr) minmax(120px, 180px) minmax(120px, .35fr); justify-content: center; gap: .75rem; align-items: center; padding: .85rem 1rem; border-bottom: 1px solid #e7e2de; background: #fbfaf9; }
+  .page-button { min-height: 2.8rem; padding: .55rem .8rem; border: 1px solid var(--color-principal); border-radius: 4px; background: #fff; color: var(--color-principal); font: inherit; font-weight: 800; cursor: pointer; }
+  .primary-page { background: var(--color-principal); color: #fff; }
+  .page-button:disabled { opacity: .38; cursor: default; }
+  .page-field { display: grid; grid-template-columns: auto 70px auto; gap: .45rem; align-items: center; justify-content: center; }
+  .page-field input { min-height: 2.55rem; padding: .35rem; text-align: center; }
+  .page-field small { color: #77716d; }
+  .score-frame { position: relative; width: 100%; height: min(72vh, 980px); min-height: 620px; background: #d8d5d1; }
+  #score-viewer { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+  .score-placeholder { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; color: #6f6964; text-align: center; }
+  .mobile-page-nav { display: none; }
+
+  @media (max-width: 1180px) {
+    .study-layout { grid-template-columns: 1fr; }
+    .study-main { padding-top: 1rem; }
+  }
+
+  @media (max-width: 760px) {
+    .study-main { padding: .75rem .65rem 5.5rem; }
+    .study-header { display: grid; align-items: start; gap: .65rem; padding: .2rem .25rem; }
+    .study-header p { font-size: .88rem; line-height: 1.45; }
+    .back-link { font-size: .84rem; }
+    .selectors { grid-template-columns: 1fr; gap: .65rem; }
+    .selectors select { min-height: 3.15rem; font-size: 1rem; }
+    .now-playing { align-items: start; }
+    .now-playing h2 { font-size: 1.13rem; }
+    .audio-panel { grid-template-columns: 1fr; gap: .65rem; padding: .85rem; }
+    .score-toolbar { grid-template-columns: 1fr 1fr; gap: .55rem; padding: .65rem; }
+    .score-toolbar .page-field { grid-column: 1 / -1; grid-row: 1; }
+    .score-toolbar .page-button { display: none; }
+    .score-frame { height: calc(100dvh - 275px); min-height: 480px; }
+    .mobile-page-nav { position: fixed; z-index: 80; left: .55rem; right: .55rem; bottom: max(.55rem, env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr auto 1fr; gap: .45rem; align-items: center; padding: .5rem; border: 1px solid #d7d0ca; border-radius: 9px; background: rgba(255,255,255,.96); box-shadow: 0 10px 34px rgba(35,30,27,.18); backdrop-filter: blur(8px); }
+    .mobile-page-nav button { min-height: 3.2rem; padding: .5rem .65rem; border: 1px solid var(--color-principal); border-radius: 6px; background: #fff; color: var(--color-principal); font: inherit; font-weight: 800; }
+    .mobile-page-nav button:last-child { background: var(--color-principal); color: #fff; }
+    .mobile-page-nav button:disabled { opacity: .38; }
+    .mobile-page-nav strong { min-width: 64px; color: #403a36; font-size: .78rem; text-align: center; }
+  }
+
+  @media (max-width: 420px) {
+    .study-main { padding-right: .45rem; padding-left: .45rem; }
+    .study-card { padding: .8rem; }
+    .score-frame { min-height: 420px; }
+    .mobile-page-nav button span { display: none; }
+    .mobile-page-nav button { font-size: 1.2rem; }
+  }
+</style>
