@@ -8,7 +8,7 @@
   let basePayload = null;
   let currentRehearsalId = '';
   let draft = null;
-  let loadingDraft = false;
+  let draftLoadSeq = 0;
 
   const esc = (value = '') => String(value)
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -16,6 +16,8 @@
   const norm = (value = '') => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
   const compactNorm = (value = '') => norm(value).replace(/[^a-z0-9]/g, '');
   const personName = (person) => person?.nomeCompleto || [person?.nome, person?.primeiroApelido, person?.segundoApelido].filter(Boolean).join(' ');
+  const surnameKey = (person) => [person?.primeiroApelido, person?.segundoApelido, person?.nome, personName(person)].filter(Boolean).join(' ');
+  const sortPeopleBySurname = (a, b) => surnameKey(a).localeCompare(surnameKey(b), 'gl', { sensitivity:'base' });
   const rehearsalId = (item) => String(item?.idEnsaio || item?.id || '').trim();
   const workId = (row) => String(row?.repertorio || row?.idRepertorio || '').trim();
   const personId = (row) => String(row?.persoa || row?.idPersoa || '').trim();
@@ -23,14 +25,34 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    .rehearsal-final-actions{display:flex;align-items:center;justify-content:flex-end;gap:.75rem;margin-top:1.15rem;padding-top:1rem;border-top:1px solid #e7e1dc}
+    .rehearsal-final-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1rem;margin-top:1.15rem;padding-top:1rem;border-top:1px solid #e7e1dc}
+    .rehearsal-draft-note{margin:0;color:#746b65;font-size:.76rem;line-height:1.45}
     .finish-rehearsal{border:0;background:var(--color-principal,#6b1d2f);color:#fff;padding:.72rem 1rem;font-weight:700;cursor:pointer}
     .finish-rehearsal:disabled{opacity:.55;cursor:wait}
-    .finish-status{font-size:.78rem;color:#6f665f}
-    #repertoire-panel .remove-work{border:1px solid #cdbfc1;background:#fff;color:#6a1b29;padding:.55rem .8rem;cursor:pointer;font-weight:700}
+    .finish-status{grid-column:1/-1;font-size:.78rem;color:#6f665f;text-align:right}
+    #attendance-panel .attendance-actions button.is-selected,#attendance-panel .attendance-actions button.is-selected.negative{background:var(--color-principal,#6b1d2f)!important;border-color:var(--color-principal,#6b1d2f)!important;color:#fff!important}
+    #attendance-panel .attendance-actions button.is-selected:hover,#attendance-panel .attendance-actions button.is-selected.negative:hover{background:#53131f!important;border-color:#53131f!important;color:#fff!important}
+    #repertoire-panel .repertoire-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem!important;align-items:stretch}
+    #repertoire-panel .repertoire-list>.empty-state{grid-column:1/-1}
+    #repertoire-panel .work-row{display:grid;grid-template-columns:2rem minmax(0,1fr);grid-template-rows:auto auto auto;gap:.65rem .7rem;align-content:start;min-width:0;padding:.9rem;border:1px solid #ded8d2;border-radius:5px;background:#fff;box-shadow:0 4px 14px rgba(60,42,35,.035)}
+    #repertoire-panel .work-bullet{display:grid;place-items:center;width:1.8rem;height:1.8rem;margin-top:.05rem;border-radius:999px;background:var(--color-principal,#6b1d2f);color:#fff;font-weight:800;font-size:.76rem}
+    #repertoire-panel .work-main{min-width:0;padding-top:.02rem}
+    #repertoire-panel .work-link,#repertoire-panel .work-link:visited{display:grid;gap:.12rem;color:#24211f;text-decoration:none}
+    #repertoire-panel .work-link strong{color:var(--color-principal,#6b1d2f);font-size:.94rem;line-height:1.25}
+    #repertoire-panel .work-link small{color:#665f5a;font-size:.75rem;line-height:1.3}
+    #repertoire-panel .work-fields{grid-column:1/-1;display:grid;grid-template-columns:minmax(135px,1fr) minmax(70px,.42fr) minmax(70px,.42fr);gap:.48rem;margin:0;min-width:0}
+    #repertoire-panel .work-fields select,#repertoire-panel .work-fields input,#repertoire-panel .work-fields textarea{width:100%;min-width:0;box-sizing:border-box;border:1px solid #d8d1cb;border-radius:3px;background:#faf9f7;padding:.5rem .56rem;font:inherit;font-size:.82rem;color:#35302d}
+    #repertoire-panel .work-fields textarea{grid-column:1/-1;min-height:3.35rem;max-height:7rem;resize:vertical;line-height:1.35}
+    #repertoire-panel .work-fields select:focus,#repertoire-panel .work-fields input:focus,#repertoire-panel .work-fields textarea:focus{outline:2px solid rgba(107,29,47,.08);outline-offset:1px;border-color:var(--color-principal,#6b1d2f)}
+    #repertoire-panel .work-actions{grid-column:1/-1;display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:.45rem;align-items:center;min-width:0}
+    #repertoire-panel .save-work,#repertoire-panel .remove-work{min-height:2.15rem;padding:.42rem .65rem;cursor:pointer;font-weight:700;border-radius:3px;font-size:.79rem}
+    #repertoire-panel .save-work{border:1px solid var(--color-principal,#6b1d2f);background:var(--color-principal,#6b1d2f);color:#fff}
+    #repertoire-panel .remove-work{border:1px solid #cdbfc1;background:#fff;color:#6a1b29}
     #repertoire-panel .remove-work:hover{background:#f8f1f2}
-    #repertoire-panel .work-link,#repertoire-panel .work-link:visited{color:#24211f;text-decoration:none}
-    @media(max-width:680px){.rehearsal-final-actions{display:grid;grid-template-columns:1fr}.finish-rehearsal{width:100%}}
+    #repertoire-panel .save-status{min-height:1rem;text-align:right;white-space:nowrap;font-size:.72rem;color:#6f665f}
+    @media(max-width:1050px){#repertoire-panel .repertoire-list{grid-template-columns:1fr}.rehearsal-final-actions{grid-template-columns:1fr auto}}
+    @media(max-width:760px){#repertoire-panel .work-row{padding:.8rem}#repertoire-panel .work-actions{grid-template-columns:1fr 1fr}#repertoire-panel .save-status{grid-column:1/-1;text-align:left}.rehearsal-final-actions{grid-template-columns:1fr}.finish-rehearsal{width:100%}.finish-status{text-align:left}}
+    @media(max-width:520px){#repertoire-panel .work-fields{grid-template-columns:1fr 1fr}#repertoire-panel .work-type{grid-column:1/-1}#repertoire-panel .work-fields textarea{grid-column:1/-1}}
   `;
   document.head.append(style);
 
@@ -68,7 +90,7 @@
   }
 
   const apiMain = (accion, extra = {}) => post('/api/ensaios', { accion, ...extra });
-  const apiDraft = (accion, extra = {}) => post('/api/ensaios-borrador', { accion, idEnsaio:currentRehearsalId, ...extra });
+  const apiDraft = (accion, extra = {}, idEnsaio = currentRehearsalId) => post('/api/ensaios-borrador', { accion, idEnsaio, ...extra });
 
   function toDate(value) {
     const text = String(value || '').trim();
@@ -127,22 +149,22 @@
     const rows = [...(draft.repertorio || [])].sort((a,b) => Number(a.orde || 999) - Number(b.orde || 999));
     const summary = document.querySelector('#repertoire-summary');
     if (summary) summary.textContent = `${rows.length} obras`;
-    list.innerHTML = rows.length ? rows.map((row) => {
+    list.dataset.draftRehearsal = currentRehearsalId;
+    list.innerHTML = rows.length ? rows.map((row, index) => {
       const id = workId(row);
       const work = workById(id) || {};
       const title = work.nomeObra || work.nome || 'Obra sen identificar';
       const targetId = String(work.idRepertorio || work.id || id);
-      return `<article class="work-row" data-work-id="${esc(id)}">
+      return `<article class="work-row" data-draft-card="true" data-work-id="${esc(id)}">
+        <span class="work-bullet" aria-hidden="true">${index + 1}</span>
         <div class="work-main"><a class="work-link" href="/portal/repertorio/?id=${encodeURIComponent(targetId)}"><strong>${esc(title)}</strong>${work.compositor ? `<small>${esc(work.compositor)}</small>` : ''}</a></div>
         <div class="work-fields">
-          <select class="work-type"><option value="">Tipo de traballo</option>${['Lectura','Montaxe','Repaso','Perfeccionamento','Interpretación completa'].map((value) => `<option ${row.tipoTraballo === value ? 'selected' : ''}>${value}</option>`).join('')}</select>
-          <input class="work-from" placeholder="Desde" value="${esc(row.desde || '')}"/>
-          <input class="work-to" placeholder="Ata" value="${esc(row.ata || '')}"/>
-          <input class="work-notes" placeholder="Observacións" value="${esc(row.observacions || '')}"/>
-          <button class="save-work" type="button">Gardar</button>
-          <button class="remove-work" type="button">Eliminar</button>
-          <span class="save-status"></span>
+          <select class="work-type" aria-label="Tipo de traballo"><option value="">Tipo de traballo</option>${['Lectura','Montaxe','Repaso','Perfeccionamento','Interpretación completa'].map((value) => `<option ${row.tipoTraballo === value ? 'selected' : ''}>${value}</option>`).join('')}</select>
+          <input class="work-from" aria-label="Desde" placeholder="Desde" value="${esc(row.desde || '')}"/>
+          <input class="work-to" aria-label="Ata" placeholder="Ata" value="${esc(row.ata || '')}"/>
+          <textarea class="work-notes" rows="2" aria-label="Observacións" placeholder="Observacións">${esc(row.observacions || '')}</textarea>
         </div>
+        <div class="work-actions"><button class="save-work" type="button">Gardar</button><button class="remove-work" type="button">Eliminar</button><span class="save-status" aria-live="polite"></span></div>
       </article>`;
     }).join('') : '<p class="empty-state">Aínda non se rexistraron obras neste ensaio.</p>';
     renderWorkSearch();
@@ -170,7 +192,7 @@
       let total = 0;
       const sections = ['Soprano','Contralto','Tenor','Baixo'].map((name) => {
         const present = people.filter((person) => norm(person.voz) === norm(name) && norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste')
-          .sort((a,b) => personName(a).localeCompare(personName(b), 'gl', { sensitivity:'base' }));
+          .sort(sortPeopleBySurname);
         total += present.length;
         const label = name === 'Baixo' ? 'Baixos' : `${name}s`;
         return `<section class="attendance-group"><header><h3>${esc(label)}</h3><strong>${present.length}</strong></header>${present.length ? `<div class="attendee-names">${present.map((person) => `<span>${esc(personName(person))}</span>`).join('')}</div>` : '<p class="helper group-empty">Sen asistentes rexistrados.</p>'}</section>`;
@@ -181,7 +203,7 @@
       return;
     }
 
-    const filtered = people.filter((person) => norm(person.voz) === norm(voice)).sort((a,b) => personName(a).localeCompare(personName(b), 'gl', { sensitivity:'base' }));
+    const filtered = people.filter((person) => norm(person.voz) === norm(voice)).sort(sortPeopleBySurname);
     const present = filtered.filter((person) => norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia) === 'asiste').length;
     const decided = filtered.filter((person) => ['asiste','non asiste'].includes(norm(map.get(String(person.idPersoa || person.id || ''))?.estadoAsistencia))).length;
     if (title) title.textContent = voice === 'Baixo' ? 'Baixos' : `${voice}s`;
@@ -199,7 +221,7 @@
     if (!(panel instanceof HTMLElement) || panel.querySelector('#finish-rehearsal')) return;
     const box = document.createElement('div');
     box.className = 'rehearsal-final-actions';
-    box.innerHTML = '<span id="finish-rehearsal-status" class="finish-status" aria-live="polite"></span><button id="finish-rehearsal" class="finish-rehearsal" type="button">Finalizar ensaio</button>';
+    box.innerHTML = '<p class="rehearsal-draft-note">Os cambios gárdanse durante o ensaio nun borrador privado persistente de R2. Ao finalizar consolídanse nas Sheets e mantense o índice actualizado.</p><button id="finish-rehearsal" class="finish-rehearsal" type="button">Finalizar ensaio</button><span id="finish-rehearsal-status" class="finish-status" aria-live="polite"></span>';
     panel.append(box);
   }
 
@@ -210,19 +232,21 @@
   }
 
   async function loadDraft(id = currentRehearsalId) {
-    if (!id || loadingDraft) return;
-    loadingDraft = true;
-    currentRehearsalId = id;
+    const requestedId = String(id || '').trim();
+    if (!requestedId) return;
+    const seq = ++draftLoadSeq;
+    currentRehearsalId = requestedId;
     const message = document.querySelector('#repertoire-message');
+    if (message) message.textContent = 'Cargando borrador…';
     try {
-      const result = await apiDraft('obter');
+      const result = await apiDraft('obter', {}, requestedId);
+      if (seq !== draftLoadSeq || currentRehearsalId !== requestedId) return;
       draft = result.draft;
       renderDraft();
-      if (message && /cargando/i.test(message.textContent || '')) message.textContent = '';
+      if (message) message.textContent = '';
     } catch (error) {
+      if (seq !== draftLoadSeq || currentRehearsalId !== requestedId) return;
       if (message) message.textContent = `⚠ ${error instanceof Error ? error.message : 'Non foi posible recuperar o ensaio.'}`;
-    } finally {
-      loadingDraft = false;
     }
   }
 
@@ -271,15 +295,28 @@
       const message = document.querySelector('#repertoire-message');
       const id = select instanceof HTMLSelectElement ? select.value : '';
       if (!id || !draft) { if (message) message.textContent = 'Escolle primeiro unha obra.'; return; }
+      const rehearsalAtClick = currentRehearsalId;
       const previous = structuredClone(draft);
       if (!(draft.repertorio || []).some((row) => workId(row) === id)) {
-        draft.repertorio.push({ ensaio:currentRehearsalId, repertorio:id, orde:draft.repertorio.length + 1, tipoTraballo:'', desde:'', ata:'', observacions:'' });
+        draft.repertorio.push({ ensaio:rehearsalAtClick, repertorio:id, orde:draft.repertorio.length + 1, tipoTraballo:'', desde:'', ata:'', observacions:'' });
       }
       renderRepertoire();
-      if (message) message.textContent = 'Gardando…';
-      apiDraft('gardarObra', { idRepertorio:id, orde:draft.repertorio.length, tipoTraballo:'', desde:'', ata:'', observacions:'' })
-        .then((result) => { draft = result.draft; renderRepertoire(); if (message) message.textContent = '✓ Obra gardada.'; })
-        .catch((error) => { draft = previous; renderRepertoire(); if (message) message.textContent = `⚠ ${error.message}`; });
+      if (select instanceof HTMLSelectElement) select.value = '';
+      if (message) message.textContent = 'Gardando borrador…';
+      apiDraft('gardarObra', { idRepertorio:id, orde:draft.repertorio.length, tipoTraballo:'', desde:'', ata:'', observacions:'' }, rehearsalAtClick)
+        .then((result) => {
+          if (currentRehearsalId !== rehearsalAtClick) return;
+          draft = result.draft;
+          renderRepertoire();
+          requestAnimationFrame(renderRepertoire);
+          if (message) message.textContent = '✓ Obra gardada no borrador.';
+        })
+        .catch((error) => {
+          if (currentRehearsalId !== rehearsalAtClick) return;
+          draft = previous;
+          renderRepertoire();
+          if (message) message.textContent = `⚠ ${error.message}`;
+        });
       return;
     }
 
@@ -292,13 +329,24 @@
       const message = document.querySelector('#repertoire-message');
       if (!id || !draft) return;
       if (!window.confirm('Eliminar esta obra do ensaio? A obra seguirá existindo en Repertorio.')) return;
+      const rehearsalAtClick = currentRehearsalId;
       const previous = structuredClone(draft);
       draft.repertorio = draft.repertorio.filter((item) => workId(item) !== id);
       renderRepertoire();
-      if (message) message.textContent = 'Gardando…';
-      apiDraft('eliminarObra', { idRepertorio:id })
-        .then((result) => { draft = result.draft; renderRepertoire(); if (message) message.textContent = '✓ Obra eliminada.'; })
-        .catch((error) => { draft = previous; renderRepertoire(); if (message) message.textContent = `⚠ ${error.message}`; });
+      if (message) message.textContent = 'Gardando borrador…';
+      apiDraft('eliminarObra', { idRepertorio:id }, rehearsalAtClick)
+        .then((result) => {
+          if (currentRehearsalId !== rehearsalAtClick) return;
+          draft = result.draft;
+          renderRepertoire();
+          if (message) message.textContent = '✓ Obra eliminada do borrador.';
+        })
+        .catch((error) => {
+          if (currentRehearsalId !== rehearsalAtClick) return;
+          draft = previous;
+          renderRepertoire();
+          if (message) message.textContent = `⚠ ${error.message}`;
+        });
       return;
     }
 
@@ -310,6 +358,7 @@
       const id = row?.getAttribute('data-work-id') || '';
       const status = row?.querySelector('.save-status');
       if (!row || !id || !draft) return;
+      const rehearsalAtClick = currentRehearsalId;
       const values = {
         idRepertorio:id,
         tipoTraballo:row.querySelector('.work-type')?.value || '',
@@ -320,8 +369,15 @@
       const item = draft.repertorio.find((entry) => workId(entry) === id);
       if (item) Object.assign(item, values);
       if (status) status.textContent = 'Gardando…';
-      apiDraft('gardarObra', values)
-        .then((result) => { draft = result.draft; if (status) status.textContent = '✓ Gardado'; })
+      apiDraft('gardarObra', values, rehearsalAtClick)
+        .then((result) => {
+          if (currentRehearsalId !== rehearsalAtClick) return;
+          draft = result.draft;
+          renderRepertoire();
+          const freshRow = document.querySelector(`#repertoire-list .work-row[data-work-id="${CSS.escape(id)}"]`);
+          const freshStatus = freshRow?.querySelector('.save-status');
+          if (freshStatus) freshStatus.textContent = '✓ Gardado';
+        })
         .catch((error) => { if (status) status.textContent = `⚠ ${error.message}`; });
       return;
     }
@@ -333,14 +389,24 @@
       const row = stateButton.closest('.person-row');
       const idPersoa = row?.getAttribute('data-person') || '';
       if (!row || !idPersoa || !draft) return;
+      const rehearsalAtClick = currentRehearsalId;
       const previous = structuredClone(draft);
       const map = new Map(draft.asistencias.map((item) => [personId(item), item]));
-      map.set(idPersoa, { ensaio:currentRehearsalId, persoa:idPersoa, estadoAsistencia:stateButton.getAttribute('data-state') || '', xustificada:false, motivo:'', observacions:'' });
+      map.set(idPersoa, { ensaio:rehearsalAtClick, persoa:idPersoa, estadoAsistencia:stateButton.getAttribute('data-state') || '', xustificada:false, motivo:'', observacions:'' });
       draft.asistencias = [...map.values()];
       renderAttendance();
-      apiDraft('gardarAsistencia', { idPersoa, estadoAsistencia:stateButton.getAttribute('data-state') || '', xustificada:false })
-        .then((result) => { draft = result.draft; renderAttendance(); })
-        .catch((error) => { draft = previous; renderAttendance(); window.alert(error.message); });
+      apiDraft('gardarAsistencia', { idPersoa, estadoAsistencia:stateButton.getAttribute('data-state') || '', xustificada:false }, rehearsalAtClick)
+        .then((result) => {
+          if (currentRehearsalId !== rehearsalAtClick) return;
+          draft = result.draft;
+          renderAttendance();
+        })
+        .catch((error) => {
+          if (currentRehearsalId !== rehearsalAtClick) return;
+          draft = previous;
+          renderAttendance();
+          window.alert(error.message);
+        });
       return;
     }
 
@@ -350,11 +416,13 @@
       event.stopImmediatePropagation();
       if (!(finish instanceof HTMLButtonElement) || !draft || !currentRehearsalId) return;
       if (!window.confirm('Finalizar o ensaio e gardar estes datos definitivamente nas Sheets?')) return;
+      const rehearsalAtClick = currentRehearsalId;
       const status = document.querySelector('#finish-rehearsal-status');
       finish.disabled = true;
       if (status) status.textContent = 'Gardando nas Sheets…';
-      apiDraft('finalizar')
+      apiDraft('finalizar', {}, rehearsalAtClick)
         .then(async (result) => {
+          if (currentRehearsalId !== rehearsalAtClick) return;
           draft = result.draft;
           renderDraft();
           if (status) status.textContent = '✓ Ensaio gardado definitivamente.';
@@ -376,6 +444,7 @@
     const concertId = select instanceof HTMLSelectElement ? select.value : '';
     const concert = (basePayload?.concertos || []).find((item) => String(item.id || '') === concertId);
     if (!concert) { if (message) message.textContent = 'Escolle primeiro un concerto.'; return; }
+    const rehearsalAtSubmit = currentRehearsalId;
     const existing = new Set(draft.repertorio.map(workId));
     const resolveId = (item) => {
       const direct = String(item?.idRepertorio || '').trim();
@@ -393,11 +462,12 @@
     const ids = [...new Set((concert.programa || []).map(resolveId).filter((id) => id && !existing.has(id)))];
     if (!ids.length) { if (message) message.textContent = 'Non hai obras novas dese programa para incluír.'; return; }
     const previous = structuredClone(draft);
-    ids.forEach((id) => draft.repertorio.push({ ensaio:currentRehearsalId, repertorio:id, orde:draft.repertorio.length + 1, tipoTraballo:'', desde:'', ata:'', observacions:'' }));
+    ids.forEach((id) => draft.repertorio.push({ ensaio:rehearsalAtSubmit, repertorio:id, orde:draft.repertorio.length + 1, tipoTraballo:'', desde:'', ata:'', observacions:'' }));
     renderRepertoire();
     if (message) message.textContent = `Gardando ${ids.length} obras…`;
-    apiDraft('incluírPrograma', { idsRepertorio:ids })
+    apiDraft('incluírPrograma', { idsRepertorio:ids }, rehearsalAtSubmit)
       .then((result) => {
+        if (currentRehearsalId !== rehearsalAtSubmit) return;
         draft = result.draft;
         renderRepertoire();
         const mainMessage = document.querySelector('#repertoire-message');
@@ -405,12 +475,22 @@
         const dialog = document.querySelector('#program-dialog');
         if (dialog instanceof HTMLDialogElement) dialog.close();
       })
-      .catch((error) => { draft = previous; renderRepertoire(); if (message) message.textContent = `⚠ ${error.message}`; });
+      .catch((error) => {
+        if (currentRehearsalId !== rehearsalAtSubmit) return;
+        draft = previous;
+        renderRepertoire();
+        if (message) message.textContent = `⚠ ${error.message}`;
+      });
   }, true);
 
   const observer = new MutationObserver(() => {
     installFinishButton();
-    if (draft && !document.querySelector('#repertoire-list .remove-work') && (draft.repertorio || []).length) renderRepertoire();
+    if (!draft) return;
+    const list = document.querySelector('#repertoire-list');
+    if (!(list instanceof HTMLElement)) return;
+    const draftRendered = list.dataset.draftRehearsal === currentRehearsalId
+      && (draft.repertorio.length === 0 || Boolean(list.querySelector('[data-draft-card="true"]')));
+    if (!draftRendered) renderRepertoire();
   });
   observer.observe(document.documentElement, { childList:true, subtree:true });
 
