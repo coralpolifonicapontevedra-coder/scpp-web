@@ -14,6 +14,7 @@ const ruta = Astro.url.pathname;
 const rutaNormalizada = ruta.replace(/\/$/, '') || '/';
 const esPortada = rutaNormalizada === '/es';
 const esAgenda = rutaNormalizada === '/es/agenda';
+const esActualidad = rutaNormalizada === '/es/actualidad';
 
 const equivalencias = {
   '/es': '/',
@@ -73,6 +74,7 @@ const alternaEs = new URL(ruta, Astro.url.origin).toString();
 
     <SpanishFooter />
     {esAgenda && <script is:inline src="/js/poster-thumbnails.js" defer></script>}
+    {esActualidad && <script is:inline src="/js/actualidad-contenido-es.js" defer></script>}
   </body>
 </html>
 
