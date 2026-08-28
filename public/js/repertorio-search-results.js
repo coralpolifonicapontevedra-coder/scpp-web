@@ -215,8 +215,10 @@
 
 (() => {
   if (!window.location.pathname.startsWith('/portal/ensaios')) return;
+  if (document.querySelector('script[data-ensaios-obras]')) return;
   const script = document.createElement('script');
-  script.src = '/js/ensaios-obras.js';
+  script.src = '/js/ensaios-obras.js?v=20260828-3';
   script.defer = true;
+  script.dataset.ensaiosObras = 'true';
   document.head.append(script);
 })();
