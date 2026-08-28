@@ -67,6 +67,34 @@ async function comprobarAdministracion(env, user) {
   return administracion;
 }
 
+async function comprobarEnsaiosAdministracion(env, user) {
+  const cacheada = cachePermisos.get(user.email);
+  if (cacheada?.expira > Date.now() && typeof cacheada.ensaiosAdministracion === 'boolean') {
+    return cacheada.ensaiosAdministracion;
+  }
+
+  let permitido = false;
+  try {
+    const { resultado } = await obterJsonAppsScript(env, {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'listarEnsaiosAdministracionPortal',
+      email: user.email,
+      uidFirebase: user.uid
+    }, { timeoutMs: 20_000, attemptTimeoutMs: 8_000 });
+    permitido = resultado?.ok === true;
+  } catch (error) {
+    console.error('Erro ao comprobar permisos de Administración de Ensaios:', error);
+  }
+
+  cachePermisos.set(user.email, {
+    ...(cacheada || {}),
+    ensaiosAdministracion: permitido,
+    expira: Date.now() + CACHE_PERMISOS_MS
+  });
+  limparCache();
+  return permitido;
+}
+
 async function comprobarXunta(env, user) {
   const cacheada = cachePermisos.get(user.email);
   if (cacheada?.expira > Date.now() && typeof cacheada.xunta === 'boolean') {
@@ -99,7 +127,10 @@ function requireAdministracion(pathname, accion) {
   if (pathname === '/api/partituras') {
     return accion === 'altaPartituraPortal' || accion === 'eliminarPartituraPortal';
   }
+  return false;
+}
 
+function requireEnsaiosAdministracion(pathname, accion) {
   if (pathname === '/api/ensaios') {
     return accion === 'gardarEnsaio'
       || accion === 'gardarEnsaioRepertorio'
@@ -145,8 +176,9 @@ export async function onRequest(context) {
 
   const accion = String(body?.accion || '').trim();
   const precisaAdministracion = requireAdministracion(pathname, accion);
+  const precisaEnsaiosAdministracion = requireEnsaiosAdministracion(pathname, accion);
   const precisaXunta = requireXunta(pathname, accion);
-  if (!precisaAdministracion && !precisaXunta) return context.next();
+  if (!precisaAdministracion && !precisaEnsaiosAdministracion && !precisaXunta) return context.next();
 
   if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN) {
     return json(500, { ok: false, erro: 'O servizo de permisos non está configurado correctamente.' });
@@ -167,15 +199,24 @@ export async function onRequest(context) {
       return json(403, {
         ok: false,
         codigo: 'ADMIN_REQUIRED',
-        erro: pathname === '/api/partituras'
-          ? 'Só a administración pode dar de alta ou eliminar partituras.'
-          : 'Só a administración pode modificar a planificación ou o repertorio dos ensaios.'
+        erro: 'Só a administración pode dar de alta ou eliminar partituras.'
+      });
+    }
+  }
+
+  if (precisaEnsaiosAdministracion) {
+    const permitido = await comprobarEnsaiosAdministracion(env, user);
+    if (!permitido) {
+      return json(403, {
+        ok: false,
+        codigo: 'ENSAIOS_ADMIN_REQUIRED',
+        erro: 'Non tes permisos para modificar a planificación ou o repertorio dos ensaios.'
       });
     }
   }
 
   if (precisaXunta) {
-    const permitido = await comprobarAdministracion(env, user) || await comprobarXunta(env, user);
+    const permitido = await comprobarEnsaiosAdministracion(env, user) || await comprobarXunta(env, user);
     if (!permitido) {
       return json(403, {
         ok: false,
