@@ -215,10 +215,20 @@
 
 (() => {
   if (!window.location.pathname.startsWith('/portal/ensaios')) return;
-  if (document.querySelector('script[data-ensaios-obras]')) return;
-  const script = document.createElement('script');
-  script.src = '/js/ensaios-obras.js?v=20260828-3';
-  script.defer = true;
-  script.dataset.ensaiosObras = 'true';
-  document.head.append(script);
+
+  const loadScript = (src, marker) => {
+    if (document.querySelector(`script[${marker}]`)) return;
+    const script = document.createElement('script');
+    script.src = src;
+    script.defer = true;
+    script.setAttribute(marker, 'true');
+    document.head.append(script);
+  };
+
+  loadScript('/js/ensaios-obras.js?v=20260828-3', 'data-ensaios-obras');
+
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
+  if (path === '/portal/ensaios/estudo') {
+    loadScript('/js/ensaios-estudo-ui.js?v=20260828-1', 'data-ensaios-estudo-ui');
+  }
 })();
