@@ -15,7 +15,8 @@
     "test": "vitest run",
     "preview": "astro preview",
     "astro": "astro",
-    "prepare:apps-script-preview": "node scripts/prepare-apps-script-preview.mjs && node scripts/prepare-fotos-admin-v2-preview.mjs",
+    "prepare:apps-script-preview": "node scripts/prepare-apps-script-preview.mjs && node scripts/prepare-persoas-admin-preview.mjs && node scripts/prepare-fotos-admin-v2-preview.mjs",
+    "prepare:apps-script-preview:persoas": "node scripts/prepare-persoas-admin-preview.mjs",
     "prepare:apps-script-preview:fotos": "node scripts/prepare-fotos-admin-v2-preview.mjs"
   },
   "dependencies": {

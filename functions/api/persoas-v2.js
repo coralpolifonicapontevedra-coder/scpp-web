@@ -6,6 +6,16 @@ const CACHE_TOKEN_MS = 10 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8000;
 const TIMEOUT_APPS_SCRIPT_MS = 15000;
 
+const ACCIONS_LECTURA = new Set([
+  'listarPersoasAdministracion',
+  'obterFichaPersoaAdministracion'
+]);
+const ACCIONS_ESCRITURA = new Set([
+  'crearPersoaAdministracion',
+  'actualizarPersoaAdministracion',
+  'cambiarEstadoPersoaAdministracion'
+]);
+
 const cacheTokens = new Map();
 const cacheMemoria = new Map();
 
@@ -32,9 +42,7 @@ async function fetchConLimite(url, options, timeoutMs) {
 function limparMap(cache, maximo = 30) {
   const agora = Date.now();
   for (const [clave, entrada] of cache.entries()) {
-    if (!entrada || agora - Number(entrada.savedAt || 0) > CACHE_RESPALDO_MS) {
-      cache.delete(clave);
-    }
+    if (!entrada || agora - Number(entrada.savedAt || 0) > CACHE_RESPALDO_MS) cache.delete(clave);
   }
   while (cache.size > maximo) cache.delete(cache.keys().next().value);
 }
@@ -65,11 +73,7 @@ async function verificarFirebase(idToken, apiKey) {
     email: String(user.email).trim().toLowerCase()
   };
 
-  cacheTokens.set(token, {
-    usuario,
-    expira: Date.now() + CACHE_TOKEN_MS,
-    savedAt: Date.now()
-  });
+  cacheTokens.set(token, { usuario, expira: Date.now() + CACHE_TOKEN_MS, savedAt: Date.now() });
   limparMap(cacheTokens, 100);
   return usuario;
 }
@@ -121,7 +125,7 @@ async function chamarAppsScriptPrincipal(env, body) {
 function cacheRequest(request, email) {
   const url = new URL(request.url);
   url.pathname = '/api/_cache/persoas-v2';
-  url.search = `administrador=${encodeURIComponent(email)}&version=2`;
+  url.search = `administrador=${encodeURIComponent(email)}&version=3`;
   return new Request(url.toString(), { method: 'GET' });
 }
 
@@ -180,12 +184,7 @@ async function identificadorCache(valor) {
 }
 
 async function gardarCacheR2(env, email, payload) {
-  if (
-    !payload?.ok ||
-    !Array.isArray(payload.persoas) ||
-    !env.R2_PRIVADO ||
-    typeof env.R2_PRIVADO.put !== 'function'
-  ) {
+  if (!payload?.ok || !Array.isArray(payload.persoas) || !env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') {
     return;
   }
 
@@ -196,22 +195,12 @@ async function gardarCacheR2(env, email, payload) {
       env.R2_PRIVADO.put(
         `${ADMIN_R2_PREFIX}${id}.json`,
         JSON.stringify({ savedAt, administrador: email, payload }),
-        {
-          httpMetadata: {
-            contentType: 'application/json; charset=utf-8',
-            cacheControl: 'private, no-store'
-          }
-        }
+        { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } }
       ),
       env.R2_PRIVADO.put(
         PERFIS_R2_KEY,
         JSON.stringify({ savedAt, persoas: payload.persoas }),
-        {
-          httpMetadata: {
-            contentType: 'application/json; charset=utf-8',
-            cacheControl: 'private, no-store'
-          }
-        }
+        { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } }
       )
     ]);
   } catch (error) {
@@ -233,9 +222,7 @@ async function lerCacheR2(env, email) {
       entrada.payload.perfil?.nivel !== 'Administración' ||
       !Array.isArray(entrada.payload.persoas) ||
       Date.now() - Number(entrada.savedAt || 0) > CACHE_RESPALDO_MS
-    ) {
-      return null;
-    }
+    ) return null;
     return entrada;
   } catch (error) {
     console.warn('Non se puido ler o respaldo de Persoas v2 desde R2:', error);
@@ -243,32 +230,26 @@ async function lerCacheR2(env, email) {
   }
 }
 
-function corpoAppsScript(env, user, action, idPersoa = '') {
+function corpoAppsScript(env, user, action, extra = {}) {
   return {
     token: env.WEB_WRITE_TOKEN,
     accion: action,
     email: user.email,
     uidFirebase: user.uid,
-    idPersoa,
-    id: idPersoa
+    ...extra
   };
 }
 
 async function consultarListado(env, user) {
-  const result = await chamarAppsScriptPrincipal(
-    env,
-    corpoAppsScript(env, user, 'listarPersoasAdministracion')
-  );
-
+  const result = await chamarAppsScriptPrincipal(env, corpoAppsScript(env, user, 'listarPersoasAdministracion'));
   if (!result?.ok) {
     const error = new Error(result?.erro || 'Apps Script non completou a operación.');
     error.code = result?.erro === 'Usuario non autorizado' ? 'FORBIDDEN' : 'APPS_SCRIPT_RESULT';
     throw error;
   }
-
   return {
     ok: true,
-    version: 'persoas-v2',
+    version: 'persoas-v3',
     perfil: result.perfil,
     persoas: Array.isArray(result.persoas) ? result.persoas : []
   };
@@ -294,68 +275,35 @@ function claveR2Valida(value) {
 
 function fichaDesdeCache(cacheada, idPersoa) {
   const payload = cacheada?.payload;
-  if (payload?.perfil?.nivel !== 'Administración' || !Array.isArray(payload.persoas)) {
-    return null;
-  }
+  if (payload?.perfil?.nivel !== 'Administración' || !Array.isArray(payload.persoas)) return null;
 
   const referencia = String(idPersoa || '').trim();
-  const persoa = payload.persoas.find((item) => [
-    item?.idPersoa,
-    item?.id,
-    item?.rowId
-  ].some((value) => String(value || '').trim() === referencia));
+  const persoa = payload.persoas.find((item) => [item?.idPersoa, item?.id, item?.rowId]
+    .some((value) => String(value || '').trim() === referencia));
 
-  if (
-    !persoa ||
-    persoa.fichaDisponibleR2 !== true ||
-    String(persoa.fichaR2Estado || '').trim() !== 'SINCRONIZADO'
-  ) {
+  if (!persoa || persoa.fichaDisponibleR2 !== true || String(persoa.fichaR2Estado || '').trim() !== 'SINCRONIZADO') {
     return null;
   }
 
   const r2Key = claveR2Valida(persoa.fichaR2Key);
   if (!r2Key) return null;
-
-  return {
-    ok: true,
-    idPersoa: String(persoa.idPersoa || persoa.id || ''),
-    r2Key,
-    nomeFicheiro: r2Key.split('/').pop() || 'ficha.pdf'
-  };
+  return { ok: true, idPersoa: String(persoa.idPersoa || persoa.id || ''), r2Key, nomeFicheiro: r2Key.split('/').pop() || 'ficha.pdf' };
 }
 
 async function servirFicha(env, result, duracionAppsScript, autorizacion = 'APPS_SCRIPT') {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') {
-    return json(503, {
-      ok: false,
-      etapa: 'R2_BINDING',
-      erro: 'R2_PRIVADO non está dispoñible nesta implementación.'
-    });
+    return json(503, { ok: false, etapa: 'R2_BINDING', erro: 'R2_PRIVADO non está dispoñible nesta implementación.' });
   }
 
   const key = claveR2Valida(result?.r2Key);
-  if (!key) {
-    return json(400, {
-      ok: false,
-      etapa: 'R2_KEY',
-      erro: 'A clave R2 devolta por Apps Script non é válida.'
-    });
-  }
+  if (!key) return json(400, { ok: false, etapa: 'R2_KEY', erro: 'A clave R2 devolta por Apps Script non é válida.' });
 
   const inicioR2 = Date.now();
   const object = await env.R2_PRIVADO.get(key);
   const duracionR2 = Date.now() - inicioR2;
+  if (!object) return json(404, { ok: false, etapa: 'R2_OBJECT', erro: `Non se atopou o obxecto ${key} en R2.` });
 
-  if (!object) {
-    return json(404, {
-      ok: false,
-      etapa: 'R2_OBJECT',
-      erro: `Non se atopou o obxecto ${key} en R2.`
-    });
-  }
-
-  const name = String(result?.nomeFicheiro || key.split('/').pop() || 'ficha.pdf')
-    .replace(/[\r\n"]/g, '');
+  const name = String(result?.nomeFicheiro || key.split('/').pop() || 'ficha.pdf').replace(/[\r\n"]/g, '');
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set('Content-Type', headers.get('Content-Type') || 'application/pdf');
@@ -363,31 +311,90 @@ async function servirFicha(env, result, duracionAppsScript, autorizacion = 'APPS
   headers.set('Cache-Control', 'private, max-age=3600');
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('X-SCPP-Storage', 'R2');
-  headers.set('X-SCPP-Persoas-Version', 'v2');
+  headers.set('X-SCPP-Persoas-Version', 'v3');
   headers.set('X-SCPP-Authorization', autorizacion);
-  const autorizacionTiming = autorizacion === 'CACHE'
-    ? 'authorization-cache;dur=0'
-    : `apps-script;dur=${duracionAppsScript}`;
+  const autorizacionTiming = autorizacion === 'CACHE' ? 'authorization-cache;dur=0' : `apps-script;dur=${duracionAppsScript}`;
   headers.set('Server-Timing', `${autorizacionTiming}, r2;dur=${duracionR2}`);
   if (object.httpEtag) headers.set('ETag', object.httpEtag);
   return new Response(object.body, { status: 200, headers });
+}
+
+function respostaErroAppsScript(error, timeout) {
+  return {
+    ok: false,
+    etapa: 'APPS_SCRIPT',
+    codigo: error?.code || (timeout ? 'TIMEOUT' : 'UNAVAILABLE'),
+    erro: timeout
+      ? 'A implementación principal de Apps Script tardou demasiado en responder.'
+      : (error instanceof Error ? error.message : 'Fallou Apps Script.')
+  };
+}
+
+async function executarEscritura(context, user, action, data, duracionFirebase, inicioTotal) {
+  const extra = {};
+  if (data.persoa && typeof data.persoa === 'object') extra.persoa = data.persoa;
+  if (data.datos && typeof data.datos === 'object') extra.datos = data.datos;
+  if (data.idPersoa || data.id || data.rowId) {
+    extra.idPersoa = String(data.idPersoa || data.id || data.rowId).trim();
+    extra.id = extra.idPersoa;
+    extra.rowId = String(data.rowId || '').trim();
+  }
+  if (typeof data.activo === 'boolean') extra.activo = data.activo;
+
+  const inicioAppsScript = Date.now();
+  let result;
+  try {
+    result = await chamarAppsScriptPrincipal(context.env, corpoAppsScript(context.env, user, action, extra));
+  } catch (error) {
+    const timeout = error instanceof Error && error.name === 'AbortError';
+    return json(timeout ? 504 : 503, respostaErroAppsScript(error, timeout));
+  }
+  const duracionAppsScript = Date.now() - inicioAppsScript;
+
+  if (!result?.ok) {
+    const forbidden = result?.erro === 'Usuario non autorizado';
+    return json(forbidden ? 403 : 400, {
+      ok: false,
+      etapa: forbidden ? 'PERMISOS' : 'APPS_SCRIPT_RESULT',
+      erro: result?.erro || 'Apps Script non completou a operación.'
+    });
+  }
+
+  let payload = null;
+  try {
+    payload = await consultarListado(context.env, user);
+    await Promise.all([
+      gardarCache(context.request, user.email, payload),
+      gardarCacheR2(context.env, user.email, payload)
+    ]);
+  } catch (error) {
+    console.warn('A escritura completouse pero non se puido rexenerar a cache de Persoas:', error);
+  }
+
+  return json(200, {
+    ...result,
+    version: 'persoas-v3',
+    perfil: payload?.perfil,
+    persoas: payload?.persoas,
+    cacheActualizada: Boolean(payload)
+  }, {
+    'X-SCPP-Persoas-Version': 'v3',
+    'X-SCPP-Write': 'OK',
+    'Server-Timing': `firebase;dur=${duracionFirebase}, apps-script;dur=${duracionAppsScript}, total;dur=${Date.now() - inicioTotal}`
+  });
 }
 
 export async function onRequest(context) {
   const { request, env } = context;
   const inicioTotal = Date.now();
 
-  if (request.method !== 'POST') {
-    return json(405, { ok: false, etapa: 'REQUEST', erro: 'Método non permitido.' });
-  }
+  if (request.method !== 'POST') return json(405, { ok: false, etapa: 'REQUEST', erro: 'Método non permitido.' });
   if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN) {
     return json(500, { ok: false, etapa: 'CONFIG', erro: 'Faltan variables obrigatorias do servizo.' });
   }
 
   let data;
-  try {
-    data = await request.json();
-  } catch {
+  try { data = await request.json(); } catch {
     return json(400, { ok: false, etapa: 'REQUEST', erro: 'Solicitude JSON non válida.' });
   }
 
@@ -396,21 +403,18 @@ export async function onRequest(context) {
   try {
     user = await verificarFirebase(data.idToken, env.FIREBASE_API_KEY);
   } catch (error) {
-    return json(503, {
-      ok: false,
-      etapa: 'FIREBASE',
-      erro: error instanceof Error ? error.message : 'Fallou Firebase.'
-    });
+    return json(503, { ok: false, etapa: 'FIREBASE', erro: error instanceof Error ? error.message : 'Fallou Firebase.' });
   }
   const duracionFirebase = Date.now() - inicioFirebase;
-
-  if (!user) {
-    return json(401, { ok: false, etapa: 'AUTH', erro: 'A identificación non é válida ou caducou.' });
-  }
+  if (!user) return json(401, { ok: false, etapa: 'AUTH', erro: 'A identificación non é válida ou caducou.' });
 
   const action = String(data.accion || 'listarPersoasAdministracion').trim();
-  if (!['listarPersoasAdministracion', 'obterFichaPersoaAdministracion'].includes(action)) {
+  if (!ACCIONS_LECTURA.has(action) && !ACCIONS_ESCRITURA.has(action)) {
     return json(400, { ok: false, etapa: 'ACTION', erro: 'Acción non permitida.' });
+  }
+
+  if (ACCIONS_ESCRITURA.has(action)) {
+    return executarEscritura(context, user, action, data, duracionFirebase, inicioTotal);
   }
 
   if (action === 'listarPersoasAdministracion') {
@@ -419,14 +423,12 @@ export async function onRequest(context) {
       const idade = Date.now() - cacheada.savedAt;
       if (typeof context.waitUntil === 'function') {
         const tarefas = [gardarCacheR2(env, user.email, cacheada.payload)];
-        if (idade >= CACHE_FRESCA_MS) {
-          tarefas.push(actualizarCache(context, user));
-        }
+        if (idade >= CACHE_FRESCA_MS) tarefas.push(actualizarCache(context, user));
         context.waitUntil(Promise.all(tarefas));
       }
 
       return json(200, cacheada.payload, {
-        'X-SCPP-Persoas-Version': 'v2',
+        'X-SCPP-Persoas-Version': 'v3',
         'X-SCPP-Cache': idade < CACHE_FRESCA_MS ? 'HIT' : 'STALE-WHILE-REVALIDATE',
         'X-SCPP-Data-Age': String(Math.max(0, Math.floor(idade / 1000))),
         'Server-Timing': `firebase;dur=${duracionFirebase}, total;dur=${Date.now() - inicioTotal}`
@@ -436,11 +438,9 @@ export async function onRequest(context) {
     const respaldoR2 = await lerCacheR2(env, user.email);
     if (respaldoR2?.payload?.persoas) {
       await gardarCache(request, user.email, respaldoR2.payload);
-      if (typeof context.waitUntil === 'function') {
-        context.waitUntil(actualizarCache(context, user));
-      }
+      if (typeof context.waitUntil === 'function') context.waitUntil(actualizarCache(context, user));
       return json(200, respaldoR2.payload, {
-        'X-SCPP-Persoas-Version': 'v2',
+        'X-SCPP-Persoas-Version': 'v3',
         'X-SCPP-Cache': 'R2',
         'X-SCPP-Data-Age': String(Math.max(0, Math.floor((Date.now() - respaldoR2.savedAt) / 1000))),
         'Server-Timing': `firebase;dur=${duracionFirebase}, r2;dur=0, total;dur=${Date.now() - inicioTotal}`
@@ -455,9 +455,8 @@ export async function onRequest(context) {
         gardarCache(request, user.email, payload),
         gardarCacheR2(env, user.email, payload)
       ]);
-
       return json(200, payload, {
-        'X-SCPP-Persoas-Version': 'v2',
+        'X-SCPP-Persoas-Version': 'v3',
         'X-SCPP-Cache': 'MISS',
         'Server-Timing': `firebase;dur=${duracionFirebase}, apps-script;dur=${duracionAppsScript}, total;dur=${Date.now() - inicioTotal}`
       });
@@ -465,7 +464,7 @@ export async function onRequest(context) {
       const cacheEmerxencia = await lerCache(request, user.email);
       if (cacheEmerxencia?.payload?.persoas) {
         return json(200, cacheEmerxencia.payload, {
-          'X-SCPP-Persoas-Version': 'v2',
+          'X-SCPP-Persoas-Version': 'v3',
           'X-SCPP-Cache': 'EMERGENCY',
           'X-SCPP-Warning': 'apps-script-unavailable',
           'Server-Timing': `firebase;dur=${duracionFirebase}, total;dur=${Date.now() - inicioTotal}`
@@ -486,36 +485,22 @@ export async function onRequest(context) {
   }
 
   const idPersoa = String(data.idPersoa || data.id || '').trim();
-  if (!idPersoa) {
-    return json(400, { ok: false, etapa: 'REQUEST', erro: 'Non se indicou a persoa.' });
-  }
+  if (!idPersoa) return json(400, { ok: false, etapa: 'REQUEST', erro: 'Non se indicou a persoa.' });
 
-  // O listado xa foi autorizado para este administrador e inclúe a clave R2.
-  // Servimos directamente desde R2; se non hai cache válida mantemos Apps Script
-  // como respaldo para non romper accesos directos nin datos aínda non cacheados.
   const cacheada = await lerCache(request, user.email) || await lerCacheR2(env, user.email);
   const fichaCacheada = fichaDesdeCache(cacheada, idPersoa);
-  if (fichaCacheada) {
-    return servirFicha(env, fichaCacheada, 0, 'CACHE');
-  }
+  if (fichaCacheada) return servirFicha(env, fichaCacheada, 0, 'CACHE');
 
   const inicioAppsScript = Date.now();
   let result;
   try {
     result = await chamarAppsScriptPrincipal(
       env,
-      corpoAppsScript(env, user, action, idPersoa)
+      corpoAppsScript(env, user, action, { idPersoa, id: idPersoa })
     );
   } catch (error) {
     const timeout = error instanceof Error && error.name === 'AbortError';
-    return json(timeout ? 504 : 503, {
-      ok: false,
-      etapa: 'APPS_SCRIPT',
-      codigo: error?.code || (timeout ? 'TIMEOUT' : 'UNAVAILABLE'),
-      erro: timeout
-        ? 'A implementación principal de Apps Script tardou demasiado en responder.'
-        : (error instanceof Error ? error.message : 'Fallou Apps Script.')
-    });
+    return json(timeout ? 504 : 503, respostaErroAppsScript(error, timeout));
   }
   const duracionAppsScript = Date.now() - inicioAppsScript;
 
