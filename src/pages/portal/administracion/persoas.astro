@@ -95,10 +95,10 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   const personKey=(item)=>String(item?.idPersoa||item?.id||item?.rowId||'').trim();
 
   function classifyPerson(item){
-    const tipo=normalise(item?.tipoSocio), cargo=normalise(item?.cargo), voz=normalise(item?.voz);
-    if(cargo.includes('directora')||cargo.includes('director musical')||tipo.includes('directora')) return 'director';
-    if(tipo==='colaborador/a'||tipo==='colaborador' || tipo==='colaboradora') return 'collaborator';
-    if(tipo.includes('cantor')||['soprano','contralto','alto','tenor','baixo','bajo','baritono'].some(v=>voz.includes(v))) return 'singer';
+    const tipo=normalise(item?.tipoSocio);
+    if(tipo==='director/a + directiva'||tipo==='director/a+directiva') return 'director';
+    if(tipo==='colaborador/a'||tipo==='colaborador'||tipo==='colaboradora') return 'collaborator';
+    if(tipo==='cantor/a'||tipo==='cantor'||tipo==='cantora') return 'singer';
     return 'other';
   }
   function relationLabel(item){const t=classifyPerson(item); return t==='director'?'Directora / dirección':t==='collaborator'?'Colaborador/a':t==='singer'?'Cantor/a':'Outra vinculación';}
