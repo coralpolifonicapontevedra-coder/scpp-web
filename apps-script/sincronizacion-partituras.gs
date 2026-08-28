@@ -112,31 +112,37 @@ function gardarSincronizacionPartiturasPortal_(datos) {
   if (!isFinite(segundo) || segundo < 0) return { ok: false, codigo: 'VALIDATION', erro: 'O segundo non é válido' };
   if (!isFinite(orde) || orde < 1) return { ok: false, codigo: 'VALIDATION', erro: 'A orde debe ser maior ou igual a 1' };
 
-  var table = lerMarcasSincronizacion_();
-  var headers = table.headers;
-  var required = ['Id_Sincronizacion','Id_Repertorio','Id_Audio','Voz','Pagina','Segundo','Orde','Observacions','Activo'];
-  required.forEach(function(nome) { if (indiceSincronizacion_(headers, nome) < 0) throw new Error('Falta a columna '+nome+' en SincronizacionPartituras'); });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var table = lerMarcasSincronizacion_();
+    var headers = table.headers;
+    var required = ['Id_Sincronizacion','Id_Repertorio','Id_Audio','Voz','Pagina','Segundo','Orde','Observacions','Activo'];
+    required.forEach(function(nome) { if (indiceSincronizacion_(headers, nome) < 0) throw new Error('Falta a columna '+nome+' en SincronizacionPartituras'); });
 
-  var existente = table.rows.find(function(row) { return textoSincronizacion_(row.Id_Sincronizacion) === idSincronizacion; });
-  var rowValues = new Array(headers.length).fill('');
-  var valores = {
-    Id_Sincronizacion: idSincronizacion,
-    Id_Repertorio: idRepertorio,
-    Id_Audio: idAudio,
-    Voz: voz,
-    Pagina: Math.trunc(pagina),
-    Segundo: Math.round(segundo * 100) / 100,
-    Orde: Math.trunc(orde),
-    Observacions: observacions,
-    Activo: datos && datos.activo === false ? false : true
-  };
-  Object.keys(valores).forEach(function(nome) { rowValues[indiceSincronizacion_(headers, nome)] = valores[nome]; });
+    var existente = table.rows.find(function(row) { return textoSincronizacion_(row.Id_Sincronizacion) === idSincronizacion; });
+    var rowValues = new Array(headers.length).fill('');
+    var valores = {
+      Id_Sincronizacion: idSincronizacion,
+      Id_Repertorio: idRepertorio,
+      Id_Audio: idAudio,
+      Voz: voz,
+      Pagina: Math.trunc(pagina),
+      Segundo: Math.round(segundo * 100) / 100,
+      Orde: Math.trunc(orde),
+      Observacions: observacions,
+      Activo: datos && datos.activo === false ? false : true
+    };
+    Object.keys(valores).forEach(function(nome) { rowValues[indiceSincronizacion_(headers, nome)] = valores[nome]; });
 
-  if (existente) table.sheet.getRange(existente.__row, 1, 1, headers.length).setValues([rowValues]);
-  else table.sheet.appendRow(rowValues);
-  SpreadsheetApp.flush();
+    if (existente) table.sheet.getRange(existente.__row, 1, 1, headers.length).setValues([rowValues]);
+    else table.sheet.appendRow(rowValues);
+    SpreadsheetApp.flush();
 
-  return { ok: true, marca: serializarMarcaSincronizacion_(valores), actualizadoPor: email };
+    return { ok: true, marca: serializarMarcaSincronizacion_(valores), actualizadoPor: email };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function eliminarSincronizacionPartiturasPortal_(datos) {
@@ -145,10 +151,17 @@ function eliminarSincronizacionPartiturasPortal_(datos) {
   if (!permiso.escritura) return { ok: false, codigo: 'FORBIDDEN', erro: 'Usuario non autorizado para administrar sincronizacións' };
   var id = textoSincronizacion_(datos && datos.idSincronizacion);
   if (!id) return { ok: false, codigo: 'VALIDATION', erro: 'Falta o identificador da marca' };
-  var table = lerMarcasSincronizacion_();
-  var row = table.rows.find(function(item) { return textoSincronizacion_(item.Id_Sincronizacion) === id; });
-  if (!row) return { ok: false, codigo: 'NOT_FOUND', erro: 'Non se atopou a marca indicada' };
-  table.sheet.deleteRow(row.__row);
-  SpreadsheetApp.flush();
-  return { ok: true, idSincronizacion: id, eliminadoPor: email };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var table = lerMarcasSincronizacion_();
+    var row = table.rows.find(function(item) { return textoSincronizacion_(item.Id_Sincronizacion) === id; });
+    if (!row) return { ok: false, codigo: 'NOT_FOUND', erro: 'Non se atopou a marca indicada' };
+    table.sheet.deleteRow(row.__row);
+    SpreadsheetApp.flush();
+    return { ok: true, idSincronizacion: id, eliminadoPor: email };
+  } finally {
+    lock.releaseLock();
+  }
 }
