@@ -233,7 +233,7 @@ export async function onRequest({ request, env }) {
     }
 
     if (accion === 'obterObras') {
-      const [base, concertos] = await Promise.all([obterBase(env, user), obterConcertos(env, user)]);
+      const [base, concertos] = await Promise.all([obterBase(env, user), obterConcertos(env, user, true)]);
       const obraData = prepararObras(base.payload, idEnsaio);
       return json(200, {
         ok: true,
@@ -242,7 +242,8 @@ export async function onRequest({ request, env }) {
           idConcerto: clean(c.idConcerto),
           data: clean(c.data),
           nome: clean(c.nome) || 'Concerto',
-          repertorio: Array.isArray(c.repertorio) ? c.repertorio : []
+          repertorio: Array.isArray(c.repertorio) ? c.repertorio : [],
+          obras: Number(c.obras || (Array.isArray(c.repertorio) ? c.repertorio.length : 0))
         })).filter((c) => c.idConcerto),
         fonte: `${base.fonte}/${concertos.fonte}`
       });
@@ -287,13 +288,18 @@ export async function onRequest({ request, env }) {
     if (accion === 'importarPrograma') {
       const idConcerto = clean(body.idConcerto);
       if (!idConcerto) return json(400, { ok: false, erro: 'Selecciona un concerto.' });
-      const { payload: concertos } = await obterConcertos(env, user);
-      const concerto = concertos.find((c) => clean(c.idConcerto) === idConcerto);
-      if (!concerto) return json(404, { ok: false, erro: 'Non se atopou o concerto seleccionado.' });
-      const programa = Array.isArray(concerto.repertorio) ? concerto.repertorio : [];
+
+      // A importación non confía na caché do selector. Pide sempre a xestión
+      // real do concerto, que é a mesma fonte que usa Administración → Concertos.
+      const xestionConcerto = await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto });
+      const programa = Array.isArray(xestionConcerto.programa) ? xestionConcerto.programa : [];
+      if (!programa.length) {
+        return json(409, { ok: false, erro: 'O concerto seleccionado non ten obras no programa.' });
+      }
+
       let engadidas = 0;
       for (const obra of programa) {
-        const idRepertorio = clean(obra.idRepertorio || obra.obraId);
+        const idRepertorio = clean(obra.obraId || obra.idRepertorio || obra.id);
         if (!idRepertorio) continue;
         await chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', {
           idEnsaio,
@@ -304,7 +310,8 @@ export async function onRequest({ request, env }) {
         engadidas += 1;
       }
       await invalidarLista(env);
-      return json(200, { ok: true, engadidas, concerto: clean(concerto.nome) });
+      await obterConcertos(env, user, true).catch(() => {});
+      return json(200, { ok: true, engadidas, concerto: clean(xestionConcerto.nome || idConcerto) });
     }
 
     return json(400, { ok: false, erro: 'Acción non permitida.' });
