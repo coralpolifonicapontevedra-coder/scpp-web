@@ -9,8 +9,7 @@ O módulo administrativo anterior entrou nun bucle de autorización ao combinar 
 ## Principio de deseño
 
 - Non se toca produción.
-- Non se substitúe aínda a ruta antiga de Ensaios.
-- A nova versión convive en paralelo ata superar as probas.
+- A nova versión convive en preview ata superar as probas.
 - A autorización administrativa usa o patrón de Concertos: Firebase + `persoas/cache/administracion/` en R2.
 - Unha vez acreditada Administración, Cloudflare non volve reinterpretar `perfil.podeEditar`.
 - Apps Script segue sendo responsable das operacións reais sobre as Sheets.
@@ -142,13 +141,19 @@ Accións actuais:
 
 Usa a mesma autorización administrativa e o mesmo paquete base cacheado para calcular os resultados por rango de datas e os filtros opcionais de voz, persoa, tipo de ensaio e concerto.
 
-## Ruta de proba
+## Rutas de preview
+
+Ruta administrativa activa:
 
 `/portal/administracion/ensaios-v2/`
 
-A ruta antiga `/portal/administracion/ensaios/` non se substitúe ata superar as probas.
+Ruta de análise:
 
-## Criterio para substituír o módulo antigo
+`/portal/administracion/ensaios-analise-v2/`
+
+A partir do 28/08/2026, en **preview**, o enlace `Administración → Ensaios` apunta directamente á v2. A ruta antiga `/portal/administracion/ensaios/` queda como redirección á v2 para evitar que se abra accidentalmente o módulo retirado. Isto non implica aínda ningún cambio en produción.
+
+## Criterio para substituír o módulo antigo en produción
 
 A v2 debe superar, sen erros intermedios:
 
@@ -166,4 +171,4 @@ A v2 debe superar, sen erros intermedios:
 12. abrir a Análise e combinar data, corda, coralista, tipo e concerto;
 13. funcionar correctamente en escritorio e móbil.
 
-Só despois se cambiará a ruta oficial de Administración → Ensaios e se retirará a versión antiga.
+Só despois se levará esta versión á ruta oficial de produción e se retirará a versión antiga nese entorno.
