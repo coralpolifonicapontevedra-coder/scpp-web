@@ -25,13 +25,19 @@
       .actualidade a,
       .actualidade a:visited,
       .actualidade a:hover,
-      .actualidade a:focus-visible {
+      .actualidade a:focus-visible,
+      .actualidade .ligazon-principal,
+      .actualidade .publicacion-pe a,
+      .actualidade .publicacion h3 a,
+      .actualidade #destacada-titulo-ligazon {
         color: #1f1f1f !important;
       }
       #publicacion-destacada h2 {
-        font-size: clamp(1.35rem, 2.4vw, 2rem) !important;
-        letter-spacing: -0.02em !important;
-        line-height: 1.16 !important;
+        font-size: clamp(1.7rem, 3vw, 2.45rem) !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.03em !important;
+        line-height: 1.12 !important;
+        max-width: 500px !important;
       }
       .actualidade-prensa-links {
         display: flex;
@@ -72,6 +78,7 @@
     titleLink.textContent = isEs ? TITULO_ES : TITULO_GL;
     titleLink.removeAttribute('href');
     titleLink.style.cursor = 'default';
+    titleLink.style.color = '#1f1f1f';
     medium.textContent = 'Faro de Vigo · PontevedraViva';
     oldLink?.remove();
 
@@ -88,6 +95,7 @@
       a.href = href;
       a.target = '_blank';
       a.rel = 'noopener';
+      a.style.color = '#1f1f1f';
       a.append(document.createTextNode(`${label} `));
       const arrow = document.createElement('span');
       arrow.setAttribute('aria-hidden', 'true');
