@@ -233,10 +233,8 @@ async function actualizarSharedObras(env, user, idEnsaio, idsRepertorio) {
   await gardarSharedPayload(env, user, entry.payload);
 }
 
-async function executarEnLotes(items, worker, size = 6) {
-  for (let i = 0; i < items.length; i += size) {
-    await Promise.all(items.slice(i, i + size).map(worker));
-  }
+async function executarSecuencial(items, worker) {
+  for (const item of items) await worker(item);
 }
 
 export async function onRequest({ request, env }) {
@@ -257,8 +255,14 @@ export async function onRequest({ request, env }) {
 
   try {
     if (accion === 'obterXestion') {
-      const { payload, fonte } = await obterBase(env, user);
-      return json(200, { ok: true, persoas: prepararPersoas(payload, idEnsaio), fonte }, { 'X-SCPP-Storage': fonte });
+      const [{ payload, fonte }, concertos] = await Promise.all([obterBase(env, user), lerConcertosPrivados(env)]);
+      return json(200, {
+        ok: true,
+        persoas: prepararPersoas(payload, idEnsaio),
+        ...prepararObras(payload, idEnsaio),
+        concertos: prepararConcertos(concertos),
+        fonte: `${fonte}/R2-CONCERTOS`
+      }, { 'X-SCPP-Storage': fonte });
     }
 
     if (accion === 'obterObras') {
@@ -269,7 +273,7 @@ export async function onRequest({ request, env }) {
     if (accion === 'gardarAsistencias') {
       const persoas = Array.isArray(body.persoas) ? body.persoas.slice(0, 100) : [];
       const validas = persoas.filter((p) => clean(p.id) && ['asiste', 'non_asiste', 'xustificada'].includes(clean(p.estado)));
-      await executarEnLotes(validas, (p) => chamarAppsScript(env, user, 'gardarAsistenciaEnsaioPortal', {
+      await executarSecuencial(validas, (p) => chamarAppsScript(env, user, 'gardarAsistenciaEnsaioPortal', {
         idEnsaio,
         idPersoa: clean(p.id),
         estadoAsistencia: clean(p.estado) === 'asiste' ? 'Asiste' : 'Non asiste',
@@ -299,7 +303,6 @@ export async function onRequest({ request, env }) {
       const concerto = concertos.find((c) => clean(c.id || c.idConcerto) === idConcerto);
       let programa = Array.isArray(concerto?.programa) ? concerto.programa : Array.isArray(concerto?.repertorio) ? concerto.repertorio : [];
 
-      // Só se o índice compartido de Concertos non ten programa, úsase Apps Script como respaldo.
       if (!programa.length) {
         const xestionConcerto = await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto });
         programa = Array.isArray(xestionConcerto.programa) ? xestionConcerto.programa : [];
@@ -307,7 +310,7 @@ export async function onRequest({ request, env }) {
       if (!programa.length) return json(409, { ok: false, erro: 'O concerto seleccionado non ten obras no programa.' });
 
       const ids = [...new Set(programa.map((obra) => clean(obra.obraId || obra.idRepertorio || obra.id)).filter(Boolean))];
-      await executarEnLotes(ids, (idRepertorio) => chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', { idEnsaio, idRepertorio }));
+      await executarSecuencial(ids, (idRepertorio) => chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', { idEnsaio, idRepertorio }));
       await actualizarSharedObras(env, user, idEnsaio, ids);
       return json(200, { ok: true, engadidas: ids.length, concerto: clean(concerto?.nome || idConcerto), almacen: 'SHEET+R2' });
     }
