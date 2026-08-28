@@ -149,35 +149,45 @@ async function gardarDraft(env, draft) {
   return value;
 }
 
-async function lerPayloadPrincipalR2(env, user) {
+async function lerEntradaPrincipalR2(env, user) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
   try {
     const object = await env.R2_PRIVADO.get(await mainCacheKey(user.email));
     if (!object) return null;
     const entry = await object.json();
     if (entry?.email !== user.email || entry?.payload?.ok !== true || entry?.payload?.version !== 2) return null;
-    return entry.payload;
+    return entry;
   } catch (error) {
-    console.warn('Non se puido inicializar o borrador desde o índice principal de R2:', error);
+    console.warn('Non se puido ler o índice principal de R2:', error);
     return null;
   }
+}
+
+async function lerPayloadPrincipalR2(env, user) {
+  return (await lerEntradaPrincipalR2(env, user))?.payload || null;
+}
+
+async function gardarPayloadPrincipalR2(env, user, payload) {
+  const key = await mainCacheKey(user.email);
+  await env.R2_PRIVADO.put(key, JSON.stringify({ savedAt:Date.now(), email:user.email, payload }), {
+    httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' }
+  });
 }
 
 async function obterOuCrearDraft(env, user, idEnsaio) {
   const existing = await lerDraft(env, idEnsaio);
   if (existing) return existing;
-
-  // O borrador inicialízase exclusivamente desde o índice principal de R2.
-  // Non se consulta a Sheet ao abrir ou traballar nun ensaio.
-  const payloadR2 = await lerPayloadPrincipalR2(env, user);
-  const initial = draftDesdePayload(payloadR2 || {}, idEnsaio);
-  return await gardarDraft(env, initial);
+  return reiniciarDraft(env, user, idEnsaio);
 }
 
-async function executarEnLotes(items, worker, size = 6) {
-  for (let i = 0; i < items.length; i += size) {
-    await Promise.all(items.slice(i, i + size).map(worker));
-  }
+async function reiniciarDraft(env, user, idEnsaio) {
+  const payloadR2 = await lerPayloadPrincipalR2(env, user);
+  if (!payloadR2) throw Object.assign(new Error('Non hai un índice R2 de Ensaios dispoñible para iniciar a edición.'), { code:'R2_SEED_MISSING' });
+  return gardarDraft(env, draftDesdePayload(payloadR2, idEnsaio));
+}
+
+async function executarSecuencial(items, worker) {
+  for (const item of items) await worker(item);
 }
 
 function obraIgual(a, b) {
@@ -196,10 +206,28 @@ function asistenciaIgual(a, b) {
     && aa.observacions === bb.observacions;
 }
 
+async function actualizarIndicePrincipalTrasFinalizar(env, user, fresh) {
+  const entry = await lerEntradaPrincipalR2(env, user);
+  const previo = entry?.payload || {};
+  const payload = {
+    ...previo,
+    ok:true,
+    version:2,
+    perfil:fresh.perfil || previo.perfil || {},
+    ensaios:Array.isArray(fresh.ensaios) ? fresh.ensaios : (previo.ensaios || []),
+    persoas:Array.isArray(fresh.persoas) ? fresh.persoas : (previo.persoas || []),
+    asistencias:Array.isArray(fresh.asistencias) ? fresh.asistencias : [],
+    ensaiosRepertorio:Array.isArray(fresh.ensaiosRepertorio) ? fresh.ensaiosRepertorio : [],
+    repertorio:Array.isArray(fresh.repertorio) ? fresh.repertorio : (previo.repertorio || []),
+    seguimento:fresh.seguimento || previo.seguimento || {},
+    xeradoEn:new Date().toISOString()
+  };
+  await gardarPayloadPrincipalR2(env, user, payload);
+  return payload;
+}
+
 async function finalizar(env, user, idEnsaio) {
   const draft = await obterOuCrearDraft(env, user, idEnsaio);
-
-  // A Sheet só se consulta aquí: ao finalizar, para consolidar o resultado definitivo.
   const sheet = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
   const obrasSheet = (Array.isArray(sheet.ensaiosRepertorio) ? sheet.ensaiosRepertorio : []).filter((row) => idEnsaioDe(row) === idEnsaio);
   const asistSheet = (Array.isArray(sheet.asistencias) ? sheet.asistencias : []).filter((row) => idEnsaioDe(row) === idEnsaio);
@@ -217,8 +245,8 @@ async function finalizar(env, user, idEnsaio) {
     return !current || !asistenciaIgual(current, row);
   });
 
-  await executarEnLotes(eliminar, (idRepertorio) => chamarAppsScript(env, user, 'eliminarEnsaioRepertorioPortal', { idEnsaio, idRepertorio }));
-  await executarEnLotes(gardarObras, (row) => chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', {
+  await executarSecuencial(eliminar, (idRepertorio) => chamarAppsScript(env, user, 'eliminarEnsaioRepertorioPortal', { idEnsaio, idRepertorio }));
+  await executarSecuencial(gardarObras, (row) => chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', {
     idEnsaio,
     idRepertorio:idRepertorioDe(row),
     tipoTraballo:clean(row.tipoTraballo),
@@ -226,7 +254,7 @@ async function finalizar(env, user, idEnsaio) {
     ata:clean(row.ata),
     observacions:clean(row.observacions)
   }));
-  await executarEnLotes(gardarAsistencias, (row) => chamarAppsScript(env, user, 'gardarAsistenciaEnsaioPortal', {
+  await executarSecuencial(gardarAsistencias, (row) => chamarAppsScript(env, user, 'gardarAsistenciaEnsaioPortal', {
     idEnsaio,
     idPersoa:idPersoaDe(row),
     estadoAsistencia:clean(row.estadoAsistencia),
@@ -236,6 +264,7 @@ async function finalizar(env, user, idEnsaio) {
   }));
 
   const fresh = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
+  await actualizarIndicePrincipalTrasFinalizar(env, user, fresh);
   const synced = await gardarDraft(env, draftDesdePayload(fresh, idEnsaio));
   return {
     draft:synced,
@@ -264,6 +293,11 @@ export async function onRequest({ request, env }) {
   if (!idEnsaio) return erro(400, 'INVALID_DATA', 'Falta identificar o ensaio.');
 
   try {
+    if (accion === 'reiniciar') {
+      const draft = await reiniciarDraft(env, user, idEnsaio);
+      return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+    }
+
     let draft = await obterOuCrearDraft(env, user, idEnsaio);
 
     if (accion === 'obter') return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
@@ -282,6 +316,27 @@ export async function onRequest({ request, env }) {
       map.set(idPersoa, row);
       draft = await gardarDraft(env, { ...draft, asistencias:[...map.values()] });
       return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+    }
+
+    if (accion === 'gardarAsistencias') {
+      const persoas = Array.isArray(body.persoas) ? body.persoas.slice(0, 120) : [];
+      const map = new Map(draft.asistencias.map((item) => [idPersoaDe(item), item]));
+      let gardadas = 0;
+      for (const p of persoas) {
+        const idPersoa = clean(p.id || p.idPersoa);
+        const estado = clean(p.estado);
+        if (!idPersoa || !['asiste','non_asiste','xustificada'].includes(estado)) continue;
+        map.set(idPersoa, normalizarAsistencia({
+          persoa:idPersoa,
+          estadoAsistencia:estado === 'asiste' ? 'Asiste' : 'Non asiste',
+          xustificada:estado === 'xustificada',
+          motivo:estado === 'xustificada' ? clean(p.xustificacion) : '',
+          observacions:estado === 'xustificada' ? clean(p.xustificacion) : ''
+        }, idEnsaio));
+        gardadas += 1;
+      }
+      draft = await gardarDraft(env, { ...draft, asistencias:[...map.values()] });
+      return json(200, { ok:true, draft, gardadas, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
     if (accion === 'gardarObra') {
