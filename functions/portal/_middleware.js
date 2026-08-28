@@ -30,6 +30,8 @@ const ADMIN_PHOTOS_EDITOR_SCRIPT = [
   '<script src="/js/admin-fotografias-filtros.js?v=20260825-1" defer></script>'
 ].join('');
 
+const ADMIN_ENSAIOS_COMPAT_SCRIPT = '<script src="/js/ensaios-admin-cache-compat.js?v=20260828-1"></script>';
+
 class PortalHeadRewriter {
   constructor(extra = '') { this.extra = extra; }
   element(element) {
@@ -46,6 +48,9 @@ export async function onRequest(context) {
   let extra = '';
   if (pathname === '/portal/administracion/fotografias') {
     extra += ADMIN_PHOTOS_EDITOR_SCRIPT;
+  }
+  if (pathname === '/portal/administracion/ensaios') {
+    extra += ADMIN_ENSAIOS_COMPAT_SCRIPT;
   }
 
   return new HTMLRewriter()
