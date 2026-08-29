@@ -15,7 +15,7 @@ import BaseLayout from '../layouts/Layout.astro';
         <p id="error-message"></p>
       </section>
 
-      <form id="review-form" hidden>
+      <form id="review-form" hidden autocomplete="off">
         <section class="locked-card">
           <strong id="person-name">—</strong>
           <p id="person-internal"></p>
@@ -25,31 +25,31 @@ import BaseLayout from '../layouts/Layout.astro';
         <fieldset>
           <legend>Identificación</legend>
           <div class="form-grid">
-            <label><span>Nome *</span><input id="f-nome" required /></label>
-            <label><span>Primeiro apelido *</span><input id="f-primeiro" required /></label>
-            <label><span>Segundo apelido</span><input id="f-segundo" /></label>
-            <label><span>NIF</span><input id="f-nif" autocomplete="off" /></label>
-            <label><span>Data de nacemento</span><input id="f-nacemento" type="date" /></label>
+            <label><span>Nome *</span><input id="f-nome" name="scpp-review-nome" autocomplete="off" required /></label>
+            <label><span>Primeiro apelido *</span><input id="f-primeiro" name="scpp-review-primeiro" autocomplete="off" required /></label>
+            <label><span>Segundo apelido</span><input id="f-segundo" name="scpp-review-segundo" autocomplete="off" /></label>
+            <label><span>NIF</span><input id="f-nif" name="scpp-review-nif" autocomplete="off" /></label>
+            <label><span>Data de nacemento</span><input id="f-nacemento" name="scpp-review-nacemento" type="date" autocomplete="off" /></label>
           </div>
         </fieldset>
 
         <fieldset>
           <legend>Contacto e domicilio</legend>
           <div class="form-grid">
-            <label><span>Teléfono</span><input id="f-telefono" type="tel" /></label>
-            <label><span>Correo electrónico</span><input id="f-correo" type="email" /></label>
-            <label class="wide"><span>Enderezo</span><input id="f-enderezo" /></label>
-            <label><span>Cidade</span><input id="f-cidade" /></label>
-            <label><span>Código postal</span><input id="f-cp" inputmode="numeric" maxlength="5" /></label>
-            <label><span>Preferencia de comunicación</span><input id="f-comunicacion" /></label>
+            <label><span>Teléfono</span><input id="f-telefono" name="scpp-review-telefono" type="tel" autocomplete="off" /></label>
+            <label><span>Correo electrónico</span><input id="f-correo" name="scpp-review-correo" type="email" autocomplete="off" /></label>
+            <label class="wide"><span>Enderezo</span><input id="f-enderezo" name="scpp-review-enderezo" autocomplete="off" /></label>
+            <label><span>Cidade</span><input id="f-cidade" name="scpp-review-cidade" autocomplete="off" /></label>
+            <label><span>Código postal</span><input id="f-cp" name="scpp-review-cp" inputmode="numeric" maxlength="5" autocomplete="off" /></label>
+            <label><span>Preferencia de comunicación</span><input id="f-comunicacion" name="scpp-review-comunicacion" autocomplete="off" /></label>
           </div>
         </fieldset>
 
         <fieldset>
           <legend>Contacto de emerxencia</legend>
           <div class="form-grid">
-            <label class="wide"><span>Persoa de contacto</span><input id="f-emerxencia" /></label>
-            <label><span>Teléfono de emerxencia</span><input id="f-telefono-emerxencia" type="tel" /></label>
+            <label class="wide"><span>Persoa de contacto</span><input id="f-emerxencia" name="scpp-review-emerxencia" autocomplete="off" /></label>
+            <label><span>Teléfono de emerxencia</span><input id="f-telefono-emerxencia" name="scpp-review-telefono-emerxencia" type="tel" autocomplete="off" /></label>
           </div>
         </fieldset>
 
@@ -58,13 +58,13 @@ import BaseLayout from '../layouts/Layout.astro';
           <div class="form-grid">
             <label>
               <span>Consentimento de fotografía</span>
-              <select id="f-consentimento">
+              <select id="f-consentimento" name="scpp-review-consentimento" autocomplete="off">
                 <option value="">Sen indicar</option>
                 <option value="Si">Si</option>
                 <option value="Non">Non</option>
               </select>
             </label>
-            <label class="check-line"><input id="f-aniversario" type="checkbox" /><span>Permitir mostrar o aniversario cando corresponda</span></label>
+            <label class="check-line"><input id="f-aniversario" name="scpp-review-aniversario" type="checkbox" autocomplete="off" /><span>Permitir mostrar o aniversario cando corresponda</span></label>
           </div>
           <p class="privacy-note">O consentimento para fotografías é independente da aceptación do tratamento dos datos da ficha.</p>
         </fieldset>
@@ -76,6 +76,13 @@ import BaseLayout from '../layouts/Layout.astro';
             <p id="legal-version"></p>
           </header>
           <div id="legal-text" class="legal-text"></div>
+        </section>
+
+        <section id="changes-card" class="changes-card" hidden aria-live="polite">
+          <h2>Revisa os cambios antes de gardar</h2>
+          <p>Detectáronse modificacións respecto dos datos que constaban ao abrir esta ficha. Comproba especialmente que o navegador non substituíse automaticamente ningún dato.</p>
+          <ul id="changes-list"></ul>
+          <strong>Se todo é correcto, pulsa de novo o botón de confirmación.</strong>
         </section>
 
         <div class="confirmation-box">
@@ -114,7 +121,11 @@ import BaseLayout from '../layouts/Layout.astro';
   const legalTitle=document.querySelector('#legal-title');
   const legalVersion=document.querySelector('#legal-version');
   const legalText=document.querySelector('#legal-text');
+  const changesCard=document.querySelector('#changes-card');
+  const changesList=document.querySelector('#changes-list');
   const token=new URLSearchParams(location.search).get('token')||'';
+  let originalData=null;
+  let pendingSignature='';
 
   const q=(s)=>document.querySelector(s);
   const set=(id,value)=>{const n=q(id);if(n instanceof HTMLInputElement||n instanceof HTMLSelectElement)n.value=String(value??'');};
@@ -136,6 +147,8 @@ import BaseLayout from '../layouts/Layout.astro';
     if(personInternal instanceof HTMLElement) personInternal.textContent=[p.voz,p.tipoSocio,p.cargo,p.dataIncorporacion].filter(Boolean).join(' · ');
     set('#f-nome',p.nome);set('#f-primeiro',p.primeiroApelido);set('#f-segundo',p.segundoApelido);set('#f-nif',p.nif);set('#f-nacemento',inputDate(p.dataNacemento));set('#f-telefono',p.telefono);set('#f-correo',p.correo);set('#f-enderezo',p.enderezo);set('#f-cidade',p.cidade);set('#f-cp',p.cp);set('#f-comunicacion',p.preferenciaComunicacion);set('#f-emerxencia',p.contactoEmerxencia);set('#f-telefono-emerxencia',p.telefonoEmerxencia);set('#f-consentimento',p.consentimentoFoto);
     const aniversario=q('#f-aniversario');if(aniversario instanceof HTMLInputElement)aniversario.checked=p.mostrarAniversario===true;
+    originalData=collect();
+    resetChangeConfirmation();
   }
 
   function fillLegal(legal){
@@ -148,7 +161,38 @@ import BaseLayout from '../layouts/Layout.astro';
   function value(id){const n=q(id);return n instanceof HTMLInputElement||n instanceof HTMLSelectElement?n.value.trim():'';}
   function collect(){const aniversario=q('#f-aniversario');return{nome:value('#f-nome'),primeiroApelido:value('#f-primeiro'),segundoApelido:value('#f-segundo'),nif:value('#f-nif'),dataNacemento:value('#f-nacemento'),telefono:value('#f-telefono'),correo:value('#f-correo'),enderezo:value('#f-enderezo'),cidade:value('#f-cidade'),cp:value('#f-cp'),preferenciaComunicacion:value('#f-comunicacion'),contactoEmerxencia:value('#f-emerxencia'),telefonoEmerxencia:value('#f-telefono-emerxencia'),consentimentoFoto:value('#f-consentimento'),mostrarAniversario:aniversario instanceof HTMLInputElement&&aniversario.checked};}
 
+  const fieldMeta={
+    nome:['Nome','#f-nome'],primeiroApelido:['Primeiro apelido','#f-primeiro'],segundoApelido:['Segundo apelido','#f-segundo'],nif:['NIF','#f-nif'],dataNacemento:['Data de nacemento','#f-nacemento'],telefono:['Teléfono','#f-telefono'],correo:['Correo electrónico','#f-correo'],enderezo:['Enderezo','#f-enderezo'],cidade:['Cidade','#f-cidade'],cp:['Código postal','#f-cp'],preferenciaComunicacion:['Preferencia de comunicación','#f-comunicacion'],contactoEmerxencia:['Contacto de emerxencia','#f-emerxencia'],telefonoEmerxencia:['Teléfono de emerxencia','#f-telefono-emerxencia'],consentimentoFoto:['Consentimento de fotografía','#f-consentimento'],mostrarAniversario:['Mostrar aniversario','#f-aniversario']
+  };
+
+  function printable(value){if(typeof value==='boolean')return value?'Si':'Non';const text=String(value??'').trim();return text||'(baleiro)';}
+  function changesFor(current){
+    if(!originalData)return[];
+    return Object.keys(fieldMeta).flatMap((key)=>{
+      const before=originalData[key];const after=current[key];
+      return String(before)===String(after)?[]:[{key,label:fieldMeta[key][0],selector:fieldMeta[key][1],before,after}];
+    });
+  }
+  function clearChangedMarks(){document.querySelectorAll('.review-changed').forEach((node)=>node.classList.remove('review-changed'));}
+  function resetChangeConfirmation(){pendingSignature='';if(changesCard instanceof HTMLElement)changesCard.hidden=true;if(changesList instanceof HTMLElement)changesList.replaceChildren();clearChangedMarks();if(saveButton instanceof HTMLButtonElement&&!saveButton.disabled)saveButton.textContent='Confirmar datos e aceptación';}
+  function showChanges(changes){
+    if(!(changesCard instanceof HTMLElement)||!(changesList instanceof HTMLElement))return;
+    changesList.replaceChildren();clearChangedMarks();
+    for(const change of changes){
+      const li=document.createElement('li');
+      const strong=document.createElement('strong');strong.textContent=change.label;
+      const text=document.createElement('span');text.textContent=`${printable(change.before)} → ${printable(change.after)}`;
+      li.append(strong,text);changesList.append(li);
+      const field=q(change.selector);if(field instanceof HTMLElement)field.classList.add('review-changed');
+    }
+    changesCard.hidden=false;
+    changesCard.scrollIntoView({behavior:'smooth',block:'center'});
+  }
+
   async function load(){if(!token){showError(new Error('A ligazón de revisión non é válida.'));return;}try{const data=await request('GET');fill(data.persoa||{});fillLegal(data.textoLegal);if(loading instanceof HTMLElement)loading.hidden=true;if(form instanceof HTMLFormElement)form.hidden=false;}catch(error){showError(error);}}
+
+  form?.addEventListener('input',(event)=>{const target=event.target;if(target instanceof HTMLElement&&target.id.startsWith('f-'))resetChangeConfirmation();});
+  form?.addEventListener('change',(event)=>{const target=event.target;if(target instanceof HTMLElement&&target.id.startsWith('f-'))resetChangeConfirmation();});
 
   form?.addEventListener('submit',async(event)=>{
     event.preventDefault();
@@ -158,12 +202,24 @@ import BaseLayout from '../layouts/Layout.astro';
     const confirmaDatos=confirmCheck instanceof HTMLInputElement&&confirmCheck.checked;
     const aceptaLegal=legalCheck instanceof HTMLInputElement&&legalCheck.checked;
     if(!confirmaDatos||!aceptaLegal){if(formState instanceof HTMLElement)formState.textContent='Debes confirmar os datos e aceptar o texto legal.';return;}
+
+    const persoa=collect();
+    const changes=changesFor(persoa);
+    const signature=JSON.stringify(persoa);
+    if(changes.length>0&&pendingSignature!==signature){
+      pendingSignature=signature;
+      showChanges(changes);
+      saveButton.textContent='Confirmar estes cambios e aceptación';
+      if(formState instanceof HTMLElement)formState.textContent='Revisa os cambios detectados e confirma de novo para gardalos.';
+      return;
+    }
+
     const old=saveButton.textContent;
     saveButton.disabled=true;
     saveButton.textContent='Gardando e xerando PDF…';
     if(formState instanceof HTMLElement)formState.textContent='';
     try{
-      await request('POST',{accion:'gardarRevision',token,persoa:collect(),confirmaDatos,aceptaLegal});
+      await request('POST',{accion:'gardarRevision',token,persoa,confirmaDatos,aceptaLegal});
       if(form instanceof HTMLFormElement)form.hidden=true;
       if(success instanceof HTMLElement)success.hidden=false;
     }catch(error){
@@ -176,5 +232,5 @@ import BaseLayout from '../layouts/Layout.astro';
 </script>
 
 <style is:global>
-  body{background:#f5f3f1}.review-public-main{min-height:100vh;padding:clamp(1rem,4vw,3rem);font-family:var(--fuente-minimalista)}.review-shell{max-width:920px;margin:0 auto;padding:clamp(1.2rem,3vw,2.2rem);border:1px solid #d9d2cc;background:#fff}.section-kicker{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--color-acento)}h1{margin:.25rem 0 .6rem;color:var(--color-principal);font-size:clamp(2rem,5vw,3.5rem)}.intro{margin:0 0 1.4rem;color:#625c58}.state-box,.locked-card,.confirmation-box,.success-box,.legal-card{padding:1rem 1.1rem;border:1px solid #ded8d3;background:#faf9f7}.error-box{border-color:#b98b91}.locked-card{display:grid;gap:.3rem;margin-bottom:1rem}.locked-card p,.locked-card small{margin:0;color:#665f5a}.locked-card strong{font-size:1.2rem;color:var(--color-principal)}fieldset{margin:0;padding:0;border:0;border-top:1px solid #e5dfda}legend{padding:1.2rem 0 .2rem;color:var(--color-principal);font-weight:800}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem 1rem;padding:.8rem 0 1.2rem}.form-grid label{display:grid;gap:.35rem}.form-grid label>span{font-size:.75rem;font-weight:800;text-transform:uppercase}.wide{grid-column:1/-1}input,select{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2;background:#fff;font:inherit}.check-line{display:grid!important;grid-template-columns:auto 1fr!important;align-items:start;gap:.65rem!important}.check-line input{width:1rem;min-height:auto;margin-top:.2rem}.privacy-note{margin:-.5rem 0 1rem;color:#716963;font-size:.86rem}.legal-card{margin-top:1rem;background:#fff}.legal-card header{padding-bottom:.85rem;border-bottom:1px solid #e7e0da}.legal-card h2{margin:.2rem 0;color:var(--color-principal)}.legal-card header p{margin:0;color:#716963;font-size:.85rem}.legal-text{padding-top:1rem;white-space:pre-wrap;line-height:1.55;color:#413c39}.confirmation-box{display:grid;gap:1rem;margin-top:1rem}.confirmation-line{padding-bottom:1rem;border-bottom:1px solid #e3ddd8}.confirmation-box p{margin:0;color:#716963;font-size:.87rem}footer{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding-top:1.1rem}footer span{color:#7b3440}button{min-height:2.8rem;padding:.65rem 1.1rem;border:1px solid var(--color-principal);background:var(--color-principal);color:#fff;font:inherit;font-weight:800;cursor:pointer}.success-box h2{margin:.1rem 0 .5rem;color:var(--color-principal)}.success-box p{margin:0}@media(max-width:680px){.form-grid{grid-template-columns:1fr}.wide{grid-column:auto}footer{display:grid}}
+  body{background:#f5f3f1}.review-public-main{min-height:100vh;padding:clamp(1rem,4vw,3rem);font-family:var(--fuente-minimalista)}.review-shell{max-width:920px;margin:0 auto;padding:clamp(1.2rem,3vw,2.2rem);border:1px solid #d9d2cc;background:#fff}.section-kicker{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--color-acento)}h1{margin:.25rem 0 .6rem;color:var(--color-principal);font-size:clamp(2rem,5vw,3.5rem)}.intro{margin:0 0 1.4rem;color:#625c58}.state-box,.locked-card,.confirmation-box,.success-box,.legal-card,.changes-card{padding:1rem 1.1rem;border:1px solid #ded8d3;background:#faf9f7}.error-box{border-color:#b98b91}.locked-card{display:grid;gap:.3rem;margin-bottom:1rem}.locked-card p,.locked-card small{margin:0;color:#665f5a}.locked-card strong{font-size:1.2rem;color:var(--color-principal)}fieldset{margin:0;padding:0;border:0;border-top:1px solid #e5dfda}legend{padding:1.2rem 0 .2rem;color:var(--color-principal);font-weight:800}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem 1rem;padding:.8rem 0 1.2rem}.form-grid label{display:grid;gap:.35rem}.form-grid label>span{font-size:.75rem;font-weight:800;text-transform:uppercase}.wide{grid-column:1/-1}input,select{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2;background:#fff;font:inherit}.review-changed{border-width:2px;border-color:#8a5c24;background:#fffaf1}.check-line{display:grid!important;grid-template-columns:auto 1fr!important;align-items:start;gap:.65rem!important}.check-line input{width:1rem;min-height:auto;margin-top:.2rem}.privacy-note{margin:-.5rem 0 1rem;color:#716963;font-size:.86rem}.legal-card{margin-top:1rem;background:#fff}.legal-card header{padding-bottom:.85rem;border-bottom:1px solid #e7e0da}.legal-card h2{margin:.2rem 0;color:var(--color-principal)}.legal-card header p{margin:0;color:#716963;font-size:.85rem}.legal-text{padding-top:1rem;white-space:pre-wrap;line-height:1.55;color:#413c39}.changes-card{margin-top:1rem;border-width:2px;border-color:#8a5c24;background:#fffaf1}.changes-card h2{margin:.1rem 0 .45rem;color:var(--color-principal);font-size:1.15rem}.changes-card p{margin:.2rem 0 .8rem;color:#5f554b}.changes-card ul{display:grid;gap:.55rem;margin:.8rem 0 1rem;padding:0;list-style:none}.changes-card li{display:grid;grid-template-columns:minmax(140px,.45fr) 1fr;gap:.8rem;padding:.55rem 0;border-bottom:1px solid #e7d8c5}.changes-card li span{overflow-wrap:anywhere}.confirmation-box{display:grid;gap:1rem;margin-top:1rem}.confirmation-line{padding-bottom:1rem;border-bottom:1px solid #e3ddd8}.confirmation-box p{margin:0;color:#716963;font-size:.87rem}footer{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding-top:1.1rem}footer span{color:#7b3440}button{min-height:2.8rem;padding:.65rem 1.1rem;border:1px solid var(--color-principal);background:var(--color-principal);color:#fff;font:inherit;font-weight:800;cursor:pointer}.success-box h2{margin:.1rem 0 .5rem;color:var(--color-principal)}.success-box p{margin:0}@media(max-width:680px){.form-grid{grid-template-columns:1fr}.wide{grid-column:auto}.changes-card li{grid-template-columns:1fr;gap:.2rem}footer{display:grid}}
 </style>
