@@ -148,18 +148,20 @@ function actualizarPersoaAdministracion_(datos) {
       ? validarAceptacionPersoasAdmin_(datos.aceptacion)
       : null;
 
-    const fila = valores[indiceFila].slice();
+    const filaOrixinal = valores[indiceFila].slice();
+    const fila = filaOrixinal.slice();
     aplicarEntradaPersoaAdmin_(fila, indices, entrada, false);
     actualizarNomeCompletoPersoaAdmin_(fila, indices);
     poñerValorPersoaAdmin_(fila, indices, 'DataActualizacionPerfil', new Date());
     poñerValorPersoaAdmin_(fila, indices, 'ActualizadoPor', administrador.email);
 
-    contexto.persoas
-      .getRange(indiceFila + 1, 1, 1, fila.length)
-      .setValues([fila]);
-
     let aceptacionRexistrada = null;
-    if (aceptacionSolicitada) {
+    if (!aceptacionSolicitada) {
+      contexto.persoas
+        .getRange(indiceFila + 1, 1, 1, fila.length)
+        .setValues([fila]);
+      SpreadsheetApp.flush();
+    } else {
       aceptacionRexistrada = rexistrarAceptacionPersoasAdmin_(
         contexto,
         administrador,
@@ -168,9 +170,28 @@ function actualizarPersoaAdministracion_(datos) {
         idActual,
         aceptacionSolicitada
       );
+      try {
+        contexto.persoas
+          .getRange(indiceFila + 1, 1, 1, fila.length)
+          .setValues([fila]);
+        SpreadsheetApp.flush();
+      } catch (erroPersoa) {
+        if (aceptacionRexistrada && aceptacionRexistrada.rowId && aceptacionRexistrada.existente !== true) {
+          try { eliminarAceptacionPersoasAdmin_(aceptacionRexistrada.rowId); } catch (erroRollback) {
+            console.error('Non foi posible reverter Aceptación:', erroRollback);
+          }
+        }
+        try {
+          contexto.persoas
+            .getRange(indiceFila + 1, 1, 1, filaOrixinal.length)
+            .setValues([filaOrixinal]);
+          SpreadsheetApp.flush();
+        } catch (erroRestauracion) {
+          console.error('Non foi posible restaurar Persoas:', erroRestauracion);
+        }
+        throw erroPersoa;
+      }
     }
-
-    SpreadsheetApp.flush();
 
     return {
       ok: true,
@@ -760,7 +781,23 @@ function rexistrarAceptacionPersoasAdmin_(contexto, administrador, filaPersoa, i
     version: aceptacion.textoLegal.version,
     documento: aceptacion.documento,
     revisionId: aceptacion.revisionId,
-    fechaHora: Utilities.formatDate(agora, 'Europe/Madrid', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+    fechaHora: Utilities.formatDate(agora, 'Europe/Madrid', 'yyyy-MM-dd HH:mm:ss'),
     existente: false
   };
+}
+
+function eliminarAceptacionPersoasAdmin_(rowId) {
+  const follas = contextoAceptacionPersoasAdmin_();
+  const valores = follas.aceptacion.getDataRange().getValues();
+  if (valores.length < 2) return false;
+  const indices = indicesPersoasAdmin_(valores[0]);
+  requireHeaderPersoasAdmin_(indices, 'Row ID', 'Aceptación');
+  for (let i = 1; i < valores.length; i += 1) {
+    if (textoPersoasAdmin_(valores[i][indices['Row ID']]) === textoPersoasAdmin_(rowId)) {
+      follas.aceptacion.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      return true;
+    }
+  }
+  return false;
 }
