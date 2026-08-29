@@ -29,7 +29,7 @@ async function verificarFirebase(idToken, apiKey) {
   };
 }
 
-async function eAdministrador(env, user) {
+async function obterContextoAdministracion(env, user) {
   try {
     const { resultado } = await obterJsonAppsScript(env, {
       token: env.WEB_WRITE_TOKEN,
@@ -42,11 +42,58 @@ async function eAdministrador(env, user) {
     // mediante resolverPermisosPortal_ e só devolve perfil cando a persoa
     // dispón de escritura administrativa. Non volvemos interpretar o texto
     // de "nivel" aquí para evitar 403 falsos por diferenzas de formato.
-    return resultado?.ok === true && Boolean(resultado?.perfil?.email);
+    return {
+      administrador: resultado?.ok === true && Boolean(resultado?.perfil?.email),
+      resultado: resultado?.ok === true ? resultado : null
+    };
   } catch (error) {
     console.error('Erro ao comprobar administración en permisos:', error);
-    return false;
+    return { administrador: false, resultado: null };
   }
+}
+
+function fusionarPersoasConUsuarios(resultadoPermisos, resultadoPersoas) {
+  const usuarios = Array.isArray(resultadoPermisos?.usuarios) ? resultadoPermisos.usuarios : [];
+  const persoas = Array.isArray(resultadoPersoas?.persoas) ? resultadoPersoas.persoas : [];
+  const porEmail = new Map();
+
+  usuarios.forEach((usuario) => {
+    const email = String(usuario?.email || '').trim().toLowerCase();
+    if (!email) return;
+    porEmail.set(email, {
+      ...usuario,
+      email,
+      nome: String(usuario?.nome || usuario?.persoa || email).trim(),
+      tenUsuarioWeb: true
+    });
+  });
+
+  persoas.forEach((persoa) => {
+    if (persoa?.activo === false) return;
+    const email = String(persoa?.correo || '').trim().toLowerCase();
+    if (!email) return;
+
+    const existente = porEmail.get(email);
+    const nome = String(
+      persoa?.nomeCompleto ||
+      [persoa?.nome, persoa?.primeiroApelido, persoa?.segundoApelido].filter(Boolean).join(' ') ||
+      existente?.nome ||
+      email
+    ).trim();
+
+    porEmail.set(email, {
+      ...(existente || {}),
+      email,
+      persoa: String(persoa?.rowId || persoa?.idPersoa || persoa?.id || existente?.persoa || '').trim(),
+      nome,
+      activo: true,
+      tenUsuarioWeb: Boolean(existente?.tenUsuarioWeb)
+    });
+  });
+
+  return Array.from(porEmail.values()).sort((a, b) =>
+    String(a.nome || a.email).localeCompare(String(b.nome || b.email), 'gl', { sensitivity: 'base' })
+  );
 }
 
 export async function onRequestPost({ request, env }) {
@@ -86,7 +133,8 @@ export async function onRequestPost({ request, env }) {
     return json(400, { ok: false, erro: 'Acción de permisos descoñecida.' });
   }
 
-  const admin = await eAdministrador(env, user);
+  const contextoAdmin = await obterContextoAdministracion(env, user);
+  const admin = contextoAdmin.administrador;
   const requireAdmin = [
     'listarPermisosPortal',
     'gardarPermisoPortal',
@@ -119,6 +167,10 @@ export async function onRequestPost({ request, env }) {
 
     if (!resultado?.ok) {
       return json(400, resultado || { ok: false, erro: 'Non foi posible completar a operación.' });
+    }
+
+    if (accion === 'listarPermisosPortal' && contextoAdmin.resultado) {
+      resultado.usuarios = fusionarPersoasConUsuarios(resultado, contextoAdmin.resultado);
     }
 
     return json(200, { ...resultado, administrador: admin });
