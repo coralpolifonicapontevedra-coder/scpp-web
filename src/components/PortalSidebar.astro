@@ -64,15 +64,6 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
           </span>
         );
       })}
-      <a
-        href="/portal/administracion/persoas-revisions/"
-        class="admin-shortcut"
-        data-board-role="true"
-        hidden
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" /><path d="m16 17 2 2 4-4" /></svg>
-        <span>Revisións masivas</span>
-      </a>
     </nav>
 
     <div class="private-sidebar-footer">
@@ -255,39 +246,25 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
   .private-menu a, .private-menu .is-disabled, .private-sidebar-footer a, .private-sidebar-footer button { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); align-items: center; gap: .72rem; min-height: 2.72rem; padding: .62rem .72rem; border: 0; border-radius: 4px; background: transparent; color: #4e4a47; font: inherit; font-size: .88rem; font-weight: 500; text-align: left; text-decoration: none; }
   .private-menu svg, .private-sidebar-footer svg, .private-mobile-toggle svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
   .private-menu a[hidden], .private-menu .is-disabled[hidden], .private-sidebar-footer a[hidden], .private-sidebar-footer button[hidden] { display: none !important; }
-  .private-menu a:hover, .private-menu a.is-active, .private-sidebar-footer a:hover, .private-sidebar-footer button:hover { background: #f2ecec; color: var(--color-principal); }
-  .private-menu a.is-active { font-weight: 700; }
-  .private-menu .is-disabled { color: #77716d; cursor: default; }
-  .private-menu .admin-shortcut { margin-left: 1.95rem; min-height: 2.35rem; font-size: .82rem; }
-  .private-sidebar-footer { display: grid; gap: .25rem; margin-top: auto; padding-top: 1rem; border-top: 1px solid #e4e0dc; }
-  .private-sidebar-footer a, .private-sidebar-footer button { width: 100%; cursor: pointer; }
+  .private-menu a:hover, .private-menu a.is-active, .private-sidebar-footer a:hover, .private-sidebar-footer button:hover { background: #f1edeb; color: var(--color-principal); }
+  .private-menu a.is-active { font-weight: 800; }
+  .private-menu .is-disabled { color: #9a9591; cursor: default; }
+  .private-sidebar-footer { display: grid; gap: .35rem; margin-top: auto; padding-top: 1.2rem; border-top: 1px solid #e8e3df; }
+  .private-sidebar-footer button { cursor: pointer; }
   .private-public-link { color: var(--color-principal) !important; }
-  @media (max-width: 900px) {
-    :global(body .portal-sidebar-container) { position: relative; width: 100%; height: auto; }
-    :global(body .portal-sidebar-container .private-sidebar) { position: relative !important; width: 100% !important; height: auto !important; }
-    .private-sidebar { position: relative; width: 100%; height: auto; padding: 1rem; border-right: 0; border-bottom: 1px solid #e7e3df; }
-    .private-brand { grid-template-columns: 48px minmax(0, 1fr); padding-bottom: 1rem; }
-    .private-crest { width: 44px; height: 60px; }
-    .private-menu { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .private-menu .is-disabled { display: none; }
-    .private-menu .admin-shortcut { margin-left: 0; }
-    .private-sidebar-footer { grid-template-columns: 1fr 1fr; margin-top: .8rem; }
-  }
+
   @media (max-width: 620px) {
-    .private-sidebar { padding: .85rem 1rem 1rem; overflow: visible; }
-    .private-brand { padding-bottom: .75rem; }
-    .private-menu-title { display: none; }
-    .private-sidebar.has-mobile-menu .private-mobile-toggle { display: grid; }
-    .private-mobile-toggle { grid-template-columns: minmax(0, 1fr) 1.25rem; align-items: center; gap: .75rem; width: 100%; min-height: 3.25rem; padding: .55rem .75rem; border: 1px solid #ddd6d2; border-radius: 6px; background: #fff; color: var(--color-principal); font: inherit; text-align: left; cursor: pointer; }
-    .private-mobile-toggle-copy { display: grid; gap: .1rem; min-width: 0; }
-    .private-mobile-toggle-copy small { color: #6b6561; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-    .private-mobile-toggle-copy strong { overflow: hidden; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
-    .private-mobile-toggle svg { justify-self: end; transition: transform .2s ease; }
+    .private-sidebar { position: sticky; z-index: 50; top: 0; display: block; width: 100%; height: auto; padding: .55rem .75rem; overflow: visible; border-right: 0; border-bottom: 1px solid #e7e3df; box-shadow: 0 3px 12px rgb(0 0 0 / 6%); }
+    .private-brand, .private-menu-title { display: none; }
+    .private-mobile-toggle { display: flex; width: 100%; min-height: 2.9rem; align-items: center; justify-content: space-between; gap: .9rem; padding: .48rem .65rem; border: 0; background: transparent; color: #302c29; font: inherit; text-align: left; }
+    .private-mobile-toggle-copy { display: grid; gap: .06rem; }
+    .private-mobile-toggle-copy small { color: #7a746f; font-size: .64rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    .private-mobile-toggle-copy strong { color: var(--color-principal); font-size: .9rem; }
+    .private-mobile-toggle svg { flex: 0 0 auto; transition: transform .18s ease; }
     .private-mobile-toggle.is-open svg { transform: rotate(180deg); }
-    .private-navigation-panel { display: none; margin-top: .55rem; padding: .4rem; border: 1px solid #e0dad5; border-radius: 6px; background: #fff; box-shadow: 0 12px 30px rgba(40, 30, 25, .08); }
+    .private-navigation-panel { position: absolute; top: calc(100% + 1px); right: 0; left: 0; display: none; max-height: calc(100vh - 4rem); padding: .7rem .75rem .85rem; overflow-y: auto; border-bottom: 1px solid #e2dcd7; background: #fafafa; box-shadow: 0 7px 14px rgb(0 0 0 / 7%); }
     .private-navigation-panel.is-open { display: flex; }
-    .private-menu { grid-template-columns: 1fr; }
-    .private-menu .is-disabled { display: none; }
-    .private-sidebar-footer { grid-template-columns: 1fr; }
+    .private-menu a, .private-menu .is-disabled, .private-sidebar-footer a, .private-sidebar-footer button { min-height: 2.58rem; padding: .56rem .62rem; }
+    .private-sidebar-footer { margin-top: .75rem; padding-top: .7rem; }
   }
 </style>
