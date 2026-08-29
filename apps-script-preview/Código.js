@@ -1,4 +1,4 @@
-function configurarProba() {
+﻿function configurarProba() {
   const propiedades = PropertiesService.getScriptProperties();
 
   const token =
@@ -760,6 +760,68 @@ if (accion === 'gardarEnsaioPortal') {
       return respostaJSON(resultado);
     }
 
+    if (accion === 'crearPersoaAdministracion') {
+      const resultado = crearPersoaAdministracion_(datos);
+
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: 'Crear persoa',
+        modulo: 'Administraci�n',
+        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',
+        detalle: resultado.ok
+          ? String(resultado.idPersoa || '')
+          : String(resultado.erro || '')
+      });
+
+      return respostaJSON(resultado);
+    }
+
+    if (accion === 'actualizarPersoaAdministracion') {
+      const resultado = actualizarPersoaAdministracion_(datos);
+
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: 'Actualizar persoa',
+        modulo: 'Administraci�n',
+        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',
+        detalle: resultado.ok
+          ? String(resultado.idPersoa || '')
+          : String(resultado.erro || '')
+      });
+
+      return respostaJSON(resultado);
+    }
+
+    if (accion === 'cambiarEstadoPersoaAdministracion') {
+      const resultado = cambiarEstadoPersoaAdministracion_(datos);
+
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: resultado.activo ? 'Reactivar persoa' : 'Dar de baixa persoa',
+        modulo: 'Administraci�n',
+        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',
+        detalle: resultado.ok
+          ? String(resultado.idPersoa || '')
+          : String(resultado.erro || '')
+      });
+
+      return respostaJSON(resultado);
+    }
+    if (accion === 'enviarRevisionsPersoasAdministracion') {
+      const resultado = enviarRevisionsPersoasAdministracion_(datos);
+
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: 'Envío masivo de revisións',
+        modulo: 'Administración · Persoas',
+        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',
+        detalle: resultado.ok
+          ? String(resultado.enviados || 0) + ' enviados · ' + String(resultado.omitidos || 0) + ' omitidos · ' + String(resultado.erros || 0) + ' erros'
+          : String(resultado.erro || '')
+      });
+
+      return respostaJSON(resultado);
+    }
     if (accion === 'actualizarObservacions') {
       const observacions = String(
         datos.observacions || ''
@@ -914,6 +976,12 @@ if (accion === 'gardarEnsaioPortal') {
       });
     }
 
+    const respostaPermisosAdmin =
+      despacharXestionPermisosPortal_(accion, datos, bloqueo);
+
+    if (respostaPermisosAdmin !== null) {
+      return respostaJSON(respostaPermisosAdmin);
+    }
     rexistrarAcceso({
       email: correo,
       tipoEvento: String(
@@ -2376,3 +2444,5 @@ function rexistrarAceptacionPortal_(correo) {
 function probarTextoLegalVixente() {
   console.log(JSON.stringify(obterTextoLegalVixente_()));
 }
+
+
