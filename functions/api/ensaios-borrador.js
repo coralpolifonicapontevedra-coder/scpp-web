@@ -394,6 +394,24 @@ export async function onRequest({ request, env }) {
       return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
+    if (accion === 'incluírProgramaConcerto') {
+      const idConcerto = clean(body.idConcerto);
+      if (!idConcerto) return erro(400, 'INVALID_DATA', 'Selecciona un concerto.');
+      const xestionConcerto = await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto });
+      const programa = Array.isArray(xestionConcerto?.programa) ? xestionConcerto.programa : [];
+      const ids = [...new Set(programa.map((obra) => clean(obra?.obraId || obra?.idRepertorio || obra?.id)).filter(Boolean))].slice(0, 80);
+      if (!ids.length) return erro(409, 'CONCERT_WITHOUT_PROGRAM', 'O concerto seleccionado non ten obras no programa.');
+      const map = new Map(draft.repertorio.map((item) => [idRepertorioDe(item), item]));
+      let engadidas = 0;
+      for (const idRepertorio of ids) {
+        if (map.has(idRepertorio)) continue;
+        map.set(idRepertorio, normalizarObra({ repertorio:idRepertorio, orde:map.size + 1 }, idEnsaio, map.size + 1));
+        engadidas += 1;
+      }
+      draft = await gardarDraft(env, { ...draft, repertorio:[...map.values()] });
+      return json(200, { ok:true, draft, engadidas, totalPrograma:ids.length, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+    }
+
     if (accion === 'incluírPrograma') {
       const ids = [...new Set((Array.isArray(body.idsRepertorio) ? body.idsRepertorio : []).map(clean).filter(Boolean))].slice(0, 80);
       const map = new Map(draft.repertorio.map((item) => [idRepertorioDe(item), item]));
