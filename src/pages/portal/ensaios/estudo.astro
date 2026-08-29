@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+---
+
+<BaseLayout title="Ensaios" lang="gl">
+  <main class="study-redirect" aria-live="polite">
+    <p>Abriendo o novo estudo de Ensaios…</p>
+    <a id="study-fallback" href="/portal/ensaios/estudo-novo/">Continuar</a>
+  </main>
+
+  <script is:inline>
+    (() => {
+      const target = `/portal/ensaios/estudo-novo/${window.location.search}${window.location.hash}`;
+      const fallback = document.getElementById('study-fallback');
+      if (fallback instanceof HTMLAnchorElement) fallback.href = target;
+      window.location.replace(target);
+    })();
+  </script>
+</BaseLayout>
+
+<style>
+  .study-redirect {
+    min-height: 60vh;
+    display: grid;
+    place-content: center;
+    gap: .8rem;
+    padding: 2rem;
+    text-align: center;
+  }
+  .study-redirect p { margin: 0; }
+</style>
