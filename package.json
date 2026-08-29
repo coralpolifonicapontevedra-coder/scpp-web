@@ -7,8 +7,9 @@
   },
   "scripts": {
     "posters:thumbs": "node scripts/generate-poster-thumbnails.mjs",
-    "dev": "npm run posters:thumbs && node scripts/generate-publicaciones-es.mjs && astro dev",
-    "build": "npm run posters:thumbs && node scripts/generate-publicaciones-es.mjs && astro build",
+    "pdfjs:vendor": "node scripts/vendor-pdfjs.mjs",
+    "dev": "npm run posters:thumbs && npm run pdfjs:vendor && node scripts/generate-publicaciones-es.mjs && astro dev",
+    "build": "npm run posters:thumbs && npm run pdfjs:vendor && node scripts/generate-publicaciones-es.mjs && astro build",
     "check": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
