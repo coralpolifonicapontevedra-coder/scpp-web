@@ -15,6 +15,7 @@ const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
 
 const erro = (status, codigo, mensaxe) => json(status, { ok:false, codigo, erro:mensaxe });
 const clean = (value) => String(value || '').trim();
+const normalizarTexto = (value) => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const idEnsaioDe = (row) => clean(row?.ensaio || row?.idEnsaio);
 const idPersoaDe = (row) => clean(row?.persoa || row?.idPersoa);
 const idRepertorioDe = (row) => clean(row?.repertorio || row?.idRepertorio);
@@ -106,6 +107,48 @@ function normalizarAsistencia(row, idEnsaio) {
     motivo:clean(row?.motivo),
     observacions:clean(row?.observacions)
   };
+}
+
+function resolverIdsPrograma(programa, repertorio) {
+  const catalogo = Array.isArray(repertorio) ? repertorio : [];
+  const idsValidos = new Set();
+  const porTitulo = new Map();
+  for (const obra of catalogo) {
+    const id = clean(obra?.idRepertorio || obra?.id);
+    if (!id) continue;
+    idsValidos.add(id);
+    const titulo = normalizarTexto(obra?.nomeObra || obra?.nome || obra?.obra || obra?.titulo);
+    if (titulo && !porTitulo.has(titulo)) porTitulo.set(titulo, id);
+  }
+
+  const resoltos = [];
+  for (const item of Array.isArray(programa) ? programa : []) {
+    const directo = clean(item?.obraId || item?.idRepertorio || item?.id || item?.repertorio);
+    if (directo && idsValidos.has(directo)) {
+      resoltos.push(directo);
+      continue;
+    }
+
+    const titulo = normalizarTexto(item?.obra || item?.titulo || item?.nomeObra || item?.nome);
+    const porNome = titulo ? porTitulo.get(titulo) : '';
+    if (porNome) {
+      resoltos.push(porNome);
+      continue;
+    }
+
+    const numeric = Number(String(directo || '').replace(',', '.'));
+    if (Number.isInteger(numeric) && numeric > 0) {
+      for (const index of [numeric - 2, numeric - 1, numeric]) {
+        const candidate = catalogo[index];
+        const candidateId = clean(candidate?.idRepertorio || candidate?.id);
+        if (candidateId) {
+          resoltos.push(candidateId);
+          break;
+        }
+      }
+    }
+  }
+  return [...new Set(resoltos.filter(Boolean))];
 }
 
 function draftDesdePayload(result, idEnsaio) {
@@ -397,19 +440,32 @@ export async function onRequest({ request, env }) {
     if (accion === 'incluírProgramaConcerto') {
       const idConcerto = clean(body.idConcerto);
       if (!idConcerto) return erro(400, 'INVALID_DATA', 'Selecciona un concerto.');
-      const xestionConcerto = await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto });
-      const programa = Array.isArray(xestionConcerto?.programa) ? xestionConcerto.programa : [];
-      const ids = [...new Set(programa.map((obra) => clean(obra?.obraId || obra?.idRepertorio || obra?.id)).filter(Boolean))].slice(0, 80);
-      if (!ids.length) return erro(409, 'CONCERT_WITHOUT_PROGRAM', 'O concerto seleccionado non ten obras no programa.');
+
+      const payload = await lerPayloadPrincipalR2(env, user);
+      const repertorioCatalogo = Array.isArray(payload?.repertorio) ? payload.repertorio : [];
+      const concertos = Array.isArray(payload?.concertos) ? payload.concertos : [];
+      const concerto = concertos.find((c) => clean(c?.id || c?.idConcerto) === idConcerto);
+      const programaR2 = Array.isArray(concerto?.programa) ? concerto.programa : Array.isArray(concerto?.repertorio) ? concerto.repertorio : [];
+      let ids = resolverIdsPrograma(programaR2, repertorioCatalogo);
+      let fontePrograma = 'R2';
+
+      if (!ids.length) {
+        const xestionConcerto = await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto });
+        const programaSheet = Array.isArray(xestionConcerto?.programa) ? xestionConcerto.programa : [];
+        ids = resolverIdsPrograma(programaSheet, repertorioCatalogo);
+        fontePrograma = 'SHEET';
+      }
+
+      if (!ids.length) return erro(409, 'CONCERT_WITHOUT_PROGRAM', 'O concerto seleccionado non ten obras resolubles no programa.');
       const map = new Map(draft.repertorio.map((item) => [idRepertorioDe(item), item]));
       let engadidas = 0;
-      for (const idRepertorio of ids) {
+      for (const idRepertorio of ids.slice(0, 80)) {
         if (map.has(idRepertorio)) continue;
         map.set(idRepertorio, normalizarObra({ repertorio:idRepertorio, orde:map.size + 1 }, idEnsaio, map.size + 1));
         engadidas += 1;
       }
       draft = await gardarDraft(env, { ...draft, repertorio:[...map.values()] });
-      return json(200, { ok:true, draft, engadidas, totalPrograma:ids.length, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+      return json(200, { ok:true, draft, engadidas, totalPrograma:ids.length, fontePrograma, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
     if (accion === 'incluírPrograma') {
