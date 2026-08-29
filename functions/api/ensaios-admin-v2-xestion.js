@@ -188,14 +188,44 @@ function prepararObras(result, idEnsaio) {
   return { obras, repertorio };
 }
 
+function idProgramaConcerto(obra) {
+  if (typeof obra === 'string' || typeof obra === 'number') return clean(obra);
+  if (!obra || typeof obra !== 'object') return '';
+  return clean(
+    obra.obraId ||
+    obra.idRepertorio ||
+    obra.repertorio ||
+    obra.Id_Repertorio ||
+    obra.id_repertorio ||
+    obra.id
+  );
+}
+
+function normalizarProgramaConcerto(programa) {
+  return (Array.isArray(programa) ? programa : [])
+    .map((obra, index) => {
+      const obraId = idProgramaConcerto(obra);
+      if (!obraId) return null;
+      if (obra && typeof obra === 'object' && !Array.isArray(obra)) {
+        return { ...obra, obraId };
+      }
+      return { obraId, idRepertorio: obraId, orde: index + 1 };
+    })
+    .filter(Boolean);
+}
+
 function prepararConcertos(concertos) {
-  return concertos.map((c) => ({
-    idConcerto: clean(c.id || c.idConcerto),
-    data: clean(c.data),
-    nome: clean(c.nome) || 'Concerto',
-    repertorio: Array.isArray(c.programa) ? c.programa : Array.isArray(c.repertorio) ? c.repertorio : [],
-    obras: Array.isArray(c.programa) ? c.programa.length : Array.isArray(c.repertorio) ? c.repertorio.length : 0
-  })).filter((c) => c.idConcerto);
+  return concertos.map((c) => {
+    const programaBruto = Array.isArray(c.programa) ? c.programa : Array.isArray(c.repertorio) ? c.repertorio : [];
+    const programa = normalizarProgramaConcerto(programaBruto);
+    return {
+      idConcerto: clean(c.id || c.idConcerto),
+      data: clean(c.data),
+      nome: clean(c.nome) || 'Concerto',
+      repertorio: programa,
+      obras: programa.length
+    };
+  }).filter((c) => c.idConcerto);
 }
 
 async function actualizarSharedAsistencias(env, user, idEnsaio, persoas) {
@@ -309,7 +339,7 @@ export async function onRequest({ request, env }) {
       }
       if (!programa.length) return json(409, { ok: false, erro: 'O concerto seleccionado non ten obras no programa.' });
 
-      const ids = [...new Set(programa.map((obra) => clean(obra.obraId || obra.idRepertorio || obra.id)).filter(Boolean))];
+      const ids = [...new Set(programa.map(idProgramaConcerto).filter(Boolean))];
       await executarSecuencial(ids, (idRepertorio) => chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', { idEnsaio, idRepertorio }));
       await actualizarSharedObras(env, user, idEnsaio, ids);
       return json(200, { ok: true, engadidas: ids.length, concerto: clean(concerto?.nome || idConcerto), almacen: 'SHEET+R2' });
