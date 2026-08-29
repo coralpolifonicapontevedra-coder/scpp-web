@@ -16,6 +16,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 </section>
 <dialog id="absence-dialog"><form id="absence-form"><header><h2>Aviso de non asistencia</h2><button id="close-absence" type="button">×</button></header><p>Este aviso corresponde unicamente á túa asistencia ao ensaio seleccionado.</p><div class="absence-options"><button id="absence-simple" type="button" class="secondary active">Non asistirei</button><button id="absence-justified" type="button" class="secondary">Non asistirei con xustificación</button></div><label id="reason-wrap" hidden><span>Motivo da xustificación</span><textarea id="absence-reason" rows="3" maxlength="240"></textarea></label><p id="absence-status" class="status"></p><footer><button id="cancel-absence" type="button" class="secondary">Cancelar</button><button class="primary" type="submit">Enviar aviso</button></footer></form></dialog>
 <dialog id="program-dialog"><form id="program-form"><header><h2>Cargar desde programa</h2><button id="close-program" type="button">×</button></header><label><span>Concerto</span><select id="program-select"></select></label><p id="program-status" class="status"></p><footer><button id="cancel-program" type="button" class="secondary">Cancelar</button><button class="primary">Incluír programa</button></footer></form></dialog>
+<script is:inline src="/js/ensaios-obras.js" defer></script>
 </main></div>
 </BaseLayout>
 <script>
