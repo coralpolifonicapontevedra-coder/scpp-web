@@ -2,52 +2,389 @@
 import BaseLayout from '../../../layouts/Layout.astro';
 import PortalSidebar from '../../../components/PortalSidebar.astro';
 ---
+
 <BaseLayout title="Accesos e permisos" lang="gl">
   <div class="private-layout permisos-layout">
     <PortalSidebar active="administracion" logoutId="permisos-logout" />
+
     <main class="permisos-main">
-      <a class="volver" href="/portal/administracion/">← Administración</a>
-      <header><span>Seguridade e gobernanza</span><h1>Accesos e permisos</h1><p>Consulta quen pode acceder, concede permisos individualizados e revisa os accesos e accións realizadas.</p></header>
-      <div id="estado">Cargando…</div>
-      <nav><button data-tab="persoas" class="activo">Persoas</button><button data-tab="modulos">Módulos</button><button data-tab="actividade">Rexistro de actividade</button></nav>
+      <header class="private-page-header permisos-header">
+        <div>
+          <a class="volver" href="/portal/administracion/">← Administración</a>
+          <span class="section-kicker">Seguridade e gobernanza</span>
+          <h1>Accesos e permisos</h1>
+          <p>Define que pode consultar ou modificar cada persoa e revisa a actividade administrativa do portal.</p>
+        </div>
+        <div class="account-card">
+          <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
+          <span><small>Nivel de acceso</small><strong id="user-level">Comprobando…</strong></span>
+        </div>
+      </header>
 
-      <section id="persoas" class="tab-panel">
-        <div class="filtros"><input id="buscar" type="search" placeholder="Buscar por nome ou correo"><select id="filtro-modulo"><option value="">Todos os módulos</option></select></div>
-        <div class="grid"><div id="lista" class="lista"></div><div id="detalle" class="detalle"><p>Selecciona unha persoa.</p></div></div>
+      <section id="loading" class="state-box">Comprobando permisos e cargando a configuración…</section>
+      <section id="error-state" class="state-box error-box" hidden>
+        <strong>Non foi posible abrir Accesos e permisos</strong>
+        <p id="error-message"></p>
+        <button id="retry-button" type="button" class="secondary-action">Tentar de novo</button>
       </section>
 
-      <section id="modulos" class="tab-panel" hidden>
-        <div class="filtros"><select id="modulo-consulta"></select></div>
-        <div class="tabla"><table><thead><tr><th>Persoa</th><th>Correo</th><th>Nivel</th><th>Contido</th></tr></thead><tbody id="tabla-modulos"></tbody></table></div>
-      </section>
+      <section id="permissions-app" class="permissions-app" hidden>
+        <div id="feedback" class="feedback" role="status" hidden></div>
 
-      <section id="actividade" class="tab-panel" hidden>
-        <div class="filtros"><input id="desde" type="date"><input id="ata" type="date"><select id="act-email"><option value="">Todas as persoas</option></select><select id="act-modulo"><option value="">Todos os módulos</option></select><button id="consultar">Consultar</button></div>
-        <div class="tabla"><table><thead><tr><th>Data e hora</th><th>Persoa</th><th>Módulo</th><th>Acción</th><th>Elemento</th><th>Resultado</th></tr></thead><tbody id="tabla-actividade"></tbody></table></div>
+        <section class="permissions-summary" aria-label="Resumo de permisos">
+          <div><small>Persoas con acceso</small><strong id="metric-users">0</strong></div>
+          <div><small>Permisos definidos</small><strong id="metric-permissions">0</strong></div>
+          <div><small>Módulos xestionables</small><strong id="metric-modules">0</strong></div>
+          <div><small>Administración</small><strong>Activa</strong></div>
+        </section>
+
+        <nav class="permissions-tabs" aria-label="Seccións de permisos">
+          <button data-tab="persoas" class="activo" type="button"><span>Persoas</span><small>Permisos individuais</small></button>
+          <button data-tab="modulos" type="button"><span>Módulos</span><small>Vista por área</small></button>
+          <button data-tab="actividade" type="button"><span>Rexistro de actividade</span><small>Auditoría</small></button>
+        </nav>
+
+        <section id="persoas" class="tab-panel">
+          <section class="filters-panel compact-filters">
+            <label class="search-field"><span>Buscar persoa</span><input id="buscar" type="search" placeholder="Nome ou correo electrónico" autocomplete="off" /></label>
+            <label><span>Filtrar por módulo</span><select id="filtro-modulo"><option value="">Todos os módulos</option></select></label>
+          </section>
+
+          <div class="permissions-grid">
+            <section class="people-panel">
+              <header><div><span class="section-kicker">Persoas</span><h2>Usuarios do portal</h2></div><strong id="visible-count">0</strong></header>
+              <div id="lista" class="lista"></div>
+            </section>
+
+            <section id="detalle" class="detail-panel empty-detail">
+              <div class="empty-icon">⌁</div>
+              <h2>Selecciona unha persoa</h2>
+              <p>Escolle un usuario da lista para consultar ou modificar os seus permisos.</p>
+            </section>
+          </div>
+        </section>
+
+        <section id="modulos" class="tab-panel" hidden>
+          <section class="filters-panel compact-filters module-filter">
+            <label><span>Módulo</span><select id="modulo-consulta"></select></label>
+          </section>
+          <div class="table-card">
+            <header><div><span class="section-kicker">Vista por módulo</span><h2>Permisos configurados</h2></div></header>
+            <div class="tabla"><table><thead><tr><th>Persoa</th><th>Correo</th><th>Nivel</th><th>Contido específico</th></tr></thead><tbody id="tabla-modulos"></tbody></table></div>
+          </div>
+        </section>
+
+        <section id="actividade" class="tab-panel" hidden>
+          <section class="filters-panel audit-filters">
+            <label><span>Desde</span><input id="desde" type="date" /></label>
+            <label><span>Ata</span><input id="ata" type="date" /></label>
+            <label><span>Persoa</span><select id="act-email"><option value="">Todas as persoas</option></select></label>
+            <label><span>Módulo</span><select id="act-modulo"><option value="">Todos os módulos</option></select></label>
+            <button id="consultar" class="primary-action" type="button">Consultar actividade</button>
+          </section>
+          <div class="table-card">
+            <header><div><span class="section-kicker">Auditoría</span><h2>Rexistro de actividade</h2></div></header>
+            <div class="tabla"><table><thead><tr><th>Data e hora</th><th>Persoa</th><th>Módulo</th><th>Acción</th><th>Elemento</th><th>Resultado</th></tr></thead><tbody id="tabla-actividade"></tbody></table></div>
+          </div>
+        </section>
       </section>
     </main>
   </div>
 </BaseLayout>
+
 <script>
   import { closePortalSession, portalRequest, waitForPortalUser } from '../../../lib/portal-session.js';
-  const $=s=>document.querySelector(s); const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const nomes={administracion:'Administración',persoas:'Persoas',ensaios:'Ensaios',concertos:'Concertos',fotografias:'Fotografías',documentacion:'Documentación',repertorio:'Repertorio',partituras:'Partituras',sincronizacion:'Sincronización',estado:'Estado do sistema',permisos:'Accesos e permisos'};
-  const niveis={sen_acceso:'Sen acceso',lectura:'Lectura',escritura:'Lectura e escritura',administracion:'Administración'};
-  let data={usuarios:[],permisos:[],modulos:[]},seleccion='';
-  const nome=u=>u?.nome||u?.persoa||u?.email||'—'; const ps=email=>data.permisos.filter(p=>p.email===email&&p.activo!==false);
-  function selects(){const op=data.modulos.map(m=>`<option value="${esc(m)}">${esc(nomes[m]||m)}</option>`).join('');$('#filtro-modulo').innerHTML='<option value="">Todos os módulos</option>'+op;$('#modulo-consulta').innerHTML=op;$('#act-modulo').innerHTML='<option value="">Todos os módulos</option>'+op;$('#act-email').innerHTML='<option value="">Todas as persoas</option>'+data.usuarios.map(u=>`<option value="${esc(u.email)}">${esc(nome(u))}</option>`).join('');}
-  function lista(){const q=$('#buscar').value.toLowerCase(),m=$('#filtro-modulo').value;const us=data.usuarios.filter(u=>(!q||(`${nome(u)} ${u.email}`).toLowerCase().includes(q))&&(!m||ps(u.email).some(p=>p.modulo===m)));$('#lista').innerHTML=us.map(u=>`<button class="persoa ${seleccion===u.email?'sel':''}" data-email="${esc(u.email)}"><strong>${esc(nome(u))}</strong><small>${esc(u.email)} · ${ps(u.email).length} permisos</small></button>`).join('')||'<p>Sen resultados.</p>';document.querySelectorAll('.persoa').forEach(b=>b.onclick=()=>{seleccion=b.dataset.email;lista();detalle();});}
-  function detalle(){const u=data.usuarios.find(x=>x.email===seleccion);if(!u){$('#detalle').innerHTML='<p>Selecciona unha persoa.</p>';return;}const perms=ps(u.email);$('#detalle').innerHTML=`<h2>${esc(nome(u))}</h2><p>${esc(u.email)}</p><div class="matriz">${data.modulos.map(m=>{const p=perms.find(x=>x.modulo===m&&!x.contido);return `<label><span>${esc(nomes[m]||m)}</span><select data-modulo="${esc(m)}"><option value="sen_acceso" ${!p||p.nivel==='sen_acceso'?'selected':''}>Sen acceso</option><option value="lectura" ${p?.nivel==='lectura'?'selected':''}>Lectura</option><option value="escritura" ${p?.nivel==='escritura'?'selected':''}>Lectura e escritura</option><option value="administracion" ${p?.nivel==='administracion'?'selected':''}>Administración</option></select></label>`}).join('')}</div><h3>Documentación por contido</h3><div class="filtros"><input id="contido" placeholder="Ex.: Actas XD"><select id="nivel-contido"><option value="lectura">Lectura</option><option value="escritura">Lectura e escritura</option><option value="administracion">Administración</option><option value="sen_acceso">Sen acceso</option></select><button id="add-contido">Engadir</button></div><div class="chips">${perms.filter(p=>p.modulo==='documentacion'&&p.contido).map(p=>`<button data-id="${esc(p.id)}">${esc(p.contido)} · ${esc(niveis[p.nivel]||p.nivel)} ×</button>`).join('')||'Sen excepcións específicas.'}</div>`;
-    document.querySelectorAll('.matriz select').forEach(s=>s.onchange=async()=>{s.disabled=true;try{await portalRequest('/api/permisos','gardarPermisoPortal',{usuarioEmail:u.email,persoa:u.persoa||u.nome||'',modulo:s.dataset.modulo,contido:'',nivel:s.value,rol:''});await cargar(false);seleccion=u.email;lista();detalle();}catch(e){alert(e.message);s.disabled=false;}});
-    $('#add-contido').onclick=async()=>{const c=$('#contido').value.trim();if(!c)return;try{await portalRequest('/api/permisos','gardarPermisoPortal',{usuarioEmail:u.email,persoa:u.persoa||u.nome||'',modulo:'documentacion',contido:c,nivel:$('#nivel-contido').value,rol:''});await cargar(false);seleccion=u.email;detalle();}catch(e){alert(e.message);}};
-    document.querySelectorAll('.chips button[data-id]').forEach(b=>b.onclick=async()=>{if(!confirm('Eliminar este permiso específico?'))return;try{await portalRequest('/api/permisos','eliminarPermisoPortal',{id:b.dataset.id});await cargar(false);seleccion=u.email;detalle();}catch(e){alert(e.message);}});
+
+  const $ = (selector) => document.querySelector(selector);
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[char]));
+
+  const nomes = {
+    administracion:'Administración', persoas:'Persoas', ensaios:'Ensaios', concertos:'Concertos',
+    fotografias:'Fotografías', documentacion:'Documentación', repertorio:'Repertorio',
+    partituras:'Partituras', sincronizacion:'Sincronización', estado:'Estado do sistema', permisos:'Accesos e permisos'
+  };
+  const niveis = {
+    sen_acceso:'Sen acceso', lectura:'Lectura', escritura:'Lectura e escritura', administracion:'Administración'
+  };
+
+  let data = { usuarios:[], permisos:[], modulos:[] };
+  let seleccion = '';
+
+  const nome = (u) => u?.nome || u?.persoa || u?.email || '—';
+  const permisosUsuario = (email) => data.permisos.filter((p) => p.email === email && p.activo !== false);
+
+  function notify(message, kind='ok') {
+    const feedback = $('#feedback');
+    if (!(feedback instanceof HTMLElement)) return;
+    feedback.textContent = message;
+    feedback.className = `feedback ${kind === 'error' ? 'is-error' : 'is-ok'}`;
+    feedback.hidden = false;
+    setTimeout(() => { feedback.hidden = true; }, 4500);
   }
-  function modulos(){const m=$('#modulo-consulta').value;$('#tabla-modulos').innerHTML=data.permisos.filter(p=>p.activo!==false&&p.modulo===m).map(p=>{const u=data.usuarios.find(x=>x.email===p.email);return `<tr><td>${esc(nome(u)||p.persoa)}</td><td>${esc(p.email)}</td><td>${esc(niveis[p.nivel]||p.nivel)}</td><td>${esc(p.contido||'—')}</td></tr>`}).join('')||'<tr><td colspan="4">Sen permisos definidos.</td></tr>';}
-  async function actividade(){try{const r=await portalRequest('/api/permisos','listarActividadePortal',{desde:$('#desde').value,ata:$('#ata').value,filtroEmail:$('#act-email').value,filtroModulo:$('#act-modulo').value,limite:500});$('#tabla-actividade').innerHTML=(r.actividade||[]).map(a=>`<tr><td>${esc((a.dataHora||'').replace('T',' '))}</td><td>${esc(a.persoa||a.email)}</td><td>${esc(nomes[a.modulo]||a.modulo||'—')}</td><td>${esc(a.accion||'—')}</td><td>${esc(a.elemento||'—')}</td><td>${esc(a.resultado||'—')}</td></tr>`).join('')||'<tr><td colspan="6">Sen actividade.</td></tr>';}catch(e){$('#tabla-actividade').innerHTML=`<tr><td colspan="6">${esc(e.message)}</td></tr>`;}}
-  async function cargar(show=true){if(show)$('#estado').textContent='Cargando…';try{const r=await portalRequest('/api/permisos','listarPermisosPortal');data={usuarios:r.usuarios||[],permisos:r.permisos||[],modulos:r.modulos||[]};selects();lista();detalle();modulos();$('#estado').textContent='';}catch(e){$('#estado').textContent=e.message||'Erro ao cargar.';}}
-  document.querySelectorAll('nav button[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button[data-tab]').forEach(x=>x.classList.toggle('activo',x===b));document.querySelectorAll('.tab-panel').forEach(x=>x.hidden=true);$('#'+b.dataset.tab).hidden=false;if(b.dataset.tab==='modulos')modulos();if(b.dataset.tab==='actividade')actividade();});
-  $('#buscar').oninput=lista;$('#filtro-modulo').onchange=lista;$('#modulo-consulta').onchange=modulos;$('#consultar').onclick=actividade;$('#permisos-logout').onclick=()=>closePortalSession();const h=new Date().toISOString().slice(0,10);$('#desde').value=h;$('#ata').value=h;waitForPortalUser().then(u=>{if(!u?.email)location.href='/portal/';else cargar();});
+
+  function actualizarMetricas() {
+    $('#metric-users').textContent = String(data.usuarios.length);
+    $('#metric-permissions').textContent = String(data.permisos.filter((p) => p.activo !== false).length);
+    $('#metric-modules').textContent = String(data.modulos.length);
+  }
+
+  function cargarSelects() {
+    const options = data.modulos.map((m) => `<option value="${esc(m)}">${esc(nomes[m] || m)}</option>`).join('');
+    $('#filtro-modulo').innerHTML = '<option value="">Todos os módulos</option>' + options;
+    $('#modulo-consulta').innerHTML = options;
+    $('#act-modulo').innerHTML = '<option value="">Todos os módulos</option>' + options;
+    $('#act-email').innerHTML = '<option value="">Todas as persoas</option>' + data.usuarios
+      .map((u) => `<option value="${esc(u.email)}">${esc(nome(u))}</option>`).join('');
+  }
+
+  function renderLista() {
+    const query = String($('#buscar').value || '').toLowerCase();
+    const modulo = $('#filtro-modulo').value;
+    const usuarios = data.usuarios.filter((u) => {
+      const coincideTexto = !query || (`${nome(u)} ${u.email}`).toLowerCase().includes(query);
+      const coincideModulo = !modulo || permisosUsuario(u.email).some((p) => p.modulo === modulo);
+      return coincideTexto && coincideModulo;
+    });
+
+    $('#visible-count').textContent = String(usuarios.length);
+    $('#lista').innerHTML = usuarios.map((u) => {
+      const permisos = permisosUsuario(u.email);
+      const seleccionada = seleccion === u.email;
+      return `<button class="persoa ${seleccionada ? 'sel' : ''}" data-email="${esc(u.email)}" type="button">
+        <span class="person-avatar">${esc((nome(u).charAt(0) || '?').toUpperCase())}</span>
+        <span class="person-copy"><strong>${esc(nome(u))}</strong><small>${esc(u.email)}</small></span>
+        <span class="permission-count">${permisos.length}</span>
+      </button>`;
+    }).join('') || '<div class="empty-list"><strong>Sen resultados</strong><span>Non hai persoas que coincidan cos filtros.</span></div>';
+
+    document.querySelectorAll('.persoa').forEach((button) => {
+      button.onclick = () => {
+        seleccion = button.dataset.email || '';
+        renderLista();
+        renderDetalle();
+      };
+    });
+  }
+
+  function renderDetalle() {
+    const usuario = data.usuarios.find((item) => item.email === seleccion);
+    const detalle = $('#detalle');
+    if (!usuario) {
+      detalle.className = 'detail-panel empty-detail';
+      detalle.innerHTML = '<div class="empty-icon">⌁</div><h2>Selecciona unha persoa</h2><p>Escolle un usuario da lista para consultar ou modificar os seus permisos.</p>';
+      return;
+    }
+
+    const permisos = permisosUsuario(usuario.email);
+    detalle.className = 'detail-panel';
+    detalle.innerHTML = `
+      <header class="detail-header">
+        <div><span class="section-kicker">Permisos individuais</span><h2>${esc(nome(usuario))}</h2><p>${esc(usuario.email)}</p></div>
+        <span class="detail-badge">${permisos.length} definidos</span>
+      </header>
+      <section class="permission-section">
+        <div class="section-intro"><h3>Acceso por módulo</h3><p>Escolle o nivel xeral que terá esta persoa en cada área do portal.</p></div>
+        <div class="matriz">${data.modulos.map((modulo) => {
+          const permiso = permisos.find((p) => p.modulo === modulo && !p.contido);
+          const nivel = permiso?.nivel || 'sen_acceso';
+          return `<label>
+            <span><strong>${esc(nomes[modulo] || modulo)}</strong><small>Permiso xeral do módulo</small></span>
+            <select data-modulo="${esc(modulo)}">
+              <option value="sen_acceso" ${nivel === 'sen_acceso' ? 'selected' : ''}>Sen acceso</option>
+              <option value="lectura" ${nivel === 'lectura' ? 'selected' : ''}>Lectura</option>
+              <option value="escritura" ${nivel === 'escritura' ? 'selected' : ''}>Lectura e escritura</option>
+              <option value="administracion" ${nivel === 'administracion' ? 'selected' : ''}>Administración</option>
+            </select>
+          </label>`;
+        }).join('')}</div>
+      </section>
+      <section class="permission-section content-permissions">
+        <div class="section-intro"><h3>Documentación por contido</h3><p>Engade excepcións para tipos concretos de documentación, por exemplo actas ou contratos.</p></div>
+        <div class="inline-form">
+          <label><span>Contido</span><input id="contido" placeholder="Ex.: Actas XD" /></label>
+          <label><span>Nivel</span><select id="nivel-contido"><option value="lectura">Lectura</option><option value="escritura">Lectura e escritura</option><option value="administracion">Administración</option><option value="sen_acceso">Sen acceso</option></select></label>
+          <button id="add-contido" class="secondary-action" type="button">Engadir permiso</button>
+        </div>
+        <div class="chips">${permisos.filter((p) => p.modulo === 'documentacion' && p.contido).map((p) => `<button data-id="${esc(p.id)}" type="button"><span>${esc(p.contido)}</span><small>${esc(niveis[p.nivel] || p.nivel)}</small><b>×</b></button>`).join('') || '<span class="muted-copy">Sen excepcións específicas.</span>'}</div>
+      </section>`;
+
+    document.querySelectorAll('.matriz select').forEach((select) => {
+      select.onchange = async () => {
+        select.disabled = true;
+        try {
+          await portalRequest('/api/permisos', 'gardarPermisoPortal', {
+            usuarioEmail: usuario.email,
+            persoa: usuario.persoa || usuario.nome || '',
+            modulo: select.dataset.modulo,
+            contido: '',
+            nivel: select.value,
+            rol: ''
+          });
+          await cargar(false);
+          seleccion = usuario.email;
+          renderLista();
+          renderDetalle();
+          notify('Permiso actualizado correctamente.');
+        } catch (error) {
+          notify(error.message || 'Non foi posible gardar o permiso.', 'error');
+          select.disabled = false;
+        }
+      };
+    });
+
+    $('#add-contido').onclick = async () => {
+      const contido = $('#contido').value.trim();
+      if (!contido) return;
+      try {
+        await portalRequest('/api/permisos', 'gardarPermisoPortal', {
+          usuarioEmail: usuario.email,
+          persoa: usuario.persoa || usuario.nome || '',
+          modulo: 'documentacion',
+          contido,
+          nivel: $('#nivel-contido').value,
+          rol: ''
+        });
+        await cargar(false);
+        seleccion = usuario.email;
+        renderLista();
+        renderDetalle();
+        notify('Permiso específico engadido.');
+      } catch (error) {
+        notify(error.message || 'Non foi posible engadir o permiso.', 'error');
+      }
+    };
+
+    document.querySelectorAll('.chips button[data-id]').forEach((button) => {
+      button.onclick = async () => {
+        if (!confirm('Eliminar este permiso específico?')) return;
+        try {
+          await portalRequest('/api/permisos', 'eliminarPermisoPortal', { id: button.dataset.id });
+          await cargar(false);
+          seleccion = usuario.email;
+          renderLista();
+          renderDetalle();
+          notify('Permiso específico eliminado.');
+        } catch (error) {
+          notify(error.message || 'Non foi posible eliminar o permiso.', 'error');
+        }
+      };
+    });
+  }
+
+  function renderModulos() {
+    const modulo = $('#modulo-consulta').value;
+    const permisos = data.permisos.filter((p) => p.activo !== false && p.modulo === modulo);
+    $('#tabla-modulos').innerHTML = permisos.map((p) => {
+      const usuario = data.usuarios.find((item) => item.email === p.email);
+      return `<tr><td><strong>${esc(nome(usuario) || p.persoa)}</strong></td><td>${esc(p.email)}</td><td><span class="level-pill">${esc(niveis[p.nivel] || p.nivel)}</span></td><td>${esc(p.contido || '—')}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" class="table-empty">Non hai permisos definidos neste módulo.</td></tr>';
+  }
+
+  async function renderActividade() {
+    const tbody = $('#tabla-actividade');
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Cargando actividade…</td></tr>';
+    try {
+      const response = await portalRequest('/api/permisos', 'listarActividadePortal', {
+        desde: $('#desde').value,
+        ata: $('#ata').value,
+        filtroEmail: $('#act-email').value,
+        filtroModulo: $('#act-modulo').value,
+        limite: 500
+      });
+      tbody.innerHTML = (response.actividade || []).map((item) => `<tr><td>${esc((item.dataHora || '').replace('T',' '))}</td><td><strong>${esc(item.persoa || item.email)}</strong></td><td>${esc(nomes[item.modulo] || item.modulo || '—')}</td><td>${esc(item.accion || '—')}</td><td>${esc(item.elemento || '—')}</td><td><span class="result-pill">${esc(item.resultado || '—')}</span></td></tr>`).join('') || '<tr><td colspan="6" class="table-empty">Non hai actividade para os filtros seleccionados.</td></tr>';
+    } catch (error) {
+      tbody.innerHTML = `<tr><td colspan="6" class="table-empty error-copy">${esc(error.message || 'Non foi posible consultar a actividade.')}</td></tr>`;
+    }
+  }
+
+  async function cargar(showLoading = true) {
+    const loading = $('#loading');
+    const errorState = $('#error-state');
+    const app = $('#permissions-app');
+    if (showLoading) {
+      loading.hidden = false;
+      errorState.hidden = true;
+      app.hidden = true;
+    }
+
+    try {
+      const response = await portalRequest('/api/permisos', 'listarPermisosPortal');
+      data = {
+        usuarios: response.usuarios || [],
+        permisos: response.permisos || [],
+        modulos: response.modulos || []
+      };
+      cargarSelects();
+      actualizarMetricas();
+      renderLista();
+      renderDetalle();
+      renderModulos();
+      loading.hidden = true;
+      errorState.hidden = true;
+      app.hidden = false;
+      $('#user-level').textContent = response.administrador ? 'Administración' : 'Acceso autorizado';
+    } catch (error) {
+      loading.hidden = true;
+      app.hidden = true;
+      errorState.hidden = false;
+      $('#error-message').textContent = error.message || 'Produciuse un erro inesperado.';
+      $('#user-level').textContent = 'Sen autorización';
+    }
+  }
+
+  document.querySelectorAll('.permissions-tabs button[data-tab]').forEach((button) => {
+    button.onclick = () => {
+      document.querySelectorAll('.permissions-tabs button[data-tab]').forEach((item) => item.classList.toggle('activo', item === button));
+      document.querySelectorAll('.tab-panel').forEach((panel) => { panel.hidden = true; });
+      $('#' + button.dataset.tab).hidden = false;
+      if (button.dataset.tab === 'modulos') renderModulos();
+      if (button.dataset.tab === 'actividade') renderActividade();
+    };
+  });
+
+  $('#buscar').oninput = renderLista;
+  $('#filtro-modulo').onchange = renderLista;
+  $('#modulo-consulta').onchange = renderModulos;
+  $('#consultar').onclick = renderActividade;
+  $('#retry-button').onclick = () => cargar(true);
+  $('#permisos-logout').onclick = () => closePortalSession();
+
+  const hoxe = new Date().toISOString().slice(0, 10);
+  $('#desde').value = hoxe;
+  $('#ata').value = hoxe;
+
+  waitForPortalUser().then((user) => {
+    if (!user?.email) {
+      location.href = '/portal/';
+      return;
+    }
+    $('#user-email').textContent = user.email;
+    cargar(true);
+  });
 </script>
+
 <style is:global>
-body{background:#f5f3f1}.permisos-layout{display:flex;min-height:100vh}.permisos-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,3rem) 4rem;font-family:var(--fuente-minimalista)}.volver{color:#5d142b;text-decoration:none;font-weight:700}.permisos-main header{padding:1rem 0 1.3rem;border-bottom:1px solid #ddd6d1}.permisos-main header span{color:var(--color-acento);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.permisos-main h1{margin:.2rem 0;color:#5d142b;font-size:clamp(2rem,4vw,3.2rem)}.permisos-main header p{margin:.4rem 0 0;color:#665f5b}#estado{margin:1rem 0;color:#7b312f}.permisos-main nav{display:flex;gap:.3rem;border-bottom:1px solid #d9d2cd}.permisos-main nav button{border:0;background:none;padding:.8rem 1rem;font-weight:750;color:#675f5a;cursor:pointer}.permisos-main nav button.activo{color:#5d142b;border-bottom:3px solid #5d142b}.tab-panel{padding-top:1rem}.filtros{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}.filtros input,.filtros select,.filtros button,.matriz select{min-height:40px;border:1px solid #cec5bf;background:#fff;padding:.5rem .65rem;font:inherit}.filtros button{color:#fff;background:#5d142b;border-color:#5d142b;font-weight:700}.grid{display:grid;grid-template-columns:320px 1fr;gap:1rem}.lista,.detalle{background:#fff;border:1px solid #ddd6d1;min-height:480px}.lista{padding:.4rem}.persoa{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #eee8e4;background:#fff;padding:.75rem;cursor:pointer}.persoa.sel{background:#f4e9ed}.persoa strong,.persoa small{display:block}.persoa small{color:#7d746f;margin-top:.2rem}.detalle{padding:1rem}.detalle h2{color:#5d142b;margin:.2rem 0}.matriz{margin:1rem 0}.matriz label{display:grid;grid-template-columns:1fr 220px;align-items:center;gap:1rem;border-top:1px solid #eee8e4;padding:.6rem 0}.chips{display:flex;gap:.4rem;flex-wrap:wrap}.chips button{border:1px solid #d5ccc6;background:#f7f3f1;padding:.35rem .55rem}.tabla{overflow:auto;background:#fff;border:1px solid #ddd6d1}.tabla table{width:100%;border-collapse:collapse;min-width:760px}.tabla th,.tabla td{padding:.65rem .75rem;border-bottom:1px solid #eee8e4;text-align:left}.tabla th{background:#f2eeeb;font-size:.75rem;text-transform:uppercase}@media(max-width:900px){.permisos-layout{display:block}.grid{grid-template-columns:1fr}.lista{min-height:0;max-height:320px;overflow:auto}}@media(max-width:620px){.permisos-main{padding:1rem .8rem 2rem}.matriz label{grid-template-columns:1fr}.filtros>*{width:100%}}
+  body{background:#f5f3f1}
+  .permisos-layout{display:flex;min-height:100vh}
+  .permisos-main{flex:1;min-width:0;padding:2rem clamp(1.15rem,3vw,3.4rem) 4rem;font-family:var(--fuente-minimalista)}
+  .permisos-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-end;padding-bottom:1.35rem;border-bottom:1px solid #ded7d2}
+  .volver{display:inline-block;margin-bottom:1.25rem;color:#6b2135;text-decoration:none;font-weight:700;font-size:.92rem}
+  .section-kicker{display:block;color:var(--color-acento);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em}
+  .permisos-main h1{margin:.25rem 0 .45rem;color:#61152c;font-size:clamp(2.25rem,4vw,3.45rem);line-height:1.02}
+  .permisos-header p{max-width:760px;margin:0;color:#6c625d;font-size:1.03rem;line-height:1.55}
+  .account-card{display:grid;grid-template-columns:1fr;gap:.55rem;min-width:250px;background:#fff;border:1px solid #e1d9d3;border-radius:16px;padding:1rem 1.1rem;box-shadow:0 10px 28px rgba(59,40,32,.05)}
+  .account-card span{display:grid;gap:.15rem}.account-card small{color:#8b7f78;font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:750}.account-card strong{color:#352d29;font-size:.9rem;overflow-wrap:anywhere}
+  .state-box{margin-top:1.25rem;background:#fff;border:1px solid #e0d8d2;border-radius:14px;padding:1rem 1.1rem;color:#665d58}.error-box{border-color:#dfc6c6;background:#fffafa}.error-box strong{color:#7a2234}.error-box p{margin:.35rem 0 .9rem}
+  .permissions-app{margin-top:1.15rem}.feedback{position:sticky;top:.75rem;z-index:5;margin-bottom:1rem;padding:.8rem 1rem;border-radius:12px;font-weight:700;box-shadow:0 8px 24px rgba(40,30,25,.08)}.feedback.is-ok{background:#f2f7f2;border:1px solid #cbdcca;color:#33543a}.feedback.is-error{background:#fff5f5;border:1px solid #e1c7c7;color:#812f39}
+  .permissions-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}.permissions-summary>div{background:#fff;border:1px solid #e1d9d3;border-radius:14px;padding:.9rem 1rem;display:grid;gap:.15rem}.permissions-summary small{color:#8a7d76;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;font-weight:750}.permissions-summary strong{font-size:1.45rem;color:#61152c}
+  .permissions-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin:0 0 1rem;border:0}.permissions-tabs button{display:grid;gap:.18rem;text-align:left;border:1px solid #dfd6d0;background:#f9f7f5;border-radius:14px;padding:.85rem 1rem;color:#675d58;cursor:pointer;transition:.18s ease}.permissions-tabs button:hover{background:#fff;border-color:#cfc2ba}.permissions-tabs button.activo{background:#fff;border-color:#9b6d79;box-shadow:inset 3px 0 0 #61152c,0 8px 20px rgba(71,45,38,.05);color:#61152c}.permissions-tabs button span{font-weight:800}.permissions-tabs button small{font-size:.72rem;color:#91847d}
+  .tab-panel{padding-top:.15rem}.filters-panel{display:flex;gap:.8rem;align-items:end;flex-wrap:wrap;background:#fff;border:1px solid #e1d9d3;border-radius:14px;padding:.85rem 1rem;margin-bottom:.85rem}.filters-panel label,.inline-form label{display:grid;gap:.35rem}.filters-panel label span,.inline-form label span{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;font-weight:750;color:#81736c}.filters-panel input,.filters-panel select,.inline-form input,.inline-form select,.matriz select{min-height:42px;border:1px solid #d6cbc4;border-radius:9px;background:#fff;padding:.55rem .7rem;font:inherit;color:#332c28}.filters-panel input:focus,.filters-panel select:focus,.inline-form input:focus,.inline-form select:focus,.matriz select:focus{outline:2px solid rgba(97,21,44,.12);border-color:#9e7280}.compact-filters .search-field{flex:1 1 360px}.compact-filters label:not(.search-field){min-width:240px}.module-filter label{min-width:300px}.audit-filters label{min-width:160px}.audit-filters label:nth-child(3),.audit-filters label:nth-child(4){min-width:220px}.primary-action,.secondary-action{min-height:42px;border-radius:9px;padding:.55rem .9rem;font:inherit;font-weight:750;cursor:pointer}.primary-action{border:1px solid #61152c;background:#61152c;color:#fff}.secondary-action{border:1px solid #cdbfc0;background:#fff;color:#61152c}.primary-action:hover{background:#4f1024}.secondary-action:hover{background:#f7f1f3}
+  .permissions-grid{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:.85rem;align-items:start}.people-panel,.detail-panel,.table-card{background:#fff;border:1px solid #e1d9d3;border-radius:16px;box-shadow:0 10px 26px rgba(62,43,35,.035)}.people-panel{overflow:hidden}.people-panel>header,.table-card>header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1rem .85rem;border-bottom:1px solid #eee8e4}.people-panel h2,.table-card h2,.detail-panel h2{margin:.15rem 0;color:#3f3430;font-size:1.2rem}.people-panel>header>strong{display:grid;place-items:center;min-width:34px;height:34px;border-radius:99px;background:#f4ecef;color:#61152c;font-size:.86rem}.lista{max-height:650px;overflow:auto;padding:.35rem}.persoa{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:.7rem;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid #f0ebe7;background:transparent;padding:.75rem .7rem;cursor:pointer;border-radius:10px}.persoa:last-child{border-bottom:0}.persoa:hover{background:#faf7f5}.persoa.sel{background:#f4ecef}.person-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#eee6e1;color:#6b2135;font-weight:850}.person-copy{min-width:0;display:grid;gap:.12rem}.person-copy strong{color:#372f2b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.person-copy small{color:#8a7d76;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.permission-count{display:grid;place-items:center;min-width:30px;height:28px;border-radius:99px;background:#f2efec;color:#655b56;font-size:.78rem;font-weight:800}.empty-list{padding:2rem 1rem;text-align:center;display:grid;gap:.25rem;color:#786d67}.empty-list span{font-size:.86rem;color:#978a83}
+  .detail-panel{padding:1.05rem;min-height:520px}.empty-detail{display:grid;place-items:center;align-content:center;text-align:center;color:#7d716b}.empty-detail h2{margin:.6rem 0 .15rem}.empty-detail p{max-width:420px;margin:0;color:#93867f}.empty-icon{font-size:2.2rem;color:#b49da5}.detail-header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding:.25rem .2rem 1rem;border-bottom:1px solid #eee8e4}.detail-header h2{font-size:1.45rem;color:#61152c}.detail-header p{margin:.15rem 0 0;color:#887b74}.detail-badge{background:#f4ecef;color:#61152c;border-radius:99px;padding:.4rem .65rem;font-size:.76rem;font-weight:800;white-space:nowrap}.permission-section{padding:1rem .2rem 0}.permission-section+.permission-section{margin-top:1rem;border-top:1px solid #eee8e4}.section-intro h3{margin:0;color:#403631;font-size:1rem}.section-intro p{margin:.25rem 0 .8rem;color:#897d76;font-size:.88rem}.matriz{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}.matriz label{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:.7rem;align-items:center;border:1px solid #eee8e4;border-radius:11px;padding:.65rem .7rem;background:#fcfbfa}.matriz label>span{display:grid;gap:.12rem}.matriz label strong{font-size:.9rem;color:#3d342f}.matriz label small{font-size:.7rem;color:#9a8e87}.inline-form{display:grid;grid-template-columns:minmax(180px,1fr) 210px auto;gap:.65rem;align-items:end}.chips{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}.chips button{display:flex;align-items:center;gap:.45rem;border:1px solid #ddcfd3;background:#faf5f7;border-radius:99px;padding:.42rem .55rem .42rem .7rem;color:#5d2031;cursor:pointer}.chips button span{font-weight:750}.chips button small{color:#8d717a}.chips button b{font-size:1rem}.muted-copy{color:#978a83;font-size:.86rem}
+  .table-card{overflow:hidden}.tabla{overflow:auto}.tabla table{width:100%;border-collapse:collapse;min-width:760px}.tabla th,.tabla td{padding:.78rem .9rem;border-bottom:1px solid #eee8e4;text-align:left;vertical-align:top}.tabla th{background:#faf8f6;color:#81746d;font-size:.68rem;text-transform:uppercase;letter-spacing:.07em}.tabla td{color:#544a45;font-size:.88rem}.tabla tr:last-child td{border-bottom:0}.level-pill,.result-pill{display:inline-flex;border-radius:99px;background:#f2eeeb;padding:.3rem .5rem;font-size:.75rem;font-weight:750;color:#604f48}.table-empty{text-align:center!important;padding:2.2rem!important;color:#948780!important}.error-copy{color:#8b3440!important}
+  @media(max-width:1100px){.permisos-header{align-items:flex-start}.account-card{min-width:220px}.permissions-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.permissions-grid{grid-template-columns:300px minmax(0,1fr)}.matriz{grid-template-columns:1fr}.inline-form{grid-template-columns:1fr 200px}.inline-form .secondary-action{grid-column:1/-1}}
+  @media(max-width:900px){.permisos-layout{display:block}.permisos-header{display:grid}.account-card{grid-template-columns:repeat(2,minmax(0,1fr));min-width:0}.permissions-grid{grid-template-columns:1fr}.lista{max-height:340px}.detail-panel{min-height:0}}
+  @media(max-width:680px){.permisos-main{padding:1rem .8rem 2rem}.permissions-summary{grid-template-columns:1fr 1fr}.permissions-tabs{grid-template-columns:1fr}.account-card{grid-template-columns:1fr}.filters-panel>*{width:100%;min-width:0!important}.matriz label{grid-template-columns:1fr}.inline-form{grid-template-columns:1fr}.inline-form .secondary-action{grid-column:auto}.detail-header{display:grid}.permissions-summary strong{font-size:1.2rem}}
 </style>
