@@ -15,6 +15,7 @@ const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
 
 const erro = (status, codigo, mensaxe) => json(status, { ok:false, codigo, erro:mensaxe });
 const clean = (value) => String(value || '').trim();
+const normalizarTexto = (value) => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const idEnsaioDe = (row) => clean(row?.ensaio || row?.idEnsaio);
 const idPersoaDe = (row) => clean(row?.persoa || row?.idPersoa);
 const idRepertorioDe = (row) => clean(row?.repertorio || row?.idRepertorio);
@@ -108,19 +109,65 @@ function normalizarAsistencia(row, idEnsaio) {
   };
 }
 
+function resolverIdsPrograma(programa, repertorio) {
+  const catalogo = Array.isArray(repertorio) ? repertorio : [];
+  const idsValidos = new Set();
+  const porTitulo = new Map();
+  for (const obra of catalogo) {
+    const id = clean(obra?.idRepertorio || obra?.id);
+    if (!id) continue;
+    idsValidos.add(id);
+    const titulo = normalizarTexto(obra?.nomeObra || obra?.nome || obra?.obra || obra?.titulo);
+    if (titulo && !porTitulo.has(titulo)) porTitulo.set(titulo, id);
+  }
+
+  const resoltos = [];
+  for (const item of Array.isArray(programa) ? programa : []) {
+    const directo = clean(item?.obraId || item?.idRepertorio || item?.id || item?.repertorio);
+    if (directo && idsValidos.has(directo)) {
+      resoltos.push(directo);
+      continue;
+    }
+
+    const titulo = normalizarTexto(item?.obra || item?.titulo || item?.nomeObra || item?.nome);
+    const porNome = titulo ? porTitulo.get(titulo) : '';
+    if (porNome) {
+      resoltos.push(porNome);
+      continue;
+    }
+
+    const numeric = Number(String(directo || '').replace(',', '.'));
+    if (Number.isInteger(numeric) && numeric > 0) {
+      for (const index of [numeric - 2, numeric - 1, numeric]) {
+        const candidate = catalogo[index];
+        const candidateId = clean(candidate?.idRepertorio || candidate?.id);
+        if (candidateId) {
+          resoltos.push(candidateId);
+          break;
+        }
+      }
+    }
+  }
+  return [...new Set(resoltos.filter(Boolean))];
+}
+
 function draftDesdePayload(result, idEnsaio) {
+  const repertorio = (Array.isArray(result?.ensaiosRepertorio) ? result.ensaiosRepertorio : [])
+    .filter((row) => idEnsaioDe(row) === idEnsaio)
+    .map((row, index) => normalizarObra(row, idEnsaio, index + 1))
+    .filter((row) => row.repertorio);
+  const asistencias = (Array.isArray(result?.asistencias) ? result.asistencias : [])
+    .filter((row) => idEnsaioDe(row) === idEnsaio)
+    .map((row) => normalizarAsistencia(row, idEnsaio))
+    .filter((row) => row.persoa);
   return {
     version:1,
     idEnsaio,
     updatedAt:new Date().toISOString(),
-    repertorio:(Array.isArray(result?.ensaiosRepertorio) ? result.ensaiosRepertorio : [])
-      .filter((row) => idEnsaioDe(row) === idEnsaio)
-      .map((row, index) => normalizarObra(row, idEnsaio, index + 1))
-      .filter((row) => row.repertorio),
-    asistencias:(Array.isArray(result?.asistencias) ? result.asistencias : [])
-      .filter((row) => idEnsaioDe(row) === idEnsaio)
-      .map((row) => normalizarAsistencia(row, idEnsaio))
-      .filter((row) => row.persoa)
+    repertorio,
+    asistencias,
+    baseRepertorio:repertorio.map((row) => ({ ...row })),
+    baseAsistencias:asistencias.map((row) => ({ ...row }))
   };
 }
 
@@ -149,35 +196,45 @@ async function gardarDraft(env, draft) {
   return value;
 }
 
-async function lerPayloadPrincipalR2(env, user) {
+async function lerEntradaPrincipalR2(env, user) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
   try {
     const object = await env.R2_PRIVADO.get(await mainCacheKey(user.email));
     if (!object) return null;
     const entry = await object.json();
     if (entry?.email !== user.email || entry?.payload?.ok !== true || entry?.payload?.version !== 2) return null;
-    return entry.payload;
+    return entry;
   } catch (error) {
-    console.warn('Non se puido inicializar o borrador desde o índice principal de R2:', error);
+    console.warn('Non se puido ler o índice principal de R2:', error);
     return null;
   }
+}
+
+async function lerPayloadPrincipalR2(env, user) {
+  return (await lerEntradaPrincipalR2(env, user))?.payload || null;
+}
+
+async function gardarPayloadPrincipalR2(env, user, payload) {
+  const key = await mainCacheKey(user.email);
+  await env.R2_PRIVADO.put(key, JSON.stringify({ savedAt:Date.now(), email:user.email, payload }), {
+    httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' }
+  });
 }
 
 async function obterOuCrearDraft(env, user, idEnsaio) {
   const existing = await lerDraft(env, idEnsaio);
   if (existing) return existing;
-
-  // O borrador inicialízase exclusivamente desde o índice principal de R2.
-  // Non se consulta a Sheet ao abrir ou traballar nun ensaio.
-  const payloadR2 = await lerPayloadPrincipalR2(env, user);
-  const initial = draftDesdePayload(payloadR2 || {}, idEnsaio);
-  return await gardarDraft(env, initial);
+  return reiniciarDraft(env, user, idEnsaio);
 }
 
-async function executarEnLotes(items, worker, size = 6) {
-  for (let i = 0; i < items.length; i += size) {
-    await Promise.all(items.slice(i, i + size).map(worker));
-  }
+async function reiniciarDraft(env, user, idEnsaio) {
+  const payloadR2 = await lerPayloadPrincipalR2(env, user);
+  if (!payloadR2) throw Object.assign(new Error('Non hai un índice R2 de Ensaios dispoñible para iniciar a edición.'), { code:'R2_SEED_MISSING' });
+  return gardarDraft(env, draftDesdePayload(payloadR2, idEnsaio));
+}
+
+async function executarSecuencial(items, worker) {
+  for (const item of items) await worker(item);
 }
 
 function obraIgual(a, b) {
@@ -196,29 +253,70 @@ function asistenciaIgual(a, b) {
     && aa.observacions === bb.observacions;
 }
 
+async function actualizarIndicePrincipalDesdeDraft(env, user, idEnsaio, draft) {
+  const entry = await lerEntradaPrincipalR2(env, user);
+  if (!entry?.payload) throw Object.assign(new Error('Non foi posible actualizar o índice principal de R2.'), { code:'R2_MAIN_MISSING' });
+  const previo = entry.payload;
+  const repertorioEnsaio = draft.repertorio.map((row, index) => ({
+    idEnsaioRepertorio:'',
+    ensaio:idEnsaio,
+    repertorio:idRepertorioDe(row),
+    orde:Number(row.orde) || index + 1,
+    tipoTraballo:clean(row.tipoTraballo),
+    desde:clean(row.desde),
+    ata:clean(row.ata),
+    observacions:clean(row.observacions)
+  })).filter((row) => row.repertorio);
+  const asistenciasEnsaio = draft.asistencias.map((row) => ({
+    idAsistenciaEnsaio:'',
+    ensaio:idEnsaio,
+    persoa:idPersoaDe(row),
+    estadoAsistencia:clean(row.estadoAsistencia),
+    xustificada:row.xustificada === true,
+    motivo:clean(row.motivo),
+    observacions:clean(row.observacions)
+  })).filter((row) => row.persoa);
+  const ensaiosRepertorio = (Array.isArray(previo.ensaiosRepertorio) ? previo.ensaiosRepertorio : [])
+    .filter((row) => idEnsaioDe(row) !== idEnsaio)
+    .concat(repertorioEnsaio);
+  const asistencias = (Array.isArray(previo.asistencias) ? previo.asistencias : [])
+    .filter((row) => idEnsaioDe(row) !== idEnsaio)
+    .concat(asistenciasEnsaio);
+  const ensaios = (Array.isArray(previo.ensaios) ? previo.ensaios : []).map((row) => {
+    if (clean(row.idEnsaio || row.id) !== idEnsaio) return row;
+    return { ...row, obras:repertorioEnsaio.length, asistencias:asistenciasEnsaio.length };
+  });
+  const payload = {
+    ...previo,
+    ensaios,
+    ensaiosRepertorio,
+    asistencias,
+    xeradoEn:new Date().toISOString()
+  };
+  await gardarPayloadPrincipalR2(env, user, payload);
+  return payload;
+}
+
 async function finalizar(env, user, idEnsaio) {
   const draft = await obterOuCrearDraft(env, user, idEnsaio);
-
-  // A Sheet só se consulta aquí: ao finalizar, para consolidar o resultado definitivo.
-  const sheet = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-  const obrasSheet = (Array.isArray(sheet.ensaiosRepertorio) ? sheet.ensaiosRepertorio : []).filter((row) => idEnsaioDe(row) === idEnsaio);
-  const asistSheet = (Array.isArray(sheet.asistencias) ? sheet.asistencias : []).filter((row) => idEnsaioDe(row) === idEnsaio);
-  const sheetWorks = new Map(obrasSheet.map((row) => [idRepertorioDe(row), row]));
+  const baseRepertorio = Array.isArray(draft.baseRepertorio) ? draft.baseRepertorio : [];
+  const baseAsistencias = Array.isArray(draft.baseAsistencias) ? draft.baseAsistencias : [];
+  const baseWorks = new Map(baseRepertorio.map((row) => [idRepertorioDe(row), row]));
   const draftWorks = new Map(draft.repertorio.map((row) => [idRepertorioDe(row), row]));
-  const sheetAttendance = new Map(asistSheet.map((row) => [idPersoaDe(row), row]));
+  const baseAttendance = new Map(baseAsistencias.map((row) => [idPersoaDe(row), row]));
 
-  const eliminar = [...sheetWorks.keys()].filter((id) => id && !draftWorks.has(id));
+  const eliminar = [...baseWorks.keys()].filter((id) => id && !draftWorks.has(id));
   const gardarObras = [...draftWorks.values()].filter((row) => {
-    const current = sheetWorks.get(idRepertorioDe(row));
+    const current = baseWorks.get(idRepertorioDe(row));
     return !current || !obraIgual(current, row);
   });
   const gardarAsistencias = draft.asistencias.filter((row) => {
-    const current = sheetAttendance.get(idPersoaDe(row));
+    const current = baseAttendance.get(idPersoaDe(row));
     return !current || !asistenciaIgual(current, row);
   });
 
-  await executarEnLotes(eliminar, (idRepertorio) => chamarAppsScript(env, user, 'eliminarEnsaioRepertorioPortal', { idEnsaio, idRepertorio }));
-  await executarEnLotes(gardarObras, (row) => chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', {
+  await executarSecuencial(eliminar, (idRepertorio) => chamarAppsScript(env, user, 'eliminarEnsaioRepertorioPortal', { idEnsaio, idRepertorio }));
+  await executarSecuencial(gardarObras, (row) => chamarAppsScript(env, user, 'gardarEnsaioRepertorioPortal', {
     idEnsaio,
     idRepertorio:idRepertorioDe(row),
     tipoTraballo:clean(row.tipoTraballo),
@@ -226,7 +324,7 @@ async function finalizar(env, user, idEnsaio) {
     ata:clean(row.ata),
     observacions:clean(row.observacions)
   }));
-  await executarEnLotes(gardarAsistencias, (row) => chamarAppsScript(env, user, 'gardarAsistenciaEnsaioPortal', {
+  await executarSecuencial(gardarAsistencias, (row) => chamarAppsScript(env, user, 'gardarAsistenciaEnsaioPortal', {
     idEnsaio,
     idPersoa:idPersoaDe(row),
     estadoAsistencia:clean(row.estadoAsistencia),
@@ -235,8 +333,12 @@ async function finalizar(env, user, idEnsaio) {
     observacions:clean(row.observacions)
   }));
 
-  const fresh = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-  const synced = await gardarDraft(env, draftDesdePayload(fresh, idEnsaio));
+  await actualizarIndicePrincipalDesdeDraft(env, user, idEnsaio, draft);
+  const synced = await gardarDraft(env, {
+    ...draft,
+    baseRepertorio:draft.repertorio.map((row) => ({ ...row })),
+    baseAsistencias:draft.asistencias.map((row) => ({ ...row }))
+  });
   return {
     draft:synced,
     resumo:{ obrasGardadas:gardarObras.length, obrasEliminadas:eliminar.length, asistenciasGardadas:gardarAsistencias.length }
@@ -264,6 +366,11 @@ export async function onRequest({ request, env }) {
   if (!idEnsaio) return erro(400, 'INVALID_DATA', 'Falta identificar o ensaio.');
 
   try {
+    if (accion === 'reiniciar') {
+      const draft = await reiniciarDraft(env, user, idEnsaio);
+      return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+    }
+
     let draft = await obterOuCrearDraft(env, user, idEnsaio);
 
     if (accion === 'obter') return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
@@ -282,6 +389,27 @@ export async function onRequest({ request, env }) {
       map.set(idPersoa, row);
       draft = await gardarDraft(env, { ...draft, asistencias:[...map.values()] });
       return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+    }
+
+    if (accion === 'gardarAsistencias') {
+      const persoas = Array.isArray(body.persoas) ? body.persoas.slice(0, 120) : [];
+      const map = new Map(draft.asistencias.map((item) => [idPersoaDe(item), item]));
+      let gardadas = 0;
+      for (const p of persoas) {
+        const idPersoa = clean(p.id || p.idPersoa);
+        const estado = clean(p.estado);
+        if (!idPersoa || !['asiste','non_asiste','xustificada'].includes(estado)) continue;
+        map.set(idPersoa, normalizarAsistencia({
+          persoa:idPersoa,
+          estadoAsistencia:estado === 'asiste' ? 'Asiste' : 'Non asiste',
+          xustificada:estado === 'xustificada',
+          motivo:estado === 'xustificada' ? clean(p.xustificacion) : '',
+          observacions:estado === 'xustificada' ? clean(p.xustificacion) : ''
+        }, idEnsaio));
+        gardadas += 1;
+      }
+      draft = await gardarDraft(env, { ...draft, asistencias:[...map.values()] });
+      return json(200, { ok:true, draft, gardadas, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
     if (accion === 'gardarObra') {
@@ -307,6 +435,37 @@ export async function onRequest({ request, env }) {
       if (!idRepertorio) return erro(400, 'INVALID_DATA', 'Falta identificar a obra.');
       draft = await gardarDraft(env, { ...draft, repertorio:draft.repertorio.filter((row) => idRepertorioDe(row) !== idRepertorio) });
       return json(200, { ok:true, draft, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
+    }
+
+    if (accion === 'incluírProgramaConcerto') {
+      const idConcerto = clean(body.idConcerto);
+      if (!idConcerto) return erro(400, 'INVALID_DATA', 'Selecciona un concerto.');
+
+      const payload = await lerPayloadPrincipalR2(env, user);
+      const repertorioCatalogo = Array.isArray(payload?.repertorio) ? payload.repertorio : [];
+      const concertos = Array.isArray(payload?.concertos) ? payload.concertos : [];
+      const concerto = concertos.find((c) => clean(c?.id || c?.idConcerto) === idConcerto);
+      const programaR2 = Array.isArray(concerto?.programa) ? concerto.programa : Array.isArray(concerto?.repertorio) ? concerto.repertorio : [];
+      let ids = resolverIdsPrograma(programaR2, repertorioCatalogo);
+      let fontePrograma = 'R2';
+
+      if (!ids.length) {
+        const xestionConcerto = await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto });
+        const programaSheet = Array.isArray(xestionConcerto?.programa) ? xestionConcerto.programa : [];
+        ids = resolverIdsPrograma(programaSheet, repertorioCatalogo);
+        fontePrograma = 'SHEET';
+      }
+
+      if (!ids.length) return erro(409, 'CONCERT_WITHOUT_PROGRAM', 'O concerto seleccionado non ten obras resolubles no programa.');
+      const map = new Map(draft.repertorio.map((item) => [idRepertorioDe(item), item]));
+      let engadidas = 0;
+      for (const idRepertorio of ids.slice(0, 80)) {
+        if (map.has(idRepertorio)) continue;
+        map.set(idRepertorio, normalizarObra({ repertorio:idRepertorio, orde:map.size + 1 }, idEnsaio, map.size + 1));
+        engadidas += 1;
+      }
+      draft = await gardarDraft(env, { ...draft, repertorio:[...map.values()] });
+      return json(200, { ok:true, draft, engadidas, totalPrograma:ids.length, fontePrograma, almacen:'R2' }, { 'X-SCPP-Storage':'R2-DRAFT' });
     }
 
     if (accion === 'incluírPrograma') {

@@ -1,0 +1,50 @@
+@media (max-width: 720px) {
+  body { overflow-x: hidden; }
+  .admin-main { padding: 1rem .85rem 3rem !important; }
+  .page-header { display: grid !important; gap: 1rem !important; margin-bottom: 1rem !important; }
+  .page-header h1 { font-size: clamp(2rem, 11vw, 3rem) !important; }
+  .page-header p { font-size: 1rem !important; line-height: 1.5 !important; }
+  .account-card { min-width: 0 !important; width: 100% !important; box-sizing: border-box !important; }
+  .admin-toolbar { display: grid !important; gap: .9rem !important; }
+  .toolbar-actions { display: grid !important; grid-template-columns: 1fr !important; width: 100% !important; gap: .75rem !important; }
+  .toolbar-actions label,
+  .toolbar-actions select,
+  .toolbar-actions button { width: 100% !important; }
+  .rehearsal-card { grid-template-columns: 1fr !important; gap: .8rem !important; padding: 1rem !important; }
+  .rehearsal-state { justify-self: start !important; }
+  .actions { display: grid !important; grid-template-columns: 1fr 1fr !important; width: 100% !important; gap: .55rem !important; }
+  .actions button { width: 100% !important; min-width: 0 !important; }
+  .workbench-header { display: grid !important; gap: .9rem !important; }
+  .module-nav { display: grid !important; grid-template-columns: 1fr !important; }
+  .works-toolbar { display: grid !important; grid-template-columns: 1fr !important; }
+  .search { display: grid !important; grid-template-columns: 1fr auto !important; }
+  .works-grid { grid-template-columns: 1fr !important; }
+  .attendance-toolbar { display: grid !important; }
+  .voice-tabs { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+  .voice-tabs button:first-child { grid-column: 1 / -1 !important; }
+  .person-row { grid-template-columns: 1fr !important; }
+  .att-buttons { grid-template-columns: 1fr !important; }
+  .analysis-filters { grid-template-columns: 1fr !important; }
+  dialog {
+    width: calc(100vw - 1rem) !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 1rem) !important;
+    margin: .5rem auto !important;
+    overflow: auto !important;
+  }
+  dialog form { padding: 1rem !important; }
+  dialog .form-grid { grid-template-columns: 1fr !important; gap: .85rem !important; }
+  dialog .wide { grid-column: auto !important; }
+  dialog input,
+  dialog select,
+  dialog textarea { width: 100% !important; box-sizing: border-box !important; font-size: 16px !important; }
+  dialog footer { position: sticky !important; bottom: 0 !important; background: #fff !important; padding-top: .75rem !important; display: grid !important; grid-template-columns: 1fr 1fr !important; gap: .6rem !important; }
+  dialog footer button { width: 100% !important; }
+}
+
+@media (max-width: 420px) {
+  .actions { grid-template-columns: 1fr !important; }
+  .voice-tabs { grid-template-columns: 1fr !important; }
+  .voice-tabs button:first-child { grid-column: auto !important; }
+  dialog footer { grid-template-columns: 1fr !important; }
+}
