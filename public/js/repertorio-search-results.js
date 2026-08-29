@@ -233,3 +233,206 @@
     loadScript('/js/ensaios-estudo-diagnostico.js?v=20260828-1', 'data-ensaios-estudo-diagnostico');
   }
 })();
+
+(() => {
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
+  if (path !== '/portal/administracion/persoas') return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .person-documents-status {
+      display: grid;
+      gap: .7rem;
+      margin: 1rem 0 0;
+      padding: 1rem;
+      border: 1px solid #ded8d3;
+      background: #faf9f7;
+    }
+    .person-documents-status h3 {
+      margin: 0;
+      color: var(--color-principal, #6b1d2f);
+      font-size: 1rem;
+    }
+    .person-document-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: .75rem;
+      align-items: center;
+      padding-top: .65rem;
+      border-top: 1px solid #e4ded9;
+    }
+    .person-document-row strong { display: block; font-size: .86rem; }
+    .person-document-row small { display: block; margin-top: .1rem; color: #716963; }
+    .person-document-row button {
+      min-height: 2.35rem;
+      padding: .45rem .75rem;
+      border: 1px solid var(--color-principal, #6b1d2f);
+      background: #fff;
+      color: var(--color-principal, #6b1d2f);
+      font: inherit;
+      font-size: .78rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .person-document-row button[disabled] {
+      border-color: #d7d0cb;
+      color: #817a75;
+      cursor: default;
+    }
+
+    @media (max-width: 900px) {
+      body.portal-private-body main { width: 100%; min-width: 0; }
+      body.portal-private-body .private-layout {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      body.portal-private-body .private-layout > .private-sidebar {
+        position: relative !important;
+        top: auto !important;
+        width: 100% !important;
+        max-width: none !important;
+        height: auto !important;
+        min-height: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 1px solid #e7e3df !important;
+      }
+      body.portal-private-body .people-main {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 1.1rem !important;
+      }
+      body.portal-private-body .private-page-header {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+      }
+      body.portal-private-body .account-card { width: 100% !important; }
+      body.portal-private-body .people-summary {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      }
+      body.portal-private-body .people-summary > button {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+      }
+      body.portal-private-body .filters-panel {
+        grid-template-columns: 1fr 1fr !important;
+      }
+      body.portal-private-body .filters-panel .search-field { grid-column: 1 / -1 !important; }
+      body.portal-private-body .toolbar {
+        grid-template-columns: 1fr !important;
+        gap: .5rem !important;
+      }
+      body.portal-private-body .toolbar > p { justify-self: start !important; }
+      body.portal-private-body .person-card-header {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+      }
+      body.portal-private-body .person-actions {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        width: 100% !important;
+      }
+      body.portal-private-body .person-actions button { width: 100% !important; }
+    }
+
+    @media (max-width: 620px) {
+      body.portal-private-body .private-layout > .private-sidebar {
+        padding: .7rem .8rem .8rem !important;
+      }
+      body.portal-private-body .private-brand {
+        grid-template-columns: 38px minmax(0, 1fr) !important;
+        gap: .65rem !important;
+        padding: 0 .2rem .65rem !important;
+      }
+      body.portal-private-body .private-crest { width: 36px !important; height: 48px !important; }
+      body.portal-private-body .private-brand-copy strong { font-size: .7rem !important; line-height: 1.25 !important; }
+      body.portal-private-body .private-brand-copy small { font-size: .65rem !important; }
+      body.portal-private-body .people-main { padding: .9rem .8rem 1.5rem !important; }
+      body.portal-private-body .private-page-header h1 {
+        font-size: clamp(2rem, 11vw, 2.75rem) !important;
+        line-height: 1.02 !important;
+      }
+      body.portal-private-body .private-page-header > div:first-child > p {
+        font-size: .92rem !important;
+        line-height: 1.5 !important;
+      }
+      body.portal-private-body .people-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: .65rem !important;
+      }
+      body.portal-private-body .people-summary > div { min-width: 0 !important; padding: .85rem !important; }
+      body.portal-private-body .people-summary strong { font-size: 1.65rem !important; }
+      body.portal-private-body .filters-panel { grid-template-columns: 1fr !important; }
+      body.portal-private-body .filters-panel .search-field { grid-column: auto !important; }
+      body.portal-private-body .person-actions { grid-template-columns: 1fr !important; }
+      body.portal-private-body .person-sections { grid-template-columns: 1fr !important; }
+      .person-document-row { grid-template-columns: 1fr !important; }
+      .person-document-row button { width: 100% !important; }
+    }
+  `;
+  document.head.append(style);
+
+  const select = document.querySelector('#person-select');
+  const card = document.querySelector('#person-card');
+  const sections = document.querySelector('#person-sections');
+  const fileButton = document.querySelector('#open-file');
+  const acceptanceButton = document.querySelector('#open-acceptance');
+  if (!(select instanceof HTMLSelectElement) || !(card instanceof HTMLElement) || !(sections instanceof HTMLElement)) return;
+
+  const box = document.createElement('section');
+  box.className = 'person-documents-status';
+  box.hidden = true;
+  const title = document.createElement('h3');
+  title.textContent = 'Documentación da persoa';
+
+  const makeRow = (label) => {
+    const row = document.createElement('div');
+    row.className = 'person-document-row';
+    const copy = document.createElement('div');
+    const strong = document.createElement('strong');
+    strong.textContent = label;
+    const status = document.createElement('small');
+    copy.append(strong, status);
+    const button = document.createElement('button');
+    button.type = 'button';
+    row.append(copy, button);
+    return { row, status, button };
+  };
+
+  const ficha = makeRow('Ficha escaneada');
+  const aceptacion = makeRow('Aceptación PDF');
+  box.append(title, ficha.row, aceptacion.row);
+  sections.insertAdjacentElement('beforebegin', box);
+
+  ficha.button.addEventListener('click', () => {
+    if (fileButton instanceof HTMLButtonElement && !fileButton.hidden) fileButton.click();
+  });
+  aceptacion.button.addEventListener('click', () => {
+    if (acceptanceButton instanceof HTMLButtonElement && !acceptanceButton.hidden) acceptanceButton.click();
+  });
+
+  const sync = () => {
+    const hasSelection = Boolean(select.value) && !card.hidden;
+    box.hidden = !hasSelection;
+    if (!hasSelection) return;
+
+    const hasFile = fileButton instanceof HTMLButtonElement && !fileButton.hidden;
+    ficha.status.textContent = hasFile ? 'Dispoñible' : 'Non dispoñible';
+    ficha.button.textContent = hasFile ? 'Abrir PDF' : 'Sen ficha';
+    ficha.button.disabled = !hasFile;
+
+    const hasAcceptance = acceptanceButton instanceof HTMLButtonElement && !acceptanceButton.hidden;
+    aceptacion.status.textContent = hasAcceptance ? 'Dispoñible' : 'Pendente de aceptación';
+    aceptacion.button.textContent = hasAcceptance ? 'Abrir PDF' : 'Pendente';
+    aceptacion.button.disabled = !hasAcceptance;
+  };
+
+  select.addEventListener('change', () => window.setTimeout(sync, 0));
+  const observer = new MutationObserver(sync);
+  observer.observe(card, { attributes: true, attributeFilter: ['hidden'] });
+  if (fileButton instanceof HTMLElement) observer.observe(fileButton, { attributes: true, attributeFilter: ['hidden'] });
+  if (acceptanceButton instanceof HTMLElement) observer.observe(acceptanceButton, { attributes: true, attributeFilter: ['hidden'] });
+  sync();
+})();
