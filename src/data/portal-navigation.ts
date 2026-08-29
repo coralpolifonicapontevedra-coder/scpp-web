@@ -79,7 +79,7 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
   {
     id: 'ensaios',
     label: 'Ensaios',
-    path: '/portal/ensaios/',
+    path: '/portal/ensaios/?v=20260829-mobile-fix',
     enabled: true,
     order: 70,
     surfaces: ['sidebar', 'home'],
