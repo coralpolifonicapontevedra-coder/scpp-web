@@ -38,10 +38,6 @@ async function obterContextoAdministracion(env, user) {
       uidFirebase: user.uid
     }, { timeoutMs: 15000, attemptTimeoutMs: 8000 });
 
-    // listarPersoasAdministracion xa resolve a autorización no Apps Script
-    // mediante resolverPermisosPortal_ e só devolve perfil cando a persoa
-    // dispón de escritura administrativa. Non volvemos interpretar o texto
-    // de "nivel" aquí para evitar 403 falsos por diferenzas de formato.
     return {
       administrador: resultado?.ok === true && Boolean(resultado?.perfil?.email),
       resultado: resultado?.ok === true ? resultado : null
@@ -123,6 +119,7 @@ export async function onRequestPost({ request, env }) {
   const permitidas = new Set([
     'listarPermisosPortal',
     'gardarPermisoPortal',
+    'gardarPermisosPortalLote',
     'eliminarPermisoPortal',
     'listarActividadePortal',
     'rexistrarActividadePortal',
@@ -133,21 +130,24 @@ export async function onRequestPost({ request, env }) {
     return json(400, { ok: false, erro: 'Acción de permisos descoñecida.' });
   }
 
-  const contextoAdmin = await obterContextoAdministracion(env, user);
-  const admin = contextoAdmin.administrador;
-  const requireAdmin = [
-    'listarPermisosPortal',
-    'gardarPermisoPortal',
-    'eliminarPermisoPortal',
-    'listarActividadePortal'
-  ].includes(accion);
-
-  if (requireAdmin && !admin) {
-    return json(403, {
-      ok: false,
-      codigo: 'ADMIN_REQUIRED',
-      erro: 'A túa conta non ten permisos de administración para esta operación.'
-    });
+  /*
+   * A listaxe inicial necesita tamén Persoas para amosar quen aínda non ten
+   * fila en UsuariosWeb. Só nese caso facemos a consulta administrativa
+   * adicional. As operacións de gardado/eliminación/autitoría fan unha única
+   * chamada a Apps Script; alí despacharXestionPermisosPortal_ comproba o
+   * permiso real con resolverPermisosPortal_ usando o correo Firebase xa
+   * validado por esta API.
+   */
+  let contextoAdmin = { administrador: false, resultado: null };
+  if (accion === 'listarPermisosPortal') {
+    contextoAdmin = await obterContextoAdministracion(env, user);
+    if (!contextoAdmin.administrador) {
+      return json(403, {
+        ok: false,
+        codigo: 'ADMIN_REQUIRED',
+        erro: 'A túa conta non ten permisos de administración para esta operación.'
+      });
+    }
   }
 
   const payload = {
@@ -161,19 +161,23 @@ export async function onRequestPost({ request, env }) {
 
   try {
     const { resultado } = await obterJsonAppsScript(env, payload, {
-      timeoutMs: 20000,
-      attemptTimeoutMs: 9000
+      timeoutMs: accion === 'gardarPermisosPortalLote' ? 30000 : 20000,
+      attemptTimeoutMs: accion === 'gardarPermisosPortalLote' ? 15000 : 9000
     });
 
     if (!resultado?.ok) {
-      return json(400, resultado || { ok: false, erro: 'Non foi posible completar a operación.' });
+      const status = resultado?.codigo === 'ADMIN_REQUIRED' ? 403 : 400;
+      return json(status, resultado || { ok: false, erro: 'Non foi posible completar a operación.' });
     }
 
     if (accion === 'listarPermisosPortal' && contextoAdmin.resultado) {
       resultado.usuarios = fusionarPersoasConUsuarios(resultado, contextoAdmin.resultado);
     }
 
-    return json(200, { ...resultado, administrador: admin });
+    return json(200, {
+      ...resultado,
+      administrador: accion === 'listarPermisosPortal' ? contextoAdmin.administrador : undefined
+    });
   } catch (error) {
     console.error('Erro na API de permisos:', error);
     return json(502, { ok: false, erro: 'Non foi posible contactar co servizo de permisos.' });

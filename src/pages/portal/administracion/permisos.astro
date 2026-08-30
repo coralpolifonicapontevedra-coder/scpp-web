@@ -279,24 +279,13 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       gardando = true;
       actualizarEstadoGardado();
       try {
-        const cambios = Object.entries(pendentes);
-        for (const [modulo, nivel] of cambios) {
-          const existente = permisoXeral(usuario.email, modulo);
-          if (nivel === 'sen_acceso') {
-            if (existente?.id) {
-              await portalRequest('/api/permisos', 'eliminarPermisoPortal', { id: existente.id, usuarioEmail: usuario.email, modulo, contido: '' });
-            }
-          } else {
-            await portalRequest('/api/permisos', 'gardarPermisoPortal', {
-              usuarioEmail: usuario.email,
-              persoa: usuario.persoa || usuario.nome || '',
-              modulo,
-              contido: '',
-              nivel,
-              rol: ''
-            });
-          }
-        }
+        const cambios = Object.entries(pendentes).map(([modulo, nivel]) => ({ modulo, nivel }));
+        await portalRequest('/api/permisos', 'gardarPermisosPortalLote', {
+          usuarioEmail: usuario.email,
+          persoa: usuario.persoa || usuario.nome || '',
+          rol: '',
+          cambios
+        });
         pendentes = {};
         await cargar(false);
         seleccion = usuario.email;

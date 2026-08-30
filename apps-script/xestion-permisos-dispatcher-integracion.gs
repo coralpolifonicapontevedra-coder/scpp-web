@@ -3,11 +3,54 @@
  *
  * Inserir estes bloques antes do rexistro final de "Acción non permitida".
  * O token xa se valida ao inicio do doPost actual.
- * A API /api/permisos valida ademais Firebase e nivel de Administración.
+ * A identidade chega validada por Firebase desde /api/permisos e as accións
+ * administrativas volven comprobar aquí o permiso real mediante
+ * resolverPermisosPortal_().
  */
+
+var ACCIONS_ADMIN_XESTION_PERMISOS_ = [
+  'listarPermisosPortal',
+  'gardarPermisoPortal',
+  'gardarPermisosPortalLote',
+  'eliminarPermisoPortal',
+  'rexistrarActividadePortal',
+  'listarActividadePortal'
+];
+
+function autorizarXestionPermisosPortal_(accion, datos) {
+  if (ACCIONS_ADMIN_XESTION_PERMISOS_.indexOf(accion) < 0) {
+    return null;
+  }
+
+  var correo = String(
+    datos && (datos.actorEmail || datos.email) || ''
+  ).trim().toLowerCase();
+
+  if (!correo) {
+    return {
+      ok: false,
+      codigo: 'ADMIN_REQUIRED',
+      erro: 'Non se puido identificar a conta administradora.'
+    };
+  }
+
+  var permiso = resolverPermisosPortal_(correo);
+  if (!permiso || permiso.escritura !== true) {
+    return {
+      ok: false,
+      codigo: 'ADMIN_REQUIRED',
+      erro: 'A túa conta non ten permisos de administración para esta operación.'
+    };
+  }
+
+  return null;
+}
 
 function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
   accion = String(accion || '').trim();
+
+  var erroAutorizacion = autorizarXestionPermisosPortal_(accion, datos);
+  if (erroAutorizacion) return erroAutorizacion;
 
   if (accion === 'listarPermisosPortal') {
     return listarPermisosPortalXestion_(datos);
@@ -20,6 +63,11 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
   if (accion === 'gardarPermisoPortal') {
     if (bloqueo) bloqueo.waitLock(10000);
     return gardarPermisoPortalXestion_(datos);
+  }
+
+  if (accion === 'gardarPermisosPortalLote') {
+    if (bloqueo) bloqueo.waitLock(10000);
+    return gardarPermisosPortalLoteXestion_(datos);
   }
 
   if (accion === 'eliminarPermisoPortal') {
@@ -54,6 +102,7 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
 
 var ACCIONS_ESCRITURA_XESTION_PERMISOS_ = [
   'gardarPermisoPortal',
+  'gardarPermisosPortalLote',
   'eliminarPermisoPortal',
   'rexistrarActividadePortal'
 ];
