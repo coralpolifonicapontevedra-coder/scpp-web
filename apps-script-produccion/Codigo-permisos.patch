@@ -1,0 +1,16 @@
+--- Código.js producción actual
++++ Código.js + permisos
+@@ -910,6 +910,13 @@
+         mensaxe:
+           'Observacións actualizadas correctamente'
+       });
++    }
++
++    const respostaPermisosAdmin =
++      despacharXestionPermisosPortal_(accion, datos, bloqueo);
++
++    if (respostaPermisosAdmin !== null) {
++      return respostaJSON(respostaPermisosAdmin);
+     }
+ 
+     rexistrarAcceso({
