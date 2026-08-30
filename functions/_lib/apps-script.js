@@ -23,6 +23,16 @@ const ACCIONS_FOTOS_ADMIN_PROTEXIDAS = new Set([
   'eliminarFotoHuerfanaAdministracionPortal'
 ]);
 
+const ACCIONS_PERMISOS_PROTEXIDAS = new Set([
+  'listarPermisosPortal',
+  'gardarPermisoPortal',
+  'gardarPermisosPortalLote',
+  'eliminarPermisoPortal',
+  'listarActividadePortal',
+  'rexistrarActividadePortal',
+  'obterPermisosUsuarioPortal'
+]);
+
 const ACCIONS_SO_PRINCIPAL = new Set([
   'subirFoto',
   'actualizarRevisionFoto',
@@ -48,7 +58,14 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'obterDocumentoConcerto',
   'obterTextoLegalVixente',
   'comprobarAceptacion',
-  'rexistrarAceptacion'
+  'rexistrarAceptacion',
+  'listarPermisosPortal',
+  'gardarPermisoPortal',
+  'gardarPermisosPortalLote',
+  'eliminarPermisoPortal',
+  'listarActividadePortal',
+  'rexistrarActividadePortal',
+  'obterPermisosUsuarioPortal'
 ]);
 
 export class AppsScriptError extends Error {
@@ -99,6 +116,19 @@ function verificarAppsScriptFotos(env = {}, accion = '') {
   }
 }
 
+function verificarAppsScriptPermisos(env = {}, accion = '') {
+  if (!ACCIONS_PERMISOS_PROTEXIDAS.has(accion)) return;
+  const rama = ramaSCPP(env);
+  const configurada = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  const esperada = rama === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
+  if (configurada !== esperada) {
+    throw new AppsScriptError(
+      `Permisos: o contorno ${rama} non está conectado ao Apps Script esperado. Operación cancelada por seguridade.`,
+      'APPS_SCRIPT_ENV_MISMATCH'
+    );
+  }
+}
+
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
@@ -116,6 +146,7 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const accion = String(corpo?.accion || '').trim();
   verificarAppsScriptConcertos(env, accion);
   verificarAppsScriptFotos(env, accion);
+  verificarAppsScriptPermisos(env, accion);
   const urlsConfiguradas = urlsAppsScript(env);
   const urls = ACCIONS_SO_PRINCIPAL.has(accion)
     ? urlsConfiguradas.slice(0, 1)
