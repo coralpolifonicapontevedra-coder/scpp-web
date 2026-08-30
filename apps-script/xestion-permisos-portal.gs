@@ -75,6 +75,15 @@ function obterPermisosUsuarioPortalXestion_(datos){
   return {ok:true,email:email,permisos:ps,efectivos:efectivos};
 }
 
+function validarCambioPermisoXestion_(cambio){
+  var mod=xestionTexto_(cambio&&cambio.modulo).toLowerCase();
+  var nivel=xestionTexto_(cambio&&cambio.nivel).toLowerCase();
+  if(!mod||!nivel)return {ok:false,erro:'Faltan datos do permiso.'};
+  if(XESTION_PERMISOS_MODULOS_.indexOf(mod)<0)return {ok:false,erro:'Módulo non válido: '+mod};
+  if(XESTION_PERMISOS_NIVEIS_.indexOf(nivel)<0)return {ok:false,erro:'Nivel non válido: '+nivel};
+  return {ok:true,modulo:mod,nivel:nivel};
+}
+
 function gardarPermisoPortalXestion_(datos){
   var email=xestionEmail_(datos&&datos.usuarioEmail),mod=xestionTexto_(datos&&datos.modulo).toLowerCase(),cont=xestionTexto_(datos&&datos.contido),nivel=xestionTexto_(datos&&datos.nivel).toLowerCase(),actor=xestionEmail_(datos&&datos.actorEmail),persoa=xestionTexto_(datos&&datos.persoa),rol=xestionTexto_(datos&&datos.rol);
   if(!email||!mod||!nivel)return {ok:false,erro:'Faltan datos do permiso.'};
@@ -87,8 +96,83 @@ function gardarPermisoPortalXestion_(datos){
   var id=rowNum?xestionTexto_(sh.getRange(rowNum,ix.Id+1).getValue()):Utilities.getUuid();
   var row=[id,email,persoa,mod,cont,nivel,rol,true,actor,new Date()];
   if(rowNum)sh.getRange(rowNum,1,1,row.length).setValues([row]);else sh.appendRow(row);
+  SpreadsheetApp.flush();
   rexistrarActividadePortalXestion_({actorEmail:actor,modulo:'Permisos',accion:'Modificar permiso',elemento:email+' · '+mod+(cont?' · '+cont:''),resultado:'Correcto',detalle:'Nivel: '+nivel});
   return {ok:true};
+}
+
+function gardarPermisosPortalLoteXestion_(datos){
+  var email=xestionEmail_(datos&&datos.usuarioEmail),actor=xestionEmail_(datos&&datos.actorEmail),persoa=xestionTexto_(datos&&datos.persoa),rol=xestionTexto_(datos&&datos.rol),cambios=Array.isArray(datos&&datos.cambios)?datos.cambios:[];
+  if(!email)return {ok:false,erro:'Non se indicou a persoa destinataria.'};
+  if(!cambios.length)return {ok:false,erro:'Non hai cambios para gardar.'};
+  if(cambios.length>50)return {ok:false,erro:'Hai demasiados cambios nunha soa operación.'};
+
+  var normalizados=[];
+  for(var c=0;c<cambios.length;c++){
+    var validado=validarCambioPermisoXestion_(cambios[c]);
+    if(!validado.ok)return validado;
+    normalizados.push({modulo:validado.modulo,nivel:validado.nivel});
+  }
+
+  var sh=asegurarXestionPermisos_().permisos;
+  var v=sh.getDataRange().getValues();
+  var cabeceiras=v.length?v[0]:['Id','Email','Persoa','Modulo','Contido','Nivel','Rol','Activo','ActualizadoPor','DataActualizacion'];
+  var ix=xestionIndices_(cabeceiras);
+  var filas=v.length>1?v.slice(1):[];
+  var agora=new Date();
+
+  normalizados.forEach(function(cambio){
+    var indice=-1;
+    for(var i=0;i<filas.length;i++){
+      if(xestionEmail_(filas[i][ix.Email])===email&&xestionTexto_(filas[i][ix.Modulo]).toLowerCase()===cambio.modulo&&xestionTexto_(filas[i][ix.Contido])===''){
+        indice=i;
+        break;
+      }
+    }
+
+    if(cambio.nivel==='sen_acceso'){
+      if(indice>=0)filas.splice(indice,1);
+      return;
+    }
+
+    var fila=[
+      indice>=0?xestionTexto_(filas[indice][ix.Id]):Utilities.getUuid(),
+      email,
+      persoa,
+      cambio.modulo,
+      '',
+      cambio.nivel,
+      rol,
+      true,
+      actor,
+      agora
+    ];
+    if(indice>=0)filas[indice]=fila;else filas.push(fila);
+  });
+
+  var columnas=cabeceiras.length;
+  if(filas.length){
+    sh.getRange(2,1,filas.length,columnas).setValues(filas.map(function(fila){
+      var copia=fila.slice(0,columnas);
+      while(copia.length<columnas)copia.push('');
+      return copia;
+    }));
+  }
+  var antigas=Math.max(v.length-1,0);
+  if(antigas>filas.length){
+    sh.getRange(2+filas.length,1,antigas-filas.length,columnas).clearContent();
+  }
+  SpreadsheetApp.flush();
+
+  rexistrarActividadePortalXestion_({
+    actorEmail:actor,
+    modulo:'Permisos',
+    accion:'Modificar permisos en lote',
+    elemento:email,
+    resultado:'Correcto',
+    detalle:String(normalizados.length)+' cambios gardados'
+  });
+  return {ok:true,total:normalizados.length};
 }
 
 function eliminarPermisoPortalXestion_(datos){
@@ -97,6 +181,7 @@ function eliminarPermisoPortalXestion_(datos){
     var coincide=id?xestionTexto_(v[i][ix.Id])===id:(xestionEmail_(v[i][ix.Email])===email&&xestionTexto_(v[i][ix.Modulo]).toLowerCase()===mod&&xestionTexto_(v[i][ix.Contido])===cont);
     if(coincide){
       sh.deleteRow(i+1);
+      SpreadsheetApp.flush();
       rexistrarActividadePortalXestion_({actorEmail:actor,modulo:'Permisos',accion:'Eliminar permiso',elemento:email+' · '+mod,resultado:'Correcto',detalle:''});
       return {ok:true};
     }
