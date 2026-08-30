@@ -120,6 +120,17 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   const niveis = {
     sen_acceso:'Sen acceso', lectura:'Lectura', escritura:'Lectura e escritura', administracion:'Administración'
   };
+  const etiquetaNivel = (modulo, nivel) => {
+    if (modulo === 'documentacion') {
+      return {
+        sen_acceso:'Sen acceso',
+        lectura:'Coralistas',
+        escritura:'Xunta Directiva',
+        administracion:'Administraci\u00f3n'
+      }[nivel] || nivel;
+    }
+    return niveis[nivel] || nivel;
+  };
 
   let data = { usuarios:[], permisos:[], modulos:[] };
   let seleccion = '';
@@ -237,8 +248,8 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
             <span><strong>${esc(nomes[modulo] || modulo)}</strong><small>${cambiado ? 'Cambio sen gardar' : 'Permiso xeral do módulo'}</small></span>
             <select data-modulo="${esc(modulo)}" data-original="${esc(actual)}">
               <option value="sen_acceso" ${nivel === 'sen_acceso' ? 'selected' : ''}>Sen acceso</option>
-              <option value="lectura" ${nivel === 'lectura' ? 'selected' : ''}>Lectura</option>
-              <option value="escritura" ${nivel === 'escritura' ? 'selected' : ''}>Lectura e escritura</option>
+              <option value="lectura" ${nivel === 'lectura' ? 'selected' : ''}>${modulo === 'documentacion' ? 'Coralistas' : 'Lectura'}</option>
+              <option value="escritura" ${nivel === 'escritura' ? 'selected' : ''}>${modulo === 'documentacion' ? 'Xunta Directiva' : 'Lectura e escritura'}</option>
               <option value="administracion" ${nivel === 'administracion' ? 'selected' : ''}>Administración</option>
             </select>
           </label>`;
@@ -248,15 +259,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
           <button id="save-permissions" class="primary-action" type="button" disabled>Gardar cambios</button>
         </div>
       </section>
-      <section class="permission-section content-permissions">
-        <div class="section-intro"><h3>Documentación por contido</h3><p>Os permisos específicos teñen a súa propia confirmación mediante “Engadir permiso”.</p></div>
-        <div class="inline-form">
-          <label><span>Contido</span><input id="contido" placeholder="Ex.: Actas XD" /></label>
-          <label><span>Nivel</span><select id="nivel-contido"><option value="lectura">Lectura</option><option value="escritura">Lectura e escritura</option><option value="administracion">Administración</option><option value="sen_acceso">Sen acceso</option></select></label>
-          <button id="add-contido" class="secondary-action" type="button">Engadir permiso</button>
-        </div>
-        <div class="chips">${permisos.filter((p) => p.modulo === 'documentacion' && p.contido).map((p) => `<button data-id="${esc(p.id)}" type="button"><span>${esc(p.contido)}</span><small>${esc(niveis[p.nivel] || p.nivel)}</small><b>×</b></button>`).join('') || '<span class="muted-copy">Sen excepcións específicas.</span>'}</div>
-      </section>`;
+      `;
 
     document.querySelectorAll('.matriz select').forEach((select) => {
       select.onchange = () => {
@@ -301,46 +304,6 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       }
     };
 
-    $('#add-contido').onclick = async () => {
-      const contido = $('#contido').value.trim();
-      if (!contido) return;
-      try {
-        await portalRequest('/api/permisos', 'gardarPermisoPortal', {
-          usuarioEmail: usuario.email,
-          persoa: usuario.persoa || usuario.nome || '',
-          modulo: 'documentacion',
-          contido,
-          nivel: $('#nivel-contido').value,
-          rol: ''
-        });
-        await cargar(false);
-        seleccion = usuario.email;
-        renderLista();
-        renderDetalle();
-        renderConcedidos();
-        notify('Permiso específico engadido.');
-      } catch (error) {
-        notify(error.message || 'Non foi posible engadir o permiso.', 'error');
-      }
-    };
-
-    document.querySelectorAll('.chips button[data-id]').forEach((button) => {
-      button.onclick = async () => {
-        if (!confirm('Eliminar este permiso específico?')) return;
-        try {
-          await portalRequest('/api/permisos', 'eliminarPermisoPortal', { id: button.dataset.id });
-          await cargar(false);
-          seleccion = usuario.email;
-          renderLista();
-          renderDetalle();
-          renderConcedidos();
-          notify('Permiso específico eliminado.');
-        } catch (error) {
-          notify(error.message || 'Non foi posible eliminar o permiso.', 'error');
-        }
-      };
-    });
-
     actualizarEstadoGardado();
   }
 
@@ -359,7 +322,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       const ps = permisosConcedidosUsuario(u.email);
       const resumo = ps.slice().sort((a,b) => a.modulo.localeCompare(b.modulo)).map((p) => {
         const contido = p.contido ? ` · ${p.contido}` : '';
-        return `<span class="permission-pill"><strong>${esc(nomes[p.modulo] || p.modulo)}</strong>${esc(contido)} · ${esc(niveis[p.nivel] || p.nivel)}</span>`;
+        return `<span class="permission-pill"><strong>${esc(nomes[p.modulo] || p.modulo)}</strong>${esc(contido)} · ${esc(etiquetaNivel(p.modulo, p.nivel))}</span>`;
       }).join('');
       return `<tr><td><strong>${esc(nome(u))}</strong></td><td>${esc(u.email)}</td><td><div class="permission-pills">${resumo}</div></td><td>${ps.length}</td><td><button class="manage-link" data-manage-email="${esc(u.email)}" type="button">Xestionar</button></td></tr>`;
     }).join('') || '<tr><td colspan="5" class="table-empty">Non hai persoas con permisos concedidos para estes filtros.</td></tr>';
@@ -381,7 +344,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     const permisos = data.permisos.filter((p) => p.activo !== false && p.nivel !== 'sen_acceso' && p.modulo === modulo);
     $('#tabla-modulos').innerHTML = permisos.map((p) => {
       const usuario = data.usuarios.find((item) => item.email === p.email);
-      return `<tr><td><strong>${esc(nome(usuario) || p.persoa)}</strong></td><td>${esc(p.email)}</td><td><span class="level-pill">${esc(niveis[p.nivel] || p.nivel)}</span></td><td>${esc(p.contido || '—')}</td></tr>`;
+      return `<tr><td><strong>${esc(nome(usuario) || p.persoa)}</strong></td><td>${esc(p.email)}</td><td><span class="level-pill">${esc(etiquetaNivel(p.modulo, p.nivel))}</span></td><td>${esc(p.contido || '—')}</td></tr>`;
     }).join('') || '<tr><td colspan="4" class="table-empty">Non hai permisos concedidos neste módulo.</td></tr>';
   }
 
