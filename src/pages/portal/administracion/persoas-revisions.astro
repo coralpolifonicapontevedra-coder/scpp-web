@@ -1,0 +1,139 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+---
+
+<BaseLayout title="Revisións masivas de persoas" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="administracion" logoutId="persoas-revisions-logout" />
+    <main class="mass-main">
+      <header class="private-page-header">
+        <div>
+          <span class="section-kicker">Administración · Persoas</span>
+          <h1>Revisións masivas</h1>
+          <p>Xera unha ligazón individual e segura para cada persoa. O envío por correo só poderá activarse no dominio de Produción.</p>
+        </div>
+        <a class="secondary-action back-link" href="/portal/administracion/persoas/">← Volver a Persoas</a>
+      </header>
+
+      <section id="loading" class="state-box">Comprobando a sesión…</section>
+      <section id="error-state" class="state-box error-box" hidden><strong>Non foi posible abrir a ferramenta</strong><p id="error-message"></p></section>
+
+      <section id="mass-app" class="mass-app" hidden>
+        <section id="environment-card" class="warning-card">
+          <strong id="environment-title">Comprobando ambiente…</strong>
+          <p id="environment-text"></p>
+        </section>
+
+        <section class="control-card">
+          <label><span>Alcance</span><select id="scope"><option value="cantores">Cantores/as activos/as</option><option value="todas">Todas as persoas activas</option></select></label>
+          <label class="check-line"><input id="regenerate" type="checkbox" /><span>Incluír tamén persoas que xa teñen aceptada a versión legal vixente</span></label>
+          <button id="generate" class="primary-action" type="button">Xerar ligazóns masivas</button>
+        </section>
+
+        <section id="summary" class="summary-grid" hidden>
+          <div><small>Candidatas</small><strong id="m-candidates">0</strong></div>
+          <div><small>Ligazóns xeradas</small><strong id="m-generated">0</strong></div>
+          <div><small>Omitidas</small><strong id="m-omitted">0</strong></div>
+          <div><small>Versión legal</small><strong id="m-version">—</strong></div>
+        </section>
+
+        <section id="results-section" class="results-card" hidden>
+          <header><div><h2>Ligazóns xeradas</h2><p id="results-note"></p></div><button id="copy-all" class="secondary-action" type="button">Copiar todas</button></header>
+          <div class="table-wrap"><table><thead><tr><th>Persoa</th><th>Correo</th><th>Caduca</th><th>Ligazón</th></tr></thead><tbody id="results-body"></tbody></table></div>
+        </section>
+
+        <section id="send-section" class="send-card" hidden>
+          <div>
+            <span class="section-kicker">Envío por correo</span>
+            <h2 id="send-title">Preparado para Produción</h2>
+            <p id="send-help">En Preview o envío real permanece bloqueado. En Produción poderás enviar un correo individual a cada persoa co seu enlace seguro.</p>
+            <p id="send-result" class="send-result" hidden></p>
+          </div>
+          <button id="send-all" class="primary-action" type="button" disabled>Enviar correos</button>
+        </section>
+
+        <section id="omitted-section" class="results-card" hidden>
+          <header><div><h2>Persoas omitidas</h2><p>Non se xerou ligazón nestes casos.</p></div></header>
+          <div class="table-wrap"><table><thead><tr><th>Persoa</th><th>Correo</th><th>Motivo</th></tr></thead><tbody id="omitted-body"></tbody></table></div>
+        </section>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+  const PRODUCTION_HOSTS=new Set(['coralpolifonicapontevedra.org','www.coralpolifonicapontevedra.org']);
+  const q=(s)=>document.querySelector(s);
+  const loading=q('#loading'),errorState=q('#error-state'),errorMessage=q('#error-message'),app=q('#mass-app'),generate=q('#generate'),scope=q('#scope'),regenerate=q('#regenerate'),summary=q('#summary'),resultsSection=q('#results-section'),omittedSection=q('#omitted-section'),resultsBody=q('#results-body'),omittedBody=q('#omitted-body'),copyAll=q('#copy-all'),logout=q('#persoas-revisions-logout'),sendSection=q('#send-section'),sendAll=q('#send-all'),sendHelp=q('#send-help'),sendResult=q('#send-result'),environmentTitle=q('#environment-title'),environmentText=q('#environment-text'),environmentCard=q('#environment-card');
+  let lastResults=[];
+  const isProduction=PRODUCTION_HOSTS.has(location.hostname.toLowerCase());
+
+  function renderEnvironment(){
+    if(environmentTitle instanceof HTMLElement)environmentTitle.textContent=isProduction?'Produción · envío dispoñible con confirmación':'Preview · envío real bloqueado';
+    if(environmentText instanceof HTMLElement)environmentText.textContent=isProduction
+      ?'Podes xerar as ligazóns e, despois de revisalas, enviar correos individuais. O sistema pedirá unha confirmación expresa antes de enviar.'
+      :'Podes xerar, abrir, copiar e revisar as ligazóns. Ningún correo nin notificación poderá saír desde este ambiente.';
+    if(environmentCard instanceof HTMLElement)environmentCard.classList.toggle('production-card',isProduction);
+  }
+
+  async function requestMass(){
+    const user=auth.currentUser;if(!user?.email)throw new Error('A sesión non está activa.');
+    const idToken=await user.getIdToken();
+    const response=await fetch('/api/persoas-revision-masiva',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,alcance:scope instanceof HTMLSelectElement?scope.value:'cantores',rexenerar:regenerate instanceof HTMLInputElement&&regenerate.checked})});
+    const result=await response.json().catch(()=>null);if(!response.ok||!result?.ok)throw new Error(result?.erro||`Erro HTTP ${response.status}`);return result;
+  }
+
+  async function requestSend(){
+    const user=auth.currentUser;if(!user?.email)throw new Error('A sesión non está activa.');
+    const idToken=await user.getIdToken();
+    const response=await fetch('/api/persoas-revision-envio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,ligazons:lastResults.map(item=>item.ligazon)})});
+    const result=await response.json().catch(()=>null);if(!response.ok||!result?.ok)throw new Error(result?.erro||`Erro HTTP ${response.status}`);return result;
+  }
+
+  function cell(text){const td=document.createElement('td');td.textContent=String(text??'');return td;}
+  function render(result){
+    if(summary instanceof HTMLElement)summary.hidden=false;
+    q('#m-candidates').textContent=String(result.candidatas||0);q('#m-generated').textContent=String(result.xeradas||0);q('#m-omitted').textContent=String(result.omitidas||0);q('#m-version').textContent=String(result.versionLegal||'—');
+    lastResults=Array.isArray(result.resultados)?result.resultados:[];
+    if(resultsBody instanceof HTMLElement){resultsBody.replaceChildren();lastResults.forEach(item=>{const tr=document.createElement('tr');tr.append(cell(item.nome),cell(item.correo),cell(item.caducaEn?new Date(item.caducaEn).toLocaleString('gl-ES'):''));const td=document.createElement('td'),a=document.createElement('a');a.href=item.ligazon;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Abrir';td.append(a);tr.append(td);resultsBody.append(tr);});}
+    if(resultsSection instanceof HTMLElement)resultsSection.hidden=!lastResults.length;
+    if(sendSection instanceof HTMLElement)sendSection.hidden=!lastResults.length;
+    if(sendAll instanceof HTMLButtonElement){sendAll.disabled=!isProduction||!lastResults.length;sendAll.textContent=isProduction?'Enviar correos':'Envío bloqueado en Preview';}
+    if(sendHelp instanceof HTMLElement)sendHelp.textContent=isProduction
+      ?`Hai ${lastResults.length} ligazóns preparadas. O envío será individual e non mostrará os enderezos doutras persoas.`
+      :'En Preview esta función é só visible para probar o deseño. O backend rexeita calquera intento real de envío.';
+    if(sendResult instanceof HTMLElement){sendResult.hidden=true;sendResult.textContent='';}
+    const omitted=Array.isArray(result.detalleOmitidas)?result.detalleOmitidas:[];
+    if(omittedBody instanceof HTMLElement){omittedBody.replaceChildren();omitted.forEach(item=>{const tr=document.createElement('tr');tr.append(cell(item.nome),cell(item.correo||'—'),cell(item.motivo));omittedBody.append(tr);});}
+    if(omittedSection instanceof HTMLElement)omittedSection.hidden=!omitted.length;
+    const note=q('#results-note');if(note instanceof HTMLElement)note.textContent=`${lastResults.length} ligazóns individuais. A xeración non envía correos automaticamente.`;
+  }
+
+  async function generateAll(){if(!(generate instanceof HTMLButtonElement))return;if(!confirm('Vas xerar ligazóns individuais para o grupo seleccionado. A xeración non envía correos. Queres continuar?'))return;const old=generate.textContent;generate.disabled=true;generate.textContent='Xerando…';try{render(await requestMass());}catch(error){alert(error instanceof Error?error.message:'Non foi posible xerar as ligazóns.');}finally{generate.disabled=false;generate.textContent=old||'Xerar ligazóns masivas';}}
+  async function copyAllLinks(){if(!lastResults.length)return;const text=lastResults.map(item=>`${item.nome}\t${item.correo}\t${item.ligazon}`).join('\n');try{await navigator.clipboard.writeText(text);if(copyAll instanceof HTMLButtonElement)copyAll.textContent='Copiadas';setTimeout(()=>{if(copyAll instanceof HTMLButtonElement)copyAll.textContent='Copiar todas'},1800);}catch{alert('Non foi posible copiar automaticamente.');}}
+
+  async function sendAllEmails(){
+    if(!isProduction){alert('O envío está bloqueado en Preview.');return;}
+    if(!lastResults.length||!(sendAll instanceof HTMLButtonElement))return;
+    const answer=prompt(`Vanse enviar ${lastResults.length} correos individuais co enlace de revisión. Esta operación é real.\n\nEscribe ENVIAR para continuar:`,'');
+    if(answer!=='ENVIAR')return;
+    const old=sendAll.textContent;sendAll.disabled=true;sendAll.textContent='Enviando…';
+    try{
+      const result=await requestSend();
+      const envio=result?.envio||{};
+      const enviados=Number(envio.enviados||0),omitidos=Number(envio.omitidos||0),erros=Number(envio.erros||0);
+      if(sendResult instanceof HTMLElement){sendResult.hidden=false;sendResult.textContent=`Resultado: ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro.`;}
+      sendAll.textContent='Envío rematado';
+    }catch(error){alert(error instanceof Error?error.message:'Non foi posible enviar os correos.');sendAll.disabled=false;sendAll.textContent=old||'Enviar correos';}
+  }
+
+  renderEnvironment();
+  waitForPortalUser().then(user=>{if(!user?.email){location.href='/portal/';return;}if(loading instanceof HTMLElement)loading.hidden=true;if(app instanceof HTMLElement)app.hidden=false;}).catch(error=>{if(loading instanceof HTMLElement)loading.hidden=true;if(errorState instanceof HTMLElement)errorState.hidden=false;if(errorMessage instanceof HTMLElement)errorMessage.textContent=error instanceof Error?error.message:'Erro de sesión';});
+  generate?.addEventListener('click',generateAll);copyAll?.addEventListener('click',copyAllLinks);sendAll?.addEventListener('click',sendAllEmails);logout?.addEventListener('click',()=>closePortalSession());
+</script>
+
+<style is:global>
+  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.mass-main{flex:1;min-width:0;padding:2.1rem clamp(1.25rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.8rem}.section-kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}h1{margin:.2rem 0 .55rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.5rem)}.private-page-header p{max-width:780px;margin:0;color:#625c58}.back-link{text-decoration:none}.mass-app{display:grid;gap:1rem}.state-box,.warning-card,.control-card,.results-card,.send-card{padding:1.1rem 1.2rem;border:1px solid #ded8d3;background:#fff}.warning-card{border-color:#c8b47a;background:#fffdf5}.warning-card.production-card{border-color:#9eaa93;background:#fbfdf8}.warning-card p,.results-card header p,.send-card p{margin:.3rem 0 0;color:#68605b}.control-card{display:grid;grid-template-columns:minmax(220px,1fr) minmax(320px,1.4fr) auto;gap:1rem;align-items:end}.control-card label{display:grid;gap:.4rem}.control-card label>span{font-size:.76rem;font-weight:800;text-transform:uppercase}.check-line{grid-template-columns:auto 1fr!important;align-items:center!important}.check-line input{width:1rem}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem}.summary-grid>div{display:grid;gap:.2rem;padding:.9rem 1rem;border:1px solid #ded8d3;background:#fff}.summary-grid small{font-size:.7rem;font-weight:800;text-transform:uppercase;color:#786f69}.summary-grid strong{font-size:1.35rem;color:var(--color-principal)}.results-card{padding:0}.results-card header{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem 1.2rem;border-bottom:1px solid #e5ded8}.results-card h2,.send-card h2{margin:.1rem 0;color:var(--color-principal)}.send-card{display:flex;justify-content:space-between;align-items:center;gap:1.5rem;border-color:#c8b47a}.send-card .primary-action:disabled{opacity:.55;cursor:not-allowed}.send-result{font-weight:800;color:var(--color-principal)!important}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:.75rem .9rem;border-bottom:1px solid #eee8e3;text-align:left;vertical-align:top}th{font-size:.7rem;text-transform:uppercase;color:#6d655f;background:#faf8f6}td{font-size:.9rem}td a{font-weight:800;color:var(--color-principal)}select{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2;background:#fff;font:inherit}.primary-action,.secondary-action{min-height:2.6rem;padding:.6rem .9rem;border-radius:3px;font:inherit;font-weight:750;cursor:pointer}.primary-action{border:1px solid var(--color-principal);background:var(--color-principal);color:#fff}.secondary-action{border:1px solid #c7beb7;background:#fff;color:#393431}.error-box{border-color:#ba8f94}@media(max-width:900px){.control-card{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.private-page-header,.send-card{display:grid}}@media(max-width:600px){.mass-main{padding:1.2rem .8rem 3rem}.summary-grid{grid-template-columns:1fr}.results-card header{display:grid}}
+</style>
