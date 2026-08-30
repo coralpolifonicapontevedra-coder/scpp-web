@@ -18,8 +18,14 @@ function xestionBool_(v){if(v===true)return true;return ['true','si','sí','yes'
 function xestionIndices_(cab){var o={};cab.forEach(function(v,i){o[xestionTexto_(v)]=i;});return o;}
 function xestionIso_(v){var d=v instanceof Date?v:new Date(v);if(isNaN(d.getTime()))return '';return Utilities.formatDate(d,Session.getScriptTimeZone()||'Europe/Madrid',"yyyy-MM-dd'T'HH:mm:ss");}
 
+function xestionPropiedadeObrigatoria_(nome){
+  var valor=xestionTexto_(PropertiesService.getScriptProperties().getProperty(nome));
+  if(!valor)throw new Error('Falta a propiedade obrigatoria: '+nome);
+  return valor;
+}
+
 function asegurarXestionPermisos_(){
-  var ss=SpreadsheetApp.openById(obterPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID'));
+  var ss=SpreadsheetApp.openById(xestionPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID'));
   var permisos=ss.getSheetByName(XESTION_PERMISOS_CONFIG_.sheetPermisos);
   if(!permisos){
     permisos=ss.insertSheet(XESTION_PERMISOS_CONFIG_.sheetPermisos);
@@ -30,7 +36,7 @@ function asegurarXestionPermisos_(){
 }
 
 function usuariosXestionPermisos_(){
-  var ss=SpreadsheetApp.openById(obterPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID')),sh=ss.getSheetByName(XESTION_PERMISOS_CONFIG_.sheetUsuarios);
+  var ss=SpreadsheetApp.openById(xestionPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID')),sh=ss.getSheetByName(XESTION_PERMISOS_CONFIG_.sheetUsuarios);
   if(!sh)return [];
   var v=sh.getDataRange().getValues();
   if(v.length<2)return [];
