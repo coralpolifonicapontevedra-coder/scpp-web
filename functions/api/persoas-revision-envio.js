@@ -155,8 +155,12 @@ export async function onRequestPost(context) {
       omitidos.push({ idPersoa: invitation.idPersoa, nome: invitation?.persoa?.nomeCompleto, motivo: 'A revisión está caducada' });
       continue;
     }
-    if (String(invitation.xeracion || '') !== 'MASIVA') {
-      omitidos.push({ idPersoa: invitation.idPersoa, nome: invitation?.persoa?.nomeCompleto, motivo: 'A revisión non procede dunha xeración masiva' });
+
+    // As revisións individuais históricas non levan `xeracion`; as novas poden
+    // identificalas como INDIVIDUAL. Mantense MASIVA para non alterar ese fluxo.
+    const xeracion = String(invitation.xeracion || '').trim();
+    if (xeracion !== '' && xeracion !== 'INDIVIDUAL' && xeracion !== 'MASIVA') {
+      omitidos.push({ idPersoa: invitation.idPersoa, nome: invitation?.persoa?.nomeCompleto, motivo: 'Tipo de xeración de revisión non permitido' });
       continue;
     }
 
