@@ -1544,6 +1544,12 @@ function buscarUsuarioWebPorEmail_(correo) {
 function obterOuCrearUsuarioWebPorEmail_(correo) {
   correo = String(correo || '').trim().toLowerCase();
 
+  const persoa = obterPersoaActivaPorEmail_(correo);
+
+  if (!persoa) {
+    return null;
+  }
+
   const usuarioExistente =
     buscarUsuarioWebPorEmail_(correo);
 
@@ -1551,11 +1557,6 @@ function obterOuCrearUsuarioWebPorEmail_(correo) {
     return usuarioExistente.activo
       ? usuarioExistente
       : null;
-  }
-
-  const persoa = obterPersoaActivaPorEmail_(correo);
-  if (!persoa) {
-    return null;
   }
 
   const folla = obterFollaUsuariosWeb_();
@@ -1569,6 +1570,7 @@ function obterOuCrearUsuarioWebPorEmail_(correo) {
 
   const agora = new Date();
   const rowId = Utilities.getUuid();
+
   const valores = {
     'Row ID': rowId,
     'Persoa': persoa.rowId,
@@ -1593,28 +1595,129 @@ function obterOuCrearUsuarioWebPorEmail_(correo) {
     }
   );
 
-  folla.appendRow(cabeceiras.map(function(cabeceira) {
-    return Object.prototype.hasOwnProperty.call(
-      valores,
-      cabeceira
-    )
-      ? valores[cabeceira]
-      : '';
-  }));
+  folla.appendRow(
+    cabeceiras.map(function(cabeceira) {
+      return Object.prototype.hasOwnProperty.call(
+        valores,
+        cabeceira
+      )
+        ? valores[cabeceira]
+        : '';
+    })
+  );
 
   SpreadsheetApp.flush();
+
+  asegurarPermisoDocumentacionInicialPortal_(
+    correo,
+    persoa
+  );
 
   return buscarUsuarioWebPorEmail_(correo);
 }
 
 
+function asegurarPermisoDocumentacionInicialPortal_(
+  correo,
+  persoa
+) {
+  try {
+    const existentes = permisosXestionPortal_()
+      .filter(function(permiso) {
+        return (
+          permiso.email === correo &&
+          permiso.modulo === 'documentacion' &&
+          !permiso.contido &&
+          permiso.activo
+        );
+      });
+
+    if (existentes.length) {
+      return;
+    }
+
+    let nivel = 'lectura';
+    let rol = 'Coralistas';
+
+    const institucional =
+      resolverPermisosPortal_(correo);
+
+    const perfis =
+      institucional &&
+      Array.isArray(institucional.perfis)
+        ? institucional.perfis
+        : [];
+
+    if (
+      institucional &&
+      institucional.autorizado &&
+      (
+        perfis.indexOf('ADMINISTRACION') !== -1 ||
+        perfis.indexOf('DIRECCION_ARTISTICA') !== -1
+      )
+    ) {
+      nivel = 'escritura';
+      rol = 'Xunta Directiva';
+    }
+
+    const resultado =
+      gardarPermisoPortalXestion_({
+        usuarioEmail: correo,
+        persoa: persoa.rowId,
+        modulo: 'documentacion',
+        contido: '',
+        nivel: nivel,
+        rol: rol,
+        actorEmail: 'sistema'
+      });
+
+    if (!resultado || !resultado.ok) {
+      throw new Error(
+        resultado && resultado.erro
+          ? resultado.erro
+          : 'Non foi posible crear o permiso inicial'
+      );
+    }
+  } catch (erro) {
+    console.warn(
+      'Non se puido asegurar o permiso inicial de Documentación para ' +
+      correo +
+      ': ' +
+      String(
+        erro && erro.message
+          ? erro.message
+          : erro
+      )
+    );
+  }
+}
+
+
+function persoaAutorizadaPortal_(persoa) {
+  const tipo = normalizarCabeceiraPortal_(
+    persoa && persoa.tipoSocio
+  );
+
+  return (
+    tipo === 'cantora' ||
+    tipo === 'directoradirectiva'
+  );
+}
+
+
 function obterPersoaActivaPorEmail_(correo) {
   correo = String(correo || '').trim().toLowerCase();
-  if (!correo) return null;
+
+  if (!correo) {
+    return null;
+  }
 
   const folla = obterFollaPersoas_();
   const valores = folla.getDataRange().getValues();
-  if (valores.length < 2) return null;
+
+  if (valores.length < 2) {
+    return null;
+  }
 
   const cabeceiras = valores[0].map(function(valor) {
     return normalizarCabeceiraPortal_(valor);
@@ -1624,31 +1727,53 @@ function obterPersoaActivaPorEmail_(correo) {
     cabeceiras,
     ['email', 'correoelectronico', 'correo', 'mail']
   );
+
   const columnaActivo = indiceCabeceiraPortal_(
     cabeceiras,
     ['activo', 'activa', 'estado']
   );
+
   const columnaRowId = indiceCabeceiraPortal_(
     cabeceiras,
     ['rowid', 'idpersoa', 'id']
   );
+
   const columnaNome = indiceCabeceiraPortal_(
     cabeceiras,
-    ['nome', 'nombre', 'nomecompleto', 'nombrecompleto']
+    [
+      'nome',
+      'nombre',
+      'nomecompleto',
+      'nombrecompleto'
+    ]
+  );
+
+  const columnaTipoSocio = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['tipodesocio', 'tiposocio']
+  );
+
+  const columnaCargo = indiceCabeceiraPortal_(
+    cabeceiras,
+    ['cargo']
   );
 
   if (
     columnaEmail === -1 ||
     columnaActivo === -1 ||
-    columnaRowId === -1
+    columnaRowId === -1 ||
+    columnaTipoSocio === -1
   ) {
     throw new Error(
-      'Faltan as columnas Email, Activo e Row ID en Persoas'
+      'Faltan as columnas Email, Activo, Row ID ou Tipo de socio en Persoas'
     );
   }
 
   const fila = valores.find(function(fila, indice) {
-    if (indice === 0) return false;
+    if (indice === 0) {
+      return false;
+    }
+
     return String(fila[columnaEmail] || '')
       .trim()
       .toLowerCase() === correo;
@@ -1656,17 +1781,42 @@ function obterPersoaActivaPorEmail_(correo) {
 
   if (
     !fila ||
-    !valorActivoPersoaPortal_(fila[columnaActivo])
+    !valorActivoPersoaPortal_(
+      fila[columnaActivo]
+    )
   ) {
     return null;
   }
 
-  return {
-    rowId: String(fila[columnaRowId] || '').trim(),
-    nome: columnaNome === -1
-      ? ''
-      : String(fila[columnaNome] || '').trim()
+  const persoa = {
+    rowId:
+      String(fila[columnaRowId] || '').trim(),
+
+    nome:
+      columnaNome === -1
+        ? ''
+        : String(
+            fila[columnaNome] || ''
+          ).trim(),
+
+    tipoSocio:
+      String(
+        fila[columnaTipoSocio] || ''
+      ).trim(),
+
+    cargo:
+      columnaCargo === -1
+        ? ''
+        : String(
+            fila[columnaCargo] || ''
+          ).trim()
   };
+
+  if (!persoaAutorizadaPortal_(persoa)) {
+    return null;
+  }
+
+  return persoa;
 }
 
 
