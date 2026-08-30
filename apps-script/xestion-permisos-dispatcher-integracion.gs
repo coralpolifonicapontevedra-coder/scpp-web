@@ -17,6 +17,37 @@ var ACCIONS_ADMIN_XESTION_PERMISOS_ = [
   'listarActividadePortal'
 ];
 
+var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
+  'crearPersoaAdministracion',
+  'actualizarPersoaAdministracion',
+  'cambiarEstadoPersoaAdministracion',
+  'enviarRevisionsPersoasAdministracion'
+];
+
+function despacharPersoasAdministracionPortal_(accion, datos) {
+  if (ACCIONS_PERSOAS_ADMIN_PORTAL_.indexOf(accion) < 0) {
+    return null;
+  }
+
+  if (accion === 'crearPersoaAdministracion') {
+    return crearPersoaAdministracion_(datos);
+  }
+
+  if (accion === 'actualizarPersoaAdministracion') {
+    return actualizarPersoaAdministracion_(datos);
+  }
+
+  if (accion === 'cambiarEstadoPersoaAdministracion') {
+    return cambiarEstadoPersoaAdministracion_(datos);
+  }
+
+  if (accion === 'enviarRevisionsPersoasAdministracion') {
+    return enviarRevisionsPersoasAdministracion_(datos);
+  }
+
+  return null;
+}
+
 function autorizarXestionPermisosPortal_(accion, datos) {
   if (ACCIONS_ADMIN_XESTION_PERMISOS_.indexOf(accion) < 0) {
     return null;
@@ -48,6 +79,37 @@ function autorizarXestionPermisosPortal_(accion, datos) {
 
 function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
   accion = String(accion || '').trim();
+
+  var respostaPersoas =
+    despacharPersoasAdministracionPortal_(accion, datos);
+
+  if (respostaPersoas !== null) {
+    rexistrarAcceso({
+      email: String(datos && datos.email || '').trim().toLowerCase(),
+      tipoEvento:
+        accion === 'crearPersoaAdministracion'
+          ? 'Crear persoa'
+          : (
+            accion === 'actualizarPersoaAdministracion'
+              ? 'Actualizar persoa'
+              : (
+                accion === 'cambiarEstadoPersoaAdministracion'
+                  ? (respostaPersoas.activo ? 'Reactivar persoa' : 'Dar de baixa persoa')
+                  : 'Envío masivo de revisións'
+              )
+          ),
+      modulo: 'Administración · Persoas',
+      resultado: respostaPersoas.ok ? 'Correcto' : 'Rexeitado',
+      detalle: respostaPersoas.ok
+        ? String(
+            respostaPersoas.idPersoa ||
+            respostaPersoas.enviados ||
+            ''
+          )
+        : String(respostaPersoas.erro || '')
+    });
+    return respostaPersoas;
+  }
 
   var erroAutorizacion = autorizarXestionPermisosPortal_(accion, datos);
   if (erroAutorizacion) return erroAutorizacion;
