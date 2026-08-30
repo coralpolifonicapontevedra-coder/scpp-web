@@ -1,0 +1,19 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Páxina non atopada" lang="gl" description="A páxina solicitada non existe.">
+  <section class="not-found" aria-labelledby="not-found-title">
+    <p class="code">404</p>
+    <h1 id="not-found-title">Páxina non atopada</h1>
+    <p>Comproba o enderezo ou volve á portada da Sociedade Coral.</p>
+    <a href="/">Volver ao inicio</a>
+  </section>
+</Layout>
+
+<style>
+  .not-found { max-width: 720px; margin: 4rem auto; padding: 2rem; text-align: center; }
+  .code { margin: 0; color: #8a2538; font-size: 4rem; font-weight: 800; line-height: 1; }
+  h1 { color: #6b1d2f; }
+  a { display: inline-block; margin-top: 1rem; padding: .75rem 1rem; background: #6b1d2f; color: #fff; text-decoration: none; }
+</style>

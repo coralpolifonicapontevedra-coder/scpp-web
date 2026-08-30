@@ -3,6 +3,18 @@ const REVISION_INDEX_PATH = 'indices/revision-fotos-v1.json';
 const AUTH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const FIREBASE_TIMEOUT_MS = 8 * 1000;
 const AUTH_CACHE_VERSION = 2;
+const PRODUCTION_HOSTS = new Set([
+  'produccion.coralpolifonicapontevedra.org',
+  'coralpolifonicapontevedra.org',
+  'www.coralpolifonicapontevedra.org'
+]);
+const PRODUCTION_ONLY_BLOCKED_PATHS = new Set([
+  '/api/galeria-r2-proba', '/api/r2-status', '/galeria-r2-proba', '/galeria-r2-proba/',
+  '/laboratorio/rendemento/fotos', '/laboratorio/rendemento/fotos/',
+  '/portal/asistencias-prueba', '/portal/asistencias-prueba/',
+  '/portal/editor-fotos-prueba', '/portal/editor-fotos-prueba/',
+  '/portal/proba-r2', '/portal/proba-r2/'
+]);
 
 function filtrarAudiosDesactivados(resultado) {
   if (!resultado || typeof resultado !== 'object') return resultado;
@@ -153,6 +165,17 @@ async function intentarRevisionR2(context, url) {
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
+
+  if (PRODUCTION_HOSTS.has(url.hostname.toLowerCase()) && PRODUCTION_ONLY_BLOCKED_PATHS.has(url.pathname)) {
+    return new Response('Non atopado', {
+      status: 404,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-Robots-Tag': 'noindex, nofollow'
+      }
+    });
+  }
 
   const revisionR2 = await intentarRevisionR2(context, url);
   if (revisionR2) return revisionR2;

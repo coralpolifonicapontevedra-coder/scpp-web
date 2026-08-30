@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /portal/
+Disallow: /api/
+Disallow: /laboratorio/
+Disallow: /*-proba/
+Disallow: /*-prueba/
+
+Sitemap: https://produccion.coralpolifonicapontevedra.org/sitemap.xml

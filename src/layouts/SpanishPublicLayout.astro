@@ -44,8 +44,9 @@ const equivalencias = {
 };
 
 const rutaGl = equivalencias[rutaNormalizada] || '/';
-const alternaGl = new URL(rutaGl, Astro.url.origin).toString();
-const alternaEs = new URL(ruta, Astro.url.origin).toString();
+const baseUrl = Astro.site ?? Astro.url.origin;
+const alternaGl = new URL(rutaGl === '/' ? '/' : `${rutaGl}/`, baseUrl).toString();
+const alternaEs = new URL(ruta, baseUrl).toString();
 ---
 
 <!DOCTYPE html>
@@ -55,6 +56,7 @@ const alternaEs = new URL(ruta, Astro.url.origin).toString();
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title} | SCPP</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={alternaEs} />
     <link rel="alternate" hreflang="gl" href={alternaGl} />
     <link rel="alternate" hreflang="es" href={alternaEs} />
     <link rel="alternate" hreflang="x-default" href={alternaGl} />

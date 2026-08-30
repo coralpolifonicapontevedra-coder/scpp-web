@@ -29,8 +29,22 @@ const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
 const eRepertorio = ruta === '/portal/repertorio' || ruta === '/portal/repertorio/';
 const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
 const ePortada = rutaNormalizada === '/' || rutaNormalizada === '/es';
-const alternaGl = new URL('/', Astro.url.origin).toString();
-const alternaEs = new URL('/es/', Astro.url.origin).toString();
+const equivalenciasEs = {
+  '/': '/es/', '/acoral': '/es/la-coral/', '/historia': '/es/historia/',
+  '/centenario': '/es/centenario/', '/directora': '/es/directora/',
+  '/xunta-directiva': '/es/junta-directiva/', '/coralistas': '/es/coralistas/',
+  '/distincions': '/es/distinciones/', '/honras': '/es/honores/',
+  '/benvida': '/es/bienvenida/', '/axenda': '/es/agenda/',
+  '/actualidade': '/es/actualidad/', '/galeria': '/es/galeria/',
+  '/historico-concertos': '/es/historico-conciertos/', '/colabora': '/es/colabora/',
+  '/colaboradores': '/es/colaboradores/', '/contacto': '/es/contacto/',
+  '/privacidade': '/es/privacidad/', '/aviso-legal': '/es/aviso-legal/',
+  '/cookies': '/es/cookies/'
+};
+const canonical = new URL(ruta, Astro.site ?? Astro.url.origin).toString();
+const rutaEs = equivalenciasEs[rutaNormalizada];
+const alternaGl = new URL(rutaNormalizada === '/' ? '/' : `${rutaNormalizada}/`, Astro.site ?? Astro.url.origin).toString();
+const alternaEs = rutaEs ? new URL(rutaEs, Astro.site ?? Astro.url.origin).toString() : null;
 ---
 
 <!DOCTYPE html>
@@ -40,9 +54,10 @@ const alternaEs = new URL('/es/', Astro.url.origin).toString();
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title} | SCPP</title>
     <meta name="description" content={description} />
-    {ePortada && <link rel="alternate" hreflang="gl" href={alternaGl} />}
-    {ePortada && <link rel="alternate" hreflang="es" href={alternaEs} />}
-    {ePortada && <link rel="alternate" hreflang="x-default" href={alternaGl} />}
+    {eZonaPortal ? <meta name="robots" content="noindex,nofollow" /> : <link rel="canonical" href={canonical} />}
+    {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="gl" href={alternaGl} />}
+    {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="es" href={alternaEs} />}
+    {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="x-default" href={alternaGl} />}
   </head>
   <body class:list={[eZonaPortal && 'portal-private-body']}>
     {!eZonaPortal && (lang === 'es' ? <SpanishHeader currentPath={ruta} galicianPath="/" /> : <Header lang={lang} />)}
