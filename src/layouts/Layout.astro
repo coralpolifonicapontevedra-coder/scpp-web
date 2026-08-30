@@ -13,7 +13,8 @@ import '../styles/global.css';
 const {
   title,
   lang = 'gl',
-  description: suppliedDescription
+  description: suppliedDescription,
+  noindex = false
 } = Astro.props;
 
 const description = suppliedDescription || (
@@ -54,7 +55,7 @@ const alternaEs = rutaEs ? new URL(rutaEs, Astro.site ?? Astro.url.origin).toStr
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title} | SCPP</title>
     <meta name="description" content={description} />
-    {eZonaPortal ? <meta name="robots" content="noindex,nofollow" /> : <link rel="canonical" href={canonical} />}
+    {(eZonaPortal || noindex) ? <meta name="robots" content="noindex,nofollow" /> : <link rel="canonical" href={canonical} />}
     {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="gl" href={alternaGl} />}
     {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="es" href={alternaEs} />}
     {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="x-default" href={alternaGl} />}
