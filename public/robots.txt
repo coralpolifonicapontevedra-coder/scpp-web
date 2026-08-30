@@ -6,4 +6,4 @@ Disallow: /laboratorio/
 Disallow: /*-proba/
 Disallow: /*-prueba/
 
-Sitemap: https://produccion.coralpolifonicapontevedra.org/sitemap.xml
+Sitemap: https://coralpolifonicapontevedra.org/sitemap.xml
