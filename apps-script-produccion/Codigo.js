@@ -204,16 +204,19 @@ function doPost(e) {
       const usuarioExistente =
         buscarUsuarioWebPorEmail_(correo);
 
+      const persoaPortal =
+        obterPersoaActivaPorEmail_(correo);
+
       if (
         (usuarioExistente && !usuarioExistente.activo) ||
-        (!usuarioExistente && !obterPersoaActivaPorEmail_(correo))
+        !persoaPortal
       ) {
         rexistrarAcceso({
           email: correo,
           tipoEvento: 'Comprobar acceso ao portal',
           modulo: 'Portal',
           resultado: 'Rexeitado',
-          detalle: 'O correo non corresponde a unha persoa activa'
+          detalle: 'O correo non corresponde a unha persoa activa autorizada para o Portal'
         });
 
         return respostaJSON({
@@ -1627,8 +1630,7 @@ function asegurarPermisoDocumentacionInicialPortal_(
         return (
           permiso.email === correo &&
           permiso.modulo === 'documentacion' &&
-          !permiso.contido &&
-          permiso.activo
+          !permiso.contido
         );
       });
 
@@ -1642,20 +1644,18 @@ function asegurarPermisoDocumentacionInicialPortal_(
     const institucional =
       resolverPermisosPortal_(correo);
 
-    const perfis =
-      institucional &&
-      Array.isArray(institucional.perfis)
-        ? institucional.perfis
-        : [];
-
-    if (
+    const eGobernanzaActiva =
       institucional &&
       institucional.autorizado &&
       (
-        perfis.indexOf('ADMINISTRACION') !== -1 ||
-        perfis.indexOf('DIRECCION_ARTISTICA') !== -1
-      )
-    ) {
+        institucional.fonte === 'Gobernanza' ||
+        institucional.fonte === 'Persoas.Cargo' ||
+        normalizarCabeceiraPortal_(
+          persoa && persoa.tipoSocio
+        ) === 'directoradirectiva'
+      );
+
+    if (eGobernanzaActiva) {
       nivel = 'escritura';
       rol = 'Xunta Directiva';
     }
