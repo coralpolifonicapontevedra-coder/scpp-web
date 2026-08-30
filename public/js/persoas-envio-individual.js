@@ -2,25 +2,16 @@
   const path = window.location.pathname.replace(/\/+$/, '');
   if (path !== '/portal/administracion/persoas') return;
 
-  const productionHosts = new Set([
-    'coralpolifonicapontevedra.org',
-    'www.coralpolifonicapontevedra.org'
-  ]);
-  if (!productionHosts.has(window.location.hostname.toLowerCase())) return;
-
   const originalFetch = window.fetch.bind(window);
+  let lastIdToken = '';
   let envioEnCurso = false;
-
-  function reviewButton() {
-    return document.querySelector('#review-person');
-  }
 
   function reviewState() {
     return document.querySelector('#review-state');
   }
 
-  function reviewIntro() {
-    return document.querySelector('#review-dialog .review-dialog-body > p');
+  function reviewLink() {
+    return document.querySelector('#review-link');
   }
 
   function personName() {
@@ -44,25 +35,85 @@
     if (node instanceof HTMLElement) node.textContent = message;
   }
 
-  function setIntro(message) {
-    const node = reviewIntro();
-    if (node instanceof HTMLElement) node.textContent = message;
+  function ensureSendButton() {
+    const footerActions = document.querySelector('#review-dialog .dialog-footer > div');
+    if (!(footerActions instanceof HTMLElement)) return null;
+
+    let button = document.querySelector('#send-review-email');
+    if (button instanceof HTMLButtonElement) return button;
+
+    button = document.createElement('button');
+    button.id = 'send-review-email';
+    button.type = 'button';
+    button.className = 'primary-action';
+    button.textContent = 'Enviar por correo';
+    footerActions.prepend(button);
+    button.addEventListener('click', sendReviewEmail);
+    return button;
   }
 
-  document.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!(target instanceof Element) || !target.closest('#review-person')) return;
-
+  async function sendReviewEmail() {
+    const button = ensureSendButton();
+    const linkNode = reviewLink();
+    const ligazon = linkNode instanceof HTMLInputElement ? linkNode.value.trim() : '';
     const correo = selectedEmail();
-    const destino = correo ? `\n\nCorreo: ${correo}` : '';
-    const ok = window.confirm(
-      `Vas xerar e enviar por correo unha revisión de datos a ${personName()}.${destino}\n\nQueres continuar?`
-    );
-    if (ok) return;
 
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  }, true);
+    if (!ligazon) {
+      setReviewMessage('Primeiro tes que xerar a ligazón de revisión.');
+      return;
+    }
+    if (!lastIdToken) {
+      setReviewMessage('Non foi posible recuperar a sesión. Pecha esta xanela e xera de novo a revisión.');
+      return;
+    }
+    if (!correo) {
+      setReviewMessage('A persoa seleccionada non ten un correo electrónico válido na ficha.');
+      return;
+    }
+
+    const ok = window.confirm(
+      `Vas enviar a revisión de datos a ${personName()}.\n\nCorreo: ${correo}\n\nQueres continuar?`
+    );
+    if (!ok) return;
+
+    envioEnCurso = true;
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = true;
+      button.textContent = 'Enviando…';
+    }
+    setReviewMessage('Enviando correo…');
+
+    try {
+      const response = await originalFetch('/api/persoas-revision-envio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: lastIdToken, ligazons: [ligazon] })
+      });
+      const result = await response.json().catch(() => null);
+      const enviados = Number(result?.envio?.enviados || 0);
+
+      if (!response.ok || result?.ok !== true || enviados < 1) {
+        const motivo = String(
+          result?.erro ||
+          result?.envio?.erro ||
+          result?.envio?.detalle?.[0]?.motivo ||
+          'Non foi posible enviar o correo.'
+        ).trim();
+        throw new Error(motivo);
+      }
+
+      const destino = String(result?.envio?.detalle?.[0]?.correo || correo).trim();
+      setReviewMessage(destino ? `Correo enviado correctamente a ${destino}.` : 'Correo enviado correctamente.');
+    } catch (error) {
+      setReviewMessage(error instanceof Error ? error.message : 'Non foi posible enviar o correo.');
+    } finally {
+      envioEnCurso = false;
+      if (button instanceof HTMLButtonElement) {
+        button.disabled = false;
+        button.textContent = 'Enviar por correo';
+      }
+    }
+  }
 
   window.fetch = async function patchedFetch(input, init) {
     let url = '';
@@ -84,48 +135,14 @@
     }
 
     const response = await originalFetch(input, init);
-    if (body?.accion !== 'xerarLigazon' || !response.ok || envioEnCurso) return response;
-
-    try {
-      const generated = await response.clone().json();
-      const ligazon = String(generated?.ligazon || '').trim();
-      const idToken = String(body?.idToken || '').trim();
-      if (!ligazon || !idToken) return response;
-
-      envioEnCurso = true;
-      setIntro('A ligazón foi xerada. Enviando o correo á persoa interesada…');
-      setReviewMessage('Enviando correo…');
-
-      const envioResponse = await originalFetch('/api/persoas-revision-envio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken, ligazons: [ligazon] })
-      });
-      const envioResult = await envioResponse.json().catch(() => null);
-
-      const enviados = Number(envioResult?.envio?.enviados || 0);
-      if (!envioResponse.ok || envioResult?.ok !== true || enviados < 1) {
-        const motivo = String(
-          envioResult?.erro ||
-          envioResult?.envio?.erro ||
-          envioResult?.envio?.detalle?.[0]?.motivo ||
-          'Non foi posible confirmar o envío do correo.'
-        ).trim();
-        setIntro('A ligazón quedou xerada e podes copiala ou abrila manualmente.');
-        setReviewMessage(motivo);
-        return response;
-      }
-
-      const correo = String(envioResult?.envio?.detalle?.[0]?.correo || selectedEmail()).trim();
-      setIntro('A ligazón segura foi enviada por correo á persoa interesada.');
-      setReviewMessage(correo ? `Correo enviado correctamente a ${correo}.` : 'Correo enviado correctamente.');
-    } catch (error) {
-      setIntro('A ligazón quedou xerada e podes copiala ou abrila manualmente.');
-      setReviewMessage(error instanceof Error ? error.message : 'Non foi posible confirmar o envío do correo.');
-    } finally {
-      envioEnCurso = false;
+    if (body?.accion === 'xerarLigazon' && response.ok) {
+      lastIdToken = String(body?.idToken || '').trim();
+      ensureSendButton();
+      setReviewMessage('Ligazón xerada. Podes enviala por correo ou copiala manualmente.');
     }
-
     return response;
   };
+
+  ensureSendButton();
+  document.addEventListener('DOMContentLoaded', ensureSendButton, { once: true });
 })();
