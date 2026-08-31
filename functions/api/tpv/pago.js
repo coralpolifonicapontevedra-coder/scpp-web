@@ -9,14 +9,17 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Credenciais de produción configuradas en Cloudflare Pages
-    const merchantId = env.CECA_MERCHANT_ID;
-    const acquirerBin = env.CECA_ACQUIRER_BIN;
-    const terminalId = env.CECA_TERMINAL_ID;
-    const secretKey = env.CECA_SECRET_KEY;
+    // Credenciais de produción configuradas en Cloudflare Pages.
+    // Normalizamos espazos/saltos de liña accidentais sen alterar ceros á esquerda.
+    const merchantId = String(env.CECA_MERCHANT_ID || '').trim();
+    const acquirerBin = String(env.CECA_ACQUIRER_BIN || '').trim();
+    const terminalId = String(env.CECA_TERMINAL_ID || '').trim();
+    const secretKey = String(env.CECA_SECRET_KEY || '').trim();
 
     // Pasarela oficial de produción CECA
-    const urlTpv = env.CECA_URL || 'https://pgw.ceca.es/tpvweb/tpv/compra.action';
+    const urlTpv = String(
+      env.CECA_URL || 'https://pgw.ceca.es/tpvweb/tpv/compra.action'
+    ).trim();
 
     if (!merchantId || !acquirerBin || !terminalId || !secretKey) {
       return new Response(
@@ -32,12 +35,12 @@ export async function onRequestPost({ request, env }) {
     const cifrado = 'SHA2';
     const urlOk = 'https://coralpolifonicapontevedra.org/donar/?resultado=ok';
     const urlNok = 'https://coralpolifonicapontevedra.org/donar/?resultado=error';
-    const exencionSca = '';
 
-    // Formato oficial CECA para Cifrado=SHA2:
+    // Formato CECA para Cifrado=SHA2:
     // Clave_encriptacion + MerchantID + AcquirerBIN + TerminalID + Num_operacion +
-    // Importe + TipoMoneda + Exponente + Cifrado + URL_OK + URL_NOK + Exencion_SCA
-    const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}${exponente}${cifrado}${urlOk}${urlNok}${exencionSca}`;
+    // Importe + TipoMoneda + Exponente + Cifrado + URL_OK + URL_NOK.
+    // Exencion_SCA non se envía neste fluxo, polo que non engade contido á cadea.
+    const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}${exponente}${cifrado}${urlOk}${urlNok}`;
 
     const encoder = new TextEncoder();
     const data = encoder.encode(cadenaFirma);
