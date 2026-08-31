@@ -1,5 +1,6 @@
 name: Sincronizar concertos con R2
 
+# A actualización deste workflow tamén forza unha sincronización inmediata.
 on:
   workflow_dispatch:
   schedule:
