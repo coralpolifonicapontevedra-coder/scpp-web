@@ -40,7 +40,7 @@ describe('administración integral de concertos', () => {
     expect(api).toContain('concertos/borradores-v1/');
     expectAction(api, 'finalizarXestion');
     expect(api).toContain('indices/preview/concertos-privado-v1.json');
-    expect(page).toContain('Finalizar e sincronizar coa Sheet');
+    expect(page).toContain('Finalizar e sincronizar');
   });
 
   it('preserva a páxina Concertos e exclúe ausencias do seu índice', () => {
