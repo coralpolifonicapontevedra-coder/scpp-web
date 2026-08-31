@@ -349,10 +349,10 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       if (!(finish instanceof HTMLButtonElement) || !draft || !currentRehearsalId) return;
-      if (!window.confirm('Finalizar o ensaio e gardar estes datos definitivamente nas Sheets?')) return;
+      if (!window.confirm('Finalizar o ensaio e gardar estes datos definitivamente?')) return;
       const status = document.querySelector('#finish-rehearsal-status');
       finish.disabled = true;
-      if (status) status.textContent = 'Gardando nas Sheets…';
+      if (status) status.textContent = 'Gardando os datos…';
       apiDraft('finalizar')
         .then(async (result) => {
           draft = result.draft;
