@@ -1,0 +1,22 @@
+---
+interface Props { lang?: 'gl' | 'es'; result: 'correct' | 'cancelled' }
+const { lang = 'gl', result } = Astro.props;
+const isGl = lang === 'gl';
+const isCorrect = result === 'correct';
+---
+<main class="payment-result" data-payment-result={isCorrect ? 'correct' : 'cancelled'} data-lang={lang}>
+  <span class:list={['result-icon', isCorrect ? 'success' : 'neutral']} aria-hidden="true">{isCorrect ? '✓' : '×'}</span>
+  <p class="result-kicker">{isGl ? 'Colaboración económica' : 'Colaboración económica'}</p>
+  <h1>{isCorrect ? (isGl ? 'Grazas pola túa colaboración' : 'Gracias por tu colaboración') : (isGl ? 'O pago non se completou' : 'El pago no se completó')}</h1>
+  <p data-result-message>
+    {isCorrect
+      ? (isGl ? 'Estamos comprobando a confirmación segura da pasarela.' : 'Estamos comprobando la confirmación segura de la pasarela.')
+      : (isGl ? 'Non se realizou ningún cargo. Podes volver intentalo cando queiras.' : 'No se ha realizado ningún cargo. Puedes volver a intentarlo cuando quieras.')}
+  </p>
+  <a href={isGl ? '/colabora/' : '/es/colabora/'}>{isGl ? 'Volver a Colabora' : 'Volver a Colabora'}</a>
+</main>
+{isCorrect && <script src="/js/tpv-resultado.js" defer></script>}
+<style>
+  .payment-result{max-width:720px;margin:0 auto;padding:clamp(4rem,12vw,8rem) 1.25rem;text-align:center}.result-icon{display:grid;place-items:center;width:76px;height:76px;margin:0 auto 1.5rem;border-radius:50%;font-size:2.25rem;font-weight:700}.result-icon.success{background:#e4f2e8;color:#23633b}.result-icon.neutral{background:#f4ecec;color:var(--color-principal)}.result-kicker{color:var(--color-principal);font-size:.8rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}.payment-result h1{color:var(--color-texto);font-size:clamp(2rem,5vw,3rem);margin:.5rem 0 1rem}.payment-result>p:not(.result-kicker){color:#444;line-height:1.65}.payment-result a{display:inline-block;margin-top:1.25rem;border-radius:4px;background:var(--color-principal);color:#fff;font-size:.82rem;font-weight:700;letter-spacing:.05em;padding:.9rem 1.25rem;text-decoration:none;text-transform:uppercase}
+</style>
+
