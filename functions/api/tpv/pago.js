@@ -27,15 +27,16 @@ export async function onRequestPost({ request, env }) {
     const importeCentimos = Math.round(parseFloat(importe) * 100).toString();
     const numPedido = Date.now().toString().slice(-12);
     const numMoneda = '978'; // EUR
+    const exponente = '2';
 
-    // Generar la firma SHA-256 requerida por CECA
-    const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}SHA256`;
-    
+    // Generar la firma SHA-256 requerida por CECA con la cadena exacta
+    const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}${exponente}SHA256`;
+
     const encoder = new TextEncoder();
     const data = encoder.encode(cadenaFirma);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const firma = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const firma = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
     return new Response(
       JSON.stringify({
@@ -48,7 +49,7 @@ export async function onRequestPost({ request, env }) {
           Num_operacion: numPedido,
           Importe: importeCentimos,
           TipoMoneda: numMoneda,
-          Exponente: '2',
+          Exponente: exponente,
           Pago_soportado: 'SSL',
           Firma: firma,
           URL_OK: 'https://coralpolifonicapontevedra.org/donar/?resultado=ok',
