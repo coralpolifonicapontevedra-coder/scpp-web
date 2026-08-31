@@ -11,6 +11,7 @@ export default [
       'node_modules/**',
       'public/**',
       'apps-script/**',
+      'apps-script-*/**',
       'scripts/**/*.py',
     ],
   },
