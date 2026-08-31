@@ -3,6 +3,7 @@ import SpanishHeader from '../components/SpanishHeader.astro';
 import SpanishFooter from '../components/SpanishFooter.astro';
 import SpanishCoralMenu from '../components/SpanishCoralMenu.astro';
 import SpanishPageHero from '../components/SpanishPageHero.astro';
+import WhatsAppButton from '../components/WhatsAppButton.astro';
 import '../styles/global.css';
 import '../styles/spanish-public-fixes.css';
 import '../styles/spanish-history-inline.css';
@@ -79,6 +80,7 @@ const alternaEs = new URL(ruta, baseUrl).toString();
     </div>
 
     <SpanishFooter />
+    <WhatsAppButton />
     {esAgenda && <script is:inline src="/js/poster-thumbnails.js" defer></script>}
     {esActualidad && <script is:inline src="/js/actualidad-contenido-es.js?v=20260828-3" defer></script>}
     {esActualidad && <script is:inline src="/js/actualidad-enlace-es-v2.js?v=20260828-1" defer></script>}

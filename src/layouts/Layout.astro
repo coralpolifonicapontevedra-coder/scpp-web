@@ -8,6 +8,7 @@ import PublicCoralMenu from '../components/PublicCoralMenu.astro';
 import PublicPageHero from '../components/PublicPageHero.astro';
 import PortalAcceptanceGate from '../components/PortalAcceptanceGate.astro';
 import PortalReviewStyles from '../components/PortalReviewStyles.astro';
+import WhatsAppButton from '../components/WhatsAppButton.astro';
 import '../styles/global.css';
 
 const {
@@ -84,6 +85,7 @@ const alternaEs = rutaEs ? new URL(rutaEs, Astro.site ?? Astro.url.origin).toStr
     )}
 
     {!eZonaPortal && (lang === 'es' ? <SpanishFooter /> : <Footer lang={lang} />)}
+    {!eZonaPortal && <WhatsAppButton />}
     {eInicioPortal && <PortalAcceptanceGate />}
     {eInicioPortal && <script is:inline src="/js/portal-auth-diagnostics.js" defer></script>}
     {eZonaPortal && <PortalReviewStyles />}
