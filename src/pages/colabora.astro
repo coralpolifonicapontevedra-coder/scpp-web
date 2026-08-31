@@ -60,14 +60,18 @@ const viasColaboracion = [
             <div class="card-line"></div>
             <p>{via.descripcion}</p>
           </div>
-          <button
-            type="button"
-            class="btn-colabora"
-            data-select-solicitude={via.tipo}
-            data-form-target="#form-colabora"
-          >
-            {via.botonText}
-          </button>
+          {via.id === 'economica' ? (
+            <a class="btn-colabora" href="/donar/">{via.botonText}</a>
+          ) : (
+            <button
+              type="button"
+              class="btn-colabora"
+              data-select-solicitude={via.tipo}
+              data-form-target="#form-colabora"
+            >
+              {via.botonText}
+            </button>
+          )}
         </article>
       ))}
     </div>
@@ -375,7 +379,10 @@ const viasColaboracion = [
     transition: background-color .2s ease, opacity .2s ease;
   }
 
-  .btn-colabora { align-self: flex-start; }
+  .btn-colabora {
+    align-self: flex-start;
+    text-decoration: none;
+  }
   .btn-colabora:hover,
   .btn-enviar:hover { background-color: var(--color-acento); }
   .btn-enviar:disabled { cursor: wait; opacity: .65; }
@@ -537,4 +544,3 @@ const viasColaboracion = [
     .btn-entidades { justify-content: center; width: 100%; }
   }
 </style>
-
