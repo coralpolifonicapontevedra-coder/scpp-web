@@ -39,6 +39,9 @@ import rosetonImg from "../assets/roseton.jpg";
       </p>
       <div class="intro-action">
         <a href="/benvida" class="btn-esencia">Descubre a nosa esencia</a>
+        <p class="colabora-texto">
+          <a href="/colabora">Colabora económicamente ao mantemento deste patrimonio cultural</a>
+        </p>
       </div>
     </div>
   </section>
@@ -361,6 +364,24 @@ import rosetonImg from "../assets/roseton.jpg";
   .btn-esencia:hover {
     color: var(--color-acento);
     border-color: var(--color-principal);
+  }
+
+  .colabora-texto {
+    margin-top: 1.2rem;
+    font-size: 0.85rem;
+  }
+
+  .colabora-texto a {
+    color: var(--color-texto);
+    opacity: 0.75;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: opacity 0.2s ease, color 0.2s ease;
+  }
+
+  .colabora-texto a:hover {
+    opacity: 1;
+    color: var(--color-principal);
   }
 
   .listen-section {
