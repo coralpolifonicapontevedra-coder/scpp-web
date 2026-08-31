@@ -130,7 +130,7 @@
         button.disabled = true;
         button.textContent = 'Xerando informe…';
       }
-      if (estado instanceof HTMLElement) estado.textContent = 'Calculando asistencias e gardando o informe en R2…';
+      if (estado instanceof HTMLElement) estado.textContent = 'Calculando asistencias e gardando o informe…';
 
       try {
         const result = await xerarInforme(ultimoToken, inicio, fin);
