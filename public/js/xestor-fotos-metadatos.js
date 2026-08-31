@@ -52,7 +52,7 @@
     const pub=campo('#xestor-publica'),pri=campo('#xestor-privada'),titulo=campo('#xestor-titulo'),pe=campo('#xestor-pefoto'),obs=campo('#xestor-observacions'),msg=campo('#xestor-msg'),btn=campo('#xestor-gardar');
     if(!(pub instanceof HTMLInputElement)||!(pri instanceof HTMLInputElement)||!(titulo instanceof HTMLInputElement)||!(pe instanceof HTMLTextAreaElement)||!(obs instanceof HTMLTextAreaElement))return;
     if(btn instanceof HTMLButtonElement)btn.disabled=true;
-    if(msg instanceof HTMLElement){msg.textContent='Gardando datos, Sheet, índices R2 e caché…';msg.dataset.error='false'}
+    if(msg instanceof HTMLElement){msg.textContent='Gardando e verificando os datos…';msg.dataset.error='false'}
     try{
       const r=await api({accion:'gardar',idFoto:id,publicarPublica:pub.checked,publicarPrivada:pri.checked,titulo:titulo.value,peFoto:pe.value,observacions:obs.value});
       const f=fotos.get(id)||{};Object.assign(f,r);f.titulo=r.titulo;f.peFoto=r.peFoto;f.observacions=r.observacions;fotos.set(id,f);
