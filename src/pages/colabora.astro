@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/Layout.astro';
+import TpvContribution from '../components/TpvContribution.astro';
 
 const viasColaboracion = [
   {
@@ -60,17 +61,18 @@ const viasColaboracion = [
             <div class="card-line"></div>
             <p>{via.descripcion}</p>
           </div>
-          <button
-            type="button"
-            class="btn-colabora"
-            data-select-solicitude={via.tipo}
-            data-form-target="#form-colabora"
-          >
-            {via.botonText}
-          </button>
+          {via.id === 'economica' ? (
+            <a class="btn-colabora" href="#colaboracion-economica">{via.botonText}</a>
+          ) : (
+            <button type="button" class="btn-colabora" data-select-solicitude={via.tipo} data-form-target="#form-colabora">
+              {via.botonText}
+            </button>
+          )}
         </article>
       ))}
     </div>
+
+    <TpvContribution lang="gl" />
 
     <section class="formulario-colabora" aria-labelledby="titulo-form-colabora">
       <div class="formulario-intro">
@@ -371,6 +373,7 @@ const viasColaboracion = [
     letter-spacing: .06em;
     padding: .9rem 1.35rem;
     text-align: center;
+    text-decoration: none;
     text-transform: uppercase;
     transition: background-color .2s ease, opacity .2s ease;
   }
