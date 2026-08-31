@@ -1,0 +1,14 @@
+---
+interface Props { lang?: 'gl' | 'es' }
+const { lang = 'gl' } = Astro.props;
+const isGl = lang === 'gl';
+---
+<p class="home-contribution">
+  <a href={isGl ? '/colabora/#colaboracion-economica' : '/es/colabora/#colaboracion-economica'}>
+    {isGl ? 'Colabora economicamente co mantemento deste patrimonio cultural' : 'Colabora económicamente al mantenimiento de este patrimonio cultural'}
+    <span aria-hidden="true">→</span>
+  </a>
+</p>
+<style>
+  .home-contribution{margin:.65rem 0 1.25rem;text-align:center}.home-contribution a{display:inline-flex;align-items:center;gap:.45rem;color:var(--color-principal);font-size:.78rem;font-weight:600;line-height:1.45;text-decoration-thickness:1px;text-underline-offset:3px}.home-contribution a:hover{color:var(--color-acento)}
+</style>
