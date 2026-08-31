@@ -9,16 +9,16 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Credenciales de producción configuradas en Cloudflare Pages
+    // Credenciais de produción configuradas en Cloudflare Pages
     const merchantId = env.CECA_MERCHANT_ID;
     const acquirerBin = env.CECA_ACQUIRER_BIN;
     const terminalId = env.CECA_TERMINAL_ID;
     const secretKey = env.CECA_SECRET_KEY;
-    
-    // URL principal del CGI de producción
-    const urlTpv = env.CECA_URL || 'https://tpv.ceca.es/cgi-bin/tpv';
 
-    if (!merchantId || !secretKey) {
+    // Pasarela oficial de produción CECA
+    const urlTpv = env.CECA_URL || 'https://pgw.ceca.es/tpvweb/tpv/compra.action';
+
+    if (!merchantId || !acquirerBin || !terminalId || !secretKey) {
       return new Response(
         JSON.stringify({ ok: false, erro: 'Faltan claves de configuración do TPV no servidor.' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -27,19 +27,26 @@ export async function onRequestPost({ request, env }) {
 
     const importeCentimos = Math.round(parseFloat(importe) * 100).toString();
     const numPedido = Date.now().toString().slice(-12);
-    const numMoneda = '978'; // EUR
+    const numMoneda = '978';
     const exponente = '2';
+    const cifrado = 'SHA2';
+    const urlOk = 'https://coralpolifonicapontevedra.org/donar/?resultado=ok';
+    const urlNok = 'https://coralpolifonicapontevedra.org/donar/?resultado=error';
+    const exencionSca = '';
 
-    // Cadena exacta para el hash SHA-256 de CECA
-    const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}${exponente}SHA256`;
+    // Formato oficial CECA para Cifrado=SHA2:
+    // Clave_encriptacion + MerchantID + AcquirerBIN + TerminalID + Num_operacion +
+    // Importe + TipoMoneda + Exponente + Cifrado + URL_OK + URL_NOK + Exencion_SCA
+    const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}${exponente}${cifrado}${urlOk}${urlNok}${exencionSca}`;
 
     const encoder = new TextEncoder();
     const data = encoder.encode(cadenaFirma);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    
-    // CECA requiere el hash resultante formateado en minúsculas
-    const firma = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('').toLowerCase();
+    const firma = hashArray
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .toLowerCase();
 
     return new Response(
       JSON.stringify({
@@ -53,12 +60,12 @@ export async function onRequestPost({ request, env }) {
           Importe: importeCentimos,
           TipoMoneda: numMoneda,
           Exponente: exponente,
-          Cifrado: 'SHA256',
+          Cifrado: cifrado,
           Pago_soportado: 'SSL',
           Idioma: '1',
           Firma: firma,
-          URL_OK: 'https://coralpolifonicapontevedra.org/donar/?resultado=ok',
-          URL_NOK: 'https://coralpolifonicapontevedra.org/donar/?resultado=error'
+          URL_OK: urlOk,
+          URL_NOK: urlNok
         }
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
