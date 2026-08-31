@@ -13,6 +13,7 @@ export default [
       'apps-script/**',
       'apps-script-*/**',
       'scripts/**/*.py',
+      'patch-governanza-production.cjs',
     ],
   },
   js.configs.recommended,
