@@ -195,7 +195,7 @@
     const publish = document.querySelector('#publish-photo');
     if (save instanceof HTMLButtonElement) save.disabled = true;
     if (publish instanceof HTMLButtonElement) publish.disabled = true;
-    mensaxe(modo === 'publicar' ? 'Gardando a edición en R2…' : 'Gardando o borrador en R2…');
+    mensaxe(modo === 'publicar' ? 'Gardando a edición…' : 'Gardando o borrador…');
 
     try {
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
@@ -227,15 +227,15 @@
           return;
         }
         if (result.estado === 'erro') {
-          mensaxe(`A edición está gardada en R2, pero a sincronización fallou: ${result.erro || 'erro descoñecido'}`, true);
+          mensaxe(`A edición está gardada, pero a sincronización fallou: ${result.erro || 'erro descoñecido'}`, true);
           return;
         }
-        mensaxe('A edición está en R2. Sincronizando a publicación…');
+        mensaxe('A edición está gardada. Sincronizando a publicación…');
       } catch {
         return;
       }
     }
-    mensaxe('A edición está gardada en R2. A sincronización continúa en segundo plano.');
+    mensaxe('A edición está gardada. A sincronización continúa en segundo plano.');
   }
 
   document.addEventListener('DOMContentLoaded', () => {
