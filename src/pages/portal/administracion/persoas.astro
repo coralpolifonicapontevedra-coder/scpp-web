@@ -78,7 +78,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   <dialog id="person-dialog" class="person-dialog">
     <form id="person-form" method="dialog">
       <header class="dialog-header">
-        <div><span class="section-kicker">Administración · Persoas</span><h2 id="dialog-title">Nova persoa</h2><p>Cubre os datos dispoñibles. Os identificadores e os metadatos R2 non se modifican desde este formulario.</p></div>
+        <div><span class="section-kicker">Administración · Persoas</span><h2 id="dialog-title">Nova persoa</h2><p>Cubre os datos dispoñibles. Os identificadores e os metadatos técnicos non se modifican desde este formulario.</p></div>
         <button id="close-dialog" type="button" class="icon-close" aria-label="Pechar">×</button>
       </header>
       <div class="form-grid">
@@ -186,7 +186,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       dataSection('Identificación',[{label:'Nome',value:selected.nome},{label:'Primeiro apelido',value:selected.primeiroApelido},{label:'Segundo apelido',value:selected.segundoApelido},{label:'NIF',value:selected.nif},{label:'Data de nacemento',value:selected.dataNacemento},{label:'Identificador',value:personKey(selected)}]),
       dataSection('Contacto e domicilio',[{label:'Teléfono',value:selected.telefono},{label:'Correo electrónico',value:selected.correo},{label:'Enderezo',value:selected.enderezo,wide:true},{label:'Cidade',value:selected.cidade},{label:'Código postal',value:selected.cp}]),
       dataSection('Contacto de emerxencia',[{label:'Persoa de contacto',value:selected.contactoEmerxencia,wide:true},{label:'Teléfono de emerxencia',value:selected.telefonoEmerxencia}],true),
-      dataSection('Relación coa Coral',[{label:'Vinculación',value:relationLabel(selected)},{label:'Voz',value:selected.voz},{label:'Tipo de socio',value:selected.tipoSocio},{label:'Cargo',value:selected.cargo},{label:'Data de incorporación',value:selected.dataIncorporacion},{label:'Consentimento foto',value:selected.consentimentoFoto},{label:'Mostrar web',value:selected.mostrarWeb},{label:'Mostrar aniversario',value:selected.mostrarAniversario},{label:'Estado da ficha R2',value:selected.fichaR2Estado}]),
+      dataSection('Relación coa Coral',[{label:'Vinculación',value:relationLabel(selected)},{label:'Voz',value:selected.voz},{label:'Tipo de socio',value:selected.tipoSocio},{label:'Cargo',value:selected.cargo},{label:'Data de incorporación',value:selected.dataIncorporacion},{label:'Consentimento foto',value:selected.consentimentoFoto},{label:'Mostrar web',value:selected.mostrarWeb},{label:'Mostrar aniversario',value:selected.mostrarAniversario},{label:'Estado da ficha',value:selected.fichaR2Estado}]),
       dataSection('Información interna',[{label:'Observacións',value:selected.observacions,wide:true},{label:'Observacións privadas',value:selected.observacionsPrivadas,wide:true},{label:'Última actualización',value:selected.dataActualizacion},{label:'Actualizado por',value:selected.actualizadoPor}])
     ].filter(Boolean).forEach(n=>sectionsNode.append(n));}
     void updateAcceptanceButton(selected);

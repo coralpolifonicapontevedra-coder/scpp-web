@@ -12,17 +12,17 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
         <div>
           <span class="section-kicker">Administración</span>
           <h1>Fotografías</h1>
-          <p>Revisa o arquivo, comproba as miniaturas e cambia a publicación usando R2 como fonte rápida. A Sheet só se toca ao gardar cambios.</p>
+          <p>Revisa o arquivo, comproba as miniaturas e cambia a publicación desde esta pantalla. Os datos só se actualizan ao gardar os cambios.</p>
         </div>
         <div class="account-card">
           <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
-          <span><small>Fonte de apertura</small><strong id="source-label">R2</strong></span>
+          <span><small>Fonte de apertura</small><strong id="source-label">Arquivo privado</strong></span>
         </div>
       </header>
 
       <AdministracionNav active="fotografias" />
 
-      <section id="loading" class="state-box">Abrindo o catálogo e as miniaturas desde R2…</section>
+      <section id="loading" class="state-box">Abrindo o catálogo e as miniaturas…</section>
       <section id="error-state" class="state-box error-box" hidden>
         <strong>Non foi posible abrir Fotografías</strong>
         <p id="error-message"></p>
@@ -50,7 +50,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
           </label>
           <div class="toolbar-meta">
             <strong id="visible-count">0 fotografías</strong>
-            <small id="generated-at">Índice R2</small>
+            <small id="generated-at">Catálogo preparado</small>
           </div>
         </div>
 
@@ -376,7 +376,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       dialogMeta.innerHTML = valores.join('');
     }
     if (dialogMessage instanceof HTMLElement) {
-      dialogMessage.textContent = 'Os cambios de publicación actualizan e verifican R2 e Sheet antes de confirmar.';
+      dialogMessage.textContent = 'Os cambios de publicación actualízanse e verifícanse antes de confirmar.';
       dialogMessage.dataset.error = 'false';
     }
     pintarImaxeDialog();
@@ -393,7 +393,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     const button = $('#save-photo');
     if (button instanceof HTMLButtonElement) button.disabled = true;
     if (dialogMessage instanceof HTMLElement) {
-      dialogMessage.textContent = 'Gardando e verificando Sheet e índices R2…';
+      dialogMessage.textContent = 'Gardando e verificando os cambios…';
       dialogMessage.dataset.error = 'false';
     }
     try {
@@ -450,10 +450,10 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
 
   function formatoDataIndice(value) {
     const raw = texto(value);
-    if (!raw) return 'Índice R2 preparado';
+    if (!raw) return 'Catálogo preparado';
     const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return 'Índice R2 preparado';
-    return `Índice R2 · ${new Intl.DateTimeFormat('gl-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(d)}`;
+    if (Number.isNaN(d.getTime())) return 'Catálogo preparado';
+    return `Catálogo · ${new Intl.DateTimeFormat('gl-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(d)}`;
   }
 
   async function cargar(showLoading = true) {
@@ -467,7 +467,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       const result = await apiFotos({ accion: 'listar' });
       fotos = Array.isArray(result.fotos) ? result.fotos : [];
       resumo = result;
-      if (sourceLabel instanceof HTMLElement) sourceLabel.textContent = `${result.orixe || 'R2'} · ${Math.round(performance.now() - started)} ms`;
+      if (sourceLabel instanceof HTMLElement) sourceLabel.textContent = `Arquivo privado · ${Math.round(performance.now() - started)} ms`;
       if (generatedAt instanceof HTMLElement) generatedAt.textContent = formatoDataIndice(result.xeradoEn);
       if (loading instanceof HTMLElement) loading.hidden = true;
       if (app instanceof HTMLElement) app.hidden = false;

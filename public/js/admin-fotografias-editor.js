@@ -284,7 +284,7 @@
     shell.hidden = false;
     if (normal instanceof HTMLElement) normal.hidden = true;
     if (trigger instanceof HTMLElement) trigger.textContent = 'Saír da edición';
-    setMessage('Cargando o orixinal desde R2…');
+    setMessage('Cargando a imaxe orixinal…');
 
     try {
       const response = await fetchBase(`/api/editor-fotos-original?idFoto=${encodeURIComponent(id)}`, {
@@ -382,7 +382,7 @@
 
     const actions = imagePanel.querySelector('.image-actions');
     const hint = actions?.querySelector('small');
-    if (hint instanceof HTMLElement) hint.textContent = 'O orixinal só se carga desde R2 cando inicias a edición.';
+    if (hint instanceof HTMLElement) hint.textContent = 'A imaxe orixinal só se carga cando inicias a edición.';
 
     const shell = document.createElement('section');
     shell.id = 'admin-photo-editor';
@@ -401,7 +401,7 @@
         <button type="button" id="admin-photo-apply-crop" disabled>Aplicar recorte</button>
         <button type="button" id="admin-photo-reset">Restablecer versión gardada</button>
       </div>
-      <p class="admin-photo-editor-hint">A edición non toca a Sheet nin as galerías ata premer «Gardar e verificar».</p>
+      <p class="admin-photo-editor-hint">A edición non modifica os datos nin as galerías ata premer «Gardar e verificar».</p>
     `;
     normal.insertAdjacentElement('afterend', shell);
 
@@ -484,7 +484,7 @@
             miniaturaBase64: editPayload.miniaturaBase64
           })
         };
-        setMessage('Gardando a imaxe editada, a miniatura, os datos e os índices R2…');
+        setMessage('Gardando a imaxe editada, a miniatura e os datos…');
       }
     }
 

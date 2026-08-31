@@ -4,7 +4,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 ---
 <BaseLayout title="Ensaios" lang="gl">
 <div class="private-layout"><PortalSidebar active="ensaios" logoutId="ensaios-logout" /><main class="private-main">
-<header class="page-header"><div><span class="kicker">Portal do Coralista</span><h1>Ensaios</h1><p>Preparación do próximo ensaio. O traballo permanece en R2 ata finalizar o ensaio.</p></div><div class="storage"><small>Almacenamento de traballo</small><strong>R2 privado</strong></div></header>
+<header class="page-header"><div><span class="kicker">Portal do Coralista</span><h1>Ensaios</h1><p>Preparación do próximo ensaio. Os cambios gárdanse como borrador ata finalizar o ensaio.</p></div><div class="storage"><small>Estado do traballo</small><strong>Gardado privado</strong></div></header>
 <section id="loading" class="card">Cargando os ensaios…</section><section id="error" class="card error" hidden></section>
 <section id="app" class="app" hidden>
 <section class="selector card"><label>Ensaio</label><select id="ensaio-select"></select><nav class="module-nav only-board"><button id="nav-works" class="secondary active">Obras a ensaiar</button><button id="nav-att" class="secondary">Lista de asistentes</button><button id="nav-analysis" class="secondary">Análise de asistencias</button></nav></section>

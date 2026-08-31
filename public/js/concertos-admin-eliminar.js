@@ -55,7 +55,7 @@
 
     const esperado = `ELIMINAR ${id}`;
     const confirmacion = window.prompt(
-      `Esta acción eliminará definitivamente o concerto ${id}, o seu programa e as súas asistencias. Os ficheiros físicos de R2 consérvanse por seguridade mentres Preview e Produción comparten o esquema antigo de medios.\n\nEscribe exactamente: ${esperado}`
+      `Esta acción eliminará definitivamente o concerto ${id}, o seu programa e as súas asistencias. Os ficheiros de respaldo consérvanse temporalmente por seguridade.\n\nEscribe exactamente: ${esperado}`
     );
     if (confirmacion !== esperado) return;
 

@@ -11,7 +11,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         <div>
           <span>Arquivo fotográfico</span>
           <h1>Galería privada</h1>
-          <p>Fotografías publicadas para as persoas coralistas, servidas desde o arquivo privado de R2.</p>
+          <p>Fotografías publicadas para as persoas coralistas na área privada.</p>
         </div>
         <a href="/portal/fotos/" class="upload-link">＋ Subir fotografías</a>
       </header>
@@ -161,7 +161,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       fotos = Array.isArray(datos.fotos) ? datos.fotos : [];
       const anos = [...new Set(fotos.map(anoFoto).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
       if (year instanceof HTMLSelectElement) anos.forEach((a)=>year.insertAdjacentHTML('beforeend', `<option value="${escapar(a)}">${escapar(a)}</option>`));
-      if (source instanceof HTMLElement) source.textContent = `Índice privado: ${orixe || 'R2'} · ${datos.total || fotos.length} fotografías`;
+      if (source instanceof HTMLElement) source.textContent = `Arquivo privado · ${datos.total || fotos.length} fotografías`;
       pintar();
       if (state instanceof HTMLElement) state.hidden = true;
       if (shell instanceof HTMLElement) shell.hidden = false;
