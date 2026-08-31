@@ -1,0 +1,64 @@
+---
+const { currentPath = '' } = Astro.props;
+const normalizedPath = String(currentPath).replace(/\/$/, '') || '/portal';
+const topicByPath: Record<string, string[]> = {
+  '/portal/concertos': ['Concertos', 'Abre un concerto para consultar a data, o lugar, a hora e o programa.', '/portal/axuda/#concertos'],
+  '/portal/ensaios': ['Ensaios', 'Consulta os próximos ensaios e a información de preparación.', '/portal/axuda/#concertos'],
+  '/portal/repertorio': ['Repertorio', 'Escolle unha obra para ver partituras, audios e materiais de estudo.', '/portal/axuda/#repertorio'],
+  '/portal/partituras': ['Partituras', 'Busca polo título da obra e pulsa para abrir a partitura.', '/portal/axuda/#repertorio'],
+  '/portal/fotos': ['Subir fotografías', 'Escolle as fotos, completa os datos e revisa todo antes de enviar.', '/portal/axuda/#fotografias'],
+  '/portal/galeria': ['Galería', 'Pulsa nunha fotografía para vela máis grande.', '/portal/axuda/#navegacion'],
+  '/portal/documentacion': ['Documentación', 'Usa o buscador ou os filtros para atopar actas e documentos.', '/portal/axuda/#navegacion'],
+  '/portal/perfil': ['O meu perfil', 'Aquí podes revisar os teus datos persoais e de contacto.', '/portal/axuda/#navegacion'],
+};
+const topic = topicByPath[normalizedPath] || ['Esta páxina', 'Se non sabes como continuar, abre a guía xeral do portal.', '/portal/axuda/'];
+const show = normalizedPath !== '/portal/axuda';
+---
+
+{show && (
+  <div class="portal-context-help" data-context-help>
+    <button type="button" class="portal-help-trigger" aria-expanded="false" aria-controls="portal-help-panel">
+      <span aria-hidden="true">?</span> Axuda desta páxina
+    </button>
+    <aside id="portal-help-panel" class="portal-help-panel" aria-labelledby="portal-help-title" hidden>
+      <button type="button" class="portal-help-close" aria-label="Pechar a axuda">×</button>
+      <small>AXUDA RÁPIDA</small>
+      <h2 id="portal-help-title">{topic[0]}</h2>
+      <p>{topic[1]}</p>
+      <a href={topic[2]}>Ver explicación paso a paso</a>
+      <a class="portal-help-whatsapp" href="https://wa.me/34681254688" target="_blank" rel="noopener noreferrer">Pedir axuda por WhatsApp</a>
+    </aside>
+  </div>
+)}
+
+<script>
+  document.querySelectorAll('[data-context-help]').forEach((root) => {
+    const trigger = root.querySelector('.portal-help-trigger');
+    const panel = root.querySelector('.portal-help-panel');
+    const close = root.querySelector('.portal-help-close');
+    if (!(trigger instanceof HTMLButtonElement) || !(panel instanceof HTMLElement)) return;
+    const setOpen = (open) => {
+      panel.hidden = !open;
+      trigger.setAttribute('aria-expanded', String(open));
+      if (open && close instanceof HTMLButtonElement) close.focus();
+    };
+    trigger.addEventListener('click', () => setOpen(panel.hidden));
+    close?.addEventListener('click', () => { setOpen(false); trigger.focus(); });
+    root.addEventListener('keydown', (event) => { if (event.key === 'Escape') setOpen(false); });
+  });
+</script>
+
+<style>
+  .portal-context-help { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 160; font-family: var(--fuente-minimalista, system-ui, sans-serif); }
+  .portal-help-trigger { display: inline-flex; align-items: center; gap: .55rem; min-height: 3rem; padding: .65rem .95rem; border: 0; border-radius: 999px; background: #6a1b29; color: #fff; box-shadow: 0 8px 25px rgba(50,30,35,.25); font: inherit; font-size: .9rem; font-weight: 800; cursor: pointer; }
+  .portal-help-trigger span { display: grid; width: 1.5rem; height: 1.5rem; place-items: center; border: 2px solid currentColor; border-radius: 50%; }
+  .portal-help-panel { position: absolute; right: 0; bottom: 3.7rem; width: min(360px, calc(100vw - 2rem)); padding: 1.35rem; border: 2px solid #d8c28d; border-radius: 8px; background: #fff; box-shadow: 0 16px 45px rgba(35,25,28,.22); color: #393331; }
+  .portal-help-panel small { color: #9a7228; font-weight: 800; letter-spacing: .08em; }
+  .portal-help-panel h2 { margin: .25rem 2rem .45rem 0; color: #6a1b29; font-size: 1.35rem; }
+  .portal-help-panel p { margin: 0 0 1rem; font-size: 1rem; line-height: 1.6; }
+  .portal-help-panel a { display: block; padding: .72rem .8rem; border-radius: 4px; background: #6a1b29; color: #fff; font-weight: 800; text-align: center; }
+  .portal-help-panel .portal-help-whatsapp { margin-top: .55rem; background: #197a4a; }
+  .portal-help-close { position: absolute; top: .6rem; right: .65rem; width: 2.2rem; height: 2.2rem; border: 0; border-radius: 50%; background: #f2ecec; color: #6a1b29; font-size: 1.5rem; cursor: pointer; }
+  @media (max-width: 520px) { .portal-help-trigger { padding: .65rem .8rem; } }
+  @media print { .portal-context-help { display: none !important; } }
+</style>

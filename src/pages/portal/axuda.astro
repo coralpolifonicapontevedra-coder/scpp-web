@@ -1,0 +1,180 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+import PortalSidebar from '../../components/PortalSidebar.astro';
+
+const guides = [
+  {
+    id: 'acceso',
+    gl: { title: 'Entrar e saír do portal', summary: 'Como iniciar a sesión con seguridade e pechala ao rematar.', steps: ['Abre a páxina do Portal do Coralista.', 'Escribe o teu correo electrónico e o teu contrasinal.', 'Pulsa «Entrar no portal» e agarda uns segundos.', 'Para saír, pulsa «Pechar sesión» ao final do menú.'] },
+    es: { title: 'Entrar y salir del portal', summary: 'Cómo iniciar la sesión con seguridad y cerrarla al terminar.', steps: ['Abre la página del Portal del Coralista.', 'Escribe tu correo electrónico y tu contraseña.', 'Pulsa «Entrar en el portal» y espera unos segundos.', 'Para salir, pulsa «Cerrar sesión» al final del menú.'] }
+  },
+  {
+    id: 'navegacion',
+    gl: { title: 'Moverse polo portal', summary: 'Como usar o menú e volver ao inicio sen perderse.', steps: ['Busca o menú do portal na parte esquerda da pantalla.', 'No móbil, pulsa o botón «Menú do portal» para abrilo.', 'Pulsa unha soa vez na sección que queres consultar.', 'Se te perdes, pulsa o escudo ou a opción «Inicio».'] },
+    es: { title: 'Moverse por el portal', summary: 'Cómo usar el menú y volver al inicio sin perderse.', steps: ['Busca el menú del portal en la parte izquierda de la pantalla.', 'En el móvil, pulsa «Menú del portal» para abrirlo.', 'Pulsa una sola vez en la sección que quieras consultar.', 'Si te pierdes, pulsa el escudo o la opción «Inicio».'] }
+  },
+  {
+    id: 'concertos',
+    gl: { title: 'Consultar concertos e ensaios', summary: 'Onde atopar datas, horas, lugares e indicacións.', steps: ['Abre «Concertos» ou «Ensaios» desde o menú.', 'Busca a data que che interesa.', 'Pulsa no título para ver toda a información.', 'Anota a hora e o lugar; usa «Volver» para regresar á lista.'] },
+    es: { title: 'Consultar conciertos y ensayos', summary: 'Dónde encontrar fechas, horas, lugares e indicaciones.', steps: ['Abre «Conciertos» o «Ensayos» desde el menú.', 'Busca la fecha que te interesa.', 'Pulsa en el título para ver toda la información.', 'Anota la hora y el lugar; usa «Volver» para regresar a la lista.'] }
+  },
+  {
+    id: 'repertorio',
+    gl: { title: 'Abrir partituras e audios', summary: 'Como atopar unha obra e usar os materiais de estudo.', steps: ['Entra en «Repertorio» ou «Partituras».', 'Escribe parte do título no buscador.', 'Pulsa na obra que queres estudar.', 'Pulsa na partitura para abrila ou no botón de audio para escoitalo.'] },
+    es: { title: 'Abrir partituras y audios', summary: 'Cómo encontrar una obra y usar los materiales de estudio.', steps: ['Entra en «Repertorio» o «Partituras».', 'Escribe parte del título en el buscador.', 'Pulsa en la obra que quieras estudiar.', 'Pulsa en la partitura para abrirla o en el botón de audio para escucharlo.'] }
+  },
+  {
+    id: 'fotografias',
+    gl: { title: 'Subir fotografías', summary: 'Como enviar fotos á Coral desde o móbil ou o ordenador.', steps: ['Abre «Subir fotografías» desde o menú.', 'Pulsa o botón para escoller as fotos do teu dispositivo.', 'Completa o título, a data e a información que coñezas.', 'Revisa os datos e pulsa «Enviar». Non peches a páxina ata ver a confirmación.'] },
+    es: { title: 'Subir fotografías', summary: 'Cómo enviar fotos a la Coral desde el móvil o el ordenador.', steps: ['Abre «Subir fotografías» desde el menú.', 'Pulsa el botón para escoger las fotos de tu dispositivo.', 'Completa el título, la fecha y la información que conozcas.', 'Revisa los datos y pulsa «Enviar». No cierres la página hasta ver la confirmación.'] }
+  }
+];
+---
+
+<BaseLayout title="Axuda paso a paso" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="axuda" logoutId="axuda-logout" />
+    <main class="help-main" id="help-main" hidden>
+      <header class="help-header">
+        <div>
+          <span class="section-kicker" data-gl="Portal do Coralista" data-es="Portal del Coralista">Portal do Coralista</span>
+          <h1 data-gl="Axuda paso a paso" data-es="Ayuda paso a paso">Axuda paso a paso</h1>
+          <p data-gl="Aquí podes aprender con calma. Escolle o que queres facer e segue os pasos un por un." data-es="Aquí puedes aprender con calma. Escoge lo que quieres hacer y sigue los pasos uno por uno.">Aquí podes aprender con calma. Escolle o que queres facer e segue os pasos un por un.</p>
+        </div>
+        <button type="button" class="print-help" onclick="window.print()">Imprimir esta guía</button>
+      </header>
+
+      <section class="help-tools" aria-label="Ferramentas da axuda">
+        <div class="language-switch" role="group" aria-label="Idioma da axuda">
+          <button type="button" class="is-active" data-language="gl">Galego</button>
+          <button type="button" data-language="es">Castellano</button>
+        </div>
+        <label>
+          <span data-gl="Que necesitas facer?" data-es="¿Qué necesitas hacer?">Que necesitas facer?</span>
+          <input id="help-search" type="search" placeholder="Exemplo: abrir unha partitura" autocomplete="off" />
+        </label>
+      </section>
+
+      <nav class="guide-index" aria-label="Índice da axuda">
+        {guides.map((guide, index) => <a href={`#${guide.id}`}><span>{String(index + 1).padStart(2, '0')}</span><strong data-guide-title={guide.id}>{guide.gl.title}</strong></a>)}
+      </nav>
+
+      <div class="guides" id="guides">
+        {guides.map((guide, guideIndex) => (
+          <article id={guide.id} class="guide" data-guide data-search={`${guide.gl.title} ${guide.gl.summary} ${guide.es.title} ${guide.es.summary}`}>
+            <header>
+              <span>{String(guideIndex + 1).padStart(2, '0')}</span>
+              <div><h2 data-guide-heading={guide.id}>{guide.gl.title}</h2><p data-guide-summary={guide.id}>{guide.gl.summary}</p></div>
+            </header>
+            <ol>
+              {guide.gl.steps.map((step, stepIndex) => <li><span>{stepIndex + 1}</span><p data-guide-step={`${guide.id}-${stepIndex}`}>{step}</p></li>)}
+            </ol>
+            <a class="guide-top" href="#help-main" data-gl="Volver ao principio" data-es="Volver al principio">Volver ao principio</a>
+          </article>
+        ))}
+      </div>
+      <p id="help-empty" class="help-empty" hidden data-gl="Non atopamos unha guía con esas palabras. Proba cunha palabra máis sinxela." data-es="No encontramos una guía con esas palabras. Prueba con una palabra más sencilla.">Non atopamos unha guía con esas palabras. Proba cunha palabra máis sinxela.</p>
+
+      <aside class="human-help">
+        <div><strong data-gl="Aínda necesitas axuda?" data-es="¿Todavía necesitas ayuda?">Aínda necesitas axuda?</strong><p data-gl="Non pasa nada. Podes pedir axuda directamente á Coral." data-es="No pasa nada. Puedes pedir ayuda directamente a la Coral.">Non pasa nada. Podes pedir axuda directamente á Coral.</p></div>
+        <a href="https://wa.me/34681254688" target="_blank" rel="noopener noreferrer" data-gl="Pedir axuda por WhatsApp" data-es="Pedir ayuda por WhatsApp">Pedir axuda por WhatsApp</a>
+      </aside>
+    </main>
+    <section id="help-loading" class="help-loading">Comprobando o acceso…</section>
+  </div>
+</BaseLayout>
+
+<script id="help-guides-data" type="application/json" set:html={JSON.stringify(guides)}></script>
+
+<script>
+  import { closePortalSession, waitForPortalUser } from '../../lib/portal-session.js';
+  const main = document.querySelector('#help-main');
+  const loading = document.querySelector('#help-loading');
+  const search = document.querySelector('#help-search');
+  const empty = document.querySelector('#help-empty');
+  const dataNode = document.querySelector('#help-guides-data');
+  const guideData = JSON.parse(dataNode?.textContent || '[]');
+  let language = 'gl';
+
+  function setLanguage(next) {
+    language = next === 'es' ? 'es' : 'gl';
+    document.documentElement.lang = language;
+    document.querySelectorAll('[data-language]').forEach((button) => button.classList.toggle('is-active', button.getAttribute('data-language') === language));
+    document.querySelectorAll('[data-gl][data-es]').forEach((node) => { node.textContent = node.getAttribute(`data-${language}`) || ''; });
+    guideData.forEach((guide) => {
+      const copy = guide[language];
+      const indexTitle = document.querySelector(`[data-guide-title="${guide.id}"]`);
+      const heading = document.querySelector(`[data-guide-heading="${guide.id}"]`);
+      const summary = document.querySelector(`[data-guide-summary="${guide.id}"]`);
+      if (indexTitle) indexTitle.textContent = copy.title;
+      if (heading) heading.textContent = copy.title;
+      if (summary) summary.textContent = copy.summary;
+      copy.steps.forEach((step, index) => { const node = document.querySelector(`[data-guide-step="${guide.id}-${index}"]`); if (node) node.textContent = step; });
+    });
+    if (search instanceof HTMLInputElement) search.placeholder = language === 'es' ? 'Ejemplo: abrir una partitura' : 'Exemplo: abrir unha partitura';
+  }
+
+  function filterGuides() {
+    const value = search instanceof HTMLInputElement ? search.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+    let visible = 0;
+    document.querySelectorAll('[data-guide]').forEach((article) => {
+      const text = String(article.getAttribute('data-search') || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const show = !value || text.includes(value);
+      article.hidden = !show;
+      if (show) visible += 1;
+    });
+    if (empty instanceof HTMLElement) empty.hidden = visible > 0;
+  }
+
+  document.querySelectorAll('[data-language]').forEach((button) => button.addEventListener('click', () => setLanguage(button.getAttribute('data-language'))));
+  search?.addEventListener('input', filterGuides);
+  document.querySelector('#axuda-logout')?.addEventListener('click', () => closePortalSession());
+  waitForPortalUser().then((user) => {
+    if (!user?.email) { window.location.href = '/portal/'; return; }
+    if (loading instanceof HTMLElement) loading.hidden = true;
+    if (main instanceof HTMLElement) main.hidden = false;
+    setLanguage('gl');
+  });
+</script>
+
+<style>
+  body { background: #f5f3f1; }
+  .private-layout { display: flex; min-height: 100vh; }
+  .help-main { flex: 1; min-width: 0; max-width: 1180px; margin: 0 auto; padding: 2.2rem clamp(1.2rem, 3vw, 3.5rem) 5rem; }
+  .help-loading { flex: 1; padding: 3rem; color: #625c58; font-size: 1.05rem; }
+  .help-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 2rem; margin-bottom: 1.5rem; }
+  .section-kicker { color: #9a7228; font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  h1 { margin: .25rem 0 .65rem; color: var(--color-principal); font-size: clamp(2.2rem, 5vw, 3.8rem); line-height: 1.05; }
+  .help-header p { max-width: 720px; margin: 0; color: #514b47; font-size: 1.12rem; line-height: 1.7; }
+  .print-help { flex: 0 0 auto; min-height: 3rem; padding: .7rem 1rem; border: 2px solid var(--color-principal); border-radius: 5px; background: #fff; color: var(--color-principal); font: inherit; font-weight: 800; cursor: pointer; }
+  .help-tools { display: grid; grid-template-columns: auto minmax(260px, 1fr); gap: 1rem; margin: 1.5rem 0; padding: 1rem; border: 1px solid #ddd6d1; background: #fff; }
+  .language-switch { display: flex; align-items: end; gap: .35rem; }
+  .language-switch button { min-height: 3rem; padding: .65rem 1rem; border: 1px solid #cfc7c1; border-radius: 4px; background: #fff; color: #514b47; font: inherit; font-weight: 800; cursor: pointer; }
+  .language-switch button.is-active { border-color: var(--color-principal); background: var(--color-principal); color: #fff; }
+  .help-tools label { display: grid; gap: .35rem; }
+  .help-tools label span { color: #514b47; font-weight: 800; }
+  .help-tools input { width: 100%; min-height: 3rem; padding: .65rem .8rem; border: 2px solid #cfc7c1; border-radius: 4px; font: inherit; font-size: 1rem; }
+  .guide-index { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .65rem; margin-bottom: 2rem; }
+  .guide-index a { display: grid; align-content: start; gap: .4rem; min-height: 105px; padding: .85rem; border: 1px solid #d8d1cc; border-top: 4px solid var(--color-principal); background: #fff; color: #332e2b; }
+  .guide-index span { color: #9a7228; font-size: .78rem; font-weight: 800; }
+  .guide-index strong { font-size: .92rem; line-height: 1.35; }
+  .guides { display: grid; gap: 1.25rem; }
+  .guide { scroll-margin-top: 1rem; padding: clamp(1.15rem, 2.5vw, 1.8rem); border: 1px solid #d9d2cd; border-radius: 7px; background: #fff; }
+  .guide > header { display: grid; grid-template-columns: 2.8rem minmax(0, 1fr); gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #ebe5e1; }
+  .guide > header > span { display: grid; width: 2.8rem; height: 2.8rem; place-items: center; border-radius: 50%; background: var(--color-principal); color: #fff; font-weight: 800; }
+  .guide h2 { margin: 0 0 .25rem; color: var(--color-principal); font-size: clamp(1.45rem, 3vw, 2rem); }
+  .guide header p { margin: 0; color: #625b57; font-size: 1.02rem; }
+  .guide ol { display: grid; gap: .85rem; margin: 1.2rem 0; padding: 0; list-style: none; }
+  .guide li { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); align-items: start; gap: .8rem; }
+  .guide li > span { display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border: 2px solid #d8c28d; border-radius: 50%; color: #6a1b29; font-weight: 900; }
+  .guide li p { margin: .25rem 0 0; color: #342f2c; font-size: 1.08rem; line-height: 1.6; }
+  .guide-top { color: var(--color-principal); font-weight: 800; text-decoration: underline !important; }
+  .help-empty { padding: 2rem; border: 2px dashed #d2c8c1; background: #fff; color: #514b47; font-size: 1.05rem; text-align: center; }
+  .human-help { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; padding: 1.25rem; border: 2px solid #b9d9c6; border-radius: 7px; background: #f2fbf5; }
+  .human-help strong { color: #155d38; font-size: 1.2rem; }
+  .human-help p { margin: .2rem 0 0; color: #3f5548; }
+  .human-help a { flex: 0 0 auto; padding: .8rem 1rem; border-radius: 4px; background: #197a4a; color: #fff; font-weight: 800; text-align: center; }
+  @media (max-width: 980px) { .private-layout { display: block; } .guide-index { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 650px) { .help-main { padding: 1.2rem .9rem 4rem; } .help-header, .human-help { align-items: stretch; flex-direction: column; } .print-help { width: 100%; } .help-tools { grid-template-columns: 1fr; } .language-switch button { flex: 1; } .guide-index { grid-template-columns: 1fr; } .guide-index a { min-height: auto; } .human-help a { width: 100%; } }
+  @media print { .private-sidebar, .help-tools, .guide-index, .print-help, .guide-top, .human-help { display: none !important; } .help-main { max-width: none; padding: 0; } .guide { break-inside: avoid; box-shadow: none; } }
+</style>

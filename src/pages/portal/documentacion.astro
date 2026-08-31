@@ -27,6 +27,13 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
       </section>
 
       <section id="documents-app" class="documents-app" hidden>
+        <aside class="help-callout" aria-labelledby="help-callout-title">
+          <div>
+            <strong id="help-callout-title">Necesitas axuda para usar o portal?</strong>
+            <p>Consulta explicacións sinxelas, paso a paso e tamén en castelán.</p>
+          </div>
+          <a href="/portal/axuda/">Abrir Axuda paso a paso</a>
+        </aside>
         <nav class="document-tabs" aria-label="Seccións da documentación">
           <button type="button" class="is-active" data-tab="xeral">Documentación xeral</button>
           <button type="button" data-tab="actas">Actas</button>
@@ -271,6 +278,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .error-state button, .open-document { border: 0; border-radius: 4px; background: var(--color-principal); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
   .error-state button { margin-top: .7rem; padding: .65rem 1rem; }
   .document-tabs { display: flex; gap: .35rem; overflow-x: auto; padding: .35rem; border: 1px solid #ded8d3; background: #fff; }
+  .help-callout { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; padding: 1rem 1.15rem; border: 2px solid #d8c28d; border-radius: 6px; background: #fffaf0; }
+  .help-callout strong { display: block; color: var(--color-principal); font-size: 1rem; }
+  .help-callout p { margin: .2rem 0 0; color: #625c58; }
+  .help-callout a { flex: 0 0 auto; padding: .7rem 1rem; border-radius: 4px; background: var(--color-principal); color: #fff; font-weight: 700; }
   .document-tabs button { flex: 0 0 auto; padding: .72rem 1rem; border: 0; border-radius: 3px; background: transparent; color: #57514d; font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; }
   .document-tabs button:hover, .document-tabs button.is-active { background: var(--color-principal); color: #fff; }
   .filters { display: grid; grid-template-columns: minmax(230px, 2fr) repeat(3, minmax(130px, 1fr)); gap: .8rem; margin: 1rem 0 1.5rem; padding: 1rem; border: 1px solid #e1dcd7; background: #fff; }
@@ -311,5 +322,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     .account-card, .filters { grid-template-columns: 1fr; }
     .document-card-footer, .section-heading { align-items: stretch; flex-direction: column; }
     .open-document { width: 100%; }
+    .help-callout { align-items: stretch; flex-direction: column; }
+    .help-callout a { text-align: center; }
   }
 </style>

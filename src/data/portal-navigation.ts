@@ -107,6 +107,16 @@ export const PORTAL_NAVIGATION_MODULES: PortalNavigationModule[] = [
     homeNumber: '05',
   },
   {
+    id: 'axuda',
+    label: 'Axuda paso a paso',
+    path: '/portal/axuda/',
+    enabled: true,
+    order: 105,
+    surfaces: ['sidebar', 'home'],
+    homeDescription: 'Guías sinxelas para aprender a usar o portal sen présa.',
+    homeNumber: '09',
+  },
+  {
     id: 'perfil',
     label: 'O meu perfil',
     path: '/portal/perfil/',
