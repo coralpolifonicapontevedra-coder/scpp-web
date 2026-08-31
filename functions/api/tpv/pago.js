@@ -9,11 +9,12 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Obtener variables de entorno configuradas en Cloudflare Pages
     const merchantId = env.CECA_MERCHANT_ID;
     const acquirerBin = env.CECA_ACQUIRER_BIN;
     const terminalId = env.CECA_TERMINAL_ID;
     const secretKey = env.CECA_SECRET_KEY;
+    
+    // URL oficial de producción de CECA
     const urlTpv = env.CECA_URL || 'https://tpv.ceca.es/cgi-bin/tpv';
 
     if (!merchantId || !secretKey) {
@@ -23,20 +24,21 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Convertir importe a céntimos (ej. 25.00 € -> "2500")
     const importeCentimos = Math.round(parseFloat(importe) * 100).toString();
     const numPedido = Date.now().toString().slice(-12);
-    const numMoneda = '978'; // EUR
+    const numMoneda = '978';
     const exponente = '2';
 
-    // Generar la firma SHA-256 requerida por CECA con la cadena exacta
+    // Cadena de firma SHA-256 exacta para producción
     const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}${exponente}SHA256`;
 
     const encoder = new TextEncoder();
     const data = encoder.encode(cadenaFirma);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const firma = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    
+    // En producción CECA requiere la firma calculada en minúsculas
+    const firma = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('').toLowerCase();
 
     return new Response(
       JSON.stringify({
@@ -50,7 +52,9 @@ export async function onRequestPost({ request, env }) {
           Importe: importeCentimos,
           TipoMoneda: numMoneda,
           Exponente: exponente,
+          Cifrado: 'SHA256',
           Pago_soportado: 'SSL',
+          Idioma: '1',
           Firma: firma,
           URL_OK: 'https://coralpolifonicapontevedra.org/donar/?resultado=ok',
           URL_NOK: 'https://coralpolifonicapontevedra.org/donar/?resultado=error'
