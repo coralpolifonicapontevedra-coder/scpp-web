@@ -1,4 +1,4 @@
-name: Backup diario de Sheets a R2
+name: Backup diario de Sheets a R2 e Drive
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: scpp-sheets-backup-r2
+  group: scpp-sheets-backup
   cancel-in-progress: false
 
 jobs:
@@ -59,7 +59,7 @@ jobs:
           done
           echo "Configuración disponible."
 
-      - name: Crear copia espejo de Sheets
+      - name: Crear copias espejo de Sheets en R2 e Drive
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -67,17 +67,18 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           BACKUP_PREFIX: backups/sheets/current/
+          DRIVE_BACKUP_FOLDER_ID: "1f4nAs9T6ncbpDqCUEjWKC6CO7kMSTRMg"
           BACKUP_EXCLUDED_PREFIXES: "SCPP PREVIEW -,TEST -,BACKUP -,SCPP_BACKUP"
         shell: bash
         run: |
           set -o pipefail
-          python scripts/backup-sheets-to-r2.py 2>&1 | tee backup-sheets-r2.log
+          python scripts/backup-sheets-to-r2.py 2>&1 | tee backup-sheets.log
 
       - name: Guardar diagnóstico
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backup-sheets-r2-${{ github.run_number }}
-          path: backup-sheets-r2.log
+          name: backup-sheets-${{ github.run_number }}
+          path: backup-sheets.log
           if-no-files-found: warn
           retention-days: 14
