@@ -43,7 +43,7 @@ import rosetonImg from '../../assets/roseton.jpg';
       <div class="intro-action">
         <a href="/benvida" class="btn-esencia">Descubre nuestra esencia</a>
         <p class="colabora-texto">
-          <a href="/es/colabora">Colabora económicamente al mantenimiento de este patrimonio cultural</a>
+          <a href="/es/donar/">Colabora económicamente al mantenimiento de este patrimonio cultural</a>
         </p>
       </div>
     </div>
@@ -264,7 +264,7 @@ import rosetonImg from '../../assets/roseton.jpg';
   dialogoVideo?.addEventListener('click', (evento) => {
     if (evento.target === dialogoVideo) dialogoVideo.close();
   });
-  dialogoVideo?.addEventListener('close', detenerVideo);
+  dialogoVideo?.addEventListener('close', deterVideo);
 
   document.querySelectorAll('.video-option').forEach((opcion) => {
     opcion.addEventListener('click', () => reproducirVideo(opcion.dataset.video, opcion.dataset.title));

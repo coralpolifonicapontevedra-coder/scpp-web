@@ -1,0 +1,298 @@
+---
+import BaseLayout from '../../layouts/Layout.astro';
+---
+
+<BaseLayout 
+  title="Hacer una donación" 
+  lang="es"
+  description="Página de donación económica para la Sociedad Coral Polifónica de Pontevedra a través de TPV seguro (Bizum y tarjeta)."
+>
+  <div class="container donar-page">
+    <div class="donar-card">
+      <p class="sobrelinea">Sociedad Coral Polifónica de Pontevedra</p>
+      <h1>Colaboración económica</h1>
+      <div class="section-line"></div>
+      
+      <p class="donar-intro">
+        Tu aportación contribuye directamente al mantenimiento de nuestro patrimonio musical,
+        la conservación del archivo histórico y la realización de nuevos conciertos.
+      </p>
+
+      <form id="form-donar" class="donar-form">
+        <label class="form-label">Selecciona o indica el importe de tu donación (€)</label>
+
+        <div class="preset-amounts">
+          <button type="button" class="btn-amount" data-amount="5">5 €</button>
+          <button type="button" class="btn-amount" data-amount="10">10 €</button>
+          <button type="button" class="btn-amount is-selected" data-amount="25">25 €</button>
+          <button type="button" class="btn-amount" data-amount="50">50 €</button>
+        </div>
+
+        <div class="custom-amount-group">
+          <input
+            type="number"
+            id="donar-importe"
+            name="importe"
+            min="1"
+            step="1"
+            value="25"
+            required
+            placeholder="Cantidad personalizada"
+          />
+          <span class="currency-symbol">€</span>
+        </div>
+
+        <button type="submit" id="btn-pago" class="btn-pay">
+          Pagar con Bizum o Tarjeta
+        </button>
+
+        <p id="donar-status" class="donar-status" hidden></p>
+      </form>
+
+      <div class="security-badge">
+        <span>🔒 Pago 100% seguro procesado por el TPV Virtual CECA</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.querySelector('#form-donar');
+    const inputImporte = document.querySelector('#donar-importe') as HTMLInputElement;
+    const btnAmount = document.querySelectorAll('.btn-amount');
+    const status = document.querySelector('#donar-status') as HTMLElement;
+    const btnPay = document.querySelector('#btn-pago') as HTMLButtonElement;
+
+    btnAmount.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        btnAmount.forEach((b) => b.classList.remove('is-selected'));
+        btn.classList.add('is-selected');
+        const val = btn.getAttribute('data-amount');
+        if (val && inputImporte) {
+          inputImporte.value = val;
+        }
+      });
+    });
+
+    inputImporte?.addEventListener('input', () => {
+      btnAmount.forEach((b) => {
+        if (b.getAttribute('data-amount') === inputImporte.value) {
+          b.classList.add('is-selected');
+        } else {
+          b.classList.remove('is-selected');
+        }
+      });
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!inputImporte || !inputImporte.value) return;
+
+      const importeNum = parseFloat(inputImporte.value);
+      if (isNaN(importeNum) || importeNum < 1) {
+        alert('Por favor, indica un importe válido superior a 1 €.');
+        return;
+      }
+
+      try {
+        if (btnPay) btnPay.disabled = true;
+        if (status) {
+          status.hidden = false;
+          status.textContent = 'Conectando con la pasarela de pago seguro CECA…';
+        }
+
+        const res = await fetch('/api/tpv/pago', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ importe: importeNum })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.ok && data.url && data.params) {
+          const formCeca = document.createElement('form');
+          formCeca.method = 'POST';
+          formCeca.action = data.url;
+
+          Object.keys(data.params).forEach((key) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = data.params[key];
+            formCeca.appendChild(input);
+          });
+
+          document.body.appendChild(formCeca);
+          formCeca.submit();
+        } else {
+          throw new Error(data.erro || 'No fue posible conectar con la pasarela de pago.');
+        }
+      } catch (err) {
+        if (status) {
+          status.hidden = false;
+          status.textContent = err instanceof Error ? err.message : 'Error al procesar la petición.';
+        }
+        if (btnPay) btnPay.disabled = false;
+      }
+    });
+  </script>
+</BaseLayout>
+
+<style>
+  .donar-page {
+    display: flex;
+    justify-content: center;
+    padding-top: clamp(2.5rem, 6vw, 4rem);
+    padding-bottom: 6rem;
+  }
+
+  .donar-card {
+    max-width: 580px;
+    width: 100%;
+    background: var(--color-blanco);
+    border: 1px solid rgba(106, 27, 41, .15);
+    border-top: 4px solid var(--color-principal);
+    border-radius: 8px;
+    padding: clamp(2rem, 5vw, 3rem);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .05);
+    text-align: center;
+  }
+
+  .sobrelinea {
+    color: var(--color-principal);
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    margin: 0 0 .5rem;
+    text-transform: uppercase;
+  }
+
+  .donar-card h1 {
+    color: var(--color-texto);
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    margin: 0;
+  }
+
+  .section-line {
+    width: 50px;
+    height: 2px;
+    background-color: var(--color-acento);
+    margin: 1rem auto 1.5rem;
+  }
+
+  .donar-intro {
+    color: #555;
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
+
+  .donar-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .form-label {
+    font-weight: 600;
+    font-size: .95rem;
+    color: var(--color-texto);
+  }
+
+  .preset-amounts {
+    display: flex;
+    gap: .6rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn-amount {
+    border: 1px solid rgba(106, 27, 41, .25);
+    background: var(--color-gris);
+    color: var(--color-texto);
+    border-radius: 4px;
+    padding: .65rem 1.25rem;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all .2s ease;
+  }
+
+  .btn-amount:hover,
+  .btn-amount.is-selected {
+    background: var(--color-principal);
+    color: var(--color-blanco);
+    border-color: var(--color-principal);
+  }
+
+  .custom-amount-group {
+    position: relative;
+    width: 100%;
+    max-width: 260px;
+  }
+
+  .custom-amount-group input {
+    width: 100%;
+    padding: .85rem 2.5rem .85rem 1rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    text-align: center;
+    border: 2px solid rgba(106, 27, 41, .2);
+    border-radius: 6px;
+    color: var(--color-principal);
+  }
+
+  .custom-amount-group input:focus {
+    outline: none;
+    border-color: var(--color-principal);
+  }
+
+  .currency-symbol {
+    position: absolute;
+    right: 1.2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #777;
+  }
+
+  .btn-pay {
+    width: 100%;
+    max-width: 320px;
+    padding: 1rem 1.5rem;
+    background: var(--color-principal);
+    color: var(--color-blanco);
+    border: 0;
+    border-radius: 5px;
+    font-size: .95rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background .2s ease;
+    margin-top: .5rem;
+  }
+
+  .btn-pay:hover {
+    background: var(--color-acento);
+  }
+
+  .btn-pay:disabled {
+    opacity: .6;
+    cursor: wait;
+  }
+
+  .donar-status {
+    font-size: .9rem;
+    color: var(--color-principal);
+  }
+
+  .security-badge {
+    margin-top: 2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--color-gris);
+    font-size: .8rem;
+    color: #777;
+  }
+</style>
