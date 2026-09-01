@@ -1,10 +1,28 @@
 export async function onRequestPost({ request, env }) {
   try {
-    const { importe } = await request.json();
+    const body = await request.json();
+    const importe = body?.importe;
+    const anonimo = body?.anonimo !== false;
+    const nomeCompleto = String(body?.nomeCompleto || '').trim().slice(0, 120);
+    const correoElectronico = String(body?.correoElectronico || '').trim().toLowerCase().slice(0, 160);
 
     if (!importe || isNaN(importe) || importe < 1) {
       return new Response(
         JSON.stringify({ ok: false, erro: 'Importe non válido.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!anonimo && !nomeCompleto) {
+      return new Response(
+        JSON.stringify({ ok: false, erro: 'Indica o nome e apelidos ou marca Donativo anónimo.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!anonimo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoElectronico)) {
+      return new Response(
+        JSON.stringify({ ok: false, erro: 'Indica un correo electrónico válido.' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -16,7 +34,7 @@ export async function onRequestPost({ request, env }) {
     const terminalId = String(env.CECA_TERMINAL_ID || '').trim();
     const secretKey = String(env.CECA_SECRET_KEY || '').trim();
 
-    // Pasarela oficial de produción CECA
+    // Pasarela oficial de produción CECA.
     const urlTpv = String(
       env.CECA_URL || 'https://pgw.ceca.es/tpvweb/tpv/compra.action'
     ).trim();
@@ -35,11 +53,14 @@ export async function onRequestPost({ request, env }) {
     const cifrado = 'SHA2';
     const urlOk = 'https://coralpolifonicapontevedra.org/donar/?resultado=ok';
     const urlNok = 'https://coralpolifonicapontevedra.org/donar/?resultado=error';
+    const descripcion = anonimo
+      ? 'Donativo anónimo - Sociedade Coral Polifónica de Pontevedra'
+      : `Donativo - ${nomeCompleto}`.slice(0, 250);
 
     // Formato CECA para Cifrado=SHA2:
     // Clave_encriptacion + MerchantID + AcquirerBIN + TerminalID + Num_operacion +
     // Importe + TipoMoneda + Exponente + Cifrado + URL_OK + URL_NOK.
-    // Exencion_SCA non se envía neste fluxo, polo que non engade contido á cadea.
+    // Descripcion é un dato informativo e non altera esta cadea de sinatura.
     const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}${exponente}${cifrado}${urlOk}${urlNok}`;
 
     const encoder = new TextEncoder();
@@ -54,6 +75,12 @@ export async function onRequestPost({ request, env }) {
     return new Response(
       JSON.stringify({
         ok: true,
+        numOperacion: numPedido,
+        donante: {
+          anonimo,
+          nomeCompleto: anonimo ? '' : nomeCompleto,
+          correoElectronico: anonimo ? '' : correoElectronico
+        },
         url: urlTpv,
         params: {
           MerchantID: merchantId,
@@ -66,6 +93,7 @@ export async function onRequestPost({ request, env }) {
           Cifrado: cifrado,
           Pago_soportado: 'SSL',
           Idioma: '1',
+          Descripcion: descripcion,
           Firma: firma,
           URL_OK: urlOk,
           URL_NOK: urlNok
@@ -75,7 +103,7 @@ export async function onRequestPost({ request, env }) {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ ok: false, erro: err.message || 'Error interno do servidor.' }),
+      JSON.stringify({ ok: false, erro: err?.message || 'Error interno do servidor.' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
