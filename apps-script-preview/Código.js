@@ -741,6 +741,13 @@ if (accion === 'gardarEnsaioPortal') {
       return respostaJSON(resultado);
     }
 
+    if (accion === 'listarArquivoAdministracion') return respostaJSON(listarArquivoAdministracion_(datos));
+    if (accion === 'gardarFondoAdministracion') return respostaJSON(gardarFondoAdministracion_(datos));
+    if (accion === 'gardarElementoFondoAdministracion') return respostaJSON(gardarElementoFondoAdministracion_(datos));
+    if (accion === 'gardarMovementoArquivoAdministracion') return respostaJSON(gardarMovementoArquivoAdministracion_(datos));
+    if (accion === 'gardarElementoMovementoAdministracion') return respostaJSON(gardarElementoMovementoAdministracion_(datos));
+    if (accion === 'rexistrarDevolucionArquivoAdministracion') return respostaJSON(rexistrarDevolucionArquivoAdministracion_(datos));
+
     if (accion === 'obterFichaPersoaAdministracion') {
       const resultado =
         obterFichaPersoaAdministracion_(datos);
