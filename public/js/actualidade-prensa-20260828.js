@@ -10,11 +10,13 @@
   const pdfs = isEs
     ? [
         ['Ver noticia Faro de Vigo', '/documentos/publicacions/2026-08-28_faro-vigo-nuevos-talentos-es.pdf'],
-        ['Ver noticia PontevedraViva', '/documentos/publicacions/2026-08-28_pontevedraviva-voces-masculinas-es.pdf']
+        ['Ver noticia PontevedraViva', '/documentos/publicacions/2026-08-28_pontevedraviva-voces-masculinas-es.pdf'],
+        ['Ver noticia Diario de Pontevedra', '/documentos/publicacions/2026-09-01_diario-pontevedra-nuevo-curso-es.pdf']
       ]
     : [
         ['Ver noticia Faro de Vigo', '/documentos/publicacions/2026-08-28_faro-vigo-novos-talentos-gl.pdf'],
-        ['Ver noticia PontevedraViva', '/documentos/publicacions/2026-08-28_pontevedraviva-voces-masculinas-gl.pdf']
+        ['Ver noticia PontevedraViva', '/documentos/publicacions/2026-08-28_pontevedraviva-voces-masculinas-gl.pdf'],
+        ['Ver noticia Diario de Pontevedra', '/documentos/publicacions/2026-09-01_diario-pontevedra-novo-curso-gl.pdf']
       ];
 
   const ensureStyles = () => {
@@ -72,7 +74,7 @@
     titleLink.textContent = isEs ? TITULO_ES : TITULO_GL;
     titleLink.removeAttribute('href');
     titleLink.style.cursor = 'default';
-    medium.textContent = 'Faro de Vigo · PontevedraViva';
+    medium.textContent = 'Faro de Vigo · PontevedraViva · Diario de Pontevedra';
     oldLink?.remove();
 
     let links = section.querySelector('.actualidade-prensa-links');
