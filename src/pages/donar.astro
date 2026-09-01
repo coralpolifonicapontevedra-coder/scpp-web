@@ -8,13 +8,26 @@ import BaseLayout from '../layouts/Layout.astro';
       <p class="sobrelinea">Sociedade Coral Polifónica de Pontevedra</p>
       <h1>Colaboración económica</h1>
       <div class="section-line"></div>
-      
+
       <p class="donar-intro">
         A túa aportación contribúe directamente ao mantemento do noso patrimonio musical,
-        a conservación do arquivo histórico e a realización de novos concertos.
+        á conservación do arquivo histórico e á realización de novos concertos.
       </p>
 
       <form id="form-donar" class="donar-form">
+        <label class="anonimo-option">
+          <input type="checkbox" id="donar-anonimo" checked />
+          <span>Quero realizar o donativo de forma anónima</span>
+        </label>
+
+        <div id="datos-donante" class="donante-fields" hidden>
+          <label class="field-label" for="donar-nome">Nome e apelidos</label>
+          <input id="donar-nome" name="nomeCompleto" type="text" maxlength="120" autocomplete="name" />
+
+          <label class="field-label" for="donar-correo">Correo electrónico</label>
+          <input id="donar-correo" name="correoElectronico" type="email" maxlength="160" autocomplete="email" />
+        </div>
+
         <label class="form-label">Selecciona ou indica o importe da túa doazón (€)</label>
 
         <div class="preset-amounts">
@@ -54,38 +67,58 @@ import BaseLayout from '../layouts/Layout.astro';
   <script>
     const form = document.querySelector('#form-donar');
     const inputImporte = document.querySelector('#donar-importe') as HTMLInputElement;
+    const inputAnonimo = document.querySelector('#donar-anonimo') as HTMLInputElement;
+    const datosDonante = document.querySelector('#datos-donante') as HTMLElement;
+    const inputNome = document.querySelector('#donar-nome') as HTMLInputElement;
+    const inputCorreo = document.querySelector('#donar-correo') as HTMLInputElement;
     const btnAmount = document.querySelectorAll('.btn-amount');
     const status = document.querySelector('#donar-status') as HTMLElement;
     const btnPay = document.querySelector('#btn-pago') as HTMLButtonElement;
+
+    const actualizarAnonimato = () => {
+      const anonimo = inputAnonimo?.checked !== false;
+      if (datosDonante) datosDonante.hidden = anonimo;
+      if (inputNome) {
+        inputNome.required = !anonimo;
+        if (anonimo) inputNome.value = '';
+      }
+      if (inputCorreo) {
+        inputCorreo.required = !anonimo;
+        if (anonimo) inputCorreo.value = '';
+      }
+    };
+
+    inputAnonimo?.addEventListener('change', actualizarAnonimato);
+    actualizarAnonimato();
 
     btnAmount.forEach((btn) => {
       btn.addEventListener('click', () => {
         btnAmount.forEach((b) => b.classList.remove('is-selected'));
         btn.classList.add('is-selected');
         const val = btn.getAttribute('data-amount');
-        if (val && inputImporte) {
-          inputImporte.value = val;
-        }
+        if (val && inputImporte) inputImporte.value = val;
       });
     });
 
     inputImporte?.addEventListener('input', () => {
       btnAmount.forEach((b) => {
-        if (b.getAttribute('data-amount') === inputImporte.value) {
-          b.classList.add('is-selected');
-        } else {
-          b.classList.remove('is-selected');
-        }
+        b.classList.toggle('is-selected', b.getAttribute('data-amount') === inputImporte.value);
       });
     });
 
     form?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!inputImporte || !inputImporte.value) return;
+      if (!inputImporte?.value) return;
 
       const importeNum = parseFloat(inputImporte.value);
       if (isNaN(importeNum) || importeNum < 1) {
-        alert('Por favor, indica un importe válido superior a 1 €.');
+        alert('Por favor, indica un importe válido de 1 € ou superior.');
+        return;
+      }
+
+      const anonimo = inputAnonimo?.checked !== false;
+      if (!anonimo && (!inputNome?.value.trim() || !inputCorreo?.value.trim())) {
+        alert('Indica o nome e apelidos e o correo electrónico, ou marca Donativo anónimo.');
         return;
       }
 
@@ -99,7 +132,12 @@ import BaseLayout from '../layouts/Layout.astro';
         const res = await fetch('/api/tpv/pago', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ importe: importeNum })
+          body: JSON.stringify({
+            importe: importeNum,
+            anonimo,
+            nomeCompleto: anonimo ? '' : inputNome.value.trim(),
+            correoElectronico: anonimo ? '' : inputCorreo.value.trim()
+          })
         });
 
         const data = await res.json();
@@ -125,7 +163,7 @@ import BaseLayout from '../layouts/Layout.astro';
       } catch (err) {
         if (status) {
           status.hidden = false;
-          status.textContent = err instanceof Error ? err.message : 'Erro ao procesar la petición.';
+          status.textContent = err instanceof Error ? err.message : 'Erro ao procesar a petición.';
         }
         if (btnPay) btnPay.disabled = false;
       }
@@ -134,161 +172,31 @@ import BaseLayout from '../layouts/Layout.astro';
 </BaseLayout>
 
 <style>
-  .donar-page {
-    display: flex;
-    justify-content: center;
-    padding-top: clamp(2.5rem, 6vw, 4rem);
-    padding-bottom: 6rem;
-  }
-
-  .donar-card {
-    max-width: 580px;
-    width: 100%;
-    background: var(--color-blanco);
-    border: 1px solid rgba(106, 27, 41, .15);
-    border-top: 4px solid var(--color-principal);
-    border-radius: 8px;
-    padding: clamp(2rem, 5vw, 3rem);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, .05);
-    text-align: center;
-  }
-
-  .sobrelinea {
-    color: var(--color-principal);
-    font-size: .8rem;
-    font-weight: 700;
-    letter-spacing: .14em;
-    margin: 0 0 .5rem;
-    text-transform: uppercase;
-  }
-
-  .donar-card h1 {
-    color: var(--color-texto);
-    font-size: clamp(1.8rem, 4vw, 2.4rem);
-    margin: 0;
-  }
-
-  .section-line {
-    width: 50px;
-    height: 2px;
-    background-color: var(--color-acento);
-    margin: 1rem auto 1.5rem;
-  }
-
-  .donar-intro {
-    color: #555;
-    font-size: 1rem;
-    line-height: 1.6;
-    margin-bottom: 2rem;
-  }
-
-  .donar-form {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.25rem;
-  }
-
-  .form-label {
-    font-weight: 600;
-    font-size: .95rem;
-    color: var(--color-texto);
-  }
-
-  .preset-amounts {
-    display: flex;
-    gap: .6rem;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .btn-amount {
-    border: 1px solid rgba(106, 27, 41, .25);
-    background: var(--color-gris);
-    color: var(--color-texto);
-    border-radius: 4px;
-    padding: .65rem 1.25rem;
-    font-weight: 700;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all .2s ease;
-  }
-
-  .btn-amount:hover,
-  .btn-amount.is-selected {
-    background: var(--color-principal);
-    color: var(--color-blanco);
-    border-color: var(--color-principal);
-  }
-
-  .custom-amount-group {
-    position: relative;
-    width: 100%;
-    max-width: 260px;
-  }
-
-  .custom-amount-group input {
-    width: 100%;
-    padding: .85rem 2.5rem .85rem 1rem;
-    font-size: 1.3rem;
-    font-weight: 700;
-    text-align: center;
-    border: 2px solid rgba(106, 27, 41, .2);
-    border-radius: 6px;
-    color: var(--color-principal);
-  }
-
-  .custom-amount-group input:focus {
-    outline: none;
-    border-color: var(--color-principal);
-  }
-
-  .currency-symbol {
-    position: absolute;
-    right: 1.2rem;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #777;
-  }
-
-  .btn-pay {
-    width: 100%;
-    max-width: 320px;
-    padding: 1rem 1.5rem;
-    background: var(--color-principal);
-    color: var(--color-blanco);
-    border: 0;
-    border-radius: 5px;
-    font-size: .95rem;
-    font-weight: 700;
-    letter-spacing: .05em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: background .2s ease;
-    margin-top: .5rem;
-  }
-
-  .btn-pay:hover {
-    background: var(--color-acento);
-  }
-
-  .btn-pay:disabled {
-    opacity: .6;
-    cursor: wait;
-  }
-
-  .donar-status {
-    font-size: .9rem;
-    color: var(--color-principal);
-  }
-
-  .security-badge {
-    margin-top: 2rem;
-    padding-top: 1.2rem;
-    border-top: 1px solid var(--color-gris);
-    font-size: .8rem;
-    color: #777;
-  }
+  .donar-page { display:flex; justify-content:center; padding-top:clamp(2.5rem,6vw,4rem); padding-bottom:6rem; }
+  .donar-card { max-width:580px; width:100%; background:var(--color-blanco); border:1px solid rgba(106,27,41,.15); border-top:4px solid var(--color-principal); border-radius:8px; padding:clamp(2rem,5vw,3rem); box-shadow:0 12px 32px rgba(0,0,0,.05); text-align:center; }
+  .sobrelinea { color:var(--color-principal); font-size:.8rem; font-weight:700; letter-spacing:.14em; margin:0 0 .5rem; text-transform:uppercase; }
+  .donar-card h1 { color:var(--color-texto); font-size:clamp(1.8rem,4vw,2.4rem); margin:0; }
+  .section-line { width:50px; height:2px; background-color:var(--color-acento); margin:1rem auto 1.5rem; }
+  .donar-intro { color:#555; font-size:1rem; line-height:1.6; margin-bottom:2rem; }
+  .donar-form { display:flex; flex-direction:column; align-items:center; gap:1.25rem; }
+  .anonimo-option { width:100%; display:flex; align-items:center; justify-content:center; gap:.6rem; font-size:.95rem; cursor:pointer; }
+  .anonimo-option input { width:1rem; height:1rem; accent-color:var(--color-principal); }
+  .donante-fields { width:100%; max-width:420px; text-align:left; }
+  .donante-fields[hidden] { display:none; }
+  .field-label { display:block; font-size:.9rem; font-weight:600; color:var(--color-texto); margin:.5rem 0 .35rem; }
+  .donante-fields input { width:100%; box-sizing:border-box; padding:.75rem .9rem; border:1px solid rgba(106,27,41,.25); border-radius:6px; font-size:1rem; }
+  .donante-fields input:focus { outline:none; border-color:var(--color-principal); box-shadow:0 0 0 2px rgba(106,27,41,.08); }
+  .form-label { font-weight:600; font-size:.95rem; color:var(--color-texto); }
+  .preset-amounts { display:flex; gap:.6rem; flex-wrap:wrap; justify-content:center; }
+  .btn-amount { border:1px solid rgba(106,27,41,.25); background:var(--color-gris); color:var(--color-texto); border-radius:4px; padding:.65rem 1.25rem; font-weight:700; font-size:1rem; cursor:pointer; transition:all .2s ease; }
+  .btn-amount:hover,.btn-amount.is-selected { background:var(--color-principal); color:var(--color-blanco); border-color:var(--color-principal); }
+  .custom-amount-group { position:relative; width:100%; max-width:260px; }
+  .custom-amount-group input { width:100%; box-sizing:border-box; padding:.85rem 2.5rem .85rem 1rem; font-size:1.3rem; font-weight:700; text-align:center; border:2px solid rgba(106,27,41,.2); border-radius:6px; color:var(--color-principal); }
+  .custom-amount-group input:focus { outline:none; border-color:var(--color-principal); }
+  .currency-symbol { position:absolute; right:1.2rem; top:50%; transform:translateY(-50%); font-size:1.2rem; font-weight:700; color:#777; }
+  .btn-pay { width:100%; max-width:320px; padding:1rem 1.5rem; background:var(--color-principal); color:var(--color-blanco); border:0; border-radius:5px; font-size:.95rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; transition:background .2s ease; margin-top:.5rem; }
+  .btn-pay:hover { background:var(--color-acento); }
+  .btn-pay:disabled { opacity:.6; cursor:wait; }
+  .donar-status { font-size:.9rem; color:var(--color-principal); }
+  .security-badge { margin-top:2rem; padding-top:1.2rem; border-top:1px solid var(--color-gris); font-size:.8rem; color:#777; }
 </style>
