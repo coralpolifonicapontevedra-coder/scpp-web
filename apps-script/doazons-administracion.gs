@@ -4,7 +4,7 @@
 
 var DOAZONS_ADMIN_SPREADSHEET_ID_ = '1mqlMESC6ZkE4t1zfA0q1dK3PRFHtKLO71ifdbT2CtHw';
 var DOAZONS_ADMIN_SHEET_ = 'Colaboracións';
-var DOAZONS_ADMIN_ESTADOS_ = ['Pendente','Confirmado','Fallido','Cancelado','Devolto'];
+var DOAZONS_ADMIN_ESTADOS_ = ['Pendente','Pagado','Fallido','Anulado'];
 
 function doazonsTexto_(v){return String(v==null?'':v).trim();}
 function doazonsIndices_(cab){var out={};cab.forEach(function(v,i){out[doazonsTexto_(v)]=i;});return out;}
@@ -73,7 +73,7 @@ function eliminarDoazonAdministracion_(datos){
   for(var i=v.length-1;i>=1;i--){
     if(doazonsTexto_(v[i][ix.Id_Colaboracion])!==id)continue;
     var estado=doazonsTexto_(v[i][ix.EstadoPago]);
-    if(['Fallido','Cancelado'].indexOf(estado)<0)return {ok:false,erro:'Só se poden eliminar definitivamente doazóns Fallidas ou Canceladas.'};
+    if(['Fallido','Anulado'].indexOf(estado)<0)return {ok:false,erro:'Só se poden eliminar definitivamente doazóns Fallidas ou Anuladas.'};
     sh.deleteRow(i+1);
     SpreadsheetApp.flush();
     if(typeof rexistrarActividadePortalXestion_==='function')rexistrarActividadePortalXestion_({actorEmail:actor,modulo:'Doazóns',accion:'Eliminar doazón',elemento:id,resultado:'Correcto',detalle:'Estado previo: '+estado});
