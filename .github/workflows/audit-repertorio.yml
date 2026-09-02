@@ -58,9 +58,36 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           AUDIT_REPORT_CSV: repertorio-audit.csv
           AUDIT_REPORT_MD: repertorio-audit.md
+        shell: bash
         run: |
-          set -o pipefail
-          python scripts/audit-repertorio.py 2>&1 | tee repertorio-audit.log
+          set +e
+          : > repertorio-audit.log
+          status=2
+          for intento in 1 2 3; do
+            echo "===== INTENTO ${intento}/3 =====" | tee -a repertorio-audit.log
+            python scripts/audit-repertorio.py 2>&1 | tee -a repertorio-audit.log
+            status=${PIPESTATUS[0]}
+
+            if [[ "$status" -eq 0 ]]; then
+              break
+            fi
+
+            # Código 1 = incidencias reais detectadas pola auditoría: non reintentar.
+            if [[ "$status" -eq 1 ]]; then
+              break
+            fi
+
+            # Código 2 = a auditoría non puido completarse (por exemplo 429/5xx de Google).
+            if [[ "$status" -eq 2 && "$intento" -lt 3 ]]; then
+              espera=$((intento * 15))
+              echo "Fallo temporal de execución; novo intento en ${espera}s..." | tee -a repertorio-audit.log
+              sleep "$espera"
+              continue
+            fi
+
+            break
+          done
+          exit "$status"
 
       - name: Mostrar incidencias no log e no resumo
         if: always()
