@@ -1,5 +1,7 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 
+const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
+
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -29,22 +31,33 @@ async function verificarFirebase(idToken, apiKey) {
   };
 }
 
+async function hashEmail(email) {
+  const bytes = new TextEncoder().encode(String(email || '').trim().toLowerCase());
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 async function obterContextoAdministracion(env, user) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') {
+    return { administrador: false, resultado: null, coñecido: false };
+  }
+
   try {
-    const { resultado } = await obterJsonAppsScript(env, {
-      token: env.WEB_WRITE_TOKEN,
-      accion: 'listarPersoasAdministracion',
-      email: user.email,
-      uidFirebase: user.uid
-    }, { timeoutMs: 15000, attemptTimeoutMs: 8000 });
+    const object = await env.R2_PRIVADO.get(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
+    if (!object) return { administrador: false, resultado: null, coñecido: false };
+
+    const entry = await object.json().catch(() => null);
+    const administrador = String(entry?.administrador || '').trim().toLowerCase() === user.email
+      && entry?.payload?.perfil?.nivel === 'Administración';
 
     return {
-      administrador: resultado?.ok === true && Boolean(resultado?.perfil?.email),
-      resultado: resultado?.ok === true ? resultado : null
+      administrador,
+      resultado: administrador ? entry?.payload || null : null,
+      coñecido: true
     };
   } catch (error) {
-    console.error('Erro ao comprobar administración en permisos:', error);
-    return { administrador: false, resultado: null };
+    console.error('Erro ao comprobar administración en R2 para permisos:', error);
+    return { administrador: false, resultado: null, coñecido: false };
   }
 }
 
@@ -130,22 +143,16 @@ export async function onRequestPost({ request, env }) {
     return json(400, { ok: false, erro: 'Acción de permisos descoñecida.' });
   }
 
-  /*
-   * A listaxe inicial necesita tamén Persoas para amosar quen aínda non ten
-   * fila en UsuariosWeb. Só nese caso facemos a consulta administrativa
-   * adicional. As operacións de gardado/eliminación/autitoría fan unha única
-   * chamada a Apps Script; alí despacharXestionPermisosPortal_ comproba o
-   * permiso real con resolverPermisosPortal_ usando o correo Firebase xa
-   * validado por esta API.
-   */
-  let contextoAdmin = { administrador: false, resultado: null };
+  let contextoAdmin = { administrador: false, resultado: null, coñecido: false };
   if (accion === 'listarPermisosPortal') {
     contextoAdmin = await obterContextoAdministracion(env, user);
     if (!contextoAdmin.administrador) {
       return json(403, {
         ok: false,
-        codigo: 'ADMIN_REQUIRED',
-        erro: 'A túa conta non ten permisos de administración para esta operación.'
+        codigo: contextoAdmin.coñecido ? 'ADMIN_REQUIRED' : 'ADMIN_CACHE_UNAVAILABLE',
+        erro: contextoAdmin.coñecido
+          ? 'A túa conta non ten permisos de administración para esta operación.'
+          : 'Non foi posible comprobar o acceso administrativo neste momento.'
       });
     }
   }

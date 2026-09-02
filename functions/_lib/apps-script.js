@@ -2,6 +2,7 @@ const URL_RESPALDO_SCPP = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1g
 const URL_PREVIEW_SCPP = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
 
 const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
+const ESTADOS_REDIRECCION_GET = new Set([301, 302, 303]);
 
 const ACCIONS_CONCERTOS_PROTEXIDAS = new Set([
   'listarAsistenciasConcertosPortal',
@@ -91,41 +92,23 @@ function ramaSCPP(env = {}) {
   return String(env.CF_PAGES_BRANCH || '').trim() === 'main' ? 'main' : 'preview';
 }
 
-function verificarAppsScriptConcertos(env = {}, accion = '') {
-  if (!ACCIONS_CONCERTOS_PROTEXIDAS.has(accion)) return;
-  const configurada = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  const esperada = ramaSCPP(env) === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
-  if (configurada !== esperada) {
-    throw new AppsScriptError(
-      `Concertos: o contorno ${ramaSCPP(env)} non está conectado ao Apps Script esperado. Operación cancelada por seguridade.`,
-      'APPS_SCRIPT_ENV_MISMATCH'
-    );
-  }
+function urlAppsScriptProtexida(env = {}, accion = '') {
+  const protexida = ACCIONS_CONCERTOS_PROTEXIDAS.has(accion)
+    || ACCIONS_FOTOS_ADMIN_PROTEXIDAS.has(accion)
+    || ACCIONS_PERMISOS_PROTEXIDAS.has(accion);
+  if (!protexida) return '';
+  return ramaSCPP(env) === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
 }
 
-function verificarAppsScriptFotos(env = {}, accion = '') {
-  if (!ACCIONS_FOTOS_ADMIN_PROTEXIDAS.has(accion)) return;
-  const rama = ramaSCPP(env);
-  const configurada = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  const esperada = rama === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
-  if (configurada !== esperada) {
-    throw new AppsScriptError(
-      `Fotografías: o contorno ${rama} non está conectado ao Apps Script esperado. Operación cancelada por seguridade.`,
-      'APPS_SCRIPT_ENV_MISMATCH'
-    );
-  }
-}
-
-function verificarAppsScriptPermisos(env = {}, accion = '') {
-  if (!ACCIONS_PERMISOS_PROTEXIDAS.has(accion)) return;
-  const rama = ramaSCPP(env);
-  const configurada = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  const esperada = rama === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
-  if (configurada !== esperada) {
-    throw new AppsScriptError(
-      `Permisos: o contorno ${rama} non está conectado ao Apps Script esperado. Operación cancelada por seguridade.`,
-      'APPS_SCRIPT_ENV_MISMATCH'
-    );
+function urlRedireccionAppsScript(location, baseUrl) {
+  if (!location) return '';
+  try {
+    const url = new URL(location, baseUrl);
+    if (url.protocol !== 'https:' || url.hostname !== 'script.googleusercontent.com') return '';
+    if (!url.pathname.startsWith('/macros/echo')) return '';
+    return url.toString();
+  } catch {
+    return '';
   }
 }
 
@@ -133,7 +116,24 @@ async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
   try {
-    return await fetch(url, { ...options, redirect: 'follow', signal: controller.signal });
+    const primeira = await fetch(url, { ...options, redirect: 'manual', signal: controller.signal });
+    if (!ESTADOS_REDIRECCION_GET.has(primeira.status)) return primeira;
+
+    const destino = urlRedireccionAppsScript(primeira.headers.get('location'), url);
+    if (!destino) {
+      throw new AppsScriptError(
+        'Apps Script devolveu unha redirección non válida.',
+        'APPS_SCRIPT_INVALID_REDIRECT',
+        primeira.status
+      );
+    }
+
+    return await fetch(destino, {
+      method: 'GET',
+      headers: { Accept: 'application/json, text/plain;q=0.9, */*;q=0.1' },
+      redirect: 'follow',
+      signal: controller.signal
+    });
   } finally {
     clearTimeout(timer);
   }
@@ -144,10 +144,8 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
   const expectJson = options.expectJson === true;
   const accion = String(corpo?.accion || '').trim();
-  verificarAppsScriptConcertos(env, accion);
-  verificarAppsScriptFotos(env, accion);
-  verificarAppsScriptPermisos(env, accion);
-  const urlsConfiguradas = urlsAppsScript(env);
+  const urlProtexida = urlAppsScriptProtexida(env, accion);
+  const urlsConfiguradas = urlProtexida ? [urlProtexida] : urlsAppsScript(env);
   const urls = ACCIONS_SO_PRINCIPAL.has(accion)
     ? urlsConfiguradas.slice(0, 1)
     : urlsConfiguradas;
@@ -220,6 +218,7 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
 
       console.warn(`Apps Script respondeu ${resposta.status}; probando a seguinte implementación.`);
     } catch (erro) {
+      if (erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_INVALID_REDIRECT') throw erro;
       ultimoErro = erro;
       console.warn('Fallou unha implementación de Apps Script; probando a seguinte.', erro);
     }
