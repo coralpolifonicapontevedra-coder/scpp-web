@@ -5,29 +5,25 @@ const entidades = [
   {
     nome: 'Concello de Pontevedra',
     tipo: 'Institución colaboradora',
-    logoR2: '/arquivos/publico/colaboradores/v1/concello-pontevedra.png',
-    logoLocal: '/img/colaboradores/concello-pontevedra.png',
+    logo: '/img/colaboradores/concello-pontevedra.png',
     url: 'https://www.pontevedra.gal/'
   },
   {
     nome: 'Deputación de Pontevedra',
     tipo: 'Institución colaboradora',
-    logoR2: '/arquivos/publico/colaboradores/v1/deputacion-pontevedra.png',
-    logoLocal: '/img/colaboradores/deputacion-pontevedra.png',
+    logo: '/img/colaboradores/deputacion-pontevedra.png',
     url: 'https://www.depo.gal/'
   },
   {
     nome: 'Museo de Pontevedra',
     tipo: 'Entidade colaboradora',
-    logoR2: '/arquivos/publico/colaboradores/v1/museo-pontevedra.png',
-    logoLocal: '/img/colaboradores/museo-pontevedra.png',
+    logo: '/img/colaboradores/museo-pontevedra.png',
     url: 'https://museo.depo.gal/'
   },
   {
     nome: 'Supermercados Froiz',
     tipo: 'Empresa colaboradora',
-    logoR2: '/arquivos/publico/colaboradores/v1/supermercados-froiz.png',
-    logoLocal: '/img/colaboradores/supermercados-froiz.png',
+    logo: '/img/colaboradores/supermercados-froiz.png',
     url: 'https://froiz.es/'
   }
 ];
@@ -63,8 +59,7 @@ const entidades = [
           </span>
           <span class="entidade-logo">
             <img
-              src={entidade.logoR2}
-              data-fallback-src={entidade.logoLocal}
+              src={entidade.logo}
               alt={`Logotipo de ${entidade.nome}`}
               loading="lazy"
               decoding="async"
@@ -97,15 +92,6 @@ const entidades = [
       </div>
     </aside>
   </div>
-
-  <script is:inline>
-    document.querySelectorAll('img[data-fallback-src]').forEach((img) => {
-      img.addEventListener('error', () => {
-        const fallback = img.getAttribute('data-fallback-src');
-        if (fallback && img.getAttribute('src') !== fallback) img.setAttribute('src', fallback);
-      }, { once: true });
-    });
-  </script>
 </BaseLayout>
 
 <style>
