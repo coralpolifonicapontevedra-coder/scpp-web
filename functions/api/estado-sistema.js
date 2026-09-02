@@ -1,3 +1,5 @@
+import { chamarAppsScriptRobusto } from '../_lib/apps-script.js';
+
 const CACHE_MS = 60 * 1000;
 const ADMIN_CACHE_MS = 5 * 60 * 1000;
 
@@ -51,27 +53,21 @@ async function comprobarAdministracion(env, user) {
   const cached = adminCache.get(user.email);
   if (cached?.expiresAt > Date.now()) return cached.allowed === true;
 
-  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  if (!url || !env.WEB_WRITE_TOKEN) return false;
+  if (!env.WEB_WRITE_TOKEN) return false;
 
   try {
-    const response = await fetchWithTimeout(
-      url,
+    const { resposta, resultado } = await chamarAppsScriptRobusto(
+      env,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          token: env.WEB_WRITE_TOKEN,
-          accion: 'listarPersoasAdministracion',
-          email: user.email,
-          uidFirebase: user.uid
-        })
+        token: env.WEB_WRITE_TOKEN,
+        accion: 'listarPersoasAdministracion',
+        email: user.email,
+        uidFirebase: user.uid
       },
-      15000
+      { timeoutMs: 15000, attemptTimeoutMs: 7000, expectJson: true }
     );
 
-    const result = await response.json().catch(() => null);
-    const allowed = response.ok && result?.ok === true && result?.perfil?.nivel === 'Administración';
+    const allowed = resposta.ok && resultado?.ok === true && resultado?.perfil?.nivel === 'Administración';
     adminCache.set(user.email, { allowed, expiresAt: Date.now() + ADMIN_CACHE_MS });
     while (adminCache.size > 100) adminCache.delete(adminCache.keys().next().value);
     return allowed;

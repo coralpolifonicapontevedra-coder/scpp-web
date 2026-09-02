@@ -5,6 +5,7 @@ const CACHE_MS = 10 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
 const PREFIXO = 'partituras/';
+const PARTITURAS_ADMIN_PREVIEW_URL = 'https://script.google.com/macros/s/AKfycbzkvy7lJjbxq2kSvLEqX4xmYLlHs3UKzyjyjjFxsLm_BJIqVLT9_AiZhhmuPUVXS_kW/exec';
 
 const cacheCatalogo = new Map();
 const cacheTokens = new Map();
@@ -34,6 +35,13 @@ function gardarCache(cache, clave, valor, duracionMs) {
 
 function limparCatalogo() {
   cacheCatalogo.clear();
+}
+
+function envAppsScriptPartituras(env, accion) {
+  if (env.CF_PAGES_BRANCH === 'preview' && (accion === 'altaPartituraPortal' || accion === 'eliminarPartituraPortal')) {
+    return { ...env, APPS_SCRIPT_WEBAPP_URL: PARTITURAS_ADMIN_PREVIEW_URL };
+  }
+  return env;
 }
 
 async function fetchConTempoLimite(url, options, timeoutMs) {
@@ -166,7 +174,7 @@ async function altaPartitura(env, datos, usuario) {
   });
 
   try {
-    const { resultado } = await obterJsonAppsScript(env, {
+    const { resultado } = await obterJsonAppsScript(envAppsScriptPartituras(env, 'altaPartituraPortal'), {
       token: env.WEB_WRITE_TOKEN,
       accion: 'altaPartituraPortal',
       correo: usuario.email,
@@ -201,7 +209,7 @@ async function eliminarPartitura(env, datos, usuario) {
   const idPartitura = String(datos.idPartitura || '').trim();
   if (!idPartitura) return json(400, { ok: false, erro: 'Selecciona a partitura que queres eliminar.' });
 
-  const { resultado } = await obterJsonAppsScript(env, {
+  const { resultado } = await obterJsonAppsScript(envAppsScriptPartituras(env, 'eliminarPartituraPortal'), {
     token: env.WEB_WRITE_TOKEN,
     accion: 'eliminarPartituraPortal',
     correo: usuario.email,

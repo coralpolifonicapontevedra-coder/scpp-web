@@ -58,6 +58,11 @@ function urlsAppsScript(env = {}) {
     .filter((url, index, all) => /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) && all.indexOf(url) === index);
 }
 
+function respostaParecidaAHtml(texto) {
+  const valor = String(texto || '').trim().toLowerCase();
+  return valor.startsWith('<!doctype') || valor.startsWith('<html') || valor.startsWith('<body') || valor.includes('<html') || valor.includes('</html>');
+}
+
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
@@ -112,6 +117,15 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
       if (resposta.ok) {
         if (expectJson) {
           const texto = await resposta.text();
+          const contentType = String(resposta.headers.get('content-type') || '').toLowerCase();
+          const pareceHtml = contentType.includes('text/html') || contentType.includes('application/xhtml+xml') || respostaParecidaAHtml(texto);
+
+          if (pareceHtml) {
+            houboRespostaNonValida = true;
+            console.warn('Apps Script devolveu HTML en vez de JSON; probando a seguinte implementación.');
+            continue;
+          }
+
           try {
             return {
               resposta,

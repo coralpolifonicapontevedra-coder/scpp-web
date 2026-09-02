@@ -198,10 +198,25 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken })
     });
-    const result = await response.json().catch(() => null);
+
+    const raw = await response.text();
+    let result = null;
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+
+    if (raw && (contentType.includes('application/json') || raw.trim().startsWith('{') || raw.trim().startsWith('['))) {
+      try {
+        result = JSON.parse(raw);
+      } catch {
+        result = null;
+      }
+    }
+
+    if (!result && raw.trim().startsWith('<')) {
+      throw new Error('A resposta do servidor non é válida para esta pantalla de administración.');
+    }
 
     if (!response.ok || !result?.ok) {
-      throw new Error(result?.erro || `Erro HTTP ${response.status}`);
+      throw new Error(result?.erro || (raw && !raw.trim().startsWith('{') && !raw.trim().startsWith('[') ? raw.slice(0, 180) : `Erro HTTP ${response.status}`));
     }
 
     if (levelNode instanceof HTMLElement) levelNode.textContent = 'Administración';

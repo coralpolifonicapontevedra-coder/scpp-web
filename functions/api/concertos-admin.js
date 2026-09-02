@@ -147,7 +147,9 @@ async function writeJson(bucket, key, value, type) {
 }
 
 function validDraft(value, id) {
-  return value?.version === 1 && value?.idConcerto === id &&
+  const staleObrasVacias = Array.isArray(value?.obras) && value.obras.length === 0 &&
+    (Array.isArray(value?.programa) && value.programa.length > 0 || Array.isArray(value?.persoas) && value.persoas.length > 0);
+  return !staleObrasVacias && value?.version === 1 && value?.idConcerto === id &&
     Array.isArray(value.programa) && Array.isArray(value.persoas) && Array.isArray(value.obras);
 }
 
@@ -320,7 +322,13 @@ async function managementFromR2(env, user, id) {
 async function getDraft(env, user, id) {
   const key = draftKey(env, id);
   const saved = await readJson(env.R2_PRIVADO, key);
-  if (validDraft(saved, id)) return saved;
+  if (!validDraft(saved, id)) {
+    if (saved && (saved.idConcerto === id || clean(saved.idConcerto) === id)) {
+      console.warn(`Recreando borrador obsoleto para ${id} por estrutura stale en R2.`);
+    }
+  } else {
+    return saved;
+  }
 
   let initial;
   try {
