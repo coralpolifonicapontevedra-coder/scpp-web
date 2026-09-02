@@ -1,8 +1,7 @@
 const CACHE_MS = 60 * 1000;
-const ADMIN_CACHE_MS = 5 * 60 * 1000;
+const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 
 let statusCache = null;
-const adminCache = new Map();
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -47,37 +46,27 @@ async function verificarFirebase(idToken, apiKey) {
   };
 }
 
-async function comprobarAdministracion(env, user) {
-  const cached = adminCache.get(user.email);
-  if (cached?.expiresAt > Date.now()) return cached.allowed === true;
+async function hashEmail(email) {
+  const bytes = new TextEncoder().encode(String(email || '').trim().toLowerCase());
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
-  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  if (!url || !env.WEB_WRITE_TOKEN) return false;
+async function comprobarAdministracion(env, user) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') {
+    return { allowed: false, known: false };
+  }
 
   try {
-    const response = await fetchWithTimeout(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          token: env.WEB_WRITE_TOKEN,
-          accion: 'listarPersoasAdministracion',
-          email: user.email,
-          uidFirebase: user.uid
-        })
-      },
-      15000
-    );
-
-    const result = await response.json().catch(() => null);
-    const allowed = response.ok && result?.ok === true && result?.perfil?.nivel === 'Administración';
-    adminCache.set(user.email, { allowed, expiresAt: Date.now() + ADMIN_CACHE_MS });
-    while (adminCache.size > 100) adminCache.delete(adminCache.keys().next().value);
-    return allowed;
+    const object = await env.R2_PRIVADO.get(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
+    if (!object) return { allowed: false, known: false };
+    const entry = await object.json().catch(() => null);
+    const allowed = String(entry?.administrador || '').trim().toLowerCase() === user.email
+      && entry?.payload?.perfil?.nivel === 'Administración';
+    return { allowed, known: true };
   } catch (error) {
-    console.error('Erro ao comprobar permisos para Estado do sistema:', error);
-    return false;
+    console.error('Erro ao comprobar permisos R2 para Estado do sistema:', error);
+    return { allowed: false, known: false };
   }
 }
 
@@ -273,7 +262,6 @@ async function firebaseStatus(env) {
       body: JSON.stringify({ idToken: 'invalid-token-for-healthcheck' })
     }, 8000);
     const durationMs = Date.now() - started;
-    // If we receive any response (even 400), the service is reachable. Treat 5xx as error.
     const status = response.status || 0;
     const state = status >= 500 ? 'error' : 'ok';
     return {
@@ -293,7 +281,8 @@ async function firebaseStatus(env) {
       labelState: 'Non dispoñible',
       updatedAt: new Date().toISOString(),
       durationMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      url
     };
   }
 }
@@ -338,7 +327,7 @@ async function buildStatus(env) {
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  if (!env.FIREBASE_API_KEY || !env.APPS_SCRIPT_WEBAPP_URL || !env.WEB_WRITE_TOKEN) {
+  if (!env.FIREBASE_API_KEY) {
     return json(500, { ok: false, erro: 'O servizo de Estado do sistema non está configurado.' });
   }
 
@@ -358,8 +347,16 @@ export async function onRequestPost(context) {
   }
   if (!user) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou.' });
 
-  const allowed = await comprobarAdministracion(env, user);
-  if (!allowed) return json(403, { ok: false, erro: 'Só a administración pode consultar o estado do sistema.' });
+  const administration = await comprobarAdministracion(env, user);
+  if (!administration.allowed) {
+    return json(administration.known ? 403 : 503, {
+      ok: false,
+      codigo: administration.known ? 'ADMIN_REQUIRED' : 'ADMIN_CACHE_UNAVAILABLE',
+      erro: administration.known
+        ? 'Só a administración pode consultar o estado do sistema.'
+        : 'Non foi posible comprobar o acceso administrativo neste momento.'
+    });
+  }
 
   if (statusCache?.expiresAt > Date.now()) {
     return json(200, { ...statusCache.payload, cached: true });
