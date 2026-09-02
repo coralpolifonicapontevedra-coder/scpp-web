@@ -529,6 +529,16 @@ function doPost(e) {
       }
     }
 
+    if (accion === 'altaPartituraPortal') {
+      bloqueo.waitLock(10000);
+      return respostaJSON(altaPartituraPortal_(datos));
+    }
+
+    if (accion === 'eliminarPartituraPortal') {
+      bloqueo.waitLock(10000);
+      return respostaJSON(eliminarPartituraPortal_(datos));
+    }
+
     if (accion === 'gardarAsistenciaEnsaioPortal') {
       bloqueo.waitLock(10000);
 
