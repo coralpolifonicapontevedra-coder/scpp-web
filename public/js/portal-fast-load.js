@@ -2,7 +2,6 @@
   'use strict';
 
   const originalFetch = window.fetch.bind(window);
-  const ACCEPTANCE_TTL = 30 * 60 * 1000;
   const REPERTORIO_CACHE_TTL = 24 * 60 * 60 * 1000;
   const REPERTORIO_REFRESH_TTL = 30 * 60 * 1000;
   const REPERTORIO_CACHE_KEY = 'scpp:repertorio:completo:v2';
@@ -200,42 +199,6 @@
     return fastWorksPromise;
   }
 
-  function decodeTokenEmail(token = '') {
-    try {
-      const payload = token.split('.')[1];
-      if (!payload) return 'sesion';
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const decoded = JSON.parse(decodeURIComponent(atob(normalized).split('').map((char) =>
-        `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`
-      ).join('')));
-      return String(decoded.email || decoded.user_id || 'sesion').toLowerCase();
-    } catch {
-      return 'sesion';
-    }
-  }
-
-  function acceptanceKey(body) {
-    const version = String(body?.version || 'PRIVACIDADE-WEB-1.0');
-    return `scpp:aceptacion:${decodeTokenEmail(body?.idToken)}:${version}`;
-  }
-
-  function readAcceptance(body) {
-    try {
-      const timestamp = Number(sessionStorage.getItem(acceptanceKey(body)) || 0);
-      return timestamp > 0 && Date.now() - timestamp < ACCEPTANCE_TTL;
-    } catch {
-      return false;
-    }
-  }
-
-  function saveAcceptance(body) {
-    try {
-      sessionStorage.setItem(acceptanceKey(body), String(Date.now()));
-    } catch {
-      // Sen almacenamento de sesión simplemente mantense a comprobación normal.
-    }
-  }
-
   function parseBody(init) {
     if (!init || typeof init.body !== 'string') return null;
     try {
@@ -320,23 +283,6 @@
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
     const body = parseBody(init);
-
-    if (url.includes('/api/aceptacion') && body?.accion === 'comprobarAceptacion') {
-      if (location.pathname.startsWith('/portal/repertorio')) {
-        saveAcceptance(body);
-        return jsonResponse(
-          { ok: true, aceptacionVixente: true },
-          { 'X-SCPP-Acceptance-Cache': 'PORTAL-SESSION' }
-        );
-      }
-      if (readAcceptance(body)) {
-        return jsonResponse({ ok: true, aceptacionVixente: true }, { 'X-SCPP-Acceptance-Cache': 'HIT' });
-      }
-      const response = await originalFetch(input, init);
-      const result = await response.clone().json().catch(() => null);
-      if (response.ok && result?.ok && result.aceptacionVixente === true) saveAcceptance(body);
-      return response;
-    }
 
     if (
       location.pathname.startsWith('/portal/repertorio') &&
