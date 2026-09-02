@@ -35,6 +35,14 @@ async function claveCacheAceptacion(email) {
   ).join('') + '.json';
 }
 
+function textoLegalCompleto(textoLegal) {
+  return Boolean(
+    String(textoLegal?.version || '').trim() &&
+    String(textoLegal?.titulo || '').trim() &&
+    String(textoLegal?.texto || '').trim()
+  );
+}
+
 async function lerCacheAceptacion(env, email) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
   try {
@@ -44,6 +52,7 @@ async function lerCacheAceptacion(env, email) {
     const gardadaEn = Date.parse(String(cache?.gardadaEn || ''));
     if (!Number.isFinite(gardadaEn) || Date.now() - gardadaEn > CACHE_ACEPTACION_MS) return null;
     if (typeof cache?.aceptacionVixente !== 'boolean') return null;
+    if (cache.aceptacionVixente === false && !textoLegalCompleto(cache.textoLegal)) return null;
     return {
       aceptacionVixente: cache.aceptacionVixente,
       textoLegal: cache.textoLegal || null
@@ -234,4 +243,3 @@ export async function onRequest(context) {
     });
   }
 }
-
