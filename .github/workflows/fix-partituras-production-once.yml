@@ -50,4 +50,4 @@ jobs:
           git rm .github/workflows/fix-partituras-production-once.yml
           git diff --cached --check
           git commit -m "fix(partituras): habilitar altas e baixas en Apps Script production"
-          git push origin HEAD:main
+          git push origin HEAD:${GITHUB_REF_NAME}
