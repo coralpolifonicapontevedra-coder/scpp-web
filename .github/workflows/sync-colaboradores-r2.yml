@@ -1,0 +1,50 @@
+name: Sincronizar logos de colaboradores con R2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "public/img/colaboradores/**"
+      - "scripts/sync-colaboradores-r2.py"
+      - ".github/workflows/sync-colaboradores-r2.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-colaboradores-r2
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: r2-migration
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v5
+
+      - name: Preparar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencia R2
+        run: python -m pip install --disable-pip-version-check boto3==1.40.1
+
+      - name: Publicar logos en R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_PUBLIC_BUCKET: scpp-publico
+        run: python scripts/sync-colaboradores-r2.py
+
+      - name: Resumen
+        if: always()
+        run: |
+          echo "## Logos de colaboradores" >> "$GITHUB_STEP_SUMMARY"
+          echo "Destino: scpp-publico/colaboradores/v1/" >> "$GITHUB_STEP_SUMMARY"
