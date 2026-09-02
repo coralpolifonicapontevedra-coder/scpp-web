@@ -3,11 +3,13 @@ import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
 const CACHE_MS = 10 * 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
+const CACHE_PERMISOS_MS = 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
 const PREFIXO = 'partituras/';
 
 const cacheCatalogo = new Map();
 const cacheTokens = new Map();
+const cachePermisos = new Map();
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -71,6 +73,41 @@ async function verificarTokenFirebase(idToken, apiKey) {
   };
   gardarCache(cacheTokens, token, resultado, CACHE_TOKEN_MS);
   return resultado;
+}
+
+async function obterNivelPartituras(env, usuario) {
+  if (!env.WEB_WRITE_TOKEN) throw new Error('O servizo de permisos non está configurado.');
+
+  const clave = String(usuario?.email || '').trim().toLowerCase();
+  const cacheado = lerCache(cachePermisos, clave);
+  if (cacheado) return cacheado;
+
+  const { resultado } = await obterJsonAppsScript(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion: 'obterPermisosUsuarioPortal',
+    email: clave,
+    usuarioEmail: clave,
+    uidFirebase: String(usuario?.uid || '')
+  }, { timeoutMs: 12000, attemptTimeoutMs: 7000 });
+
+  if (!resultado?.ok) {
+    throw new Error(resultado?.erro || 'Non foi posible resolver os permisos de Partituras.');
+  }
+
+  const nivel = String(resultado?.efectivos?.partituras || 'sen_acceso').trim().toLowerCase();
+  const normalizado = ['sen_acceso', 'lectura', 'escritura', 'administracion'].includes(nivel)
+    ? nivel
+    : 'sen_acceso';
+  gardarCache(cachePermisos, clave, normalizado, CACHE_PERMISOS_MS);
+  return normalizado;
+}
+
+function podeLerPartituras(nivel) {
+  return ['lectura', 'escritura', 'administracion'].includes(nivel);
+}
+
+function podeEscribirPartituras(nivel) {
+  return ['escritura', 'administracion'].includes(nivel);
 }
 
 function claveValida(valor) {
@@ -232,6 +269,29 @@ export async function onRequest({ request, env }) {
   if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
   const accion = String(datos.accion || 'listarPartiturasPortal').trim();
+  const accionsLectura = new Set(['listarPartiturasPortal', 'obterFicheiroPartitura']);
+  const accionsEscritura = new Set(['altaPartituraPortal', 'eliminarPartituraPortal']);
+
+  if (!accionsLectura.has(accion) && !accionsEscritura.has(accion)) {
+    return json(400, { ok: false, erro: 'Acción non permitida' });
+  }
+
+  let nivelPermiso;
+  try {
+    nivelPermiso = await obterNivelPartituras(env, usuario);
+  } catch (erro) {
+    console.error('Erro ao comprobar permisos de Partituras:', erro);
+    return json(503, { ok: false, erro: 'Non foi posible comprobar os permisos de Partituras.' });
+  }
+
+  if (accionsLectura.has(accion) && !podeLerPartituras(nivelPermiso)) {
+    return json(403, { ok: false, erro: 'Non tes permiso de lectura para Partituras.' });
+  }
+
+  if (accionsEscritura.has(accion) && !podeEscribirPartituras(nivelPermiso)) {
+    return json(403, { ok: false, erro: 'Non tes permiso de escritura para Partituras.' });
+  }
+
   if (accion === 'listarPartiturasPortal') {
     try {
       const resultado = catalogoActivo();
