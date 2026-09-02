@@ -1,0 +1,53 @@
+name: Fix partituras production once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-partituras-production-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch Apps Script production dispatcher and add partituras module
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          codigo = Path('apps-script-production/Código.js')
+          texto = codigo.read_text(encoding='utf-8')
+
+          marker = "    if (accion === 'gardarAsistenciaEnsaioPortal') {"
+          if marker not in texto:
+              raise SystemExit('Non se atopou o punto de inserción no dispatcher de produción')
+
+          bloque = """    if (accion === 'altaPartituraPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(altaPartituraPortal_(datos));\n    }\n\n    if (accion === 'eliminarPartituraPortal') {\n      bloqueo.waitLock(10000);\n      return respostaJSON(eliminarPartituraPortal_(datos));\n    }\n\n"""
+
+          if "accion === 'altaPartituraPortal'" not in texto:
+              texto = texto.replace(marker, bloque + marker, 1)
+              codigo.write_text(texto, encoding='utf-8')
+
+          source = Path('apps-script/partituras-portal.gs')
+          target = Path('apps-script-production/partituras-portal.js')
+          if not source.exists():
+              raise SystemExit('Non existe apps-script/partituras-portal.gs')
+          shutil.copyfile(source, target)
+          PY
+
+      - name: Commit production fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps-script-production/Código.js apps-script-production/partituras-portal.js
+          git rm .github/workflows/fix-partituras-production-once.yml
+          git diff --cached --check
+          git commit -m "fix(partituras): habilitar altas e baixas en Apps Script production"
+          git push origin HEAD:main
