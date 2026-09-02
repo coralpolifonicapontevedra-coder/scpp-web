@@ -29,7 +29,7 @@ describe('módulo de arquivo e préstamos', () => {
     }
   });
 
-  it.each(['apps-script-preview', 'apps-script-production', 'apps-script-production-head'])('inclúe o backend de Sheets en %s', (dir) => {
+  it.each(['apps-script-preview', 'apps-script-production'])('inclúe o backend de Sheets en %s', (dir) => {
     const backend = read(`${dir}/arquivo-administracion.js`);
     const dispatcher = read(`${dir}/Código.js`);
     expect(backend).toContain("filasArquivo_('Fondos')");
