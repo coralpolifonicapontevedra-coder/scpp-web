@@ -5,25 +5,25 @@ const entidades = [
   {
     nome: 'Concello de Pontevedra',
     tipo: 'Institución colaboradora',
-    logo: '/img/colaboradores/concello-pontevedra.png',
+    logo: '/arquivos/publico/colaboradores/v1/concello-pontevedra.png',
     url: 'https://www.pontevedra.gal/'
   },
   {
     nome: 'Deputación de Pontevedra',
     tipo: 'Institución colaboradora',
-    logo: '/img/colaboradores/deputacion-pontevedra.png',
+    logo: '/arquivos/publico/colaboradores/v1/deputacion-pontevedra.png',
     url: 'https://www.depo.gal/'
   },
   {
     nome: 'Museo de Pontevedra',
     tipo: 'Entidade colaboradora',
-    logo: '/img/colaboradores/museo-pontevedra.png',
+    logo: '/arquivos/publico/colaboradores/v1/museo-pontevedra.png',
     url: 'https://museo.depo.gal/'
   },
   {
     nome: 'Supermercados Froiz',
     tipo: 'Empresa colaboradora',
-    logo: '/img/colaboradores/supermercados-froiz.png',
+    logo: '/arquivos/publico/colaboradores/v1/supermercados-froiz.png',
     url: 'https://froiz.es/'
   }
 ];
@@ -95,174 +95,28 @@ const entidades = [
 </BaseLayout>
 
 <style>
-  .colaboradores-page {
-    padding-bottom: 6rem;
-  }
-
-  .sobrelinea {
-    margin: 0 0 .75rem;
-    color: var(--color-principal);
-    font-size: .76rem;
-    font-weight: 700;
-    letter-spacing: .16em;
-    text-transform: uppercase;
-  }
-
-  .colaboradores-intro {
-    max-width: 760px;
-    margin-bottom: clamp(2rem, 5vw, 3.25rem);
-  }
-
-  .colaboradores-intro h2,
-  .colaboradores-peche h2 {
-    margin: 0;
-    color: var(--color-texto);
-    font-size: clamp(1.55rem, 3vw, 2.15rem);
-    line-height: 1.2;
-  }
-
-  .colaboradores-intro > p:last-child,
-  .colaboradores-peche p {
-    color: #4b4745;
-    font-size: 1rem;
-    line-height: 1.75;
-  }
-
-  .entidades-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
-  }
-
-  .entidade-card {
-    position: relative;
-    display: grid;
-    grid-template-rows: minmax(155px, 1fr) auto;
-    min-height: 250px;
-    overflow: hidden;
-    border: 1px solid rgba(106, 27, 41, .14);
-    border-radius: 4px;
-    background: #fff;
-    color: var(--color-texto);
-    text-decoration: none;
-    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
-  }
-
-  .entidade-card:hover,
-  .entidade-card:focus-visible {
-    border-color: rgba(106, 27, 41, .36);
-    box-shadow: 0 12px 28px rgba(51, 34, 37, .08);
-    transform: translateY(-3px);
-  }
-
-  .entidade-card:focus-visible {
-    outline: 3px solid rgba(106, 27, 41, .18);
-    outline-offset: 3px;
-  }
-
-  .entidade-numero {
-    position: absolute;
-    top: .85rem;
-    left: 1rem;
-    color: var(--color-acento);
-    font-size: .66rem;
-    font-weight: 800;
-    letter-spacing: .12em;
-  }
-
-  .entidade-logo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: clamp(2rem, 5vw, 3.25rem);
-  }
-
-  .entidade-logo img {
-    display: block;
-    width: auto;
-    height: auto;
-    max-width: min(100%, 330px);
-    max-height: 92px;
-    object-fit: contain;
-  }
-
-  .entidade-info {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    align-items: flex-end;
-    padding: 1.15rem 1.25rem;
-    border-top: 1px solid rgba(106, 27, 41, .1);
-    background: var(--color-gris);
-  }
-
-  .entidade-info strong,
-  .entidade-info small { display: block; }
-
-  .entidade-info strong {
-    font-size: 1rem;
-    line-height: 1.3;
-  }
-
-  .entidade-info small {
-    margin-top: .28rem;
-    color: #625d5a;
-    font-size: .78rem;
-  }
-
-  .entidade-link {
-    flex: 0 0 auto;
-    color: var(--color-principal);
-    font-size: .72rem;
-    font-weight: 700;
-    letter-spacing: .05em;
-    text-transform: uppercase;
-  }
-
-  .entidade-link span {
-    display: inline-block;
-    margin-left: .15rem;
-    transition: transform .2s ease;
-  }
-
+  .colaboradores-page { padding-bottom: 6rem; }
+  .sobrelinea { margin: 0 0 .75rem; color: var(--color-principal); font-size: .76rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  .colaboradores-intro { max-width: 760px; margin-bottom: clamp(2rem, 5vw, 3.25rem); }
+  .colaboradores-intro h2, .colaboradores-peche h2 { margin: 0; color: var(--color-texto); font-size: clamp(1.55rem, 3vw, 2.15rem); line-height: 1.2; }
+  .colaboradores-intro > p:last-child, .colaboradores-peche p { color: #4b4745; font-size: 1rem; line-height: 1.75; }
+  .entidades-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+  .entidade-card { position: relative; display: grid; grid-template-rows: minmax(155px, 1fr) auto; min-height: 250px; overflow: hidden; border: 1px solid rgba(106, 27, 41, .14); border-radius: 4px; background: #fff; color: var(--color-texto); text-decoration: none; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+  .entidade-card:hover, .entidade-card:focus-visible { border-color: rgba(106, 27, 41, .36); box-shadow: 0 12px 28px rgba(51, 34, 37, .08); transform: translateY(-3px); }
+  .entidade-card:focus-visible { outline: 3px solid rgba(106, 27, 41, .18); outline-offset: 3px; }
+  .entidade-numero { position: absolute; top: .85rem; left: 1rem; color: var(--color-acento); font-size: .66rem; font-weight: 800; letter-spacing: .12em; }
+  .entidade-logo { display: flex; align-items: center; justify-content: center; padding: clamp(2rem, 5vw, 3.25rem); }
+  .entidade-logo img { display: block; width: auto; height: auto; max-width: min(100%, 330px); max-height: 92px; object-fit: contain; }
+  .entidade-info { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-end; padding: 1.15rem 1.25rem; border-top: 1px solid rgba(106, 27, 41, .1); background: var(--color-gris); }
+  .entidade-info strong, .entidade-info small { display: block; }
+  .entidade-info strong { font-size: 1rem; line-height: 1.3; }
+  .entidade-info small { margin-top: .28rem; color: #625d5a; font-size: .78rem; }
+  .entidade-link { flex: 0 0 auto; color: var(--color-principal); font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .entidade-link span { display: inline-block; margin-left: .15rem; transition: transform .2s ease; }
   .entidade-card:hover .entidade-link span { transform: translate(2px, -2px); }
-
-  .colaboradores-peche {
-    display: grid;
-    grid-template-columns: minmax(220px, .75fr) minmax(0, 1.25fr);
-    gap: clamp(2rem, 6vw, 5rem);
-    margin-top: clamp(3.5rem, 8vw, 5.5rem);
-    padding: clamp(1.75rem, 4vw, 2.5rem);
-    border-left: 3px solid var(--color-acento);
-    background: var(--color-gris);
-  }
-
+  .colaboradores-peche { display: grid; grid-template-columns: minmax(220px, .75fr) minmax(0, 1.25fr); gap: clamp(2rem, 6vw, 5rem); margin-top: clamp(3.5rem, 8vw, 5.5rem); padding: clamp(1.75rem, 4vw, 2.5rem); border-left: 3px solid var(--color-acento); background: var(--color-gris); }
   .colaboradores-peche p { margin-top: 0; }
-
-  .btn-volver {
-    display: inline-flex;
-    align-items: center;
-    gap: .65rem;
-    border-radius: 4px;
-    background: var(--color-principal);
-    color: #fff;
-    font-size: .78rem;
-    font-weight: 700;
-    letter-spacing: .06em;
-    padding: .85rem 1.2rem;
-    text-decoration: none;
-    text-transform: uppercase;
-    transition: background-color .2s ease;
-  }
-
-  .btn-volver:hover,
-  .btn-volver:focus-visible { background: var(--color-acento); }
-
-  @media (max-width: 720px) {
-    .entidades-grid,
-    .colaboradores-peche { grid-template-columns: 1fr; }
-    .entidade-card { min-height: 225px; }
-    .entidade-info { align-items: flex-start; }
-    .btn-volver { justify-content: center; width: 100%; }
-  }
+  .btn-volver { display: inline-flex; align-items: center; gap: .65rem; border-radius: 4px; background: var(--color-principal); color: #fff; font-size: .78rem; font-weight: 700; letter-spacing: .06em; padding: .85rem 1.2rem; text-decoration: none; text-transform: uppercase; transition: background-color .2s ease; }
+  .btn-volver:hover, .btn-volver:focus-visible { background: var(--color-acento); }
+  @media (max-width: 720px) { .entidades-grid, .colaboradores-peche { grid-template-columns: 1fr; } .entidade-card { min-height: 225px; } .entidade-info { align-items: flex-start; } .btn-volver { justify-content: center; width: 100%; } }
 </style>
