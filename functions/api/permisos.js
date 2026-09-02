@@ -157,6 +157,11 @@ export async function onRequestPost({ request, env }) {
     uidFirebase: user.uid,
     actorEmail: user.email
   };
+
+  if (accion === 'obterPermisosUsuarioPortal') {
+    payload.usuarioEmail = user.email;
+  }
+
   delete payload.idToken;
 
   try {
