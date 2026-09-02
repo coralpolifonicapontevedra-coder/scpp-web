@@ -62,6 +62,14 @@ def slug(text: str) -> str:
     return value or "sheet"
 
 
+def ascii_metadata(text: str, limit: int = 900) -> str:
+    """Convierte texto a un valor seguro para metadata S3/R2 (solo ASCII)."""
+    value = unicodedata.normalize("NFKD", text or "")
+    value = value.encode("ascii", "ignore").decode("ascii")
+    value = re.sub(r"[\r\n\t]+", " ", value).strip()
+    return value[:limit] or "sheet"
+
+
 def excluded(name: str) -> bool:
     folded = (name or "").strip().casefold()
     return any(folded.startswith(prefix) for prefix in EXCLUDED_PREFIXES)
@@ -225,10 +233,11 @@ def main() -> int:
         "driveReady": drive_ready,
         "count": len(spreadsheets),
         "items": [],
+        "warnings": [],
         "errors": [],
     }
     if drive_error:
-        manifest["errors"].append({"destination": "drive", "error": drive_error})
+        manifest["warnings"].append({"destination": "drive", "error": drive_error})
 
     desired_keys: set[str] = set()
     desired_source_ids: set[str] = set()
@@ -258,7 +267,7 @@ def main() -> int:
                 ContentType=MIME_XLSX,
                 Metadata={
                     "source-drive-id": file_id,
-                    "source-name": name[:900],
+                    "source-name": ascii_metadata(name),
                     "backup-generated-at": now,
                 },
             )
@@ -295,7 +304,7 @@ def main() -> int:
     )
 
     if manifest["errors"]:
-        print("Hay errores: no se eliminan copias obsoletas para evitar pérdidas accidentales.", file=sys.stderr)
+        print("Hay errores de copia: no se eliminan copias obsoletas para evitar pérdidas accidentales.", file=sys.stderr)
         return 1
 
     existing = list_backup_keys(client, bucket)
@@ -314,9 +323,11 @@ def main() -> int:
                 stale_drive.append(entry["id"])
                 print(f"DELETE DRIVE obsoleto: {entry.get('name')} ({entry['id']})")
 
+    drive_status = "Drive OK" if drive_ready else "Drive pendiente (ver aviso de permisos/carpeta)"
     print(
-        f"Backup completado: {len(spreadsheets)} Sheets, "
-        f"{len(stale_r2)} copias R2 obsoletas y {len(stale_drive)} copias Drive obsoletas eliminadas."
+        f"Backup completado en R2: {len(spreadsheets)} Sheets, "
+        f"{len(stale_r2)} copias R2 obsoletas eliminadas. {drive_status}. "
+        f"{len(stale_drive)} copias Drive obsoletas eliminadas."
     )
     return 0
 
