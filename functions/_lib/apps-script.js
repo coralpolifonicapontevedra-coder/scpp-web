@@ -2,6 +2,7 @@ const URL_RESPALDO_SCPP = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1g
 const URL_PREVIEW_SCPP = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
 
 const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
+const ESTADOS_REDIRECCION_GET = new Set([301, 302, 303]);
 
 const ACCIONS_CONCERTOS_PROTEXIDAS = new Set([
   'listarAsistenciasConcertosPortal',
@@ -129,11 +130,40 @@ function verificarAppsScriptPermisos(env = {}, accion = '') {
   }
 }
 
+function urlRedireccionAppsScript(location, baseUrl) {
+  if (!location) return '';
+  try {
+    const url = new URL(location, baseUrl);
+    if (url.protocol !== 'https:' || url.hostname !== 'script.googleusercontent.com') return '';
+    if (!url.pathname.startsWith('/macros/echo')) return '';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
   try {
-    return await fetch(url, { ...options, redirect: 'follow', signal: controller.signal });
+    const primeira = await fetch(url, { ...options, redirect: 'manual', signal: controller.signal });
+    if (!ESTADOS_REDIRECCION_GET.has(primeira.status)) return primeira;
+
+    const destino = urlRedireccionAppsScript(primeira.headers.get('location'), url);
+    if (!destino) {
+      throw new AppsScriptError(
+        'Apps Script devolveu unha redirección non válida.',
+        'APPS_SCRIPT_INVALID_REDIRECT',
+        primeira.status
+      );
+    }
+
+    return await fetch(destino, {
+      method: 'GET',
+      headers: { Accept: 'application/json, text/plain;q=0.9, */*;q=0.1' },
+      redirect: 'follow',
+      signal: controller.signal
+    });
   } finally {
     clearTimeout(timer);
   }
@@ -220,6 +250,7 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
 
       console.warn(`Apps Script respondeu ${resposta.status}; probando a seguinte implementación.`);
     } catch (erro) {
+      if (erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_INVALID_REDIRECT') throw erro;
       ultimoErro = erro;
       console.warn('Fallou unha implementación de Apps Script; probando a seguinte.', erro);
     }
