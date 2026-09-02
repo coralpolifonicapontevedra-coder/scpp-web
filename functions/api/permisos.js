@@ -139,7 +139,9 @@ export async function onRequestPost({ request, env }) {
     'listarPermisosPortal',
     'gardarPermisoPortal',
     'eliminarPermisoPortal',
-    'listarActividadePortal'
+    'listarActividadePortal',
+    'rexistrarActividadePortal',
+    'obterPermisosUsuarioPortal'
   ].includes(accion);
 
   if (requireAdmin && !admin) {
