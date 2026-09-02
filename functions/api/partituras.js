@@ -102,10 +102,6 @@ async function obterNivelPartituras(env, usuario) {
   return normalizado;
 }
 
-function podeLerPartituras(nivel) {
-  return ['lectura', 'escritura', 'administracion'].includes(nivel);
-}
-
 function podeEscribirPartituras(nivel) {
   return ['escritura', 'administracion'].includes(nivel);
 }
@@ -276,20 +272,18 @@ export async function onRequest({ request, env }) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
   }
 
-  let nivelPermiso;
-  try {
-    nivelPermiso = await obterNivelPartituras(env, usuario);
-  } catch (erro) {
-    console.error('Erro ao comprobar permisos de Partituras:', erro);
-    return json(503, { ok: false, erro: 'Non foi posible comprobar os permisos de Partituras.' });
-  }
+  if (accionsEscritura.has(accion)) {
+    let nivelPermiso;
+    try {
+      nivelPermiso = await obterNivelPartituras(env, usuario);
+    } catch (erro) {
+      console.error('Erro ao comprobar permisos de Partituras:', erro);
+      return json(503, { ok: false, erro: 'Non foi posible comprobar os permisos de Partituras.' });
+    }
 
-  if (accionsLectura.has(accion) && !podeLerPartituras(nivelPermiso)) {
-    return json(403, { ok: false, erro: 'Non tes permiso de lectura para Partituras.' });
-  }
-
-  if (accionsEscritura.has(accion) && !podeEscribirPartituras(nivelPermiso)) {
-    return json(403, { ok: false, erro: 'Non tes permiso de escritura para Partituras.' });
+    if (!podeEscribirPartituras(nivelPermiso)) {
+      return json(403, { ok: false, erro: 'Non tes permiso de escritura para Partituras.' });
+    }
   }
 
   if (accion === 'listarPartiturasPortal') {
