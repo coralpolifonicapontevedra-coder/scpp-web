@@ -79,22 +79,12 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
 </aside>
 
 <script>
-  import { getApp, getApps, initializeApp } from 'firebase/app';
-  import { getAuth, onAuthStateChanged } from 'firebase/auth';
+  import { onAuthStateChanged } from 'firebase/auth';
+  import { auth, readPortalSession } from '../lib/portal-session.js';
 
-  const firebaseConfig = {
-    apiKey: 'AIzaSyDrQY7NsaKpBfrSc8GqV3lUQDOIkecPZbs',
-    authDomain: 'scpp-portal-privado.firebaseapp.com',
-    projectId: 'scpp-portal-privado',
-    storageBucket: 'scpp-portal-privado.firebasestorage.app',
-    messagingSenderId: '506857659587',
-    appId: '1:506857659587:web:a7ed36b22f044f5f639676'
-  };
-
-  const auth = getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig));
   const mobileMenuQuery = window.matchMedia('(max-width: 620px)');
-
   const PROTECTED_MENU_CACHE_KEY = 'scpp-protected-menu-v2';
+  const PROTECTED_MENU_CACHE_TTL = 15 * 60 * 1000;
 
   function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
@@ -107,6 +97,10 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
       const cached = JSON.parse(raw);
       if (normalizeEmail(cached?.email) !== normalizeEmail(email)) return null;
       if (typeof cached?.reviewAllowed !== 'boolean' || typeof cached?.administrationAllowed !== 'boolean') return null;
+      if (!cached?.savedAt || Date.now() - Number(cached.savedAt) > PROTECTED_MENU_CACHE_TTL) {
+        window.sessionStorage.removeItem(PROTECTED_MENU_CACHE_KEY);
+        return null;
+      }
       return cached;
     } catch {
       return null;
@@ -118,7 +112,8 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
       window.sessionStorage.setItem(PROTECTED_MENU_CACHE_KEY, JSON.stringify({
         email: normalizeEmail(email),
         reviewAllowed: Boolean(reviewAllowed),
-        administrationAllowed: Boolean(administrationAllowed)
+        administrationAllowed: Boolean(administrationAllowed),
+        savedAt: Date.now()
       }));
     } catch {
       // Ignorar sesión non dispoñible.
@@ -133,36 +128,17 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
     }
   }
 
-  async function canReviewPhotos(idToken) {
-    const response = await fetch('/api/fotos', {
+  async function checkProtectedAccess(idToken) {
+    const response = await fetch('/api/portal-access', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion: 'listarFotosRevision' })
+      body: JSON.stringify({ idToken })
     });
     const result = await response.json().catch(() => null);
-    if (response.ok && result?.ok === true) {
-      return { allowed: true, uncertain: false };
+    if (!response.ok || result?.ok !== true) {
+      throw new Error(result?.erro || `Erro HTTP ${response.status}`);
     }
-    if (response.status === 403) {
-      return { allowed: false, uncertain: false };
-    }
-    return { allowed: false, uncertain: true };
-  }
-
-  async function canAccessAdministration(idToken) {
-    const response = await fetch('/api/persoas-v2', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion: 'listarPersoasAdministracion' })
-    });
-    const result = await response.json().catch(() => null);
-    if (response.ok && result?.ok === true) {
-      return { allowed: true, uncertain: false };
-    }
-    if (response.status === 403) {
-      return { allowed: false, uncertain: false };
-    }
-    return { allowed: false, uncertain: true };
+    return result;
   }
 
   function syncProtectedNavigation({ reviewAllowed, administrationAllowed }) {
@@ -206,25 +182,33 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
     }
 
     const cachedPermissions = readProtectedMenuCache(user.email);
-    if (cachedPermissions) {
+    const session = readPortalSession();
+    const sessionAdministration = normalizeEmail(session?.email) === normalizeEmail(user.email)
+      && session?.nivel === 'Administración';
+    const knownAdministration = Boolean(cachedPermissions?.administrationAllowed || sessionAdministration);
+    const knownReview = Boolean(cachedPermissions?.reviewAllowed || knownAdministration);
+
+    if (cachedPermissions || sessionAdministration) {
       syncProtectedNavigation({
-        reviewAllowed: cachedPermissions.reviewAllowed,
-        administrationAllowed: cachedPermissions.administrationAllowed
+        reviewAllowed: knownReview,
+        administrationAllowed: knownAdministration
       });
     }
 
-    const idToken = await user.getIdToken();
-    const [reviewCheck, administrationCheck] = await Promise.all([
-      canReviewPhotos(idToken).catch(() => ({ allowed: false, uncertain: true })),
-      canAccessAdministration(idToken).catch(() => ({ allowed: false, uncertain: true }))
-    ]);
+    let access;
+    try {
+      const idToken = await user.getIdToken();
+      access = await checkProtectedAccess(idToken);
+    } catch {
+      return;
+    }
 
-    const reviewAllowed = reviewCheck.uncertain
-      ? Boolean(cachedPermissions?.reviewAllowed || administrationCheck.allowed)
-      : reviewCheck.allowed;
-    const administrationAllowed = administrationCheck.uncertain
-      ? Boolean(cachedPermissions?.administrationAllowed)
-      : administrationCheck.allowed;
+    const administrationAllowed = access.administrationKnown
+      ? Boolean(access.administrationAllowed)
+      : knownAdministration;
+    const reviewAllowed = access.reviewKnown
+      ? Boolean(access.reviewAllowed)
+      : Boolean(cachedPermissions?.reviewAllowed || administrationAllowed);
 
     writeProtectedMenuCache(user.email, reviewAllowed, administrationAllowed);
     syncProtectedNavigation({ reviewAllowed, administrationAllowed });
