@@ -14,7 +14,10 @@ var ACCIONS_ADMIN_XESTION_PERMISOS_ = [
   'gardarPermisosPortalLote',
   'eliminarPermisoPortal',
   'rexistrarActividadePortal',
-  'listarActividadePortal'
+  'listarActividadePortal',
+  'listarDoazonsAdministracion',
+  'actualizarEstadoDoazonAdministracion',
+  'eliminarDoazonAdministracion'
 ];
 
 var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
@@ -145,6 +148,20 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
     return listarActividadePortalXestion_(datos);
   }
 
+  if (accion === 'listarDoazonsAdministracion') {
+    return listarDoazonsAdministracion_(datos);
+  }
+
+  if (accion === 'actualizarEstadoDoazonAdministracion') {
+    if (bloqueo) bloqueo.waitLock(10000);
+    return actualizarEstadoDoazonAdministracion_(datos);
+  }
+
+  if (accion === 'eliminarDoazonAdministracion') {
+    if (bloqueo) bloqueo.waitLock(10000);
+    return eliminarDoazonAdministracion_(datos);
+  }
+
   return null;
 }
 
@@ -166,7 +183,9 @@ var ACCIONS_ESCRITURA_XESTION_PERMISOS_ = [
   'gardarPermisoPortal',
   'gardarPermisosPortalLote',
   'eliminarPermisoPortal',
-  'rexistrarActividadePortal'
+  'rexistrarActividadePortal',
+  'actualizarEstadoDoazonAdministracion',
+  'eliminarDoazonAdministracion'
 ];
 
 function eAccionEscrituraXestionPermisos_(accion) {
