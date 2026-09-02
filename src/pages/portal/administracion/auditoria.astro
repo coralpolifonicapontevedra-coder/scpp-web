@@ -1,0 +1,183 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+import AdministracionNav from '../../../components/AdministracionNav.astro';
+---
+
+<BaseLayout title="Auditoría de accesos" lang="gl">
+  <div class="private-layout audit-layout">
+    <PortalSidebar active="administracion" logoutId="auditoria-logout" />
+    <main class="audit-main">
+      <header class="audit-header">
+        <div>
+          <span class="section-kicker">Administración</span>
+          <h1>Auditoría de accesos</h1>
+          <p>Consulta quen accede ao portal, cando o fai e que operacións quedan rexistradas no sistema.</p>
+        </div>
+        <div class="account-card">
+          <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
+          <span><small>Nivel</small><strong>Administración</strong></span>
+        </div>
+      </header>
+
+      <AdministracionNav active="auditoria" />
+
+      <section id="loading" class="state-box">Cargando o rexistro de actividade…</section>
+      <section id="error" class="state-box error-box" hidden>
+        <strong>Non foi posible cargar a auditoría</strong>
+        <p id="error-message"></p>
+        <button id="retry" type="button" class="secondary">Tentar de novo</button>
+      </section>
+
+      <section id="app" hidden>
+        <section class="metrics" aria-label="Resumo de actividade">
+          <article><small>Accións hoxe</small><strong id="m-today">0</strong></article>
+          <article><small>Últimos 7 días</small><strong id="m-week">0</strong></article>
+          <article><small>Usuarios distintos</small><strong id="m-users">0</strong></article>
+          <article><small>Operacións con erro</small><strong id="m-errors">0</strong></article>
+        </section>
+
+        <section class="insights">
+          <article><small>Módulo máis activo</small><strong id="top-module">—</strong><span id="top-module-count">0 operacións</span></article>
+          <article><small>Hora con máis actividade</small><strong id="top-hour">—</strong><span id="top-hour-count">0 operacións</span></article>
+          <article><small>Usuario máis activo</small><strong id="top-user">—</strong><span id="top-user-count">0 operacións</span></article>
+        </section>
+
+        <section class="filters">
+          <label><span>Desde</span><input id="from" type="date" /></label>
+          <label><span>Ata</span><input id="to" type="date" /></label>
+          <label><span>Persoa</span><select id="user-filter"><option value="">Todas</option></select></label>
+          <label><span>Módulo</span><select id="module-filter"><option value="">Todos</option></select></label>
+          <label class="search"><span>Buscar</span><input id="search" type="search" placeholder="Acción, detalle, correo…" /></label>
+          <button id="apply" class="primary" type="button">Actualizar</button>
+        </section>
+
+        <section class="table-card">
+          <header><div><span class="section-kicker">Rexistro</span><h2>Actividade recente</h2></div><strong id="visible-count">0</strong></header>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data e hora</th><th>Persoa</th><th>Módulo</th><th>Acción</th><th>Resultado</th><th>Detalle</th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+
+  const $ = (selector) => document.querySelector(selector);
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[char]));
+  let activity = [];
+
+  function localDay(value) {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function formatDate(value) {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value || '—';
+    return new Intl.DateTimeFormat('gl-ES', { dateStyle:'short', timeStyle:'medium' }).format(d);
+  }
+
+  function countBy(items, keyFn) {
+    const map = new Map();
+    items.forEach((item) => {
+      const key = keyFn(item) || '—';
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return [...map.entries()].sort((a,b) => b[1] - a[1]);
+  }
+
+  function fillFilters() {
+    const users = [...new Set(activity.map((x) => x.email).filter(Boolean))].sort();
+    const modules = [...new Set(activity.map((x) => x.modulo).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'gl'));
+    $('#user-filter').innerHTML = '<option value="">Todas</option>' + users.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    $('#module-filter').innerHTML = '<option value="">Todos</option>' + modules.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  }
+
+  function updateMetrics() {
+    const now = new Date();
+    const today = localDay(now);
+    const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 6); weekAgo.setHours(0,0,0,0);
+    $('#m-today').textContent = String(activity.filter((x) => localDay(x.dataHora) === today).length);
+    $('#m-week').textContent = String(activity.filter((x) => new Date(x.dataHora) >= weekAgo).length);
+    $('#m-users').textContent = String(new Set(activity.map((x) => x.email).filter(Boolean)).size);
+    $('#m-errors').textContent = String(activity.filter((x) => !['correcto','ok','éxito','exito'].includes(String(x.resultado || '').toLowerCase())).length);
+
+    const topModule = countBy(activity.filter((x) => x.modulo), (x) => x.modulo)[0];
+    const topHour = countBy(activity, (x) => { const d = new Date(x.dataHora); return Number.isNaN(d.getTime()) ? '—' : `${String(d.getHours()).padStart(2,'0')}:00`; })[0];
+    const topUser = countBy(activity.filter((x) => x.email), (x) => x.email)[0];
+    $('#top-module').textContent = topModule?.[0] || '—';
+    $('#top-module-count').textContent = `${topModule?.[1] || 0} operacións`;
+    $('#top-hour').textContent = topHour?.[0] || '—';
+    $('#top-hour-count').textContent = `${topHour?.[1] || 0} operacións`;
+    $('#top-user').textContent = topUser?.[0] || '—';
+    $('#top-user-count').textContent = `${topUser?.[1] || 0} operacións`;
+  }
+
+  function render() {
+    const query = String($('#search').value || '').trim().toLowerCase();
+    const user = $('#user-filter').value;
+    const module = $('#module-filter').value;
+    const from = $('#from').value ? new Date(`${$('#from').value}T00:00:00`) : null;
+    const to = $('#to').value ? new Date(`${$('#to').value}T23:59:59`) : null;
+    const visible = activity.filter((x) => {
+      const d = new Date(x.dataHora);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      if (user && x.email !== user) return false;
+      if (module && x.modulo !== module) return false;
+      if (query && !`${x.email||''} ${x.persoa||''} ${x.modulo||''} ${x.accion||''} ${x.resultado||''} ${x.detalle||''}`.toLowerCase().includes(query)) return false;
+      return true;
+    });
+
+    $('#visible-count').textContent = String(visible.length);
+    $('#rows').innerHTML = visible.map((x) => `<tr>
+      <td>${esc(formatDate(x.dataHora))}</td>
+      <td><strong>${esc(x.persoa || x.email || '—')}</strong>${x.persoa && x.email ? `<small>${esc(x.email)}</small>` : ''}</td>
+      <td>${esc(x.modulo || '—')}</td>
+      <td>${esc(x.accion || '—')}</td>
+      <td><span class="result ${String(x.resultado||'').toLowerCase()==='correcto'?'ok':'other'}">${esc(x.resultado || '—')}</span></td>
+      <td>${esc(x.detalle || '—')}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">Non hai actividade que coincida cos filtros.</td></tr>';
+  }
+
+  async function load() {
+    $('#loading').hidden = false; $('#error').hidden = true; $('#app').hidden = true;
+    try {
+      const user = await waitForPortalUser();
+      if (!user?.email) throw new Error('Non hai unha sesión válida.');
+      $('#user-email').textContent = user.email;
+      const response = await fetch('/api/permisos', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ idToken:await user.getIdToken(), accion:'listarActividadePortal', limite:1000 })
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.ok) throw new Error(data?.erro || 'Non foi posible obter o rexistro.');
+      activity = Array.isArray(data.actividade) ? data.actividade : [];
+      fillFilters(); updateMetrics(); render();
+      $('#loading').hidden = true; $('#app').hidden = false;
+    } catch (error) {
+      $('#loading').hidden = true; $('#error').hidden = false;
+      $('#error-message').textContent = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  $('#apply')?.addEventListener('click', render);
+  $('#search')?.addEventListener('input', render);
+  $('#retry')?.addEventListener('click', load);
+  $('#auditoria-logout')?.addEventListener('click', () => closePortalSession());
+  load();
+</script>
+
+<style is:global>
+body{background:#f5f3f1}.audit-layout{display:flex;min-height:100vh}.audit-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.audit-header{display:flex;justify-content:space-between;gap:2rem;margin-bottom:1.5rem}.audit-header h1{margin:.2rem 0;color:var(--color-principal);font-size:clamp(2rem,4vw,3.4rem)}.audit-header p{max-width:760px;color:#625c58}.section-kicker,.account-card small,.metrics small,.insights small{color:#806f74;font-size:.7rem;font-weight:800;text-transform:uppercase}.account-card{display:grid;align-content:start;min-width:260px;padding:1rem;border:1px solid #ded8d3;background:#fff}.account-card span{display:grid;gap:.2rem}.account-card span+span{margin-top:.7rem;padding-top:.7rem;border-top:1px solid #eee8e5}.state-box,.metrics article,.insights article,.filters,.table-card{border:1px solid #ded8d3;background:#fff}.state-box{padding:1.1rem}.error-box{color:#8b2d36}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-bottom:.8rem}.metrics article,.insights article{padding:1rem}.metrics strong{display:block;margin-top:.2rem;color:var(--color-principal);font-size:1.9rem}.insights{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1rem}.insights strong,.insights span{display:block}.insights strong{margin:.35rem 0;color:#3e3638}.insights span{color:#766b66;font-size:.8rem}.filters{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr)) minmax(200px,2fr) auto;align-items:end;gap:.75rem;padding:1rem;margin-bottom:1rem}.filters label{display:grid;gap:.35rem}.filters label span{font-size:.75rem;font-weight:800;color:#6d6260}.filters input,.filters select{min-height:2.55rem;padding:.55rem;border:1px solid #ccc;background:#fff}.primary,.secondary{min-height:2.55rem;padding:.55rem .9rem;border:1px solid #cfc5c8;background:#fff;font-weight:800;cursor:pointer}.primary{border-color:#5d142b;background:#5d142b;color:#fff}.table-card header{display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid #eee8e5}.table-card h2{margin:.15rem 0;color:var(--color-principal)}.table-wrap{overflow:auto}.table-wrap table{width:100%;border-collapse:collapse}.table-wrap th,.table-wrap td{padding:.75rem;border-bottom:1px solid #eee8e5;text-align:left;vertical-align:top;font-size:.84rem}.table-wrap th{background:#faf8f7;color:#6d6260;font-size:.72rem;text-transform:uppercase}.table-wrap td small{display:block;margin-top:.15rem;color:#806f74}.result{display:inline-flex;padding:.25rem .45rem;background:#f2eeee}.result.ok{background:#edf4ef;color:#3f6c50}.result.other{color:#8b2d36}.empty{text-align:center!important;color:#766b66}@media(max-width:1100px){.filters{grid-template-columns:repeat(2,1fr)}.filters .search{grid-column:1/-1}}@media(max-width:900px){.audit-layout{display:block}.audit-header{display:grid}.metrics{grid-template-columns:repeat(2,1fr)}.insights{grid-template-columns:1fr}.account-card{min-width:0}}@media(max-width:620px){.audit-main{padding:1rem .8rem 2rem}.metrics,.filters{grid-template-columns:1fr}.filters .search{grid-column:auto}}
+</style>
