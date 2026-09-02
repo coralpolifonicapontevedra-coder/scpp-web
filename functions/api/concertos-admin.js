@@ -148,7 +148,8 @@ async function writeJson(bucket, key, value, type) {
 
 function validDraft(value, id) {
   return value?.version === 1 && value?.idConcerto === id &&
-    Array.isArray(value.programa) && Array.isArray(value.persoas) && Array.isArray(value.obras);
+    Array.isArray(value.programa) && Array.isArray(value.persoas) && value.persoas.length > 0 &&
+    Array.isArray(value.obras) && value.obras.length > 0;
 }
 
 function fromManagement(result, id) {
