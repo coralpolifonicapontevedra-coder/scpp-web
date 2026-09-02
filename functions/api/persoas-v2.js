@@ -1,10 +1,11 @@
+import { obterJsonAppsScript } from '../_lib/apps-script.js';
+
 const CACHE_FRESCA_MS = 10 * 60 * 1000;
 const CACHE_RESPALDO_MS = 30 * 24 * 60 * 60 * 1000;
 const ADMIN_R2_PREFIX = 'persoas/cache/administracion/';
 const PERFIS_R2_KEY = 'persoas/cache/perfis.json';
 const CACHE_TOKEN_MS = 10 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8000;
-const TIMEOUT_APPS_SCRIPT_MS = 15000;
 
 const ACCIONS_LECTURA = new Set([
   'listarPersoasAdministracion',
@@ -78,48 +79,19 @@ async function verificarFirebase(idToken, apiKey) {
   return usuario;
 }
 
-function urlAppsScriptPrincipal(env) {
-  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url)
-    ? url
-    : '';
+async function chamarAppsScriptPrincipal(env, body) {
+  const { resultado } = await obterJsonAppsScript(env, body, {
+    timeoutMs: 30000,
+    attemptTimeoutMs: 12000
+  });
+  return resultado;
 }
 
-async function chamarAppsScriptPrincipal(env, body) {
-  const url = urlAppsScriptPrincipal(env);
-  if (!url) {
-    const error = new Error('Non está configurada a implementación principal de Apps Script.');
-    error.code = 'APPS_SCRIPT_NOT_CONFIGURED';
-    throw error;
-  }
-
-  const response = await fetchConLimite(
-    url,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body)
-    },
-    TIMEOUT_APPS_SCRIPT_MS
+function timeoutAppsScript(error) {
+  return error instanceof Error && (
+    error.name === 'AbortError' ||
+    error.code === 'APPS_SCRIPT_TIMEOUT'
   );
-
-  const text = await response.text();
-  let result;
-  try {
-    result = JSON.parse(text);
-  } catch {
-    const error = new Error('Apps Script devolveu unha resposta non válida.');
-    error.code = 'APPS_SCRIPT_INVALID_RESPONSE';
-    error.detail = text.slice(0, 180);
-    throw error;
-  }
-
-  if (!response.ok) {
-    const error = new Error(result?.erro || `Apps Script respondeu HTTP ${response.status}.`);
-    error.code = 'APPS_SCRIPT_HTTP_ERROR';
-    throw error;
-  }
-  return result;
 }
 
 function cacheRequest(request, email) {
@@ -346,7 +318,7 @@ async function executarEscritura(context, user, action, data, duracionFirebase, 
   try {
     result = await chamarAppsScriptPrincipal(context.env, corpoAppsScript(context.env, user, action, extra));
   } catch (error) {
-    const timeout = error instanceof Error && error.name === 'AbortError';
+    const timeout = timeoutAppsScript(error);
     return json(timeout ? 504 : 503, respostaErroAppsScript(error, timeout));
   }
   const duracionAppsScript = Date.now() - inicioAppsScript;
@@ -471,7 +443,7 @@ export async function onRequest(context) {
         });
       }
 
-      const timeout = error instanceof Error && error.name === 'AbortError';
+      const timeout = timeoutAppsScript(error);
       const forbidden = error?.code === 'FORBIDDEN';
       return json(forbidden ? 403 : timeout ? 504 : 503, {
         ok: false,
@@ -499,7 +471,7 @@ export async function onRequest(context) {
       corpoAppsScript(env, user, action, { idPersoa, id: idPersoa })
     );
   } catch (error) {
-    const timeout = error instanceof Error && error.name === 'AbortError';
+    const timeout = timeoutAppsScript(error);
     return json(timeout ? 504 : 503, respostaErroAppsScript(error, timeout));
   }
   const duracionAppsScript = Date.now() - inicioAppsScript;
