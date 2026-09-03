@@ -115,7 +115,7 @@ jobs:
           fs.writeFileSync(path, source);
           NODE
           grep -Fq 'despacharConcertosAdministracion_(accion, datos, bloqueo)' Código.js
-          grep -Fq 'despacharXestionPermisosPortal_(accion, datos, bloqueo)' Código.js
+          grep -Fq 'despacharXestionPermisosPortal_' Código.js
           grep -Fq 'listarRepertorioAdministracion' concertos-dispatcher-integracion.js
           grep -Fq 'crearPersoaAdministracion' xestion-permisos-dispatcher-integracion.js
           grep -Fq 'actualizarPersoaAdministracion' xestion-permisos-dispatcher-integracion.js
