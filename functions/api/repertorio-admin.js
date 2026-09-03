@@ -1,5 +1,8 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 
+const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
+const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
+
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -37,8 +40,15 @@ async function eAdministrador(env, user) {
   return data?.administrador === user.email && data?.payload?.perfil?.nivel === 'Administración';
 }
 
+function urlRepertorioAdministracion(env) {
+  return String(env.CF_PAGES_BRANCH || '').trim() === 'main'
+    ? APPS_SCRIPT_PRODUCION
+    : APPS_SCRIPT_PREVIEW;
+}
+
 const ACCIONS = new Set([
   'listarRepertorioAdministracion',
+  'diagnosticoRepertorioAdministracion',
   'altaObraRepertorioAdministracion',
   'altaAudioRepertorioAdministracion',
   'estadoRecursoRepertorioAdministracion',
@@ -46,6 +56,21 @@ const ACCIONS = new Set([
   'actualizarPartituraRepertorioAdministracion',
   'actualizarAudioRepertorioAdministracion'
 ]);
+
+async function chamar(env, user, accion, body) {
+  const { resultado } = await obterJsonAppsScript(env, {
+    token: env.WEB_WRITE_TOKEN,
+    email: user.email,
+    uidFirebase: user.uid,
+    accion,
+    ...body
+  }, {
+    timeoutMs: 30000,
+    attemptTimeoutMs: 12000,
+    urlOverride: urlRepertorioAdministracion(env)
+  });
+  return resultado;
+}
 
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
@@ -60,15 +85,29 @@ export async function onRequest({ request, env }) {
   if (!ACCIONS.has(accion)) return json(400, { ok: false, erro: 'Acción non permitida.' });
 
   try {
-    const { resultado } = await obterJsonAppsScript(env, {
-      token: env.WEB_WRITE_TOKEN,
-      email: user.email,
-      uidFirebase: user.uid,
-      accion,
-      ...body
-    }, { timeoutMs: 30000, attemptTimeoutMs: 12000 });
-    return json(resultado?.ok ? 200 : 502, resultado || { ok: false, erro: 'Resposta baleira.' });
+    const resultado = await chamar(env, user, accion, body);
+    if (resultado?.ok) return json(200, resultado);
+
+    if (accion === 'listarRepertorioAdministracion') {
+      let diagnostico = null;
+      try { diagnostico = await chamar(env, user, 'diagnosticoRepertorioAdministracion', {}); } catch (e) {
+        diagnostico = { ok: false, erro: e instanceof Error ? e.message : String(e) };
+      }
+      return json(502, {
+        ok: false,
+        codigo: resultado?.codigo || 'REPERTORIO_ADMIN_LIST_ERROR',
+        erro: resultado?.erro || diagnostico?.erro || 'Non foi posible completar a operación.',
+        diagnostico: resultado?.diagnostico || diagnostico?.probas || diagnostico
+      });
+    }
+
+    return json(502, resultado || { ok: false, erro: 'Resposta baleira.' });
   } catch (error) {
-    return json(502, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible acceder á administración do repertorio.' });
+    return json(502, {
+      ok: false,
+      codigo: error?.code || 'REPERTORIO_ADMIN_TRANSPORT_ERROR',
+      erro: error instanceof Error ? error.message : 'Non foi posible acceder á administración do repertorio.',
+      detalle: String(error?.stack || '')
+    });
   }
 }
