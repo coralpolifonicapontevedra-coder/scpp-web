@@ -37,20 +37,27 @@
       badge.className = 'scpp-alta-pending-badge';
       badges.append(badge);
     }
-    badge.textContent = 'Pendente de completar ficha';
+    if (badge.textContent !== 'Pendente de completar ficha') {
+      badge.textContent = 'Pendente de completar ficha';
+    }
   }
 
   function renderPendingOptions() {
     const select = document.querySelector('#person-select');
     if (!(select instanceof HTMLSelectElement)) return;
+
     Array.from(select.options).forEach((option) => {
       if (!option.value) return;
-      const original = option.dataset.scppOriginalLabel || option.textContent || '';
-      option.dataset.scppOriginalLabel = original.replace(/ · PENDENTE DE COMPLETAR$/, '');
-      option.textContent = estadoAlta(option.value) === 'PENDENTE'
+      if (!option.dataset.scppOriginalLabel) {
+        option.dataset.scppOriginalLabel = String(option.textContent || '')
+          .replace(/ · PENDENTE DE COMPLETAR$/, '');
+      }
+      const target = estadoAlta(option.value) === 'PENDENTE'
         ? `${option.dataset.scppOriginalLabel} · PENDENTE DE COMPLETAR`
         : option.dataset.scppOriginalLabel;
+      if (option.textContent !== target) option.textContent = target;
     });
+
     renderAltaBadge();
   }
 
@@ -60,6 +67,7 @@
       renderPendingOptions();
       return;
     }
+
     statesLoading = true;
     try {
       const response = await previousFetch('/api/persoas-estados-alta', {
@@ -69,6 +77,7 @@
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.ok !== true || !Array.isArray(result?.estados)) return;
+
       altaStates.clear();
       result.estados.forEach((item) => {
         const state = String(item?.estadoAlta || '').trim();
@@ -92,19 +101,19 @@
       if (url.includes('/api/persoas-v2') && init?.body) {
         const body = JSON.parse(String(init.body));
         const token = String(body?.idToken || '').trim();
-        if (token && token !== lastIdToken) {
+        if (token) {
+          const changed = token !== lastIdToken;
           lastIdToken = token;
-          statesLoadedForToken = '';
-          queueMicrotask(() => loadAltaStates());
-        } else if (token) {
-          lastIdToken = token;
+          if (changed) {
+            statesLoadedForToken = '';
+            queueMicrotask(() => loadAltaStates());
+          }
         }
       }
     } catch {
       // Non interromper nunca as peticións normais da páxina.
     }
-    const response = await previousFetch(input, init);
-    return response;
+    return previousFetch(input, init);
   };
 
   function state(message, error = false) {
@@ -180,7 +189,11 @@
   }
 
   function createPanel() {
-    if (document.querySelector('#scpp-invite-panel')) return;
+    if (document.querySelector('#scpp-invite-panel')) {
+      panel = document.querySelector('#scpp-invite-panel');
+      return;
+    }
+
     const section = document.createElement('section');
     section.id = 'scpp-invite-panel';
     section.hidden = true;
@@ -215,12 +228,18 @@
     style.textContent = `#scpp-invite-panel[hidden]{display:none!important}#scpp-invite-panel{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:1rem;background:rgba(31,25,24,.52)}.scpp-invite-card{width:min(620px,100%);max-height:90vh;overflow:auto;background:#fff;border:1px solid #d8d1cb;padding:1.35rem;box-shadow:0 18px 55px rgba(0,0,0,.22)}.scpp-invite-card form{display:grid;gap:.85rem}.scpp-invite-card label{display:grid;gap:.35rem}.scpp-invite-card input{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2}.scpp-invite-card footer{display:flex;justify-content:flex-end;gap:.65rem;flex-wrap:wrap}.scpp-invite-state[data-error="true"]{color:#8b2530}.scpp-alta-pending-badge{display:inline-flex;align-items:center;padding:.28rem .55rem;border:1px solid #a47b28;border-radius:999px;background:#fff8e8;color:#6e5018;font-size:.72rem;font-weight:800;letter-spacing:.02em}`;
     document.head.append(style);
 
-    section.querySelector('[data-invite-close]')?.addEventListener('click', () => { if (!creating) section.hidden = true; });
+    section.querySelector('[data-invite-close]')?.addEventListener('click', () => {
+      if (!creating) section.hidden = true;
+    });
     section.querySelector('[data-invite-send]')?.addEventListener('click', sendGeneratedLink);
     section.querySelector('[data-invite-copy]')?.addEventListener('click', async () => {
       if (!generatedLink) return;
-      try { await navigator.clipboard.writeText(generatedLink); state('Ligazón copiada.'); }
-      catch { state('Non foi posible copiar automaticamente. Selecciona a ligazón e cópiaa.', true); }
+      try {
+        await navigator.clipboard.writeText(generatedLink);
+        state('Ligazón copiada.');
+      } catch {
+        state('Non foi posible copiar automaticamente. Selecciona a ligazón e cópiaa.', true);
+      }
     });
     section.querySelector('form')?.addEventListener('submit', submitInvitation);
   }
@@ -278,6 +297,7 @@
     if (document.querySelector('#invite-person-button')) return;
     const manual = document.querySelector('#new-person-button');
     if (!(manual instanceof HTMLButtonElement)) return;
+
     const button = document.createElement('button');
     button.id = 'invite-person-button';
     button.type = 'button';
@@ -299,11 +319,20 @@
     }
   });
 
+  // O observador só espera a que a páxina principal cree o botón de alta manual.
+  // Non renderiza etiquetas: facelo aquí provocaba un bucle de MutationObserver.
   const observer = new MutationObserver(() => {
     injectButton();
-    renderPendingOptions();
+    if (document.querySelector('#invite-person-button')) observer.disconnect();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { injectButton(); renderPendingOptions(); }, { once: true });
-  else { injectButton(); renderPendingOptions(); }
+
+  const start = () => {
+    injectButton();
+    if (document.querySelector('#invite-person-button')) observer.disconnect();
+    renderPendingOptions();
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
 })();
