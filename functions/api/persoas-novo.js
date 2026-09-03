@@ -20,9 +20,10 @@ export async function onRequest({request,env}){
   let data;try{data=await request.json();}catch{return json(400,{ok:false,erro:'Petición non válida'});}
   const user=await firebaseUser(data.idToken,env.FIREBASE_API_KEY);if(!user)return json(401,{ok:false,erro:'Sesión non válida'});
   const action=String(data.accion||'').trim();
-  const mapa={listar:'persoasNovoListar',crear:'persoasNovoCrear',crearInvitacion:'persoasNovoCrear',actualizar:'persoasNovoActualizar',estado:'persoasNovoEstado'};
+  const mapa={listar:'listarPersoasAdministracion',crear:'persoasNovoCrear',crearInvitacion:'persoasNovoCrear',actualizar:'persoasNovoActualizar',estado:'persoasNovoEstado'};
   const accion=mapa[action];if(!accion)return json(400,{ok:false,erro:'Acción non permitida'});
   const extra={};
+  if(action==='listar')extra.incluirTextoLegalPersoas=true;
   if(data.persoa&&typeof data.persoa==='object')extra.persoa=data.persoa;
   if(data.idPersoa)extra.idPersoa=String(data.idPersoa);
   if(typeof data.activo==='boolean')extra.activo=data.activo;
@@ -30,5 +31,5 @@ export async function onRequest({request,env}){
   if(action==='crearInvitacion')extra.modo='invitacion';
   let result;try{result=await apps(env,user,accion,extra);}catch(error){return json(503,{ok:false,etapa:'APPS_SCRIPT',erro:error instanceof Error?error.message:'Fallou Apps Script'});}
   if(!result?.ok)return json(result?.erro==='Usuario non autorizado'?403:400,{ok:false,etapa:'APPS_SCRIPT_RESULT',erro:result?.erro||'Non foi posible completar a operación'});
-  return json(200,{...result,api:'persoas-novo-v1'});
+  return json(200,{...result,api:'persoas-novo-v2'});
 }
