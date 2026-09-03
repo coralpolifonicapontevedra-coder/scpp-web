@@ -2,6 +2,14 @@
   const path = window.location.pathname.replace(/\/+$/, '');
   if (path !== '/portal/administracion/persoas') return;
 
+  if (!document.querySelector('script[data-scpp-persoas-invitacion]')) {
+    const invitationScript = document.createElement('script');
+    invitationScript.src = '/js/persoas-alta-invitacion.js';
+    invitationScript.defer = true;
+    invitationScript.dataset.scppPersoasInvitacion = 'true';
+    document.head.append(invitationScript);
+  }
+
   const originalFetch = window.fetch.bind(window);
   let lastIdToken = '';
   let envioEnCurso = false;
