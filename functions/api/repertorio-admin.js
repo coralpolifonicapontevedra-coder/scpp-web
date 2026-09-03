@@ -15,6 +15,7 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 });
 
 const clean = (value) => String(value || '').trim();
+const truth = (value) => value === true || ['Y', 'SI', 'SÍ', 'TRUE', '1', 'YES'].includes(clean(value).toUpperCase());
 
 function ramaActual(env) {
   return String(env.CF_PAGES_BRANCH || '').trim() === 'main' ? 'main' : 'preview';
@@ -54,6 +55,13 @@ function valorCacheSheet(key, value) {
     return value ? 'Y' : 'N';
   }
   return value;
+}
+
+function coincideCampoPartitura(key, esperado, actual) {
+  if (key === 'Principal' || key === 'Pública' || key === 'Activa') {
+    return truth(esperado) === truth(actual);
+  }
+  return clean(esperado) === clean(actual);
 }
 
 async function actualizarCacheTrasEscritura(env, accion, body) {
@@ -166,6 +174,26 @@ async function chamar(env, user, accion, body) {
     urlOverride: urlRepertorioAdministracion(env)
   });
   return resultado;
+}
+
+async function verificarPartituraGardada(env, user, body) {
+  const id = clean(body?.id);
+  const datos = body?.datos;
+  if (!id || !datos || typeof datos !== 'object') return null;
+
+  const listado = await chamar(env, user, 'listarRepertorioAdministracion', {});
+  if (!listado?.ok || !Array.isArray(listado.partituras)) return null;
+
+  const fila = listado.partituras.find((item) => clean(item?.Id_Partitura) === id);
+  if (!fila) return null;
+
+  const campos = Object.keys(datos);
+  if (!campos.length) return null;
+  const coincide = campos.every((key) => coincideCampoPartitura(key, datos[key], fila[key]));
+  if (!coincide) return null;
+
+  await gardarCacheListado(env, listado).catch(() => {});
+  return fila;
 }
 
 function nomeSeguro(valor) {
@@ -298,8 +326,32 @@ export async function onRequest({ request, env }) {
       return json(200, resultado);
     }
 
+    if (accion === 'actualizarPartituraRepertorioAdministracion') {
+      const filaVerificada = await verificarPartituraGardada(env, user, body).catch(() => null);
+      if (filaVerificada) {
+        return json(200, {
+          ok: true,
+          id: clean(body.id),
+          verificadoNaSheet: true,
+          registro: filaVerificada
+        });
+      }
+    }
+
     return json(502, resultado || { ok: false, erro: 'Resposta baleira.' });
   } catch (error) {
+    if (accion === 'actualizarPartituraRepertorioAdministracion') {
+      const filaVerificada = await verificarPartituraGardada(env, user, body).catch(() => null);
+      if (filaVerificada) {
+        return json(200, {
+          ok: true,
+          id: clean(body.id),
+          verificadoNaSheet: true,
+          registro: filaVerificada
+        });
+      }
+    }
+
     return json(502, {
       ok: false,
       codigo: error?.code || 'REPERTORIO_ADMIN_TRANSPORT_ERROR',
