@@ -1,5 +1,6 @@
+import { obterJsonAppsScript } from '../_lib/apps-script.js';
+
 const TIMEOUT_FIREBASE_MS = 8000;
-const TIMEOUT_APPS_SCRIPT_MS = 15000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -38,28 +39,25 @@ async function verificarFirebase(idToken, apiKey) {
   return { uid: String(user.localId || ''), email: String(user.email).trim().toLowerCase() };
 }
 
-function urlAppsScriptPrincipal(env) {
-  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) ? url : '';
-}
-
 async function chamarAppsScript(env, body) {
-  const url = urlAppsScriptPrincipal(env);
-  if (!url || !env.WEB_WRITE_TOKEN) throw new Error('Apps Script non está configurado.');
-  const response = await fetchConLimite(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ token: env.WEB_WRITE_TOKEN, ...body })
-  }, TIMEOUT_APPS_SCRIPT_MS);
-  const text = await response.text();
-  let result;
-  try { result = JSON.parse(text); } catch { throw new Error('Apps Script devolveu unha resposta non válida.'); }
-  if (!response.ok || !result?.ok) throw new Error(result?.erro || `Apps Script respondeu HTTP ${response.status}.`);
-  return result;
+  const { resultado } = await obterJsonAppsScript(env, body, {
+    timeoutMs: 30000,
+    attemptTimeoutMs: 12000
+  });
+  if (!resultado?.ok) throw new Error(resultado?.erro || 'Apps Script non completou a operación.');
+  return resultado;
 }
 
 function clean(value, max) {
   return String(value || '').trim().slice(0, max);
+}
+
+function eTimeout(error) {
+  return error instanceof Error && (
+    error.name === 'AbortError' ||
+    error.code === 'APPS_SCRIPT_TIMEOUT' ||
+    /aborted|timeout|tardou demasiado/i.test(error.message)
+  );
 }
 
 export async function onRequest(context) {
@@ -95,6 +93,12 @@ export async function onRequest(context) {
       estadoAlta: String(result.estadoAlta || 'PENDENTE')
     });
   } catch (error) {
-    return json(400, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible crear a alta por invitación.' });
+    const timeout = eTimeout(error);
+    return json(timeout ? 504 : 400, {
+      ok: false,
+      erro: timeout
+        ? 'Apps Script tardou demasiado en responder. Inténtao de novo.'
+        : (error instanceof Error ? error.message : 'Non foi posible crear a alta por invitación.')
+    });
   }
 }
