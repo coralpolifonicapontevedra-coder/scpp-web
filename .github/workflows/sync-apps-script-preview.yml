@@ -53,16 +53,20 @@ jobs:
           printf '%s' "$CLASP_CREDENTIALS_PREVIEW" > "$HOME/.clasprc.json"
           chmod 600 "$HOME/.clasprc.json"
 
-      - name: Integrar dispatcher de Repertorio en Código Preview
+      - name: Integrar dispatchers administrativos en Código Preview
         working-directory: apps-script-preview
         shell: bash
         run: |
           set -euo pipefail
+          test -f repertorio-administracion.js
+          test -f xestion-permisos-dispatcher-integracion.js
+          test -f persoas-novo.js
           python3 - <<'PY'
           from pathlib import Path
           path = Path('Código.js')
           text = path.read_text(encoding='utf-8')
-          marker = "    if (accion === 'listarAsistenciasConcertosPortal') {"
+
+          marker_rep = "    if (accion === 'listarAsistenciasConcertosPortal') {"
           begin = "    // SCPP_PREVIEW_REPERTORIO_ADMIN_BEGIN\n"
           end = "    // SCPP_PREVIEW_REPERTORIO_ADMIN_END\n"
           lines = [
@@ -81,12 +85,36 @@ jobs:
               finish = text.index(end, start) + len(end)
               text = text[:start] + block.rstrip('\n') + text[finish:]
           else:
+              if marker_rep not in text:
+                  raise SystemExit('BLOQUEADO: non se atopou o punto de integración de Repertorio')
+              text = text.replace(marker_rep, block + marker_rep, 1)
+
+          persoas_call = 'despacharXestionPermisosPortal_(accion, datos, bloqueo)'
+          if persoas_call not in text:
+              marker = "    rexistrarAcceso({\n      email: correo,\n      tipoEvento: String(\n        accion || 'Acción descoñecida'"
               if marker not in text:
-                  raise SystemExit('BLOQUEADO: non se atopou o punto de integración en Código.js')
-              text = text.replace(marker, block + marker, 1)
+                  raise SystemExit('BLOQUEADO: non se atopou o punto seguro antes de Acción non permitida')
+              hook = """    const respostaPermisosAdmin =
+      despacharXestionPermisosPortal_(
+        accion,
+        datos,
+        bloqueo
+      );
+
+    if (respostaPermisosAdmin !== null) {
+      return respostaJSON(respostaPermisosAdmin);
+    }
+
+"""
+              text = text.replace(marker, hook + marker, 1)
+
           path.write_text(text, encoding='utf-8')
-          print('Dispatcher de Repertorio integrado para Preview.')
+          print('Dispatchers de Repertorio e Persoas integrados para Preview.')
           PY
+          grep -Fq 'despacharXestionPermisosPortal_' Código.js
+          grep -Fq 'persoasNovoCrear' xestion-permisos-dispatcher-integracion.js
+          grep -Fq 'persoasNovoActualizar' xestion-permisos-dispatcher-integracion.js
+          grep -Fq 'persoasNovoEstado' xestion-permisos-dispatcher-integracion.js
 
       - name: Comprobar ficheiros a subir
         working-directory: apps-script-preview
