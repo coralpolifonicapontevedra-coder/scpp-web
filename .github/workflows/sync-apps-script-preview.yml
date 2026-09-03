@@ -60,22 +60,22 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-
           path = Path('Código.js')
           text = path.read_text(encoding='utf-8')
           marker = "    if (accion === 'listarAsistenciasConcertosPortal') {"
           begin = "    // SCPP_PREVIEW_REPERTORIO_ADMIN_BEGIN\n"
           end = "    // SCPP_PREVIEW_REPERTORIO_ADMIN_END\n"
-          block = begin + """    if (accion === 'listarRepertorioAdministracion') return respostaJSON(listarRepertorioAdministracion_());
-    if (accion === 'diagnosticoRepertorioAdministracion') return respostaJSON(diagnosticoRepertorioAdministracion_());
-    if (accion === 'altaObraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(altaObraRepertorioAdministracion_(datos)); }
-    if (accion === 'altaAudioRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(altaAudioRepertorioAdministracion_(datos)); }
-    if (accion === 'estadoRecursoRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(estadoRecursoRepertorioAdministracion_(datos)); }
-    if (accion === 'actualizarObraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarObraRepertorioAdministracion_(datos)); }
-    if (accion === 'actualizarPartituraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarPartituraRepertorioAdministracion_(datos)); }
-    if (accion === 'actualizarAudioRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarAudioRepertorioAdministracion_(datos)); }
-""" + end + "\n"
-
+          lines = [
+              "    if (accion === 'listarRepertorioAdministracion') return respostaJSON(listarRepertorioAdministracion_());",
+              "    if (accion === 'diagnosticoRepertorioAdministracion') return respostaJSON(diagnosticoRepertorioAdministracion_());",
+              "    if (accion === 'altaObraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(altaObraRepertorioAdministracion_(datos)); }",
+              "    if (accion === 'altaAudioRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(altaAudioRepertorioAdministracion_(datos)); }",
+              "    if (accion === 'estadoRecursoRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(estadoRecursoRepertorioAdministracion_(datos)); }",
+              "    if (accion === 'actualizarObraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarObraRepertorioAdministracion_(datos)); }",
+              "    if (accion === 'actualizarPartituraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarPartituraRepertorioAdministracion_(datos)); }",
+              "    if (accion === 'actualizarAudioRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarAudioRepertorioAdministracion_(datos)); }",
+          ]
+          block = begin + "\n".join(lines) + "\n" + end + "\n"
           if begin in text and end in text:
               start = text.index(begin)
               finish = text.index(end, start) + len(end)
@@ -84,7 +84,6 @@ jobs:
               if marker not in text:
                   raise SystemExit('BLOQUEADO: non se atopou o punto de integración en Código.js')
               text = text.replace(marker, block + marker, 1)
-
           path.write_text(text, encoding='utf-8')
           print('Dispatcher de Repertorio integrado para Preview.')
           PY
