@@ -158,6 +158,11 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
   }
 
   document.querySelectorAll<HTMLElement>('.private-sidebar').forEach((sidebar) => {
+    const layout = sidebar.parentElement;
+    if (layout?.matches('.private-layout, .layout')) {
+      layout.classList.add('private-layout-with-sidebar');
+    }
+
     const toggle = sidebar.querySelector<HTMLButtonElement>('.private-mobile-toggle');
     const panel = sidebar.querySelector<HTMLElement>('.private-navigation-panel');
     if (!toggle || !panel) return;
@@ -238,9 +243,12 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
   .private-sidebar-footer a, .private-sidebar-footer button { width: 100%; cursor: pointer; }
   .private-public-link { color: var(--color-principal) !important; }
   @media (max-width: 900px) {
+    :global(.private-layout-with-sidebar) { display: block !important; width: 100%; min-width: 0; }
+    :global(.private-layout-with-sidebar > main) { width: 100%; max-width: 100%; min-width: 0; }
+    :global(.private-layout-with-sidebar > main > *) { min-width: 0; max-width: 100%; }
     :global(body .portal-sidebar-container) { position: relative; width: 100%; height: auto; }
     :global(body .portal-sidebar-container .private-sidebar) { position: relative !important; width: 100% !important; height: auto !important; }
-    .private-sidebar { position: relative; width: 100%; height: auto; padding: 1rem; border-right: 0; border-bottom: 1px solid #e7e3df; }
+    .private-sidebar { position: relative; width: 100%; max-width: 100%; height: auto; padding: 1rem; border-right: 0; border-bottom: 1px solid #e7e3df; }
     .private-brand { grid-template-columns: 48px minmax(0, 1fr); padding-bottom: 1rem; }
     .private-crest { width: 44px; height: 60px; }
     .private-menu { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -248,6 +256,7 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
     .private-sidebar-footer { grid-template-columns: 1fr 1fr; margin-top: .8rem; }
   }
   @media (max-width: 620px) {
+    :global(.private-layout-with-sidebar > main) { overflow-x: clip; }
     .private-sidebar { padding: .85rem 1rem 1rem; overflow: visible; }
     .private-brand { padding-bottom: .75rem; }
     .private-menu-title { display: none; }
