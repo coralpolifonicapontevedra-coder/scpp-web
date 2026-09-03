@@ -60,10 +60,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -f configuracion-entorno.js
           test -f repertorio-administracion.js
           test -f concertos-dispatcher-integracion.js
           test -f xestion-permisos-dispatcher-integracion.js
           test -f persoas-texto-legal-revision.js
+          grep -Fq 'function validarAccionPermitidaEntorno_' configuracion-entorno.js
           node <<'NODE'
           const fs = require('fs');
           const path = 'Código.js';
