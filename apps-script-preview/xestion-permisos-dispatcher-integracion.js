@@ -25,6 +25,7 @@ var ACCIONS_ADMIN_XESTION_PERMISOS_ = [
 var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
   'crearPersoaAdministracion',
   'crearPersoaInvitacionAdministracion',
+  'listarEstadosAltaPersoasAdministracion',
   'actualizarPersoaAdministracion',
   'completarAltaPersoaAdministracion',
   'cambiarEstadoPersoaAdministracion',
@@ -42,6 +43,10 @@ function despacharPersoasAdministracionPortal_(accion, datos) {
 
   if (accion === 'crearPersoaInvitacionAdministracion') {
     return crearPersoaInvitacionAdministracion_(datos);
+  }
+
+  if (accion === 'listarEstadosAltaPersoasAdministracion') {
+    return listarEstadosAltaPersoasAdministracion_(datos);
   }
 
   if (accion === 'actualizarPersoaAdministracion') {
@@ -113,19 +118,23 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
             accion === 'crearPersoaInvitacionAdministracion'
               ? 'Crear alta por invitación'
               : (
-                accion === 'actualizarPersoaAdministracion'
-                  ? 'Actualizar persoa'
+                accion === 'listarEstadosAltaPersoasAdministracion'
+                  ? 'Consultar estados de alta'
                   : (
-                    accion === 'completarAltaPersoaAdministracion'
-                      ? 'Completar alta por invitación'
+                    accion === 'actualizarPersoaAdministracion'
+                      ? 'Actualizar persoa'
                       : (
-                        accion === 'cambiarEstadoPersoaAdministracion'
-                          ? (
-                            respostaPersoas.activo
-                              ? 'Reactivar persoa'
-                              : 'Dar de baixa persoa'
+                        accion === 'completarAltaPersoaAdministracion'
+                          ? 'Completar alta por invitación'
+                          : (
+                            accion === 'cambiarEstadoPersoaAdministracion'
+                              ? (
+                                respostaPersoas.activo
+                                  ? 'Reactivar persoa'
+                                  : 'Dar de baixa persoa'
+                              )
+                              : 'Envío masivo de revisións'
                           )
-                          : 'Envío masivo de revisións'
                       )
                   )
               )
