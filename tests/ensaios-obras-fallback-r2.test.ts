@@ -12,6 +12,6 @@ describe('Ensaios obras para coralistas', () => {
 
   it('non devolve cero obras só porque falte o borrador', () => {
     expect(source).toContain('fallbackRepertorio');
-    expect(source).toContain('repertorio:draftRepertorio.length?draftRepertorio:fallbackRepertorio');
+    expect(source).toContain('const repertorio=draftRepertorio.length?draftRepertorio:fallbackRepertorio.length?fallbackRepertorio:concertRepertorio');
   });
 });
