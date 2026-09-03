@@ -1,30 +1,46 @@
-import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
+const TIMEOUT_FIREBASE_MS = 8_000;
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
-const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
-const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
+const CONCERT_INDEX_KEY = 'indices/concertos-privado-v1.json';
+const ATTENDANCE_INDEX_KEY = 'indices/asistencias-concertos.json';
 
 const clean = (value) => String(value || '').trim();
-const json = (status, body) => new Response(JSON.stringify(body), {
+const rama = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
+const concertIndexKey = (env) => rama(env) === 'main' ? CONCERT_INDEX_KEY : 'indices/preview/concertos-privado-v1.json';
+const attendanceIndexKey = (env) => rama(env) === 'main' ? ATTENDANCE_INDEX_KEY : 'indices/preview/asistencias-concertos.json';
+
+const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   status,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'private, no-store',
-    'X-Content-Type-Options': 'nosniff'
+    'X-Content-Type-Options': 'nosniff',
+    ...extra
   }
 });
 
-const rama = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
-const esperadoAppsScript = (env) => rama(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
+async function fetchWithTimeout(url, options = {}, timeoutMs = TIMEOUT_FIREBASE_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function verificarFirebase(idToken, apiKey) {
   const token = clean(idToken);
   if (!token || !apiKey) return null;
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken: token })
-  });
+  const response = await fetchWithTimeout(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token })
+    }
+  );
   if (!response.ok) return null;
   const data = (await response.json())?.users?.[0];
   if (!data?.email || data.emailVerified !== true) return null;
@@ -32,61 +48,175 @@ async function verificarFirebase(idToken, apiKey) {
 }
 
 async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean(email).toLowerCase()));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(clean(email).toLowerCase())
+  );
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function verificarAdministracionR2(env, user) {
-  if (!env.R2_PRIVADO?.get) return false;
-  const object = await env.R2_PRIVADO.get(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
-  if (!object) return false;
-  const entry = await object.json().catch(() => null);
-  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
-}
-
-function verificarEntorno(env) {
-  if (clean(env.APPS_SCRIPT_WEBAPP_URL) !== esperadoAppsScript(env)) {
-    throw new Error(`O contorno ${rama(env)} non está conectado ao Apps Script esperado. Operación cancelada por seguridade.`);
+async function comprobarAdministracionR2(env, user) {
+  if (!env.R2_PRIVADO?.get) return { allowed: false, known: false };
+  try {
+    const object = await env.R2_PRIVADO.get(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
+    if (!object) return { allowed: false, known: false };
+    const entry = await object.json().catch(() => null);
+    const allowed = clean(entry?.administrador).toLowerCase() === user.email
+      && entry?.payload?.perfil?.nivel === 'Administración';
+    return { allowed, known: true };
+  } catch (error) {
+    console.error('Erro ao comprobar o fallback administrativo de Concertos:', error);
+    return { allowed: false, known: false };
   }
 }
 
-async function listarDesdeSheet(env, user) {
-  const { resultado } = await obterJsonAppsScript(env, {
-    token: env.WEB_WRITE_TOKEN,
-    accion: 'listarConcertosAdministracionPortal',
-    email: user.email,
-    uidFirebase: user.uid
-  }, { timeoutMs: 20000, attemptTimeoutMs: 8000 });
-
-  const payload = resultado?.resultado || resultado;
-  if (!payload?.ok || !Array.isArray(payload?.concertos)) {
-    throw new Error(payload?.erro || 'Non foi posible ler os concertos da Sheet.');
+async function comprobarAccesoConcertos(context, user) {
+  const { env } = context;
+  const cacheado = await obterPermisoPortalCacheado(env, user, 'concertos');
+  if (cacheado?.podeLer) {
+    return { allowed: true, known: true, nivel: cacheado.nivel, fonte: cacheado.fonte };
   }
-  return payload;
+
+  const administration = await comprobarAdministracionR2(env, user);
+  if (administration.allowed) {
+    const preparar = obterPermisoPortal(env, user, 'concertos').catch((error) => {
+      console.warn('Non se puido preparar a caché común do permiso Concertos:', error);
+    });
+    if (typeof context.waitUntil === 'function') context.waitUntil(preparar);
+    else preparar.catch(() => {});
+    return { allowed: true, known: true, nivel: 'administracion', fonte: 'ADMIN_R2_FALLBACK' };
+  }
+
+  let permiso = cacheado;
+  if (!permiso) {
+    try {
+      permiso = await obterPermisoPortal(env, user, 'concertos');
+    } catch (error) {
+      console.error('Erro ao resolver o permiso común de Concertos:', error);
+    }
+  }
+
+  if (permiso?.podeLer) {
+    return { allowed: true, known: true, nivel: permiso.nivel, fonte: permiso.fonte };
+  }
+
+  return {
+    allowed: false,
+    known: Boolean(permiso?.ok) || administration.known,
+    nivel: permiso?.nivel || 'sen_acceso',
+    fonte: permiso?.fonte || (administration.known ? 'ADMIN_R2' : 'UNAVAILABLE')
+  };
 }
 
-export async function onRequest({ request, env }) {
-  if (request.method !== 'POST') return json(405, { ok:false, erro:'Método non permitido.' });
-  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) return json(500, { ok:false, erro:'O servizo non está configurado.' });
+async function readJson(bucket, key) {
+  if (!bucket?.get) return null;
+  const object = await bucket.get(key);
+  if (!object) return null;
+  return object.json().catch(() => null);
+}
 
-  try { verificarEntorno(env); }
-  catch (error) { return json(409, { ok:false, erro:error?.message || 'Contorno non válido.' }); }
+async function readWithFallback(bucket, primary, fallback) {
+  const first = await readJson(bucket, primary);
+  if (first || primary === fallback) return first;
+  return readJson(bucket, fallback);
+}
+
+function estadoConcerto(value) {
+  const normal = clean(value).toLowerCase();
+  return {
+    previsto: 'Previsto',
+    confirmado: 'Confirmado',
+    aprazado: 'Aprazado',
+    cancelado: 'Cancelado',
+    realizado: 'Realizado'
+  }[normal] || clean(value);
+}
+
+async function listarDesdeR2(env) {
+  const [index, attendance] = await Promise.all([
+    readWithFallback(env.R2_PRIVADO, concertIndexKey(env), CONCERT_INDEX_KEY),
+    readWithFallback(env.R2_PRIVADO, attendanceIndexKey(env), ATTENDANCE_INDEX_KEY)
+  ]);
+
+  if (!index?.ok || !Array.isArray(index.concertos)) {
+    throw Object.assign(new Error('O índice privado de concertos non está dispoñible.'), {
+      code: 'R2_CONCERT_INDEX_MISSING'
+    });
+  }
+
+  const porConcerto = attendance?.resultado?.asistenciasPorConcerto || {};
+  const today = new Date().toISOString().slice(0, 10);
+  return index.concertos
+    .filter((concerto) => !clean(concerto.id).startsWith('hist-') && (!clean(concerto.data) || clean(concerto.data) >= today))
+    .map((concerto) => ({
+      idConcerto: clean(concerto.id),
+      data: clean(concerto.data),
+      nome: clean(concerto.nome),
+      cidade: clean(concerto.cidade),
+      lugar: clean(concerto.lugar),
+      hora: clean(concerto.hora),
+      estado: estadoConcerto(concerto.estado),
+      mostrarWeb: concerto.mostrarWeb === true,
+      destacadoWeb: concerto.destacadoWeb === true,
+      caracteristicas: clean(concerto.caracteristicas),
+      cartel: clean(concerto.cartel),
+      triptico: clean(concerto.triptico),
+      asistencias: Array.isArray(porConcerto[clean(concerto.id)]) ? porConcerto[clean(concerto.id)].length : 0,
+      obras: Array.isArray(concerto.programa) ? concerto.programa.length : 0
+    }))
+    .filter((concerto) => concerto.idConcerto)
+    .sort((a, b) => String(b.data).localeCompare(String(a.data)));
+}
+
+export async function onRequest(context) {
+  const { request, env } = context;
+  if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
+  if (!env.FIREBASE_API_KEY || !env.R2_PRIVADO) {
+    return json(500, { ok: false, erro: 'O servizo de Concertos non está configurado.' });
+  }
 
   const body = await request.json().catch(() => null);
-  const user = await verificarFirebase(body?.idToken, env.FIREBASE_API_KEY).catch(() => null);
-  if (!user) return json(401, { ok:false, erro:'A identificación non é válida ou caducou.' });
-  if (!(await verificarAdministracionR2(env, user))) return json(403, { ok:false, erro:'Usuario non autorizado para Administración.' });
+  if (!body) return json(400, { ok: false, erro: 'Solicitude non válida.' });
+
+  let user;
+  try {
+    user = await verificarFirebase(body.idToken, env.FIREBASE_API_KEY);
+  } catch (error) {
+    console.error('Erro ao validar Firebase na lista de Concertos:', error);
+    return json(503, { ok: false, erro: 'Non foi posible validar a sesión.' });
+  }
+  if (!user) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou.' });
+
+  const acceso = await comprobarAccesoConcertos(context, user);
+  if (!acceso.allowed) {
+    return json(acceso.known ? 403 : 503, {
+      ok: false,
+      codigo: acceso.known ? 'CONCERTOS_PERMISSION_REQUIRED' : 'PERMISSION_UNAVAILABLE',
+      erro: acceso.known
+        ? 'Non tes permiso para consultar a administración de concertos.'
+        : 'Non foi posible comprobar o permiso de acceso neste momento.'
+    }, { 'X-SCPP-Permission-Source': acceso.fonte || 'UNAVAILABLE' });
+  }
 
   try {
-    const payload = await listarDesdeSheet(env, user);
+    const concertos = await listarDesdeR2(env);
     return json(200, {
-      ok:true,
-      nivel:payload.nivel || 'Administración',
-      concertos:payload.concertos,
-      almacen:rama(env) === 'main' ? 'SHEET-PRODUCION' : 'SHEET-PROBAS',
-      fonte:rama(env) === 'main' ? 'CONCERTOS_SPREADSHEET_ID-MAIN' : 'CONCERTOS_SPREADSHEET_ID-PREVIEW'
+      ok: true,
+      nivel: acceso.nivel || 'administracion',
+      concertos,
+      almacen: 'R2',
+      fonte: rama(env) === 'main' ? 'R2-CONCERTOS-PRODUCION' : 'R2-CONCERTOS-PREVIEW'
+    }, {
+      'X-SCPP-Permission-Source': acceso.fonte || 'UNKNOWN',
+      'X-SCPP-Permission-Level': acceso.nivel || 'sen_acceso',
+      'X-SCPP-Storage': 'R2'
     });
   } catch (error) {
-    return json(502, { ok:false, erro:error?.message || 'Non foi posible listar os concertos da Sheet.' });
+    console.error('Erro ao listar Concertos desde R2:', error);
+    return json(503, {
+      ok: false,
+      codigo: error?.code || 'R2_UNAVAILABLE',
+      erro: error?.message || 'Non foi posible cargar os concertos desde R2.'
+    });
   }
 }
