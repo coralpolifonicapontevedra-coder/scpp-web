@@ -1,0 +1,226 @@
+name: Ajuste visual Repertorio Preview
+
+on:
+  push:
+    branches: [preview]
+    paths:
+      - '.github/workflows/repertorio-style-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    if: github.event.head_commit.message == 'Preview: instalar ajuste visual de Repertorio'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: preview
+          fetch-depth: 0
+
+      - name: Aplicar únicamente estilos de ficha y formularios
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/portal/administracion/repertorio.astro')
+          text = path.read_text(encoding='utf-8')
+          marker = '/* REPERTORIO_UNIFIED_FORM_DESIGN */'
+          if marker in text:
+              print('O deseño unificado xa está aplicado.')
+              raise SystemExit(0)
+
+          css = r'''
+
+  /* REPERTORIO_UNIFIED_FORM_DESIGN */
+  /* A ficha de lectura usa a mesma linguaxe visual que Alta/Edición. */
+  #detail.detail.card {
+    max-width: 900px;
+    border-radius: 6px;
+    box-shadow: none;
+  }
+  #detail .detail-head {
+    align-items: flex-start;
+    padding: 1.25rem 1.35rem;
+    background: #fff;
+  }
+  #detail .detail-head h2 {
+    margin: .2rem 0 .35rem;
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+  }
+  #detail .detail-sections {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1.25rem 1.35rem;
+    border-bottom: 0;
+    background: #fbfaf9;
+  }
+  #detail .detail-group,
+  #detail .detail-group:nth-child(even) {
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid #ded6d0;
+    border-radius: 5px;
+    background: #fff;
+  }
+  #detail .detail-group:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  #detail .detail-group h3 {
+    margin: 0 0 .85rem;
+    padding-bottom: .55rem;
+    border-bottom: 1px solid #eee7e2;
+    font-size: .92rem;
+  }
+  #detail .detail-group dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .8rem;
+  }
+  #detail .detail-group dl div {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .35rem;
+    min-width: 0;
+  }
+  #detail .detail-group dl div:only-child {
+    grid-column: 1 / -1;
+  }
+  #detail .detail-group dt,
+  #detail .technical dt {
+    color: #5d534e;
+    font-size: .74rem;
+    font-weight: 800;
+  }
+  #detail .detail-group dd {
+    min-height: 2.45rem;
+    box-sizing: border-box;
+    margin: 0;
+    padding: .7rem .78rem;
+    border: 1px solid #d7cec8;
+    border-radius: 3px;
+    background: #fff;
+    color: #302a27;
+    font-weight: 500;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  #detail .technical {
+    margin: 0 1.35rem 1.15rem;
+    border-radius: 4px;
+  }
+  #detail > footer {
+    padding: 1rem 1.35rem 1.25rem;
+    border-top: 1px solid #eee7e2;
+    background: #fff;
+  }
+
+  /* Alta e Edición comparten exactamente a mesma caixa de formulario. */
+  #edit-dialog,
+  #new-partitura-dialog {
+    width: min(780px, calc(100vw - 2rem));
+    border: 1px solid #d8d0ca;
+    border-radius: 6px;
+    background: #fff;
+  }
+  #edit-dialog form,
+  #new-partitura-dialog form {
+    padding: 0;
+    gap: 0;
+  }
+  #edit-dialog form > header,
+  #new-partitura-dialog form > header {
+    padding: 1.2rem 1.3rem;
+    border-bottom: 1px solid #e6dfda;
+  }
+  #edit-dialog .edit-fields,
+  #new-partitura-dialog .edit-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.1rem;
+    padding: 1.25rem 1.3rem;
+    background: #fbfaf9;
+  }
+  #edit-dialog .edit-fields label,
+  #new-partitura-dialog .edit-fields label {
+    display: grid;
+    align-content: start;
+    gap: .4rem;
+    min-width: 0;
+  }
+  #edit-dialog .edit-fields label span,
+  #new-partitura-dialog .edit-fields label span {
+    color: #5d534e;
+    font-size: .74rem;
+    font-weight: 800;
+  }
+  #edit-dialog .edit-fields input,
+  #edit-dialog .edit-fields select,
+  #edit-dialog .edit-fields textarea,
+  #new-partitura-dialog .edit-fields input,
+  #new-partitura-dialog .edit-fields select,
+  #new-partitura-dialog .edit-fields textarea {
+    min-height: 2.7rem;
+    border-radius: 3px;
+    background: #fff;
+  }
+  #edit-dialog .edit-fields textarea,
+  #new-partitura-dialog .edit-fields textarea {
+    min-height: 6rem;
+    resize: vertical;
+  }
+  #edit-dialog .status,
+  #new-partitura-dialog .status,
+  #new-partitura-dialog .note {
+    margin: 0;
+    padding: .75rem 1.3rem 0;
+  }
+  #edit-dialog form > footer,
+  #new-partitura-dialog form > footer {
+    margin-top: 1rem;
+    padding: 1rem 1.3rem;
+    border-top: 1px solid #e6dfda;
+    background: #fff;
+  }
+
+  @media(max-width: 900px) {
+    #detail.detail.card { max-width: none; }
+    #detail .detail-sections,
+    #detail .detail-group dl,
+    #edit-dialog .edit-fields,
+    #new-partitura-dialog .edit-fields {
+      grid-template-columns: 1fr;
+    }
+    #detail .detail-group:last-child:nth-child(odd),
+    #detail .detail-group dl div:only-child,
+    #edit-dialog .edit-fields .wide,
+    #new-partitura-dialog .edit-fields .wide {
+      grid-column: auto;
+    }
+  }
+'''
+
+          if '</style>' not in text:
+              raise SystemExit('Non se atopou o bloque </style>; non se modifica nada.')
+          text = text.replace('</style>', css + '\n</style>', 1)
+          path.write_text(text, encoding='utf-8')
+          print('Estilos aplicados.')
+          PY
+
+      - name: Gardar directamente en preview sen pisar cambios paralelos
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- src/pages/portal/administracion/repertorio.astro; then
+            echo 'Non hai cambios que gardar.'
+            exit 0
+          fi
+          git config user.name 'coralpolifonicapontevedra-coder'
+          git config user.email 'coralpolifonicapontevedra@gmail.com'
+          git add src/pages/portal/administracion/repertorio.astro
+          git commit -m 'Preview: unificar deseño de ficha e edición de Repertorio'
+          git pull --rebase origin preview
+          git push origin HEAD:preview
