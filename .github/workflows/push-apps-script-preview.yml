@@ -63,10 +63,34 @@ jobs:
           test -f repertorio-administracion.js
           test -f concertos-dispatcher-integracion.js
           test -f xestion-permisos-dispatcher-integracion.js
+          test -f persoas-texto-legal-revision.js
           node <<'NODE'
           const fs = require('fs');
           const path = 'Código.js';
           let source = fs.readFileSync(path, 'utf8');
+
+          const legalReviewCall = 'resultadoTextoLegalPersoas = obterTextoLegalPersoasAdministracion_(datos)';
+          if (!source.includes(legalReviewCall)) {
+            const marker = "    if (accion === 'listarPersoasAdministracion') {";
+            if (!source.includes(marker)) {
+              throw new Error('Non se atopou o punto seguro para inserir a ponte do texto legal de Persoas');
+            }
+            const hook = [
+              "    if (accion === 'listarPersoasAdministracion' && datos.incluirTextoLegalPersoas === true) {",
+              "      const resultadoPersoasLegal = listarPersoasAdministracion_(datos);",
+              "      if (!resultadoPersoasLegal || resultadoPersoasLegal.ok !== true) return respostaJSON(resultadoPersoasLegal);",
+              "      const resultadoTextoLegalPersoas = obterTextoLegalPersoasAdministracion_(datos);",
+              "      if (!resultadoTextoLegalPersoas || resultadoTextoLegalPersoas.ok !== true) return respostaJSON(resultadoTextoLegalPersoas || { ok: false, erro: 'Non foi posible cargar o texto legal de Persoas' });",
+              "      resultadoPersoasLegal.textoLegalPersoas = resultadoTextoLegalPersoas.textoLegal;",
+              "      return respostaJSON(resultadoPersoasLegal);",
+              "    }",
+              "",
+            ].join('\n');
+            source = source.replace(marker, hook + marker);
+            console.log('Ponte do texto legal específico de Persoas inserida en Código.js.');
+          } else {
+            console.log('Ponte do texto legal específico de Persoas xa presente.');
+          }
 
           const concertosCall = 'despacharConcertosAdministracion_(accion, datos, bloqueo)';
           if (!source.includes(concertosCall)) {
@@ -114,12 +138,14 @@ jobs:
 
           fs.writeFileSync(path, source);
           NODE
+          grep -Fq 'resultadoTextoLegalPersoas = obterTextoLegalPersoasAdministracion_(datos)' Código.js
           grep -Fq 'despacharConcertosAdministracion_(accion, datos, bloqueo)' Código.js
           grep -Fq 'despacharXestionPermisosPortal_' Código.js
           grep -Fq 'listarRepertorioAdministracion' concertos-dispatcher-integracion.js
           grep -Fq 'crearPersoaAdministracion' xestion-permisos-dispatcher-integracion.js
           grep -Fq 'actualizarPersoaAdministracion' xestion-permisos-dispatcher-integracion.js
           grep -Fq 'cambiarEstadoPersoaAdministracion' xestion-permisos-dispatcher-integracion.js
+          grep -Fq 'obterTextoLegalPersoasAdministracion' xestion-permisos-dispatcher-integracion.js
 
       - name: Configurar credenciais de clasp
         shell: bash
