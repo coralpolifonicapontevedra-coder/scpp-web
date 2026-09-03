@@ -103,7 +103,7 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
   if (respostaPersoas !== null) {
     rexistrarAcceso({
       email: String(
-        dados && dados.email || ''
+        datos && datos.email || ''
       ).trim().toLowerCase(),
 
       tipoEvento:
