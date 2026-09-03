@@ -1,0 +1,147 @@
+name: Push Apps Script Preview
+
+on:
+  push:
+    branches:
+      - preview
+    paths:
+      - 'apps-script-preview/**'
+      - '.github/workflows/push-apps-script-preview.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Escribe PREVIEW para confirmar una ejecución manual sobre Apps Script Preview'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-preview
+  cancel-in-progress: false
+
+jobs:
+  push-preview:
+    if: github.event_name == 'push' || github.event.inputs.confirm == 'PREVIEW'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exacto de preview
+        uses: actions/checkout@v4
+        with:
+          ref: preview
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Blindar destino de Apps Script Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_ID='1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF'
+          PRODUCTION_ID='1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+          ACTUAL_ID="$(node -e "console.log(require('./apps-script-preview/.clasp.json').scriptId || '')")"
+          if [ "$ACTUAL_ID" = "$PRODUCTION_ID" ]; then
+            echo 'BLOQUEADO: apps-script-preview apunta a PRODUCCIÓN.'
+            exit 1
+          fi
+          if [ "$ACTUAL_ID" != "$PREVIEW_ID" ]; then
+            echo "BLOQUEADO: scriptId inesperado: $ACTUAL_ID"
+            exit 1
+          fi
+          echo 'Destino verificado: Apps Script Preview.'
+
+      - name: Garantizar dispatcher de Repertorio antes do push
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f repertorio-administracion.js
+          test -f concertos-dispatcher-integracion.js
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'Código.js';
+          let source = fs.readFileSync(path, 'utf8');
+          const call = 'despacharConcertosAdministracion_(accion, datos, bloqueo)';
+          if (!source.includes(call)) {
+            const marker = "    if (accion === 'rexistrarSolicitudeWeb') {";
+            if (!source.includes(marker)) {
+              throw new Error('Non se atopou o punto seguro para inserir o dispatcher en Código.js');
+            }
+            const hook = [
+              "    if (typeof eAccionConcertosAdministracion_ === 'function' && eAccionConcertosAdministracion_(accion)) {",
+              "      const resultadoAdministracion = despacharConcertosAdministracion_(accion, datos, bloqueo);",
+              "      if (resultadoAdministracion) return respostaJSON(resultadoAdministracion);",
+              "    }",
+              "",
+            ].join('\n');
+            source = source.replace(marker, hook + marker);
+            fs.writeFileSync(path, source);
+            console.log('Dispatcher administrativo inserido en Código.js para o deployment Preview.');
+          } else {
+            console.log('Dispatcher administrativo xa presente.');
+          }
+          NODE
+          grep -Fq 'despacharConcertosAdministracion_(accion, datos, bloqueo)' Código.js
+          grep -Fq 'listarRepertorioAdministracion' concertos-dispatcher-integracion.js
+
+      - name: Configurar credenciais de clasp
+        shell: bash
+        env:
+          CLASP_CREDENTIALS_PREVIEW: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLASP_CREDENTIALS_PREVIEW:-}" ]; then
+            echo 'Falta o secret CLASP_CREDENTIALS_PREVIEW.'
+            exit 1
+          fi
+          printf '%s' "$CLASP_CREDENTIALS_PREVIEW" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Comprobar proxecto antes do push
+        working-directory: apps-script-preview
+        shell: bash
+        run: npx --yes @google/clasp@3 status
+
+      - name: Subir código únicamente a Apps Script Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: npx --yes @google/clasp@3 push --force
+
+      - name: Validar deployment web de Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_DEPLOYMENT_ID='AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU'
+          PRODUCTION_DEPLOYMENT_ID='AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+          if [ "$PREVIEW_DEPLOYMENT_ID" = "$PRODUCTION_DEPLOYMENT_ID" ]; then
+            echo 'BLOQUEADO: o deployment de Preview coincide co de PRODUCIÓN.'
+            exit 1
+          fi
+          DEPLOYMENTS="$(npx --yes @google/clasp@3 list-deployments)"
+          printf '%s\n' "$DEPLOYMENTS"
+          if ! printf '%s\n' "$DEPLOYMENTS" | grep -Fq "$PREVIEW_DEPLOYMENT_ID"; then
+            echo 'BLOQUEADO: non se atopou o deployment esperado de Preview.'
+            exit 1
+          fi
+
+      - name: Actualizar deployment web únicamente de Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_DEPLOYMENT_ID='AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU'
+          npx --yes @google/clasp@3 create-deployment \
+            --deploymentId "$PREVIEW_DEPLOYMENT_ID" \
+            --description "Preview ${GITHUB_SHA}"
+
+      - name: Confirmación final
+        shell: bash
+        run: |
+          echo 'Apps Script Preview e o seu deployment web quedaron actualizados.'
+          echo 'Producción non foi tocada.'
