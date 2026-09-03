@@ -4,6 +4,8 @@ const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8000;
 const TIMEOUT_APPS_SCRIPT_MS = 15000;
 const LEGAL_ID = 'DATOS_PERSOA_SCPP';
+const LEGAL_CACHE_KEY = 'persoas/textos-legais/DATOS_PERSOA_SCPP.json';
+const LEGAL_CACHE_TTL_MS = 30 * 60 * 1000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -149,6 +151,35 @@ function textoLegalValido(value) {
   return { id, version, titulo, texto, ambito, dataVixencia };
 }
 
+async function lerTextoLegalCache(env) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  try {
+    const object = await env.R2_PRIVADO.get(LEGAL_CACHE_KEY);
+    if (!object) return null;
+    const cache = await object.json();
+    const gardadoEn = Date.parse(String(cache?.gardadoEn || ''));
+    if (!Number.isFinite(gardadoEn) || Date.now() - gardadoEn > LEGAL_CACHE_TTL_MS) return null;
+    return textoLegalValido(cache?.textoLegal);
+  } catch (error) {
+    console.warn('Non se puido ler a caché do texto legal de Persoas:', error);
+    return null;
+  }
+}
+
+async function gardarTextoLegalCache(env, textoLegal) {
+  const legal = textoLegalValido(textoLegal);
+  if (!legal || !env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
+  try {
+    await env.R2_PRIVADO.put(
+      LEGAL_CACHE_KEY,
+      JSON.stringify({ gardadoEn: new Date().toISOString(), textoLegal: legal }),
+      { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } }
+    );
+  } catch (error) {
+    console.warn('Non se puido gardar a caché do texto legal de Persoas:', error);
+  }
+}
+
 async function lerInvitacion(env, token) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
   const object = await env.R2_PRIVADO.get(keyToken(token));
@@ -182,17 +213,26 @@ function buscarPersoa(listado, referencia) {
 
 async function xerarLigazon(context, data) {
   const { env, request } = context;
+  const legalCache = await lerTextoLegalCache(env);
   let authData;
-  try { authData = await verificarAdministrador(context, { ...data, incluirTextoLegalPersoas: true }); }
-  catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
+  try {
+    authData = await verificarAdministrador(context, {
+      ...data,
+      incluirTextoLegalPersoas: !legalCache
+    });
+  } catch (error) {
+    return json(error.status || 503, { ok: false, erro: error.message });
+  }
 
   const persoa = buscarPersoa(authData.listado, data.idPersoa);
   if (!persoa) return json(404, { ok: false, erro: 'Non se atopou a persoa.' });
   if (persoa.activo !== true) return json(400, { ok: false, erro: 'Non se xera revisión para unha persoa en baixa.' });
-  const textoLegal = textoLegalValido(authData.listado?.textoLegalPersoas);
+
+  const textoLegal = legalCache || textoLegalValido(authData.listado?.textoLegalPersoas);
   if (!textoLegal) {
     return json(503, { ok: false, erro: 'O texto legal específico de Persoas non está dispoñible no backend de Preview.' });
   }
+  if (!legalCache) await gardarTextoLegalCache(env, textoLegal);
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return json(503, { ok: false, erro: 'R2 privado non está dispoñible.' });
 
   const token = crearToken();
