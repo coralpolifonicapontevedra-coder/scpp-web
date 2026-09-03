@@ -22,7 +22,8 @@ var ACCIONS_REPERTORIO_ADMIN_ = [
   'estadoRecursoRepertorioAdministracion',
   'actualizarObraRepertorioAdministracion',
   'actualizarPartituraRepertorioAdministracion',
-  'actualizarAudioRepertorioAdministracion'
+  'actualizarAudioRepertorioAdministracion',
+  'eliminarRecursoRepertorioAdministracion'
 ];
 
 var ACCIONS_ESCRITURA_ADMIN_ = [
@@ -37,7 +38,8 @@ var ACCIONS_ESCRITURA_ADMIN_ = [
   'estadoRecursoRepertorioAdministracion',
   'actualizarObraRepertorioAdministracion',
   'actualizarPartituraRepertorioAdministracion',
-  'actualizarAudioRepertorioAdministracion'
+  'actualizarAudioRepertorioAdministracion',
+  'eliminarRecursoRepertorioAdministracion'
 ];
 
 function eAccionConcertosAdministracion_(accion) {
@@ -65,6 +67,7 @@ function despacharConcertosAdministracion_(accion, datos, bloqueo) {
   if (accion === 'actualizarObraRepertorioAdministracion') return actualizarObraRepertorioAdministracion_(datos);
   if (accion === 'actualizarPartituraRepertorioAdministracion') return actualizarPartituraRepertorioAdministracion_(datos);
   if (accion === 'actualizarAudioRepertorioAdministracion') return actualizarAudioRepertorioAdministracion_(datos);
+  if (accion === 'eliminarRecursoRepertorioAdministracion') return eliminarRecursoRepertorioAdministracion_(datos);
 
   if (accion === 'listarConcertosAdministracionPortal') return listarConcertosAdministracionPortal_(datos);
   if (accion === 'obterXestionConcertoAdministracionPortal') return obterXestionConcertoAdministracionPortal_(datos);
