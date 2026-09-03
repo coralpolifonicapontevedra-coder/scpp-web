@@ -35,6 +35,12 @@ const ACCIONS_PERMISOS_PROTEXIDAS = new Set([
   'obterPermisosUsuarioPortal'
 ]);
 
+const ACCIONS_ACEPTACION_PROTEXIDAS = new Set([
+  'obterTextoLegalVixente',
+  'comprobarAceptacion',
+  'rexistrarAceptacion'
+]);
+
 const ACCIONS_SO_PRINCIPAL = new Set([
   'subirFoto',
   'actualizarRevisionFoto',
@@ -96,7 +102,8 @@ function ramaSCPP(env = {}) {
 function urlAppsScriptProtexida(env = {}, accion = '') {
   const protexida = ACCIONS_CONCERTOS_PROTEXIDAS.has(accion)
     || ACCIONS_FOTOS_ADMIN_PROTEXIDAS.has(accion)
-    || ACCIONS_PERMISOS_PROTEXIDAS.has(accion);
+    || ACCIONS_PERMISOS_PROTEXIDAS.has(accion)
+    || ACCIONS_ACEPTACION_PROTEXIDAS.has(accion);
   if (!protexida) return '';
   return ramaSCPP(env) === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
 }
