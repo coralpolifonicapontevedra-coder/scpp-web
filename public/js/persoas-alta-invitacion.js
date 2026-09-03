@@ -9,91 +9,6 @@
   let lastIdToken = '';
   let generatedLink = '';
   let generatedEmail = '';
-  let statesLoading = false;
-  let statesLoadedForToken = '';
-  const altaStates = new Map();
-
-  function selectedPersonId() {
-    const select = document.querySelector('#person-select');
-    return select instanceof HTMLSelectElement ? String(select.value || '').trim() : '';
-  }
-
-  function estadoAlta(id) {
-    return altaStates.get(String(id || '').trim()) || '';
-  }
-
-  function renderAltaBadge() {
-    const badges = document.querySelector('#person-card .badges');
-    if (!(badges instanceof HTMLElement)) return;
-    let badge = document.querySelector('#person-alta-status');
-    const pending = estadoAlta(selectedPersonId()) === 'PENDENTE';
-    if (!pending) {
-      if (badge instanceof HTMLElement) badge.remove();
-      return;
-    }
-    if (!(badge instanceof HTMLElement)) {
-      badge = document.createElement('span');
-      badge.id = 'person-alta-status';
-      badge.className = 'scpp-alta-pending-badge';
-      badges.append(badge);
-    }
-    if (badge.textContent !== 'Pendente de completar ficha') {
-      badge.textContent = 'Pendente de completar ficha';
-    }
-  }
-
-  function renderPendingOptions() {
-    const select = document.querySelector('#person-select');
-    if (!(select instanceof HTMLSelectElement)) return;
-
-    Array.from(select.options).forEach((option) => {
-      if (!option.value) return;
-      if (!option.dataset.scppOriginalLabel) {
-        option.dataset.scppOriginalLabel = String(option.textContent || '')
-          .replace(/ · PENDENTE DE COMPLETAR$/, '');
-      }
-      const target = estadoAlta(option.value) === 'PENDENTE'
-        ? `${option.dataset.scppOriginalLabel} · PENDENTE DE COMPLETAR`
-        : option.dataset.scppOriginalLabel;
-      if (option.textContent !== target) option.textContent = target;
-    });
-
-    renderAltaBadge();
-  }
-
-  async function loadAltaStates(force = false) {
-    if (!lastIdToken || statesLoading) return;
-    if (!force && statesLoadedForToken === lastIdToken) {
-      renderPendingOptions();
-      return;
-    }
-
-    statesLoading = true;
-    try {
-      const response = await previousFetch('/api/persoas-estados-alta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: lastIdToken })
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.ok !== true || !Array.isArray(result?.estados)) return;
-
-      altaStates.clear();
-      result.estados.forEach((item) => {
-        const state = String(item?.estadoAlta || '').trim();
-        const id = String(item?.idPersoa || '').trim();
-        const rowId = String(item?.rowId || '').trim();
-        if (id) altaStates.set(id, state);
-        if (rowId) altaStates.set(rowId, state);
-      });
-      statesLoadedForToken = lastIdToken;
-      renderPendingOptions();
-    } catch {
-      // O estado visual é auxiliar: non debe bloquear a xestión de Persoas.
-    } finally {
-      statesLoading = false;
-    }
-  }
 
   window.fetch = async function invitationSessionFetch(input, init) {
     try {
@@ -101,14 +16,7 @@
       if (url.includes('/api/persoas-v2') && init?.body) {
         const body = JSON.parse(String(init.body));
         const token = String(body?.idToken || '').trim();
-        if (token) {
-          const changed = token !== lastIdToken;
-          lastIdToken = token;
-          if (changed) {
-            statesLoadedForToken = '';
-            queueMicrotask(() => loadAltaStates());
-          }
-        }
+        if (token) lastIdToken = token;
       }
     } catch {
       // Non interromper nunca as peticións normais da páxina.
@@ -189,11 +97,7 @@
   }
 
   function createPanel() {
-    if (document.querySelector('#scpp-invite-panel')) {
-      panel = document.querySelector('#scpp-invite-panel');
-      return;
-    }
-
+    if (document.querySelector('#scpp-invite-panel')) return;
     const section = document.createElement('section');
     section.id = 'scpp-invite-panel';
     section.hidden = true;
@@ -225,21 +129,15 @@
     panel = section;
 
     const style = document.createElement('style');
-    style.textContent = `#scpp-invite-panel[hidden]{display:none!important}#scpp-invite-panel{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:1rem;background:rgba(31,25,24,.52)}.scpp-invite-card{width:min(620px,100%);max-height:90vh;overflow:auto;background:#fff;border:1px solid #d8d1cb;padding:1.35rem;box-shadow:0 18px 55px rgba(0,0,0,.22)}.scpp-invite-card form{display:grid;gap:.85rem}.scpp-invite-card label{display:grid;gap:.35rem}.scpp-invite-card input{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2}.scpp-invite-card footer{display:flex;justify-content:flex-end;gap:.65rem;flex-wrap:wrap}.scpp-invite-state[data-error="true"]{color:#8b2530}.scpp-alta-pending-badge{display:inline-flex;align-items:center;padding:.28rem .55rem;border:1px solid #a47b28;border-radius:999px;background:#fff8e8;color:#6e5018;font-size:.72rem;font-weight:800;letter-spacing:.02em}`;
+    style.textContent = `#scpp-invite-panel[hidden]{display:none!important}#scpp-invite-panel{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:1rem;background:rgba(31,25,24,.52)}.scpp-invite-card{width:min(620px,100%);max-height:90vh;overflow:auto;background:#fff;border:1px solid #d8d1cb;padding:1.35rem;box-shadow:0 18px 55px rgba(0,0,0,.22)}.scpp-invite-card form{display:grid;gap:.85rem}.scpp-invite-card label{display:grid;gap:.35rem}.scpp-invite-card input{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2}.scpp-invite-card footer{display:flex;justify-content:flex-end;gap:.65rem;flex-wrap:wrap}.scpp-invite-state[data-error="true"]{color:#8b2530}`;
     document.head.append(style);
 
-    section.querySelector('[data-invite-close]')?.addEventListener('click', () => {
-      if (!creating) section.hidden = true;
-    });
+    section.querySelector('[data-invite-close]')?.addEventListener('click', () => { if (!creating) section.hidden = true; });
     section.querySelector('[data-invite-send]')?.addEventListener('click', sendGeneratedLink);
     section.querySelector('[data-invite-copy]')?.addEventListener('click', async () => {
       if (!generatedLink) return;
-      try {
-        await navigator.clipboard.writeText(generatedLink);
-        state('Ligazón copiada.');
-      } catch {
-        state('Non foi posible copiar automaticamente. Selecciona a ligazón e cópiaa.', true);
-      }
+      try { await navigator.clipboard.writeText(generatedLink); state('Ligazón copiada.'); }
+      catch { state('Non foi posible copiar automaticamente. Selecciona a ligazón e cópiaa.', true); }
     });
     section.querySelector('form')?.addEventListener('submit', submitInvitation);
   }
@@ -277,13 +175,10 @@
         throw new Error(created?.erro || 'Non foi posible crear a alta por invitación.');
       }
 
-      altaStates.set(String(created.idPersoa), 'PENDENTE');
-      statesLoadedForToken = '';
       state('Alta PENDENTE creada. Xerando ligazón segura…');
       const link = await generateReview(String(created.idPersoa));
       showGeneratedLink(link);
       state('Ligazón xerada correctamente. Revísaa antes de enviar o correo.');
-      void loadAltaStates(true);
     } catch (error) {
       state(error instanceof Error ? error.message : 'Non foi posible preparar a invitación.', true);
     } finally {
@@ -297,7 +192,6 @@
     if (document.querySelector('#invite-person-button')) return;
     const manual = document.querySelector('#new-person-button');
     if (!(manual instanceof HTMLButtonElement)) return;
-
     const button = document.createElement('button');
     button.id = 'invite-person-button';
     button.type = 'button';
@@ -313,26 +207,8 @@
     });
   }
 
-  document.addEventListener('change', (event) => {
-    if (event.target instanceof HTMLSelectElement && event.target.id === 'person-select') {
-      queueMicrotask(renderAltaBadge);
-    }
-  });
-
-  // O observador só espera a que a páxina principal cree o botón de alta manual.
-  // Non renderiza etiquetas: facelo aquí provocaba un bucle de MutationObserver.
-  const observer = new MutationObserver(() => {
-    injectButton();
-    if (document.querySelector('#invite-person-button')) observer.disconnect();
-  });
+  const observer = new MutationObserver(injectButton);
   observer.observe(document.documentElement, { childList: true, subtree: true });
-
-  const start = () => {
-    injectButton();
-    if (document.querySelector('#invite-person-button')) observer.disconnect();
-    renderPendingOptions();
-  };
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
-  else start();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectButton, { once: true });
+  else injectButton();
 })();
