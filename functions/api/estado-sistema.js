@@ -1,14 +1,17 @@
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
+
 const CACHE_MS = 60 * 1000;
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 
 let statusCache = null;
 
-const json = (status, body) => new Response(JSON.stringify(body), {
+const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   status,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'private, no-store',
-    'X-Content-Type-Options': 'nosniff'
+    'X-Content-Type-Options': 'nosniff',
+    ...extra
   }
 });
 
@@ -68,6 +71,44 @@ async function comprobarAdministracion(env, user) {
     console.error('Erro ao comprobar permisos R2 para Estado do sistema:', error);
     return { allowed: false, known: false };
   }
+}
+
+async function comprobarAccesoEstado(context, user) {
+  const { env } = context;
+  const cacheado = await obterPermisoPortalCacheado(env, user, 'estado');
+  if (cacheado?.podeLer) {
+    return { allowed: true, known: true, nivel: cacheado.nivel, fonte: cacheado.fonte };
+  }
+
+  const administration = await comprobarAdministracion(env, user);
+  if (administration.allowed) {
+    const preparar = obterPermisoPortal(env, user, 'estado').catch((error) => {
+      console.warn('Non se puido preparar a caché común do permiso Estado:', error);
+    });
+    if (typeof context.waitUntil === 'function') context.waitUntil(preparar);
+    else preparar.catch(() => {});
+    return { allowed: true, known: true, nivel: 'administracion', fonte: 'ADMIN_R2_FALLBACK' };
+  }
+
+  let permiso = cacheado;
+  if (!permiso) {
+    try {
+      permiso = await obterPermisoPortal(env, user, 'estado');
+    } catch (error) {
+      console.error('Erro ao resolver o permiso común de Estado:', error);
+    }
+  }
+
+  if (permiso?.podeLer) {
+    return { allowed: true, known: true, nivel: permiso.nivel, fonte: permiso.fonte };
+  }
+
+  return {
+    allowed: false,
+    known: Boolean(permiso?.ok) || administration.known,
+    nivel: permiso?.nivel || 'sen_acceso',
+    fonte: permiso?.fonte || (administration.known ? 'ADMIN_R2' : 'UNAVAILABLE')
+  };
 }
 
 function workflowState(run) {
@@ -347,22 +388,27 @@ export async function onRequestPost(context) {
   }
   if (!user) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou.' });
 
-  const administration = await comprobarAdministracion(env, user);
-  if (!administration.allowed) {
-    return json(administration.known ? 403 : 503, {
+  const acceso = await comprobarAccesoEstado(context, user);
+  if (!acceso.allowed) {
+    return json(acceso.known ? 403 : 503, {
       ok: false,
-      codigo: administration.known ? 'ADMIN_REQUIRED' : 'ADMIN_CACHE_UNAVAILABLE',
-      erro: administration.known
-        ? 'Só a administración pode consultar o estado do sistema.'
-        : 'Non foi posible comprobar o acceso administrativo neste momento.'
-    });
+      codigo: acceso.known ? 'ESTADO_PERMISSION_REQUIRED' : 'PERMISSION_UNAVAILABLE',
+      erro: acceso.known
+        ? 'Non tes permiso para consultar o estado do sistema.'
+        : 'Non foi posible comprobar o permiso de acceso neste momento.'
+    }, { 'X-SCPP-Permission-Source': acceso.fonte || 'UNAVAILABLE' });
   }
 
+  const permissionHeaders = {
+    'X-SCPP-Permission-Source': acceso.fonte || 'UNKNOWN',
+    'X-SCPP-Permission-Level': acceso.nivel || 'sen_acceso'
+  };
+
   if (statusCache?.expiresAt > Date.now()) {
-    return json(200, { ...statusCache.payload, cached: true });
+    return json(200, { ...statusCache.payload, cached: true }, permissionHeaders);
   }
 
   const payload = await buildStatus(env);
   statusCache = { payload, expiresAt: Date.now() + CACHE_MS };
-  return json(200, { ...payload, cached: false });
+  return json(200, { ...payload, cached: false }, permissionHeaders);
 }
