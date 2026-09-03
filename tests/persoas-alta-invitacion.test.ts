@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 
 const script = readFileSync(resolve(process.cwd(), 'public/js/persoas-alta-invitacion.js'), 'utf8');
 const footer = readFileSync(resolve(process.cwd(), 'src/components/Footer.astro'), 'utf8');
+const envioIndividual = readFileSync(resolve(process.cwd(), 'public/js/persoas-envio-individual.js'), 'utf8');
 
 describe('alta por invitación de Persoas', () => {
   it('pide só nome, correo e teléfono e reutiliza a alta administrativa', () => {
@@ -26,7 +27,9 @@ describe('alta por invitación de Persoas', () => {
     expect(script).toContain('Completa o teu primeiro apelido');
   });
 
-  it('carga o comportamento desde o pé común sen modificar a páxina de Persoas', () => {
+  it('carga o comportamento tanto na ficha pública como na administración privada', () => {
     expect(footer).toContain('/js/persoas-alta-invitacion.js');
+    expect(envioIndividual).toContain('/js/persoas-alta-invitacion.js');
+    expect(envioIndividual).toContain('data-scpp-persoas-invitacion');
   });
 });
