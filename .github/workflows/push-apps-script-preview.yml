@@ -1,0 +1,91 @@
+name: Push Apps Script Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Escribe PREVIEW para confirmar que quieres actualizar únicamente Apps Script Preview'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-preview
+  cancel-in-progress: false
+
+jobs:
+  push-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validar confirmación
+        shell: bash
+        run: |
+          if [ "${{ inputs.confirm }}" != "PREVIEW" ]; then
+            echo "Confirmación incorrecta. Debes escribir PREVIEW."
+            exit 1
+          fi
+
+      - name: Checkout exacto de la rama preview
+        uses: actions/checkout@v4
+        with:
+          ref: preview
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Blindar destino de Apps Script
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_ID='1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF'
+          PRODUCTION_ID='1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+          ACTUAL_ID="$(node -e "console.log(require('./apps-script-preview/.clasp.json').scriptId || '')")"
+
+          if [ "$ACTUAL_ID" = "$PRODUCTION_ID" ]; then
+            echo 'BLOQUEADO: apps-script-preview apunta al proyecto de PRODUCCIÓN.'
+            exit 1
+          fi
+
+          if [ "$ACTUAL_ID" != "$PREVIEW_ID" ]; then
+            echo "BLOQUEADO: scriptId inesperado en apps-script-preview: $ACTUAL_ID"
+            exit 1
+          fi
+
+          echo 'Destino verificado: proyecto Apps Script Preview.'
+
+      - name: Configurar credenciales de clasp
+        shell: bash
+        env:
+          CLASP_CREDENTIALS_PREVIEW: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLASP_CREDENTIALS_PREVIEW:-}" ]; then
+            echo 'Falta el secret CLASP_CREDENTIALS_PREVIEW.'
+            exit 1
+          fi
+          printf '%s' "$CLASP_CREDENTIALS_PREVIEW" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Comprobar proyecto antes del push
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          npx --yes @google/clasp@2.4.2 status
+
+      - name: Subir código únicamente a Apps Script Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          npx --yes @google/clasp@2.4.2 push --force
+
+      - name: Confirmación final
+        shell: bash
+        run: |
+          echo 'Apps Script Preview actualizado correctamente.'
+          echo 'No se ha creado ni actualizado ningún deployment ni versión de Producción.'
