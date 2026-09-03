@@ -4,7 +4,11 @@ const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
 const TIMEOUT_APPS_SCRIPT_MS = 18 * 1000;
 const CACHE_ACEPTACION_MS = 10 * 60 * 1000;
+const CACHE_ACEPTACION_EMERXENCIA_MS = 30 * 60 * 1000;
 const CACHE_ACEPTACION_PREFIX = 'cache/aceptacion-portal-v1/';
+const CACHE_TEXTO_LEGAL_MS = 60 * 60 * 1000;
+const CACHE_TEXTO_LEGAL_EMERXENCIA_MS = 2 * 60 * 60 * 1000;
+const CACHE_TEXTO_LEGAL_KEY = 'cache/texto-legal-vixente-v1.json';
 
 const cacheTokens = new Map();
 
@@ -43,19 +47,26 @@ function textoLegalCompleto(textoLegal) {
   );
 }
 
-async function lerCacheAceptacion(env, email) {
+function idadeMs(valor) {
+  const data = Date.parse(String(valor || ''));
+  return Number.isFinite(data) ? Date.now() - data : Number.POSITIVE_INFINITY;
+}
+
+async function lerCacheAceptacion(env, email, maxAgeMs = CACHE_ACEPTACION_MS) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
   try {
     const obxecto = await env.R2_PRIVADO.get(await claveCacheAceptacion(email));
     if (!obxecto) return null;
     const cache = await obxecto.json();
-    const gardadaEn = Date.parse(String(cache?.gardadaEn || ''));
-    if (!Number.isFinite(gardadaEn) || Date.now() - gardadaEn > CACHE_ACEPTACION_MS) return null;
+    const idade = idadeMs(cache?.gardadaEn);
+    if (!Number.isFinite(idade) || idade < 0 || idade > maxAgeMs) return null;
     if (typeof cache?.aceptacionVixente !== 'boolean') return null;
     if (cache.aceptacionVixente === false && !textoLegalCompleto(cache.textoLegal)) return null;
     return {
       aceptacionVixente: cache.aceptacionVixente,
-      textoLegal: cache.textoLegal || null
+      textoLegal: cache.textoLegal || null,
+      gardadaEn: String(cache.gardadaEn || ''),
+      idadeMs: idade
     };
   } catch (erro) {
     console.warn('Non se puido ler a caché de aceptación:', erro);
@@ -85,6 +96,60 @@ async function gardarCacheAceptacion(env, email, resultado) {
   }
 }
 
+async function lerCacheTextoLegal(env, maxAgeMs = CACHE_TEXTO_LEGAL_MS) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  try {
+    const obxecto = await env.R2_PRIVADO.get(CACHE_TEXTO_LEGAL_KEY);
+    if (!obxecto) return null;
+    const cache = await obxecto.json();
+    const idade = idadeMs(cache?.gardadaEn);
+    if (!Number.isFinite(idade) || idade < 0 || idade > maxAgeMs) return null;
+    if (!textoLegalCompleto(cache?.textoLegal)) return null;
+    return {
+      textoLegal: cache.textoLegal,
+      gardadaEn: String(cache.gardadaEn || ''),
+      idadeMs: idade
+    };
+  } catch (erro) {
+    console.warn('Non se puido ler a caché do texto legal:', erro);
+    return null;
+  }
+}
+
+async function gardarCacheTextoLegal(env, textoLegal) {
+  if (!textoLegalCompleto(textoLegal)) return;
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
+  try {
+    await env.R2_PRIVADO.put(
+      CACHE_TEXTO_LEGAL_KEY,
+      JSON.stringify({
+        gardadaEn: new Date().toISOString(),
+        textoLegal
+      }),
+      {
+        httpMetadata: {
+          contentType: 'application/json; charset=utf-8',
+          cacheControl: 'private, max-age=3600'
+        },
+        customMetadata: {
+          tipo: 'texto-legal-vixente',
+          version: String(textoLegal.version || '')
+        }
+      }
+    );
+  } catch (erro) {
+    console.warn('Non se puido gardar a caché do texto legal:', erro);
+  }
+}
+
+function prepararEnSegundoPlano(context, promesa) {
+  const segura = Promise.resolve(promesa).catch((erro) => {
+    console.warn('Non se puido completar a actualización de caché en segundo plano:', erro);
+  });
+  if (typeof context.waitUntil === 'function') context.waitUntil(segura);
+  else segura.catch(() => {});
+}
+
 async function verificarTokenFirebase(idToken, apiKey) {
   const token = String(idToken || '').trim();
   if (!token) return null;
@@ -111,7 +176,16 @@ async function verificarTokenFirebase(idToken, apiKey) {
     email: String(usuario.email).trim().toLowerCase()
   };
   cacheTokens.set(token, { usuario: resultado, expira: Date.now() + CACHE_TOKEN_MS });
+  while (cacheTokens.size > 100) cacheTokens.delete(cacheTokens.keys().next().value);
   return resultado;
+}
+
+function respostaCache(status, body, fonte, nivel = 'fresh') {
+  return json(status, body, {
+    'X-SCPP-AppScript': fonte,
+    'X-SCPP-Legal-Cache': nivel,
+    'Server-Timing': 'apps-script;dur=0'
+  });
 }
 
 export async function onRequest(context) {
@@ -147,17 +221,39 @@ export async function onRequest(context) {
   }
   if (!usuarioFirebase) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
+  if (accion === 'obterTextoLegalVixente') {
+    const textoGlobal = await lerCacheTextoLegal(env);
+    if (textoGlobal) {
+      return respostaCache(200, {
+        ok: true,
+        email: usuarioFirebase.email,
+        textoLegal: textoGlobal.textoLegal
+      }, 'R2-TEXTO-LEGAL');
+    }
+
+    const aceptacionRecente = await lerCacheAceptacion(env, usuarioFirebase.email);
+    if (textoLegalCompleto(aceptacionRecente?.textoLegal)) {
+      prepararEnSegundoPlano(context, gardarCacheTextoLegal(env, aceptacionRecente.textoLegal));
+      return respostaCache(200, {
+        ok: true,
+        email: usuarioFirebase.email,
+        textoLegal: aceptacionRecente.textoLegal
+      }, 'R2-ACEPTACION');
+    }
+  }
+
   if (accion === 'comprobarAceptacion') {
     const cache = await lerCacheAceptacion(env, usuarioFirebase.email);
     if (cache) {
-      return json(200, {
+      if (textoLegalCompleto(cache.textoLegal)) {
+        prepararEnSegundoPlano(context, gardarCacheTextoLegal(env, cache.textoLegal));
+      }
+      return respostaCache(200, {
         ok: true,
         email: usuarioFirebase.email,
-        ...cache
-      }, {
-        'X-SCPP-AppScript': 'R2-CACHE',
-        'Server-Timing': 'apps-script;dur=0'
-      });
+        aceptacionVixente: cache.aceptacionVixente,
+        textoLegal: cache.textoLegal
+      }, 'R2-CACHE');
     }
   }
 
@@ -188,6 +284,13 @@ export async function onRequest(context) {
     }
 
     if (accion === 'obterTextoLegalVixente') {
+      if (!textoLegalCompleto(resultado.textoLegal)) {
+        return json(502, {
+          ok: false,
+          erro: 'O servizo devolveu un texto legal incompleto.'
+        });
+      }
+      await gardarCacheTextoLegal(env, resultado.textoLegal);
       return json(200, {
         ok: true,
         email: usuarioFirebase.email,
@@ -195,6 +298,7 @@ export async function onRequest(context) {
       }, {
         'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
         'X-SCPP-AppScript-Attempt': String(intento),
+        'X-SCPP-Legal-Cache': 'refreshed',
         'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
       });
     }
@@ -204,7 +308,10 @@ export async function onRequest(context) {
         aceptacionVixente: resultado.aceptacionVixente === true,
         textoLegal: resultado.textoLegal
       };
-      await gardarCacheAceptacion(env, usuarioFirebase.email, respostaAceptacion);
+      await Promise.all([
+        gardarCacheAceptacion(env, usuarioFirebase.email, respostaAceptacion),
+        gardarCacheTextoLegal(env, resultado.textoLegal)
+      ]);
       return json(200, {
         ok: true,
         email: usuarioFirebase.email,
@@ -212,14 +319,21 @@ export async function onRequest(context) {
       }, {
         'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
         'X-SCPP-AppScript-Attempt': String(intento),
+        'X-SCPP-Legal-Cache': 'refreshed',
         'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
       });
     }
 
-    const cacheAnterior = await lerCacheAceptacion(env, usuarioFirebase.email);
+    const [cacheAnterior, textoGlobal] = await Promise.all([
+      lerCacheAceptacion(env, usuarioFirebase.email, CACHE_ACEPTACION_EMERXENCIA_MS),
+      lerCacheTextoLegal(env, CACHE_TEXTO_LEGAL_EMERXENCIA_MS)
+    ]);
+    const textoLegal = textoGlobal?.textoLegal || cacheAnterior?.textoLegal || {
+      version: resultado.version || ''
+    };
     await gardarCacheAceptacion(env, usuarioFirebase.email, {
       aceptacionVixente: true,
-      textoLegal: cacheAnterior?.textoLegal || { version: resultado.version || '' }
+      textoLegal
     });
 
     return json(200, {
@@ -231,10 +345,40 @@ export async function onRequest(context) {
     }, {
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
       'X-SCPP-AppScript-Attempt': String(intento),
+      'X-SCPP-Legal-Cache': 'updated',
       'Server-Timing': `apps-script;dur=${Date.now() - inicio}`
     });
   } catch (erro) {
     console.error('Erro no servizo de aceptación:', erro);
+
+    if (accion === 'obterTextoLegalVixente') {
+      const textoEmerxencia = await lerCacheTextoLegal(env, CACHE_TEXTO_LEGAL_EMERXENCIA_MS);
+      if (textoEmerxencia) {
+        return respostaCache(200, {
+          ok: true,
+          email: usuarioFirebase.email,
+          textoLegal: textoEmerxencia.textoLegal,
+          recuperado: true
+        }, 'R2-STALE-TEXTO', 'stale-if-error');
+      }
+    }
+
+    if (accion === 'comprobarAceptacion') {
+      const aceptacionEmerxencia = await lerCacheAceptacion(
+        env,
+        usuarioFirebase.email,
+        CACHE_ACEPTACION_EMERXENCIA_MS
+      );
+      if (aceptacionEmerxencia) {
+        return respostaCache(200, {
+          ok: true,
+          email: usuarioFirebase.email,
+          aceptacionVixente: aceptacionEmerxencia.aceptacionVixente,
+          textoLegal: aceptacionEmerxencia.textoLegal,
+          recuperado: true
+        }, 'R2-STALE-ACEPTACION', 'stale-if-error');
+      }
+    }
 
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
     return json(status, {
