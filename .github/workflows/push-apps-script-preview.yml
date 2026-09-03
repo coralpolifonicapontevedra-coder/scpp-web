@@ -77,17 +77,19 @@ jobs:
             }
             const hook = [
               "    if (accion === 'listarPersoasAdministracion' && datos.incluirTextoLegalPersoas === true) {",
-              "      const resultadoPersoasLegal = listarPersoasAdministracion_(datos);",
-              "      if (!resultadoPersoasLegal || resultadoPersoasLegal.ok !== true) return respostaJSON(resultadoPersoasLegal);",
               "      const resultadoTextoLegalPersoas = obterTextoLegalPersoasAdministracion_(datos);",
               "      if (!resultadoTextoLegalPersoas || resultadoTextoLegalPersoas.ok !== true) return respostaJSON(resultadoTextoLegalPersoas || { ok: false, erro: 'Non foi posible cargar o texto legal de Persoas' });",
-              "      resultadoPersoasLegal.textoLegalPersoas = resultadoTextoLegalPersoas.textoLegal;",
-              "      return respostaJSON(resultadoPersoasLegal);",
+              "      return respostaJSON({",
+              "        ok: true,",
+              "        perfil: { nivel: 'Administración', email: String(datos.email || '').trim().toLowerCase() },",
+              "        persoas: [],",
+              "        textoLegalPersoas: resultadoTextoLegalPersoas.textoLegal",
+              "      });",
               "    }",
               "",
             ].join('\n');
             source = source.replace(marker, hook + marker);
-            console.log('Ponte do texto legal específico de Persoas inserida en Código.js.');
+            console.log('Ponte rápida do texto legal específico de Persoas inserida en Código.js.');
           } else {
             console.log('Ponte do texto legal específico de Persoas xa presente.');
           }
