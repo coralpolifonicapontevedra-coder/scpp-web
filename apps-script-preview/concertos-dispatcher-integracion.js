@@ -53,7 +53,24 @@ function eAccionEscrituraConcertosAdministracion_(accion) {
 
 function despacharConcertosAdministracion_(accion, datos, bloqueo) {
   accion = String(accion || '').trim();
-  if (!eAccionConcertosAdministracion_(accion)) return null;
+
+  /*
+   * Código.js chama este dispatcher de forma incondicional antes do
+   * rexeitamento final. En Preview úsase tamén como ponte para o dispatcher
+   * de Xestión de permisos / Auditoría, que xa forma parte do proxecto pero
+   * aínda non está invocado directamente polo doPost principal.
+   */
+  if (!eAccionConcertosAdministracion_(accion)) {
+    if (typeof despacharXestionPermisosPortal_ === 'function') {
+      var respostaXestionPermisos =
+        despacharXestionPermisosPortal_(accion, datos, bloqueo);
+
+      if (respostaXestionPermisos !== null) {
+        return respostaXestionPermisos;
+      }
+    }
+    return null;
+  }
 
   if (eAccionEscrituraConcertosAdministracion_(accion) && bloqueo && !bloqueo.hasLock()) {
     bloqueo.waitLock(10000);
