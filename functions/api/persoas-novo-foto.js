@@ -1,0 +1,13 @@
+import { obterJsonAppsScript } from '../_lib/apps-script.js';
+const MAX=5*1024*1024;const TYPES=new Map([['image/jpeg','jpg'],['image/png','png'],['image/webp','webp']]);
+const json=(s,b)=>new Response(JSON.stringify(b),{status:s,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store'}});
+const safe=v=>String(v||'').trim().replace(/[^A-Za-z0-9_-]/g,'_').slice(0,120);
+async function user(token,key){if(!token||!key)return null;const r=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:token})});if(!r.ok)return null;const u=(await r.json())?.users?.[0];return u?.email&&u.emailVerified===true?{uid:String(u.localId||''),email:String(u.email).trim().toLowerCase()}:null;}
+async function admin(env,u){const {resultado}=await obterJsonAppsScript(env,{token:env.WEB_WRITE_TOKEN,accion:'persoasNovoListar',email:u.email,uidFirebase:u.uid},{timeoutMs:20000,attemptTimeoutMs:10000});return resultado?.ok&&resultado?.perfil?.nivel==='Administración';}
+export async function onRequest({request,env}){
+ if(request.method!=='POST')return json(405,{ok:false,erro:'Método non permitido'});const form=await request.formData().catch(()=>null);if(!form)return json(400,{ok:false,erro:'Non foi posible ler a petición'});
+ const u=await user(String(form.get('idToken')||''),env.FIREBASE_API_KEY);if(!u)return json(401,{ok:false,erro:'Sesión non válida'});if(!(await admin(env,u)))return json(403,{ok:false,erro:'Non tes permiso de Administración'});
+ const id=safe(form.get('idPersoa'));if(!id)return json(400,{ok:false,erro:'Falta a persoa'});const file=form.get('foto');if(!(file instanceof File))return json(400,{ok:false,erro:'Selecciona unha fotografía'});
+ const type=String(file.type||'').toLowerCase(),ext=TYPES.get(type);if(!ext)return json(415,{ok:false,erro:'A foto debe ser JPG, PNG ou WebP'});if(!file.size||file.size>MAX)return json(413,{ok:false,erro:'A foto non pode superar 5 MB'});if(!env.R2_PRIVADO)return json(503,{ok:false,erro:'R2 privado non dispoñible'});
+ const key=`persoas/fotos/${id}/actual.${ext}`,now=new Date().toISOString();await env.R2_PRIVADO.put(key,await file.arrayBuffer(),{httpMetadata:{contentType:type,cacheControl:'private, no-store'},customMetadata:{idPersoa:id,actualizadaEn:now,subidaPor:u.email}});await env.R2_PRIVADO.put(`persoas/fotos/${id}/latest.json`,JSON.stringify({key,mimeType:type,size:file.size,actualizadaEn:now,subidaPor:u.email}),{httpMetadata:{contentType:'application/json; charset=utf-8',cacheControl:'private, no-store'}});return json(200,{ok:true,disponible:true,actualizadaEn:now});
+}
