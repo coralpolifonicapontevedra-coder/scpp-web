@@ -55,22 +55,24 @@ jobs:
           fi
           echo 'Destino verificado: Apps Script Preview.'
 
-      - name: Garantizar dispatcher de Repertorio antes do push
+      - name: Garantizar dispatchers administrativos antes do push
         working-directory: apps-script-preview
         shell: bash
         run: |
           set -euo pipefail
           test -f repertorio-administracion.js
           test -f concertos-dispatcher-integracion.js
+          test -f xestion-permisos-dispatcher-integracion.js
           node <<'NODE'
           const fs = require('fs');
           const path = 'Código.js';
           let source = fs.readFileSync(path, 'utf8');
-          const call = 'despacharConcertosAdministracion_(accion, datos, bloqueo)';
-          if (!source.includes(call)) {
+
+          const concertosCall = 'despacharConcertosAdministracion_(accion, datos, bloqueo)';
+          if (!source.includes(concertosCall)) {
             const marker = "    if (accion === 'rexistrarSolicitudeWeb') {";
             if (!source.includes(marker)) {
-              throw new Error('Non se atopou o punto seguro para inserir o dispatcher en Código.js');
+              throw new Error('Non se atopou o punto seguro para inserir o dispatcher de Concertos en Código.js');
             }
             const hook = [
               "    if (typeof eAccionConcertosAdministracion_ === 'function' && eAccionConcertosAdministracion_(accion)) {",
@@ -80,14 +82,44 @@ jobs:
               "",
             ].join('\n');
             source = source.replace(marker, hook + marker);
-            fs.writeFileSync(path, source);
-            console.log('Dispatcher administrativo inserido en Código.js para o deployment Preview.');
+            console.log('Dispatcher administrativo de Concertos inserido en Código.js.');
           } else {
-            console.log('Dispatcher administrativo xa presente.');
+            console.log('Dispatcher administrativo de Concertos xa presente.');
           }
+
+          const persoasCall = 'despacharXestionPermisosPortal_(accion, datos, bloqueo)';
+          if (!source.includes(persoasCall)) {
+            const marker = "    rexistrarAcceso({\n      email: correo,\n      tipoEvento: String(\n        accion || 'Acción descoñecida'";
+            if (!source.includes(marker)) {
+              throw new Error('Non se atopou o punto seguro antes de "Acción non permitida" para inserir o dispatcher de Persoas');
+            }
+            const hook = [
+              "    const respostaPermisosAdmin =",
+              "      despacharXestionPermisosPortal_(",
+              "        accion,",
+              "        datos,",
+              "        bloqueo",
+              "      );",
+              "",
+              "    if (respostaPermisosAdmin !== null) {",
+              "      return respostaJSON(respostaPermisosAdmin);",
+              "    }",
+              "",
+            ].join('\n');
+            source = source.replace(marker, hook + marker);
+            console.log('Dispatcher de Persoas/Permisos inserido en Código.js seguindo o patrón v98.');
+          } else {
+            console.log('Dispatcher de Persoas/Permisos xa presente.');
+          }
+
+          fs.writeFileSync(path, source);
           NODE
           grep -Fq 'despacharConcertosAdministracion_(accion, datos, bloqueo)' Código.js
+          grep -Fq 'despacharXestionPermisosPortal_(accion, datos, bloqueo)' Código.js
           grep -Fq 'listarRepertorioAdministracion' concertos-dispatcher-integracion.js
+          grep -Fq 'crearPersoaAdministracion' xestion-permisos-dispatcher-integracion.js
+          grep -Fq 'actualizarPersoaAdministracion' xestion-permisos-dispatcher-integracion.js
+          grep -Fq 'cambiarEstadoPersoaAdministracion' xestion-permisos-dispatcher-integracion.js
 
       - name: Configurar credenciais de clasp
         shell: bash
