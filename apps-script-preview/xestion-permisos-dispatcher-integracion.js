@@ -8,13 +8,13 @@ var ACCIONS_ADMIN_XESTION_PERMISOS_ = [
 ];
 
 var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
-  'crearPersoaAdministracion','crearPersoaInvitacionAdministracion','listarEstadosAltaPersoasAdministracion','actualizarPersoaAdministracion','completarAltaPersoaAdministracion','cambiarEstadoPersoaAdministracion','enviarRevisionsPersoasAdministracion',
+  'listarPersoasAdministracion','crearPersoaAdministracion','crearPersoaInvitacionAdministracion','listarEstadosAltaPersoasAdministracion','actualizarPersoaAdministracion','completarAltaPersoaAdministracion','cambiarEstadoPersoaAdministracion','enviarRevisionsPersoasAdministracion',
   'persoasNovoListar','persoasNovoCrear','persoasNovoActualizar','persoasNovoEstado'
 ];
 
 function despacharPersoasAdministracionPortal_(accion, datos) {
   if (ACCIONS_PERSOAS_ADMIN_PORTAL_.indexOf(accion) < 0) return null;
-  if (accion === 'persoasNovoListar') return persoasNovoListarCompleto_(datos);
+  if (accion === 'listarPersoasAdministracion' || accion === 'persoasNovoListar') return persoasNovoListarCompleto_(datos);
   if (accion === 'persoasNovoCrear') return persoasNovoCrear_(datos);
   if (accion === 'persoasNovoActualizar') return persoasNovoActualizar_(datos);
   if (accion === 'persoasNovoEstado') return persoasNovoEstado_(datos);
