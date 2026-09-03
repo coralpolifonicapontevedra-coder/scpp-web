@@ -15,11 +15,11 @@ var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
 function despacharPersoasAdministracionPortal_(accion, datos) {
   if (ACCIONS_PERSOAS_ADMIN_PORTAL_.indexOf(accion) < 0) return null;
   if (accion === 'listarPersoasAdministracion' || accion === 'persoasNovoListar') return persoasNovoListarCompleto_(datos);
-  if (accion === 'persoasNovoCrear') return persoasNovoCrear_(datos);
-  if (accion === 'persoasNovoActualizar') return persoasNovoActualizar_(datos);
-  if (accion === 'persoasNovoEstado') return persoasNovoEstado_(datos);
+  if (accion === 'persoasNovoCrear') return persoasNovoCrearPortal_(datos);
+  if (accion === 'persoasNovoActualizar') return persoasNovoActualizarPortal_(datos);
+  if (accion === 'persoasNovoEstado') return persoasNovoEstadoPortal_(datos);
   if (accion === 'crearPersoaAdministracion') return crearPersoaAdministracion_(datos);
-  if (accion === 'crearPersoaInvitacionAdministracion') return typeof crearPersoaInvitacionAdministracion_ === 'function' ? crearPersoaInvitacionAdministracion_(datos) : persoasNovoCrear_(Object.assign({},datos,{modo:'invitacion'}));
+  if (accion === 'crearPersoaInvitacionAdministracion') return typeof crearPersoaInvitacionAdministracion_ === 'function' ? crearPersoaInvitacionAdministracion_(datos) : persoasNovoCrearPortal_(Object.assign({},datos,{modo:'invitacion'}));
   if (accion === 'listarEstadosAltaPersoasAdministracion') return typeof listarEstadosAltaPersoasAdministracion_ === 'function' ? listarEstadosAltaPersoasAdministracion_(datos) : {ok:true,estados:[]};
   if (accion === 'actualizarPersoaAdministracion') return actualizarPersoaAdministracion_(datos);
   if (accion === 'completarAltaPersoaAdministracion') return completarAltaPersoaAdministracion_(datos);
