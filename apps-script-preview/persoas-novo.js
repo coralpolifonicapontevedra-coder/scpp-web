@@ -2,6 +2,7 @@
  * Administración > Persoas NOVO.
  * Backend independente para Preview, mantendo compatibilidade co fluxo de revisións.
  * Reutiliza só os helpers de lectura/autorización xa estables de persoas-administracion.js.
+ * Despregue único a través de Push Apps Script Preview.
  */
 
 var PERSOAS_NOVO_TEXTO_LEGAL_ID_ = 'DATOS_PERSOA_SCPP';
