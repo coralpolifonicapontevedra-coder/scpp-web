@@ -3,6 +3,7 @@ const URL_PREVIEW_SCPP = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgb
 
 const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
 const ESTADOS_REDIRECCION_GET = new Set([301, 302, 303]);
+const PATRON_WEBAPP_APPS_SCRIPT = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/;
 
 const ACCIONS_CONCERTOS_PROTEXIDAS = new Set([
   'listarAsistenciasConcertosPortal',
@@ -85,7 +86,7 @@ function urlsAppsScript(env = {}) {
     URL_RESPALDO_SCPP
   ]
     .map((url) => String(url || '').trim())
-    .filter((url, index, all) => /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) && all.indexOf(url) === index);
+    .filter((url, index, all) => PATRON_WEBAPP_APPS_SCRIPT.test(url) && all.indexOf(url) === index);
 }
 
 function ramaSCPP(env = {}) {
@@ -98,6 +99,18 @@ function urlAppsScriptProtexida(env = {}, accion = '') {
     || ACCIONS_PERMISOS_PROTEXIDAS.has(accion);
   if (!protexida) return '';
   return ramaSCPP(env) === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
+}
+
+function urlAppsScriptForzada(options = {}) {
+  const valor = String(options.urlOverride || '').trim();
+  if (!valor) return '';
+  if (!PATRON_WEBAPP_APPS_SCRIPT.test(valor)) {
+    throw new AppsScriptError(
+      'A implementación de Apps Script indicada non é válida.',
+      'APPS_SCRIPT_INVALID_URL'
+    );
+  }
+  return valor;
 }
 
 function urlRedireccionAppsScript(location, baseUrl) {
@@ -144,9 +157,12 @@ export async function chamarAppsScriptRobusto(env, corpo, options = {}) {
   const timeoutIntentoPreferido = Number(options.attemptTimeoutMs) || 0;
   const expectJson = options.expectJson === true;
   const accion = String(corpo?.accion || '').trim();
+  const urlForzada = urlAppsScriptForzada(options);
   const urlProtexida = urlAppsScriptProtexida(env, accion);
-  const urlsConfiguradas = urlProtexida ? [urlProtexida] : urlsAppsScript(env);
-  const urls = ACCIONS_SO_PRINCIPAL.has(accion)
+  const urlsConfiguradas = urlForzada
+    ? [urlForzada]
+    : (urlProtexida ? [urlProtexida] : urlsAppsScript(env));
+  const urls = urlForzada || ACCIONS_SO_PRINCIPAL.has(accion)
     ? urlsConfiguradas.slice(0, 1)
     : urlsConfiguradas;
 

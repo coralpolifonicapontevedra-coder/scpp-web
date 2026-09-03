@@ -6,6 +6,8 @@ const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const ENSAIOS_CACHE_PREFIX = 'ensaios/cache-v2/usuarios/';
 const LEGACY_ADMIN_PREFIX = 'ensaios/admin-v2/';
 const CONCERTOS_PRIVATE_INDEX_KEY = 'indices/concertos-privado-v1.json';
+const URL_PROD_ENSAIOS_ADMIN = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
+const URL_PREVIEW_ENSAIOS_ADMIN = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
 
 const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   status,
@@ -19,6 +21,7 @@ const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
 
 const clean = (value) => String(value || '').trim();
 const branch = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
+const urlAppsScriptEnsaiosAdmin = (env) => branch(env) === 'main' ? URL_PROD_ENSAIOS_ADMIN : URL_PREVIEW_ENSAIOS_ADMIN;
 
 async function fetchConLimite(url, options, timeoutMs) {
   const controller = new AbortController();
@@ -71,7 +74,11 @@ async function chamarAppsScript(env, user, accion, datos = {}) {
     email: user.email,
     uidFirebase: user.uid,
     ...datos
-  }, { timeoutMs: TIMEOUT_APPS_SCRIPT_MS, attemptTimeoutMs: 8_000 });
+  }, {
+    timeoutMs: TIMEOUT_APPS_SCRIPT_MS,
+    attemptTimeoutMs: 8_000,
+    urlOverride: urlAppsScriptEnsaiosAdmin(env)
+  });
   if (!resultado?.ok) {
     const message = resultado?.erro || 'Apps Script non puido completar a operación.';
     const code = resultado?.codigo || (/non autorizado/i.test(message) ? 'FORBIDDEN' : 'APPS_SCRIPT_RESULT');
