@@ -3,6 +3,7 @@ import { obterJsonAppsScript } from '../_lib/apps-script.js';
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
 const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -14,6 +15,91 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 });
 
 const clean = (value) => String(value || '').trim();
+
+function ramaActual(env) {
+  return String(env.CF_PAGES_BRANCH || '').trim() === 'main' ? 'main' : 'preview';
+}
+
+function claveCacheListado(env) {
+  return `repertorio/cache/administracion/${ramaActual(env)}/listado-v2.json`;
+}
+
+async function lerCacheListado(env, permitirCaducado = false) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  const object = await env.R2_PRIVADO.get(claveCacheListado(env));
+  if (!object) return null;
+  const cache = await object.json().catch(() => null);
+  if (!cache?.payload?.ok) return null;
+  const gardadoEn = Number(cache.gardadoEn) || 0;
+  if (!permitirCaducado && (!gardadoEn || Date.now() - gardadoEn > CACHE_TTL_MS)) return null;
+  return { payload: cache.payload, gardadoEn };
+}
+
+async function gardarCacheListado(env, payload) {
+  if (!payload?.ok || !env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
+  await env.R2_PRIVADO.put(
+    claveCacheListado(env),
+    JSON.stringify({ gardadoEn: Date.now(), payload }),
+    { httpMetadata: { contentType: 'application/json', cacheControl: 'private, no-store' } }
+  );
+}
+
+async function invalidarCacheListado(env) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.delete !== 'function') return;
+  await env.R2_PRIVADO.delete(claveCacheListado(env));
+}
+
+function valorCacheSheet(key, value) {
+  if ((key === 'Principal' || key === 'Pública' || key === 'Activa' || key === 'Activo') && typeof value === 'boolean') {
+    return value ? 'Y' : 'N';
+  }
+  return value;
+}
+
+async function actualizarCacheTrasEscritura(env, accion, body) {
+  const cache = await lerCacheListado(env, true);
+  if (!cache?.payload) return;
+
+  const payload = cache.payload;
+  let fila = null;
+
+  if (accion === 'actualizarPartituraRepertorioAdministracion') {
+    fila = Array.isArray(payload.partituras)
+      ? payload.partituras.find((item) => clean(item?.Id_Partitura) === clean(body.id))
+      : null;
+  } else if (accion === 'actualizarObraRepertorioAdministracion') {
+    fila = Array.isArray(payload.obras)
+      ? payload.obras.find((item) => clean(item?.Id) === clean(body.id))
+      : null;
+  } else if (accion === 'actualizarAudioRepertorioAdministracion') {
+    fila = Array.isArray(payload.audios)
+      ? payload.audios.find((item) => clean(item?.Id_Audio) === clean(body.id))
+      : null;
+  }
+
+  if (fila && body?.datos && typeof body.datos === 'object') {
+    for (const [key, value] of Object.entries(body.datos)) fila[key] = valorCacheSheet(key, value);
+    await gardarCacheListado(env, payload);
+    return;
+  }
+
+  if (accion === 'estadoRecursoRepertorioAdministracion') {
+    const tipo = clean(body.tipo);
+    const lista = tipo === 'partitura' ? payload.partituras : payload.audios;
+    const campoId = tipo === 'partitura' ? 'Id_Partitura' : 'Id_Audio';
+    const campoEstado = tipo === 'partitura' ? 'Activa' : 'Activo';
+    const recurso = Array.isArray(lista)
+      ? lista.find((item) => clean(item?.[campoId]) === clean(body.id))
+      : null;
+    if (recurso) {
+      recurso[campoEstado] = body.activo === true ? 'Y' : 'N';
+      await gardarCacheListado(env, payload);
+      return;
+    }
+  }
+
+  await invalidarCacheListado(env);
+}
 
 async function verificarFirebase(token, apiKey) {
   if (!token || !apiKey) return null;
@@ -42,14 +128,22 @@ async function eAdministrador(env, user) {
 }
 
 function urlRepertorioAdministracion(env) {
-  return String(env.CF_PAGES_BRANCH || '').trim() === 'main'
-    ? APPS_SCRIPT_PRODUCION
-    : APPS_SCRIPT_PREVIEW;
+  return ramaActual(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
 }
 
 const ACCIONS = new Set([
   'listarRepertorioAdministracion',
   'diagnosticoRepertorioAdministracion',
+  'altaObraRepertorioAdministracion',
+  'altaAudioRepertorioAdministracion',
+  'altaPartituraRepertorioAdministracion',
+  'estadoRecursoRepertorioAdministracion',
+  'actualizarObraRepertorioAdministracion',
+  'actualizarPartituraRepertorioAdministracion',
+  'actualizarAudioRepertorioAdministracion'
+]);
+
+const ACCIONS_ESCRITURA = new Set([
   'altaObraRepertorioAdministracion',
   'altaAudioRepertorioAdministracion',
   'altaPartituraRepertorioAdministracion',
@@ -161,25 +255,47 @@ export async function onRequest({ request, env }) {
   if (!ACCIONS.has(accion)) return json(400, { ok: false, erro: 'Acción non permitida.' });
 
   try {
-    if (accion === 'altaPartituraRepertorioAdministracion') {
-      const resultadoAlta = await altaPartituraAdministracion(env, user, body);
-      return json(resultadoAlta?.ok ? 200 : 400, resultadoAlta);
-    }
-
-    const resultado = await chamar(env, user, accion, body);
-    if (resultado?.ok) return json(200, resultado);
-
     if (accion === 'listarRepertorioAdministracion') {
+      const cache = await lerCacheListado(env);
+      if (cache?.payload) {
+        return json(200, {
+          ...cache.payload,
+          cache: { orixe: 'r2', idadeMs: Math.max(0, Date.now() - cache.gardadoEn) }
+        });
+      }
+
+      const resultadoLista = await chamar(env, user, accion, body);
+      if (resultadoLista?.ok) {
+        await gardarCacheListado(env, resultadoLista).catch(() => {});
+        return json(200, { ...resultadoLista, cache: { orixe: 'apps-script', idadeMs: 0 } });
+      }
+
       let diagnostico = null;
       try { diagnostico = await chamar(env, user, 'diagnosticoRepertorioAdministracion', {}); } catch (e) {
         diagnostico = { ok: false, erro: e instanceof Error ? e.message : String(e) };
       }
       return json(502, {
         ok: false,
-        codigo: resultado?.codigo || 'REPERTORIO_ADMIN_LIST_ERROR',
-        erro: resultado?.erro || diagnostico?.erro || 'Non foi posible completar a operación.',
-        diagnostico: resultado?.diagnostico || diagnostico?.probas || diagnostico
+        codigo: resultadoLista?.codigo || 'REPERTORIO_ADMIN_LIST_ERROR',
+        erro: resultadoLista?.erro || diagnostico?.erro || 'Non foi posible completar a operación.',
+        diagnostico: resultadoLista?.diagnostico || diagnostico?.probas || diagnostico
       });
+    }
+
+    if (accion === 'altaPartituraRepertorioAdministracion') {
+      const resultadoAlta = await altaPartituraAdministracion(env, user, body);
+      if (resultadoAlta?.ok) await invalidarCacheListado(env).catch(() => {});
+      return json(resultadoAlta?.ok ? 200 : 400, resultadoAlta);
+    }
+
+    const resultado = await chamar(env, user, accion, body);
+    if (resultado?.ok) {
+      if (ACCIONS_ESCRITURA.has(accion)) {
+        await actualizarCacheTrasEscritura(env, accion, body).catch(async () => {
+          await invalidarCacheListado(env).catch(() => {});
+        });
+      }
+      return json(200, resultado);
     }
 
     return json(502, resultado || { ok: false, erro: 'Resposta baleira.' });
