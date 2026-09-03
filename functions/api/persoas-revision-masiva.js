@@ -2,7 +2,6 @@ const TOKEN_PREFIX = 'persoas/revisions/';
 const ACCEPTANCE_PREFIX = 'persoas/aceptacions/';
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8000;
-const TIMEOUT_APPS_SCRIPT_MS = 15000;
 const LEGAL_ID = 'DATOS_PERSOA_SCPP';
 
 const json = (status, body) => new Response(JSON.stringify(body), {
@@ -36,24 +35,35 @@ async function verificarFirebase(idToken, apiKey) {
   return { uid: String(user.localId || ''), email: String(user.email).trim().toLowerCase() };
 }
 
-function urlAppsScriptPrincipal(env) {
-  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) ? url : '';
-}
+async function verificarAdministrador(context, data) {
+  const user = await verificarFirebase(data.idToken, context.env.FIREBASE_API_KEY);
+  if (!user) throw Object.assign(new Error('A sesión administrativa non é válida.'), { status: 401 });
 
-async function chamarAppsScript(env, body) {
-  const url = urlAppsScriptPrincipal(env);
-  if (!url || !env.WEB_WRITE_TOKEN) throw new Error('Apps Script non está configurado.');
-  const response = await fetchConLimite(url, {
+  const accessUrl = new URL('/api/portal-access', context.request.url);
+  const accessResponse = await fetch(accessUrl.toString(), {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ token: env.WEB_WRITE_TOKEN, ...body })
-  }, TIMEOUT_APPS_SCRIPT_MS);
-  const text = await response.text();
-  let result;
-  try { result = JSON.parse(text); } catch { throw new Error('Apps Script devolveu unha resposta non válida.'); }
-  if (!response.ok || !result?.ok) throw new Error(result?.erro || `Apps Script respondeu HTTP ${response.status}.`);
-  return result;
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: data.idToken })
+  });
+  const access = await accessResponse.json().catch(() => null);
+  if (!accessResponse.ok || access?.ok !== true) {
+    throw Object.assign(new Error(access?.erro || 'Non foi posible comprobar os permisos.'), { status: 503 });
+  }
+  if (access.administrationAllowed !== true) {
+    throw Object.assign(new Error('Non tes permiso de Administración.'), { status: 403 });
+  }
+
+  const listUrl = new URL('/api/persoas-v2', context.request.url);
+  const listResponse = await fetch(listUrl.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: data.idToken, accion: 'listarPersoasAdministracion' })
+  });
+  const listado = await listResponse.json().catch(() => null);
+  if (!listResponse.ok || listado?.ok !== true) {
+    throw Object.assign(new Error(listado?.erro || 'Non foi posible cargar as persoas.'), { status: 503 });
+  }
+  return { user, listado };
 }
 
 function crearToken() {
@@ -125,22 +135,9 @@ async function tenAceptacionVixente(env, idPersoa, versionLegal) {
   } catch { return false; }
 }
 
-async function verificarAdministrador(context, data) {
-  const user = await verificarFirebase(data.idToken, context.env.FIREBASE_API_KEY);
-  if (!user) throw Object.assign(new Error('A sesión administrativa non é válida.'), { status: 401 });
-  const listado = await chamarAppsScript(context.env, {
-    accion: 'listarPersoasAdministracion',
-    email: user.email,
-    uidFirebase: user.uid,
-    incluirTextoLegalPersoas: true
-  });
-  if (listado?.perfil?.nivel !== 'Administración') throw Object.assign(new Error('Non tes permiso de Administración.'), { status: 403 });
-  return { user, listado };
-}
-
 export async function onRequestPost(context) {
   const { request, env } = context;
-  if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY || !env.R2_PRIVADO) return json(500, { ok: false, erro: 'Falta configuración do servizo.' });
+  if (!env.FIREBASE_API_KEY || !env.R2_PRIVADO) return json(500, { ok: false, erro: 'Falta configuración do servizo.' });
   let data;
   try { data = await request.json(); } catch { return json(400, { ok: false, erro: 'Solicitude JSON non válida.' }); }
 
