@@ -49,14 +49,15 @@ async function eAdministrador(env, user) {
   return data?.administrador === user.email && data?.payload?.perfil?.nivel === 'Administración';
 }
 
-async function chamarAppsScript(env, user, tipo, id) {
+async function chamarAppsScript(env, user, tipo, id, cascada) {
   const { resultado } = await obterJsonAppsScript(env, {
     token: env.WEB_WRITE_TOKEN,
     email: user.email,
     uidFirebase: user.uid,
     accion: 'eliminarRecursoRepertorioAdministracion',
     tipo,
-    id
+    id,
+    cascada: cascada === true
   }, {
     timeoutMs: 30000,
     attemptTimeoutMs: 12000,
@@ -71,6 +72,21 @@ function r2KeySeguro(tipo, value) {
   if (tipo === 'partitura' && key.startsWith('partituras/')) return key;
   if (tipo === 'audio' && key.startsWith('repertorio/audios/')) return key;
   return '';
+}
+
+function clavesR2Resultado(resultado, tipo) {
+  const items = Array.isArray(resultado?.r2Keys) ? resultado.r2Keys : [];
+  const claves = [];
+  for (const item of items) {
+    const itemTipo = clean(item?.tipo) || tipo;
+    const key = r2KeySeguro(itemTipo, item?.key);
+    if (key) claves.push({ tipo:itemTipo, key });
+  }
+  if (!claves.length && resultado?.r2Key) {
+    const key = r2KeySeguro(tipo, resultado.r2Key);
+    if (key) claves.push({ tipo, key });
+  }
+  return claves;
 }
 
 export async function onRequest({ request, env }) {
@@ -94,28 +110,39 @@ export async function onRequest({ request, env }) {
   }
   const tipo = clean(body.tipo);
   const id = clean(body.id);
+  const cascada = body.cascada === true;
   if (!['obra', 'partitura', 'audio'].includes(tipo) || !id) {
     return json(400, { ok:false, erro:'Rexistro non válido.' });
   }
 
   try {
-    const resultado = await chamarAppsScript(env, user, tipo, id);
+    const resultado = await chamarAppsScript(env, user, tipo, id, cascada);
+
+    if (tipo === 'obra' && resultado?.codigo === 'DEPENDENCIAS' && !cascada) {
+      return json(200, {
+        ok:true,
+        requireCascade:true,
+        tipo,
+        id,
+        dependencias:resultado.dependencias || { partituras:0, audios:0 }
+      });
+    }
+
     if (!resultado?.ok) {
-      const status = resultado?.codigo === 'DEPENDENCIAS' ? 409 : resultado?.codigo === 'NOT_FOUND' ? 404 : 400;
+      const status = resultado?.codigo === 'NOT_FOUND' ? 404 : 400;
       return json(status, resultado || { ok:false, erro:'Non foi posible eliminar o rexistro.' });
     }
 
-    let r2Limpo = true;
-    const key = r2KeySeguro(tipo, resultado.r2Key);
-    if (key && env.R2_PRIVADO?.delete) {
-      try { await env.R2_PRIVADO.delete(key); }
-      catch (error) {
-        console.error('Rexistro eliminado pero fallou a limpeza R2:', key, error);
-        r2Limpo = false;
-      }
-    }
-
+    const claves = clavesR2Resultado(resultado, tipo);
+    const r2Fallos = [];
     if (env.R2_PRIVADO?.delete) {
+      for (const item of claves) {
+        try { await env.R2_PRIVADO.delete(item.key); }
+        catch (error) {
+          console.error('Rexistro eliminado pero fallou a limpeza R2:', item.key, error);
+          r2Fallos.push(item.key);
+        }
+      }
       await env.R2_PRIVADO.delete(cacheKey(env)).catch(() => {});
     }
 
@@ -124,8 +151,11 @@ export async function onRequest({ request, env }) {
       tipo,
       id,
       nome:clean(resultado.nome),
-      r2Key:key,
-      r2Limpo
+      cascada:resultado.cascada === true,
+      eliminados:resultado.eliminados || null,
+      r2Eliminados:Math.max(0, claves.length - r2Fallos.length),
+      r2Fallos,
+      r2Limpo:r2Fallos.length === 0
     });
   } catch (error) {
     return json(502, {
