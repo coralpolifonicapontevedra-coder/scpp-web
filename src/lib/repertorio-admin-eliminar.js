@@ -59,24 +59,34 @@ function asegurarBoton() {
   const footer = document.querySelector('#detail-actions');
   if (!footer) return;
   const existente = footer.querySelector('[data-scpp-delete-record]');
+
   if (!detalleVisible()) {
-    existente?.remove();
+    if (existente) existente.remove();
     return;
   }
+
   const tipo = tipoActual();
+  const texto = `Eliminar ${etiquetaTipo(tipo)}`;
+
   if (existente) {
-    existente.dataset.tipo = tipo;
-    existente.textContent = `Eliminar ${etiquetaTipo(tipo)}`;
+    if (existente.dataset.tipo !== tipo) existente.dataset.tipo = tipo;
+    if (existente.textContent !== texto) existente.textContent = texto;
     return;
   }
+
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'scpp-delete-record';
   button.dataset.scppDeleteRecord = '1';
   button.dataset.tipo = tipo;
-  button.textContent = `Eliminar ${etiquetaTipo(tipo)}`;
+  button.textContent = texto;
   button.addEventListener('click', eliminarSeleccionado);
   footer.append(button);
+}
+
+function programarBoton() {
+  setTimeout(asegurarBoton, 0);
+  setTimeout(asegurarBoton, 120);
 }
 
 async function eliminarSeleccionado(event) {
@@ -120,15 +130,19 @@ function iniciar() {
   asegurarEstilo();
 
   const detail = document.querySelector('#detail');
-  const footer = document.querySelector('#detail-actions');
-  if (detail) new MutationObserver(asegurarBoton).observe(detail, { attributes:true, childList:true, subtree:true });
-  if (footer) new MutationObserver(asegurarBoton).observe(footer, { childList:true });
+  if (detail) {
+    new MutationObserver(programarBoton).observe(detail, {
+      attributes: true,
+      attributeFilter: ['hidden']
+    });
+  }
 
-  document.querySelector('#record-select')?.addEventListener('change', () => queueMicrotask(asegurarBoton));
+  document.querySelector('#record-select')?.addEventListener('change', programarBoton);
   document.querySelectorAll('[data-tab]').forEach((button) => {
-    button.addEventListener('click', () => setTimeout(asegurarBoton, 0));
+    button.addEventListener('click', programarBoton);
   });
-  asegurarBoton();
+
+  programarBoton();
 }
 
 if (typeof window !== 'undefined') {
