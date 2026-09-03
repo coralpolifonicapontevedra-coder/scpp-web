@@ -40,24 +40,18 @@ async function verificarFirebase(idToken, apiKey) {
 }
 
 async function chamarAppsScript(env, body) {
-  const { resultado } = await obterJsonAppsScript(env, body, {
-    timeoutMs: 30000,
-    attemptTimeoutMs: 12000
-  });
+  if (!env.WEB_WRITE_TOKEN) throw new Error('Apps Script non está configurado.');
+  const { resultado } = await obterJsonAppsScript(
+    env,
+    { token: env.WEB_WRITE_TOKEN, ...body },
+    { timeoutMs: 30000, attemptTimeoutMs: 12000 }
+  );
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Apps Script non completou a operación.');
   return resultado;
 }
 
 function clean(value, max) {
   return String(value || '').trim().slice(0, max);
-}
-
-function eTimeout(error) {
-  return error instanceof Error && (
-    error.name === 'AbortError' ||
-    error.code === 'APPS_SCRIPT_TIMEOUT' ||
-    /aborted|timeout|tardou demasiado/i.test(error.message)
-  );
 }
 
 export async function onRequest(context) {
@@ -93,12 +87,6 @@ export async function onRequest(context) {
       estadoAlta: String(result.estadoAlta || 'PENDENTE')
     });
   } catch (error) {
-    const timeout = eTimeout(error);
-    return json(timeout ? 504 : 400, {
-      ok: false,
-      erro: timeout
-        ? 'Apps Script tardou demasiado en responder. Inténtao de novo.'
-        : (error instanceof Error ? error.message : 'Non foi posible crear a alta por invitación.')
-    });
+    return json(400, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible crear a alta por invitación.' });
   }
 }
