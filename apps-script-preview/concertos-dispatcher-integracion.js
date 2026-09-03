@@ -33,7 +33,27 @@ function eAccionEscrituraConcertosAdministracion_(accion) {
 
 function despacharConcertosAdministracion_(accion, datos, bloqueo) {
   accion = String(accion || '').trim();
-  if (!eAccionConcertosAdministracion_(accion)) return null;
+
+  /*
+   * Código.js xa chama este dispatcher de forma incondicional antes do
+   * rexeitamento final. Aproveitamos ese punto común para encamiñar tamén
+   * Xestión de permisos / Auditoría, cuxo dispatcher modular existe no
+   * paquete de Preview pero aínda non está chamado directamente polo doPost.
+   *
+   * Para accións alleas a ambos os módulos, o dispatcher de permisos devolve
+   * null e o fluxo normal de Código.js continúa sen cambios.
+   */
+  if (!eAccionConcertosAdministracion_(accion)) {
+    if (typeof despacharXestionPermisosPortal_ === 'function') {
+      var respostaXestionPermisos =
+        despacharXestionPermisosPortal_(accion, datos, bloqueo);
+
+      if (respostaXestionPermisos !== null) {
+        return respostaXestionPermisos;
+      }
+    }
+    return null;
+  }
 
   if (
     eAccionEscrituraConcertosAdministracion_(accion) &&
