@@ -12,20 +12,27 @@ describe('texto legal das revisións de Persoas', () => {
       expect(source).toContain('const LEGAL_CACHE_TTL_MS = 30 * 60 * 1000');
       expect(source).toContain('async function lerTextoLegalCache(env)');
       expect(source).toContain('async function gardarTextoLegalCache(env, textoLegal)');
+      expect(source).toContain('async function obterTextoLegalPersoas(env, user)');
     }
   });
 
-  it('a revisión individual non pide TextosLegais cando a caché está quente', () => {
-    expect(individual).toContain('const legalCache = await lerTextoLegalCache(env)');
-    expect(individual).toContain('incluirTextoLegalPersoas: !legalCache');
-    expect(individual).toContain('const textoLegal = legalCache || textoLegalValido(authData.listado?.textoLegalPersoas)');
+  it('a revisión individual usa Persoas v2 para a listaxe e R2 para o texto legal', () => {
+    expect(individual).toContain("const listUrl = new URL('/api/persoas-v2', context.request.url)");
+    expect(individual).toContain("body: JSON.stringify({ idToken: data.idToken, accion: 'listarPersoasAdministracion' })");
+    expect(individual).toContain('textoLegal = await obterTextoLegalPersoas(env, authData.user)');
+  });
+
+  it('o texto legal só volve a Apps Script cando a caché non existe ou caducou', () => {
+    for (const source of [individual, masiva]) {
+      expect(source).toContain('const cache = await lerTextoLegalCache(env)');
+      expect(source).toContain('if (cache) return cache');
+      expect(source).toContain('incluirTextoLegalPersoas: true');
+    }
   });
 
   it('a revisión masiva resolve o texto legal aínda que persoas-v2 non o devolva', () => {
-    expect(masiva).toContain('async function obterTextoLegalPersoas(env, user)');
-    expect(masiva).toContain("accion: 'listarPersoasAdministracion'");
-    expect(masiva).toContain('incluirTextoLegalPersoas: true');
     expect(masiva).toContain('textoLegal = await obterTextoLegalPersoas(env, authData.user)');
+    expect(masiva).not.toContain('textoLegalValido(authData.listado?.textoLegalPersoas)');
   });
 
   it('non altera o rexistro final da aceptación individual', () => {
