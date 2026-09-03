@@ -41,49 +41,34 @@ const ACCIONS = new Set([
   'listarRepertorioAdministracion',
   'altaObraRepertorioAdministracion',
   'altaAudioRepertorioAdministracion',
-  'estadoRecursoRepertorioAdministracion'
+  'estadoRecursoRepertorioAdministracion',
+  'actualizarObraRepertorioAdministracion',
+  'actualizarPartituraRepertorioAdministracion',
+  'actualizarAudioRepertorioAdministracion'
 ]);
 
 export async function onRequest({ request, env }) {
-  if (request.method !== 'POST') {
-    return json(405, { ok: false, erro: 'Método non permitido.' });
-  }
-
+  if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
   let body;
-  try {
-    body = await request.json();
-  } catch {
-    return json(400, { ok: false, erro: 'Solicitude non válida.' });
-  }
+  try { body = await request.json(); } catch { return json(400, { ok: false, erro: 'Solicitude non válida.' }); }
 
   const user = await verificarFirebase(clean(body.idToken), env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok: false, erro: 'A sesión non é válida.' });
-  if (!(await eAdministrador(env, user))) {
-    return json(403, { ok: false, erro: 'Só Administración pode xestionar o repertorio.' });
-  }
+  if (!(await eAdministrador(env, user))) return json(403, { ok: false, erro: 'Só Administración pode xestionar o repertorio.' });
 
   const accion = clean(body.accion);
-  if (!ACCIONS.has(accion)) {
-    return json(400, { ok: false, erro: 'Acción non permitida.' });
-  }
+  if (!ACCIONS.has(accion)) return json(400, { ok: false, erro: 'Acción non permitida.' });
 
   try {
-    const { resultado } = await obterJsonAppsScript(
-      env,
-      {
-        token: env.WEB_WRITE_TOKEN,
-        email: user.email,
-        uidFirebase: user.uid,
-        accion,
-        ...body
-      },
-      { timeoutMs: 30000, attemptTimeoutMs: 12000 }
-    );
+    const { resultado } = await obterJsonAppsScript(env, {
+      token: env.WEB_WRITE_TOKEN,
+      email: user.email,
+      uidFirebase: user.uid,
+      accion,
+      ...body
+    }, { timeoutMs: 30000, attemptTimeoutMs: 12000 });
     return json(resultado?.ok ? 200 : 502, resultado || { ok: false, erro: 'Resposta baleira.' });
   } catch (error) {
-    return json(502, {
-      ok: false,
-      erro: error instanceof Error ? error.message : 'Non foi posible acceder á administración do repertorio.'
-    });
+    return json(502, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible acceder á administración do repertorio.' });
   }
 }
