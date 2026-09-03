@@ -180,6 +180,23 @@ async function gardarTextoLegalCache(env, textoLegal) {
   }
 }
 
+async function obterTextoLegalPersoas(env, user) {
+  const cache = await lerTextoLegalCache(env);
+  if (cache) return cache;
+
+  const listado = await chamarAppsScript(env, {
+    accion: 'listarPersoasAdministracion',
+    email: user.email,
+    uidFirebase: user.uid,
+    incluirTextoLegalPersoas: true
+  });
+  if (listado?.perfil?.nivel !== 'Administración') throw new Error('Non tes permiso de Administración.');
+  const textoLegal = textoLegalValido(listado?.textoLegalPersoas);
+  if (!textoLegal) throw new Error('O texto legal específico de Persoas non está dispoñible.');
+  await gardarTextoLegalCache(env, textoLegal);
+  return textoLegal;
+}
+
 async function lerInvitacion(env, token) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
   const object = await env.R2_PRIVADO.get(keyToken(token));
@@ -193,12 +210,18 @@ async function verificarAdministrador(context, data) {
   const { env } = context;
   const user = await verificarFirebase(data.idToken, env.FIREBASE_API_KEY);
   if (!user) throw Object.assign(new Error('A sesión administrativa non é válida.'), { status: 401 });
-  const listado = await chamarAppsScript(env, {
-    accion: 'listarPersoasAdministracion',
-    email: user.email,
-    uidFirebase: user.uid,
-    incluirTextoLegalPersoas: data.incluirTextoLegalPersoas === true
+
+  const listUrl = new URL('/api/persoas-v2', context.request.url);
+  const listResponse = await fetch(listUrl.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: data.idToken, accion: 'listarPersoasAdministracion' })
   });
+  const listado = await listResponse.json().catch(() => null);
+  if (!listResponse.ok || listado?.ok !== true) {
+    const status = listResponse.status === 401 || listResponse.status === 403 ? listResponse.status : 503;
+    throw Object.assign(new Error(listado?.erro || 'Non foi posible cargar as persoas.'), { status });
+  }
   if (listado?.perfil?.nivel !== 'Administración') {
     throw Object.assign(new Error('Non tes permiso de Administración.'), { status: 403 });
   }
@@ -213,26 +236,17 @@ function buscarPersoa(listado, referencia) {
 
 async function xerarLigazon(context, data) {
   const { env, request } = context;
-  const legalCache = await lerTextoLegalCache(env);
   let authData;
-  try {
-    authData = await verificarAdministrador(context, {
-      ...data,
-      incluirTextoLegalPersoas: !legalCache
-    });
-  } catch (error) {
-    return json(error.status || 503, { ok: false, erro: error.message });
-  }
+  try { authData = await verificarAdministrador(context, data); }
+  catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
 
   const persoa = buscarPersoa(authData.listado, data.idPersoa);
   if (!persoa) return json(404, { ok: false, erro: 'Non se atopou a persoa.' });
   if (persoa.activo !== true) return json(400, { ok: false, erro: 'Non se xera revisión para unha persoa en baixa.' });
 
-  const textoLegal = legalCache || textoLegalValido(authData.listado?.textoLegalPersoas);
-  if (!textoLegal) {
-    return json(503, { ok: false, erro: 'O texto legal específico de Persoas non está dispoñible no backend de Preview.' });
-  }
-  if (!legalCache) await gardarTextoLegalCache(env, textoLegal);
+  let textoLegal;
+  try { textoLegal = await obterTextoLegalPersoas(env, authData.user); }
+  catch (error) { return json(503, { ok: false, erro: error instanceof Error ? error.message : 'O texto legal específico de Persoas non está dispoñible.' }); }
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return json(503, { ok: false, erro: 'R2 privado non está dispoñible.' });
 
   const token = crearToken();
