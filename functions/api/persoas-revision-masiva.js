@@ -2,7 +2,10 @@ const TOKEN_PREFIX = 'persoas/revisions/';
 const ACCEPTANCE_PREFIX = 'persoas/aceptacions/';
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8000;
+const TIMEOUT_APPS_SCRIPT_MS = 15000;
 const LEGAL_ID = 'DATOS_PERSOA_SCPP';
+const LEGAL_CACHE_KEY = 'persoas/textos-legais/DATOS_PERSOA_SCPP.json';
+const LEGAL_CACHE_TTL_MS = 30 * 60 * 1000;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -33,6 +36,26 @@ async function verificarFirebase(idToken, apiKey) {
   const user = (await response.json())?.users?.[0];
   if (!user?.email || user.emailVerified !== true) return null;
   return { uid: String(user.localId || ''), email: String(user.email).trim().toLowerCase() };
+}
+
+function urlAppsScriptPrincipal(env) {
+  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(url) ? url : '';
+}
+
+async function chamarAppsScript(env, body) {
+  const url = urlAppsScriptPrincipal(env);
+  if (!url || !env.WEB_WRITE_TOKEN) throw new Error('Apps Script non está configurado.');
+  const response = await fetchConLimite(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ token: env.WEB_WRITE_TOKEN, ...body })
+  }, TIMEOUT_APPS_SCRIPT_MS);
+  const text = await response.text();
+  let result;
+  try { result = JSON.parse(text); } catch { throw new Error('Apps Script devolveu unha resposta non válida.'); }
+  if (!response.ok || !result?.ok) throw new Error(result?.erro || `Apps Script respondeu HTTP ${response.status}.`);
+  return result;
 }
 
 async function verificarAdministrador(context, data) {
@@ -90,6 +113,52 @@ function textoLegalValido(value) {
   return { id, version, titulo, texto, ambito, dataVixencia };
 }
 
+async function lerTextoLegalCache(env) {
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  try {
+    const object = await env.R2_PRIVADO.get(LEGAL_CACHE_KEY);
+    if (!object) return null;
+    const cache = await object.json();
+    const gardadoEn = Date.parse(String(cache?.gardadoEn || ''));
+    if (!Number.isFinite(gardadoEn) || Date.now() - gardadoEn > LEGAL_CACHE_TTL_MS) return null;
+    return textoLegalValido(cache?.textoLegal);
+  } catch (error) {
+    console.warn('Non se puido ler a caché do texto legal de Persoas:', error);
+    return null;
+  }
+}
+
+async function gardarTextoLegalCache(env, textoLegal) {
+  const legal = textoLegalValido(textoLegal);
+  if (!legal || !env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
+  try {
+    await env.R2_PRIVADO.put(
+      LEGAL_CACHE_KEY,
+      JSON.stringify({ gardadoEn: new Date().toISOString(), textoLegal: legal }),
+      { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } }
+    );
+  } catch (error) {
+    console.warn('Non se puido gardar a caché do texto legal de Persoas:', error);
+  }
+}
+
+async function obterTextoLegalPersoas(env, user) {
+  const cache = await lerTextoLegalCache(env);
+  if (cache) return cache;
+
+  const listado = await chamarAppsScript(env, {
+    accion: 'listarPersoasAdministracion',
+    email: user.email,
+    uidFirebase: user.uid,
+    incluirTextoLegalPersoas: true
+  });
+  if (listado?.perfil?.nivel !== 'Administración') throw new Error('Non tes permiso de Administración.');
+  const textoLegal = textoLegalValido(listado?.textoLegalPersoas);
+  if (!textoLegal) throw new Error('O texto legal específico de Persoas non está dispoñible.');
+  await gardarTextoLegalCache(env, textoLegal);
+  return textoLegal;
+}
+
 function snapshotPublico(item) {
   return {
     idPersoa: personKey(item),
@@ -145,8 +214,9 @@ export async function onRequestPost(context) {
   try { authData = await verificarAdministrador(context, data); }
   catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
 
-  const textoLegal = textoLegalValido(authData.listado?.textoLegalPersoas);
-  if (!textoLegal) return json(503, { ok: false, erro: 'O texto legal específico de Persoas non está dispoñible.' });
+  let textoLegal;
+  try { textoLegal = await obterTextoLegalPersoas(env, authData.user); }
+  catch (error) { return json(503, { ok: false, erro: error instanceof Error ? error.message : 'O texto legal específico de Persoas non está dispoñible.' }); }
 
   const alcance = String(data.alcance || 'cantores');
   const rexenerar = data.rexenerar === true;
