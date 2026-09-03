@@ -32,28 +32,28 @@ function crearPersoaInvitacionAdministracion_(datos) {
       return { ok: false, erro: 'O correo electrónico non é válido' };
     }
 
-    const conflito = detectarDuplicadoPersoaAdmin_(valores, indices, { correo: correo }, '');
+    const conflito = persoasNovoDuplicado_(valores, indices, { correo: correo }, '');
     if (conflito) return { ok: false, erro: conflito };
 
     const fila = new Array(cabeceiras.length).fill('');
-    const novoId = seguinteIdPersoaAdmin_(valores, indices);
+    const novoId = persoasNovoSeguinteId_(valores, indices);
     const rowId = Utilities.getUuid();
 
-    poñerValorPersoaAdmin_(fila, indices, 'Row ID', rowId);
-    poñerValorPersoaAdmin_(fila, indices, 'Id', novoId);
-    poñerValorPersoaAdmin_(fila, indices, 'Nome', nome);
-    poñerValorPersoaAdmin_(fila, indices, 'Correo electrónico', correo);
-    poñerValorPersoaAdmin_(fila, indices, 'Teléfono', telefono);
-    poñerValorPersoaAdmin_(fila, indices, 'Activo', 'Y');
-    if (indices.MostrarWeb !== undefined) poñerValorPersoaAdmin_(fila, indices, 'MostrarWeb', 'N');
-    if (indices.MostrarAniversario !== undefined) poñerValorPersoaAdmin_(fila, indices, 'MostrarAniversario', 'N');
-    if (indices.EstadoAlta !== undefined) poñerValorPersoaAdmin_(fila, indices, 'EstadoAlta', 'PENDENTE');
+    persoasNovoPoñer_(fila, indices, 'Row ID', rowId);
+    persoasNovoPoñer_(fila, indices, 'Id', novoId);
+    persoasNovoPoñer_(fila, indices, 'Nome', nome);
+    persoasNovoPoñer_(fila, indices, 'Correo electrónico', correo);
+    persoasNovoPoñer_(fila, indices, 'Teléfono', telefono);
+    persoasNovoPoñer_(fila, indices, 'Activo', 'Y');
+    if (indices.MostrarWeb !== undefined) persoasNovoPoñer_(fila, indices, 'MostrarWeb', 'N');
+    if (indices.MostrarAniversario !== undefined) persoasNovoPoñer_(fila, indices, 'MostrarAniversario', 'N');
+    if (indices.EstadoAlta !== undefined) persoasNovoPoñer_(fila, indices, 'EstadoAlta', 'PENDENTE');
     if (indices.ObservacionsPrivadas !== undefined) {
-      poñerValorPersoaAdmin_(fila, indices, 'ObservacionsPrivadas', 'Alta por invitación pendente de completar');
+      persoasNovoPoñer_(fila, indices, 'ObservacionsPrivadas', 'Alta por invitación pendente de completar');
     }
-    poñerValorPersoaAdmin_(fila, indices, 'DataActualizacionPerfil', new Date());
-    poñerValorPersoaAdmin_(fila, indices, 'ActualizadoPor', administrador.email);
-    actualizarNomeCompletoPersoaAdmin_(fila, indices);
+    persoasNovoPoñer_(fila, indices, 'DataActualizacionPerfil', new Date());
+    persoasNovoPoñer_(fila, indices, 'ActualizadoPor', administrador.email);
+    persoasNovoNomeCompleto_(fila, indices);
 
     contexto.persoas.appendRow(fila);
     SpreadsheetApp.flush();
@@ -134,16 +134,16 @@ function completarAltaPersoaAdministracion_(datos) {
       if (actual === 'COMPLETA') {
         return { ok: true, idPersoa: textoPersoasAdmin_(fila[indices.Id]), estadoAlta: 'COMPLETA', existente: true };
       }
-      poñerValorPersoaAdmin_(fila, indices, 'EstadoAlta', 'COMPLETA');
+      persoasNovoPoñer_(fila, indices, 'EstadoAlta', 'COMPLETA');
     }
     if (indices.ObservacionsPrivadas !== undefined) {
       const observacions = textoPersoasAdmin_(fila[indices.ObservacionsPrivadas]);
       if (/^Alta por invitación pendente de completar$/i.test(observacions)) {
-        poñerValorPersoaAdmin_(fila, indices, 'ObservacionsPrivadas', '');
+        persoasNovoPoñer_(fila, indices, 'ObservacionsPrivadas', '');
       }
     }
-    poñerValorPersoaAdmin_(fila, indices, 'DataActualizacionPerfil', new Date());
-    poñerValorPersoaAdmin_(fila, indices, 'ActualizadoPor', administrador.email);
+    persoasNovoPoñer_(fila, indices, 'DataActualizacionPerfil', new Date());
+    persoasNovoPoñer_(fila, indices, 'ActualizadoPor', administrador.email);
 
     contexto.persoas.getRange(indiceFila + 1, 1, 1, fila.length).setValues([fila]);
     SpreadsheetApp.flush();
