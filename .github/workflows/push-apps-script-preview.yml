@@ -37,7 +37,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Blindar destino de Apps Script
         shell: bash
@@ -76,13 +76,13 @@ jobs:
         working-directory: apps-script-preview
         shell: bash
         run: |
-          npx --yes @google/clasp@2.4.2 status
+          npx --yes @google/clasp@3 status
 
       - name: Subir código únicamente a Apps Script Preview
         working-directory: apps-script-preview
         shell: bash
         run: |
-          npx --yes @google/clasp@2.4.2 push --force
+          npx --yes @google/clasp@3 push --force
 
       - name: Confirmación final
         shell: bash
