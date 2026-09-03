@@ -5,6 +5,43 @@
   const token = new URLSearchParams(window.location.search).get('token') || '';
   if (!/^[A-Za-z0-9_-]{40,160}$/.test(token)) return;
 
+  const previousFetch = window.fetch.bind(window);
+
+  window.fetch = async function reviewCompletionFetch(input, init) {
+    let isSave = false;
+    try {
+      const url = typeof input === 'string' ? input : String(input?.url || '');
+      if (url.includes('/api/persoas-revision') && init?.method === 'POST' && init?.body) {
+        const body = JSON.parse(String(init.body));
+        isSave = body?.accion === 'gardarRevision' && String(body?.token || '') === token;
+      }
+    } catch {
+      isSave = false;
+    }
+
+    const response = await previousFetch(input, init);
+    if (!isSave || !response.ok) return response;
+
+    try {
+      const saved = await response.clone().json().catch(() => null);
+      if (saved?.ok === true) {
+        const completion = await previousFetch('/api/persoas-alta-completar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        });
+        const result = await completion.json().catch(() => null);
+        if (!completion.ok || result?.ok !== true) {
+          console.error('A revisión gardouse, pero non se puido actualizar EstadoAlta:', result?.erro || completion.status);
+        }
+      }
+    } catch (error) {
+      console.error('Non se puido completar EstadoAlta tras a revisión:', error);
+    }
+
+    return response;
+  };
+
   function makePhotoSection() {
     const form = document.querySelector('#review-form');
     if (!(form instanceof HTMLFormElement) || document.querySelector('#scpp-photo-fieldset')) return;
@@ -44,7 +81,7 @@
     const current = document.querySelector('#scpp-photo-current');
     const preview = document.querySelector('#scpp-photo-preview');
     try {
-      const response = await fetch(`/api/persoas-foto?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
+      const response = await previousFetch(`/api/persoas-foto?token=${encodeURIComponent(token)}`, { cache: 'no-store' });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.ok !== true || result?.disponible !== true) return;
       if (current instanceof HTMLElement) current.hidden = false;
@@ -76,7 +113,7 @@
     if (state instanceof HTMLElement) state.textContent = 'Gardando fotografía…';
 
     try {
-      const response = await fetch('/api/persoas-foto', { method: 'POST', body: form });
+      const response = await previousFetch('/api/persoas-foto', { method: 'POST', body: form });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.ok !== true) throw new Error(result?.erro || `Erro HTTP ${response.status}`);
       if (state instanceof HTMLElement) state.textContent = 'Fotografía gardada correctamente.';
