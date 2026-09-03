@@ -64,6 +64,37 @@ function crearPersoaInvitacionAdministracion_(datos) {
   }
 }
 
+function listarEstadosAltaPersoasAdministracion_(datos) {
+  try {
+    const email = normalizarEmailPersoasAdmin_(datos && datos.email);
+    const contexto = obterContextoPersoasAdmin_();
+    const valores = contexto.persoas.getDataRange().getValues();
+    const administrador = obterAdministradorPersoasAdmin_(contexto, email, valores);
+    if (!administrador) return { ok: false, erro: 'Usuario non autorizado' };
+    if (valores.length < 2) return { ok: true, estados: [] };
+
+    const indices = indicesPersoasAdmin_(valores[0] || []);
+    ['Id', 'EstadoAlta'].forEach(function(cabeceira) {
+      requireHeaderPersoasAdmin_(indices, cabeceira, 'Persoas');
+    });
+
+    const estados = valores.slice(1).map(function(fila) {
+      const idPersoa = textoPersoasAdmin_(fila[indices.Id]);
+      const rowId = indices['Row ID'] === undefined ? '' : textoPersoasAdmin_(fila[indices['Row ID']]);
+      let estadoAlta = textoPersoasAdmin_(fila[indices.EstadoAlta]);
+      if (estadoAlta !== 'PENDENTE' && estadoAlta !== 'COMPLETA') estadoAlta = 'COMPLETA';
+      return { idPersoa: idPersoa, rowId: rowId, estadoAlta: estadoAlta };
+    }).filter(function(item) {
+      return item.idPersoa || item.rowId;
+    });
+
+    return { ok: true, estados: estados };
+  } catch (erro) {
+    console.error('Erro en listarEstadosAltaPersoasAdministracion_:', erro && erro.stack ? erro.stack : erro);
+    return { ok: false, erro: erro && erro.message ? String(erro.message) : String(erro) };
+  }
+}
+
 function completarAltaPersoaAdministracion_(datos) {
   try {
     validarAccionPermitidaEntorno_('actualizarPersoaAdministracion');
