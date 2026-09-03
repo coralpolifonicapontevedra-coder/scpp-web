@@ -2,11 +2,11 @@
   const path = window.location.pathname.replace(/\/+$/, '');
   if (path !== '/portal/administracion/persoas') return;
 
-  if (!document.querySelector('script[data-scpp-persoas-invitacion]')) {
+  if (!document.querySelector('script[data-scpp-persoas-invitacion-v2]')) {
     const invitationScript = document.createElement('script');
-    invitationScript.src = '/js/persoas-alta-invitacion.js';
+    invitationScript.src = '/js/persoas-alta-invitacion-v2.js';
     invitationScript.defer = true;
-    invitationScript.dataset.scppPersoasInvitacion = 'true';
+    invitationScript.dataset.scppPersoasInvitacionV2 = 'true';
     document.head.append(invitationScript);
   }
 
@@ -129,9 +129,6 @@
   document.addEventListener('change', (event) => {
     if (event.target instanceof HTMLSelectElement && event.target.id === 'person-select') queueMicrotask(syncFileButton);
   });
-
-  const observer = new MutationObserver(() => syncFileButton());
-  observer.observe(document.documentElement, { childList: true, subtree: true });
 
   ensureSendButton();
   syncFileButton();
