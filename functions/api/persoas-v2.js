@@ -13,8 +13,10 @@ const ACCIONS_LECTURA = new Set([
 ]);
 const ACCIONS_ESCRITURA = new Set([
   'crearPersoaAdministracion',
+  'crearPersoaInvitacionAdministracion',
   'actualizarPersoaAdministracion',
-  'cambiarEstadoPersoaAdministracion'
+  'cambiarEstadoPersoaAdministracion',
+  'eliminarPersoaAdministracion'
 ]);
 
 const cacheTokens = new Map();
