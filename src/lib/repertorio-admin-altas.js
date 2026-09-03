@@ -70,7 +70,7 @@ function inxectarInterface() {
           <label><span>Compositor</span><input name="Compositor"></label>
           <label><span>Autor da letra</span><input name="AutorLetra"></label>
           <label><span>Nacemento / falecemento</span><input name="Nac/fall"></label>
-          <label><span>Categoría</span><input name="Categoria"></label>
+          <label><span>Categoría</span><select name="Categoria"><option value="">Selecciona unha categoría…</option><option>Cantos de Nadal</option><option>Música sacra</option><option>Música do Renacemento</option><option>Música galega</option><option>Música surtida</option><option>Outra</option></select></label>
           <label><span>Colección</span><input name="Coleccion"></label>
           <label><span>Orde na colección</span><input name="OrdeColeccion" type="number"></label>
           <label><span>Partitura de referencia</span><input name="Partitura"></label>
