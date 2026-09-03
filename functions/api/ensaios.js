@@ -15,7 +15,7 @@ const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'private, no-store',
-    'X-Content-Type-Options': 'nosniff',
+    'X-Content-Type-Options':'nosniff',
     ...extra
   }
 });
@@ -135,6 +135,47 @@ async function lerConcertosPrivados(env, repertorio = []) {
   }
 }
 
+function resolverIdsPrograma(programa, repertorio = []) {
+  const validos = new Set();
+  const porTitulo = new Map();
+  for (const obra of repertorio) {
+    const id = String(obra?.idRepertorio || obra?.id || '').trim();
+    if (!id) continue;
+    validos.add(id);
+    const titulo = normalizar(obra?.nomeObra || obra?.nome || obra?.obra || obra?.titulo || '');
+    if (titulo && !porTitulo.has(titulo)) porTitulo.set(titulo, id);
+  }
+
+  const ids = [];
+  for (const item of Array.isArray(programa) ? programa : []) {
+    const directo = String(item?.idRepertorio || item?.obraId || item?.repertorio || item?.id || '').trim();
+    if (directo && validos.has(directo)) {
+      ids.push(directo);
+      continue;
+    }
+    const titulo = normalizar(item?.obra || item?.titulo || item?.nomeObra || item?.nome || '');
+    const idTitulo = titulo ? porTitulo.get(titulo) : '';
+    if (idTitulo) ids.push(idTitulo);
+  }
+  return [...new Set(ids.filter(Boolean))];
+}
+
+async function idsProgramaConcerto(env, user, idConcerto, repertorio = []) {
+  if (!idConcerto) return [];
+  const concertos = await lerConcertosPrivados(env, repertorio);
+  const concerto = concertos.find((item) => String(item.id || '').trim() === idConcerto);
+  let ids = resolverIdsPrograma(concerto?.programa, repertorio);
+  if (ids.length) return ids;
+
+  try {
+    const xestion = await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto });
+    ids = resolverIdsPrograma(xestion?.programa, repertorio);
+  } catch (error) {
+    console.warn('Non se puido obter o programa do concerto desde Apps Script:', error);
+  }
+  return ids;
+}
+
 async function crearPayload(env, result) {
   const repertorio = Array.isArray(result.repertorio) ? result.repertorio : [];
   return {
@@ -225,8 +266,6 @@ async function listar(context, user, forzar = false) {
     }
   }
 
-  // Só se chega á Sheet cando non existe aínda índice R2 ou cando unha acción
-  // explícita pide rexeneralo (por exemplo, despois dunha escritura/finalización).
   const inicio = Date.now();
   const result = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
   const payload = await crearPayload(context.env, result);
@@ -252,6 +291,62 @@ async function escribir(context, user, accion, datos) {
   try { await rexenerarCache(context, user); }
   catch (error) { console.warn('A escritura completouse, pero non se puido rexenerar o índice de Ensaios:', error); }
   return json(200, { ok:true, resultado:result.resultado || result, diagnostico:{ fonte:'SHEET-WRITE', duracionMs:Date.now() - inicio } }, {
+    'X-SCPP-Cache':'INVALIDATED',
+    'X-SCPP-Storage':'SHEET'
+  });
+}
+
+async function gardarEnsaioConPrograma(context, user, body) {
+  const inicio = Date.now();
+  const idConcerto = String(body.concerto || '').trim();
+  const result = await chamarAppsScript(context.env, user, 'gardarEnsaioPortal', {
+    data:String(body.data || '').trim(),
+    horaInicio:String(body.horaInicio || '').trim(),
+    horaFin:String(body.horaFin || '').trim(),
+    lugar:String(body.lugar || '').trim(),
+    tipoEnsaio:String(body.tipoEnsaio || '').trim(),
+    concerto:idConcerto,
+    descricion:String(body.descricion || '').trim(),
+    observacions:String(body.observacions || '').trim(),
+    cancelado:body.cancelado === true
+  });
+  const resultado = result.resultado || result;
+  const idEnsaio = String(resultado?.idEnsaio || '').trim();
+  let obrasPrograma = 0;
+  let avisoPrograma = '';
+
+  if (idConcerto && idEnsaio) {
+    try {
+      const fresh = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
+      const repertorio = Array.isArray(fresh?.repertorio) ? fresh.repertorio : [];
+      const ids = await idsProgramaConcerto(context.env, user, idConcerto, repertorio);
+      for (const idRepertorio of ids.slice(0, 80)) {
+        await chamarAppsScript(context.env, user, 'gardarEnsaioRepertorioPortal', {
+          idEnsaio,
+          idRepertorio,
+          tipoTraballo:'',
+          desde:'',
+          ata:'',
+          observacions:''
+        });
+        obrasPrograma += 1;
+      }
+      if (!ids.length) avisoPrograma = 'O ensaio creouse, pero o concerto seleccionado non ten obras resolubles no programa.';
+    } catch (error) {
+      console.error('O ensaio creouse, pero fallou a carga automática do programa:', error);
+      avisoPrograma = 'O ensaio creouse, pero non foi posible cargar automaticamente o programa do concerto.';
+    }
+  }
+
+  await invalidarCache(context.env, user);
+  try { await rexenerarCache(context, user); }
+  catch (error) { console.warn('O ensaio creouse, pero non se puido rexenerar o índice de Ensaios:', error); }
+
+  return json(200, {
+    ok:true,
+    resultado:{ ...resultado, obrasPrograma, avisoPrograma },
+    diagnostico:{ fonte:'SHEET-WRITE', duracionMs:Date.now() - inicio }
+  }, {
     'X-SCPP-Cache':'INVALIDATED',
     'X-SCPP-Storage':'SHEET'
   });
@@ -308,19 +403,7 @@ export async function onRequest(context) {
 
   try {
     if (accion === 'listarEnsaiosPortal') return await listar(context, user, body.forzar === true);
-    if (accion === 'gardarEnsaio') {
-      return await escribir(context, user, 'gardarEnsaioPortal', {
-        data:String(body.data || '').trim(),
-        horaInicio:String(body.horaInicio || '').trim(),
-        horaFin:String(body.horaFin || '').trim(),
-        lugar:String(body.lugar || '').trim(),
-        tipoEnsaio:String(body.tipoEnsaio || '').trim(),
-        concerto:String(body.concerto || '').trim(),
-        descricion:String(body.descricion || '').trim(),
-        observacions:String(body.observacions || '').trim(),
-        cancelado:body.cancelado === true
-      });
-    }
+    if (accion === 'gardarEnsaio') return await gardarEnsaioConPrograma(context, user, body);
     if (accion === 'gardarAsistenciaEnsaio') {
       return await escribir(context, user, 'gardarAsistenciaEnsaioPortal', {
         idEnsaio:String(body.idEnsaio || '').trim(),
