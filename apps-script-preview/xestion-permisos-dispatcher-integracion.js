@@ -8,7 +8,7 @@ var ACCIONS_ADMIN_XESTION_PERMISOS_ = [
 ];
 
 var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
-  'listarPersoasAdministracion','crearPersoaAdministracion','crearPersoaInvitacionAdministracion','listarEstadosAltaPersoasAdministracion','actualizarPersoaAdministracion','completarAltaPersoaAdministracion','cambiarEstadoPersoaAdministracion','enviarRevisionsPersoasAdministracion',
+  'listarPersoasAdministracion','crearPersoaAdministracion','crearPersoaInvitacionAdministracion','listarEstadosAltaPersoasAdministracion','actualizarPersoaAdministracion','completarAltaPersoaAdministracion','cambiarEstadoPersoaAdministracion','enviarRevisionsPersoasAdministracion','obterTextoLegalPersoasAdministracion',
   'persoasNovoListar','persoasNovoCrear','persoasNovoActualizar','persoasNovoEstado'
 ];
 
@@ -25,6 +25,7 @@ function despacharPersoasAdministracionPortal_(accion, datos) {
   if (accion === 'completarAltaPersoaAdministracion') return completarAltaPersoaAdministracion_(datos);
   if (accion === 'cambiarEstadoPersoaAdministracion') return cambiarEstadoPersoaAdministracion_(datos);
   if (accion === 'enviarRevisionsPersoasAdministracion') return enviarRevisionsPersoasAdministracion_(datos);
+  if (accion === 'obterTextoLegalPersoasAdministracion') return obterTextoLegalPersoasAdministracion_(datos);
   return null;
 }
 
