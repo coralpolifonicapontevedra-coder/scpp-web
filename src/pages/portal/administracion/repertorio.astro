@@ -209,4 +209,169 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
   .private-layout{display:flex;min-height:100vh;background:#fbfaf9}.private-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,3rem) 4rem}.page-head{max-width:1220px;display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1rem}.page-head h1{margin:.2rem 0;font-size:clamp(2rem,4vw,3.5rem);color:#6f1d2b}.page-head p{margin:.35rem 0;color:#6b625d}.kicker{font-size:.72rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a2638}.account{display:grid;gap:.25rem;min-width:220px;padding:1rem 1.15rem;border:1px solid #dfd8d2;background:#fff}.account small{font-size:.68rem;text-transform:uppercase;color:#81766f}.account strong{margin-bottom:.35rem}.state,.card{max-width:1220px;border:1px solid #dfd8d2;background:#fff}.state{padding:1.2rem}.error{color:#8b1e2d}.tabs{max-width:1220px;display:flex;gap:.5rem;margin:1.2rem 0}.tabs button{border:1px solid #d9d0ca;background:#fff;padding:.75rem 1rem;font-weight:750;cursor:pointer}.tabs button.active{background:#6f1d2b;color:#fff;border-color:#6f1d2b}.tabs b{display:inline-grid;place-items:center;min-width:1.6rem;height:1.6rem;margin-left:.35rem;border-radius:999px;background:#f2ecec;color:#6f1d2b;font-size:.75rem}.tabs button.active b{background:#fff;color:#6f1d2b}.toolbar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(280px,1.15fr) auto auto;gap:1rem;align-items:end;padding:1rem}.toolbar label:not(.check){display:grid;gap:.4rem}.toolbar label>span{font-size:.74rem;font-weight:800;color:#5d534e}.toolbar input,.toolbar select,.edit-fields input,.edit-fields select,.edit-fields textarea{width:100%;box-sizing:border-box;border:1px solid #d7cec8;background:#fff;padding:.72rem .8rem;font:inherit}.check{display:flex;align-items:center;gap:.45rem;white-space:nowrap;padding-bottom:.7rem}.check input{width:auto}.primary,.secondary,.danger{min-height:2.45rem;padding:.65rem .95rem;font:inherit;font-weight:750;cursor:pointer}.primary{border:1px solid #6f1d2b;background:#6f1d2b;color:#fff}.secondary{border:1px solid #cbc1ba;background:#fff;color:#3f3935}.danger{border:1px solid #8f3343;background:#fff;color:#7b2031}.summary{max-width:1220px;color:#736861;font-size:.85rem}.empty-state{padding:3rem;text-align:center;color:#675d57}.empty-state strong{display:block;color:#282321;font-size:1.2rem}.detail{overflow:hidden}.detail-head{display:flex;justify-content:space-between;gap:1rem;padding:1.25rem 1.4rem;border-bottom:1px solid #e5dfda}.detail-head h2{margin:.25rem 0;color:#6f1d2b;font-size:clamp(1.5rem,3vw,2rem)}.detail-head p{margin:0;color:#71665f}.head-actions{display:flex;gap:.65rem;align-items:center}.badge{padding:.35rem .65rem;border-radius:999px;font-size:.75rem;font-weight:800}.badge.on{background:#edf5ee;color:#285c38}.badge.off{background:#f8eaea;color:#8b2637}.detail-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-bottom:1px solid #e5dfda}.detail-group{padding:1.25rem 1.4rem;border-right:1px solid #eee8e3;border-bottom:1px solid #eee8e3}.detail-group:nth-child(even){border-right:0}.detail-group h3{margin:0 0 1rem;color:#6f1d2b;font-size:1rem}.detail-group dl,.technical dl{display:grid;gap:.85rem;margin:0}.detail-group dl div,.technical dl div{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(0,1.2fr);gap:1rem}.detail-group dt,.technical dt{color:#70655e;font-size:.78rem}.detail-group dd,.technical dd{margin:0;font-weight:650;overflow-wrap:anywhere}.technical{margin:1rem 1.4rem;border:1px solid #e7e0db;background:#fbf9f7}.technical summary{padding:.8rem 1rem;cursor:pointer;font-weight:750;color:#635953}.technical>div{padding:0 1rem 1rem}.detail>footer{display:flex;justify-content:flex-end;padding:1rem 1.4rem}.status{min-height:1.2rem;color:#7d2939}.note{margin:0;color:#71665f;font-size:.82rem}dialog{width:min(760px,calc(100vw - 2rem));padding:0;border:0;box-shadow:0 26px 80px rgb(0 0 0 / 22%)}dialog::backdrop{background:rgb(0 0 0 / 35%)}dialog form{padding:1.25rem;display:grid;gap:1rem}dialog header,dialog footer{display:flex;justify-content:space-between;gap:1rem;align-items:center}dialog header h2{margin:.2rem 0}.icon{border:0;background:none;font-size:1.6rem;cursor:pointer}.edit-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.edit-fields label{display:grid;gap:.4rem}.edit-fields label span{font-size:.76rem;font-weight:800}.edit-fields .wide{grid-column:1/-1}
   @media(max-width:1000px){.toolbar{grid-template-columns:1fr 1fr}.check{padding:.4rem 0}.detail-sections{grid-template-columns:1fr}.detail-group{border-right:0}.page-head{display:grid}.account{min-width:0}}
   @media(max-width:900px){.private-layout{display:block}.private-main{padding:1rem}.toolbar{grid-template-columns:1fr}.tabs{overflow-x:auto}.detail-head{display:grid}.head-actions{justify-content:space-between}.detail-group dl div,.technical dl div{grid-template-columns:1fr;gap:.2rem}.edit-fields{grid-template-columns:1fr}.edit-fields .wide{grid-column:auto}}
+
+/* REPERTORIO_UNIFIED_FORM_DESIGN */
+#detail.detail.card {
+  max-width: 900px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+#detail .detail-head {
+  align-items: flex-start;
+  padding: 1.25rem 1.35rem;
+  background: #fff;
+}
+#detail .detail-head h2 {
+  margin: .2rem 0 .35rem;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+}
+#detail .detail-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1.25rem 1.35rem;
+  border-bottom: 0;
+  background: #fbfaf9;
+}
+#detail .detail-group,
+#detail .detail-group:nth-child(even) {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #ded6d0;
+  border-radius: 5px;
+  background: #fff;
+}
+#detail .detail-group:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+#detail .detail-group h3 {
+  margin: 0 0 .85rem;
+  padding-bottom: .55rem;
+  border-bottom: 1px solid #eee7e2;
+  font-size: .92rem;
+}
+#detail .detail-group dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem;
+}
+#detail .detail-group dl div {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .35rem;
+  min-width: 0;
+}
+#detail .detail-group dl div:only-child {
+  grid-column: 1 / -1;
+}
+#detail .detail-group dt,
+#detail .technical dt {
+  color: #5d534e;
+  font-size: .74rem;
+  font-weight: 800;
+}
+#detail .detail-group dd {
+  min-height: 2.45rem;
+  box-sizing: border-box;
+  margin: 0;
+  padding: .7rem .78rem;
+  border: 1px solid #d7cec8;
+  border-radius: 3px;
+  background: #fff;
+  color: #302a27;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+#detail .technical {
+  margin: 0 1.35rem 1.15rem;
+  border-radius: 4px;
+}
+#detail > footer {
+  padding: 1rem 1.35rem 1.25rem;
+  border-top: 1px solid #eee7e2;
+  background: #fff;
+}
+#edit-dialog,
+#new-partitura-dialog {
+  width: min(780px, calc(100vw - 2rem));
+  border: 1px solid #d8d0ca;
+  border-radius: 6px;
+  background: #fff;
+}
+#edit-dialog form,
+#new-partitura-dialog form {
+  padding: 0;
+  gap: 0;
+}
+#edit-dialog form > header,
+#new-partitura-dialog form > header {
+  padding: 1.2rem 1.3rem;
+  border-bottom: 1px solid #e6dfda;
+}
+#edit-dialog .edit-fields,
+#new-partitura-dialog .edit-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.1rem;
+  padding: 1.25rem 1.3rem;
+  background: #fbfaf9;
+}
+#edit-dialog .edit-fields label,
+#new-partitura-dialog .edit-fields label {
+  display: grid;
+  align-content: start;
+  gap: .4rem;
+  min-width: 0;
+}
+#edit-dialog .edit-fields label span,
+#new-partitura-dialog .edit-fields label span {
+  color: #5d534e;
+  font-size: .74rem;
+  font-weight: 800;
+}
+#edit-dialog .edit-fields input,
+#edit-dialog .edit-fields select,
+#edit-dialog .edit-fields textarea,
+#new-partitura-dialog .edit-fields input,
+#new-partitura-dialog .edit-fields select,
+#new-partitura-dialog .edit-fields textarea {
+  min-height: 2.7rem;
+  border-radius: 3px;
+  background: #fff;
+}
+#edit-dialog .edit-fields textarea,
+#new-partitura-dialog .edit-fields textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+#edit-dialog .status,
+#new-partitura-dialog .status,
+#new-partitura-dialog .note {
+  margin: 0;
+  padding: .75rem 1.3rem 0;
+}
+#edit-dialog form > footer,
+#new-partitura-dialog form > footer {
+  margin-top: 1rem;
+  padding: 1rem 1.3rem;
+  border-top: 1px solid #e6dfda;
+  background: #fff;
+}
+@media(max-width: 900px) {
+  #detail.detail.card { max-width: none; }
+  #detail .detail-sections,
+  #detail .detail-group dl,
+  #edit-dialog .edit-fields,
+  #new-partitura-dialog .edit-fields {
+    grid-template-columns: 1fr;
+  }
+  #detail .detail-group:last-child:nth-child(odd),
+  #detail .detail-group dl div:only-child,
+  #edit-dialog .edit-fields .wide,
+  #new-partitura-dialog .edit-fields .wide {
+    grid-column: auto;
+  }
+}
+
 </style>
