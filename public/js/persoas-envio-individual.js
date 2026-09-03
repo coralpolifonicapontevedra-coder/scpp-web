@@ -12,7 +12,13 @@
 
   const originalFetch = window.fetch.bind(window);
   let lastIdToken = '';
-  let envioEnCurso = false;
+
+  function rememberToken(body) {
+    const token = String(body?.idToken || '').trim();
+    if (!token) return;
+    lastIdToken = token;
+    window.__SCPP_PERSOAS_ID_TOKEN = token;
+  }
 
   function reviewState() {
     return document.querySelector('#review-state');
@@ -82,7 +88,6 @@
     const ok = window.confirm(`Vas enviar a revisión de datos a ${personName()}.\n\nCorreo: ${correo}\n\nQueres continuar?`);
     if (!ok) return;
 
-    envioEnCurso = true;
     if (button instanceof HTMLButtonElement) { button.disabled = true; button.textContent = 'Enviando…'; }
     setReviewMessage('Enviando correo…');
 
@@ -102,7 +107,6 @@
     } catch (error) {
       setReviewMessage(error instanceof Error ? error.message : 'Non foi posible enviar o correo.');
     } finally {
-      envioEnCurso = false;
       if (button instanceof HTMLButtonElement) { button.disabled = false; button.textContent = 'Enviar por correo'; }
     }
   }
@@ -112,14 +116,18 @@
     try { url = typeof input === 'string' ? input : String(input?.url || ''); }
     catch { return originalFetch(input, init); }
 
-    if (!url.includes('/api/persoas-revision') || url.includes('/api/persoas-revision-envio')) return originalFetch(input, init);
-
     let body = null;
     try { body = init?.body ? JSON.parse(String(init.body)) : null; } catch { body = null; }
 
+    if (url.includes('/api/persoas-v2')) rememberToken(body);
+
+    if (!url.includes('/api/persoas-revision') || url.includes('/api/persoas-revision-envio')) {
+      return originalFetch(input, init);
+    }
+
     const response = await originalFetch(input, init);
     if (body?.accion === 'xerarLigazon' && response.ok) {
-      lastIdToken = String(body?.idToken || '').trim();
+      rememberToken(body);
       ensureSendButton();
       setReviewMessage('Ligazón xerada. Podes enviala por correo ou copiala manualmente.');
     }
