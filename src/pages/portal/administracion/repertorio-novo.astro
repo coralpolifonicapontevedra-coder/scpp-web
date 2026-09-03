@@ -1,0 +1,548 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+import AdministracionNav from '../../../components/AdministracionNav.astro';
+---
+<BaseLayout title="Novo Repertorio · Administración" lang="gl">
+  <div id="repertorio-v2" class="private-layout">
+    <PortalSidebar active="administracion" logoutId="rep-v2-logout" />
+
+    <main class="private-main">
+      <header class="page-head">
+        <div>
+          <span class="kicker">Administración · módulo novo</span>
+          <h1>Repertorio</h1>
+          <p>Obras, partituras e audios nunha única xestión coherente.</p>
+        </div>
+        <aside class="account">
+          <small>Conta identificada</small>
+          <strong id="rep-v2-email">—</strong>
+          <small>Nivel de acceso</small>
+          <strong>Administración</strong>
+        </aside>
+      </header>
+
+      <AdministracionNav active="repertorio" />
+
+      <section id="rep-v2-loading" class="state">Cargando o repertorio…</section>
+      <section id="rep-v2-error" class="state error" hidden>
+        <strong>Non foi posible abrir o módulo</strong>
+        <p id="rep-v2-error-copy"></p>
+        <button class="secondary" data-retry>Tentar de novo</button>
+      </section>
+
+      <section id="rep-v2-app" hidden>
+        <nav class="tabs" aria-label="Tipo de rexistro">
+          <button class="active" data-tab="obras">Obras <b id="count-obras">0</b></button>
+          <button data-tab="partituras">Partituras <b id="count-partituras">0</b></button>
+          <button data-tab="audios">Audios <b id="count-audios">0</b></button>
+        </nav>
+
+        <section class="toolbar card">
+          <label>
+            <span>Buscar</span>
+            <input id="rep-v2-search" type="search" placeholder="Título, compositor, voz ou clasificación…" />
+          </label>
+          <label>
+            <span id="rep-v2-select-label">Seleccionar obra</span>
+            <select id="rep-v2-record-select"><option value="">Escolle unha obra…</option></select>
+          </label>
+          <label class="check">
+            <input id="rep-v2-inactive" type="checkbox" />
+            <span>Mostrar retirados</span>
+          </label>
+          <button id="rep-v2-new" class="primary">Nova obra</button>
+        </section>
+
+        <p id="rep-v2-summary" class="summary"></p>
+
+        <section id="rep-v2-empty" class="empty card">
+          <strong>Selecciona un rexistro</strong>
+          <p>A información aparecerá coa mesma estrutura visual que os formularios de alta e edición.</p>
+        </section>
+
+        <article id="rep-v2-detail" class="record card" hidden>
+          <header class="record-head">
+            <div>
+              <span id="rep-v2-detail-kind" class="kicker"></span>
+              <h2 id="rep-v2-detail-title"></h2>
+              <p id="rep-v2-detail-subtitle"></p>
+            </div>
+            <div class="record-actions">
+              <span id="rep-v2-detail-state" class="badge"></span>
+              <button id="rep-v2-edit" class="secondary">Editar datos</button>
+            </div>
+          </header>
+
+          <div id="rep-v2-detail-groups" class="form-grid readonly-grid"></div>
+
+          <details id="rep-v2-technical" class="technical">
+            <summary>Información técnica</summary>
+            <div id="rep-v2-technical-fields" class="technical-grid"></div>
+          </details>
+
+          <footer id="rep-v2-detail-actions"></footer>
+        </article>
+      </section>
+    </main>
+
+    <dialog id="rep-v2-edit-dialog">
+      <form id="rep-v2-edit-form" class="dialog-form">
+        <header>
+          <div><span class="kicker">Edición</span><h2 id="rep-v2-edit-title">Editar rexistro</h2></div>
+          <button type="button" class="icon" data-edit-close aria-label="Pechar">×</button>
+        </header>
+        <div id="rep-v2-edit-fields" class="form-grid"></div>
+        <p id="rep-v2-edit-status" class="status"></p>
+        <footer>
+          <button type="button" class="secondary" data-edit-close>Cancelar</button>
+          <button type="submit" class="primary">Gardar cambios</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="rep-v2-new-partitura-dialog">
+      <form id="rep-v2-new-partitura-form" class="dialog-form">
+        <header>
+          <div><span class="kicker">Alta</span><h2>Nova partitura</h2></div>
+          <button type="button" class="icon" data-new-close aria-label="Pechar">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span>Obra relacionada</span><select id="rep-v2-new-obra" name="Id_Repertorio"></select></label>
+          <label><span>Nome da partitura *</span><input name="Nomepartitura" required /></label>
+          <label><span>Voz</span><select name="Voz"><option>General</option><option>Soprano</option><option>Contralto</option><option>Tenor</option><option>Baixo</option></select></label>
+          <label><span>Versión</span><input name="Versión" value="1.0" /></label>
+          <label><span>Tipo de partitura</span><select name="TipoPartitura"><option>Coral</option><option>Piano</option><option>Orquestral</option><option>Redución</option><option selected>Histórica</option><option>Outra</option></select></label>
+          <label><span>Principal da obra</span><select name="Principal"><option value="false">Non</option><option value="true">Si</option></select></label>
+          <label><span>Publicada na web</span><select name="Pública"><option value="false">Non</option><option value="true">Si</option></select></label>
+          <label class="wide"><span>Observacións</span><textarea name="Observacións" rows="4"></textarea></label>
+          <label class="wide"><span>Ficheiro PDF *</span><input name="ficheiro" type="file" accept="application/pdf,.pdf" required /></label>
+        </div>
+        <p class="note">O PDF gardarase no almacén privado R2 e o rexistro crearase automaticamente en Partituras_App.</p>
+        <p id="rep-v2-new-status" class="status"></p>
+        <footer>
+          <button type="button" class="secondary" data-new-close>Cancelar</button>
+          <button type="submit" class="primary">Gardar partitura</button>
+        </footer>
+      </form>
+    </dialog>
+  </div>
+</BaseLayout>
+
+<script>
+  import { closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+
+  type Row = Record<string, unknown>;
+  type Tab = 'obras' | 'partituras' | 'audios';
+  type Field = { key:string; label:string; type?:string; options?:string[]; wide?:boolean };
+
+  const $ = (s:string) => document.querySelector(s);
+  const clean = (v:unknown) => String(v ?? '').trim();
+  const norm = (v:unknown) => clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const truth = (v:unknown) => v === true || ['Y','SI','SÍ','TRUE','1','YES'].includes(clean(v).toUpperCase());
+  const esc = (v:unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c));
+
+  let data:{obras:Row[];partituras:Row[];audios:Row[]} = { obras:[], partituras:[], audios:[] };
+  let tab:Tab = 'obras';
+  let selected = '';
+
+  async function call(accion:string, extra:Row = {}) {
+    const user = await waitForPortalUser();
+    if (!user) throw new Error('Non hai unha sesión válida.');
+    const response = await fetch('/api/repertorio-admin', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ idToken:await user.getIdToken(), accion, ...extra })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.erro || 'Non foi posible completar a operación.');
+    return result;
+  }
+
+  const rowId = (x:Row) => clean(tab === 'obras' ? x.Id : tab === 'partituras' ? x.Id_Partitura : x.Id_Audio);
+  const rowTitle = (x:Row) => clean(tab === 'obras' ? x.NomeObra : tab === 'partituras' ? x.Nomepartitura : (x.NomeAudio || x.AudioFile || 'Audio'));
+  const isActive = (x:Row) => tab === 'obras' ? true : truth(x[tab === 'partituras' ? 'Activa' : 'Activo']);
+  const workName = (value:unknown) => clean(data.obras.find(x => clean(x.Id) === clean(value))?.NomeObra || value || 'Non vinculada');
+  const yesNo = (v:unknown) => truth(v) ? 'Si' : 'Non';
+
+  function subtitle(x:Row) {
+    if (tab === 'obras') return [x.Compositor, x.Categoria].filter(Boolean).join(' · ');
+    if (tab === 'partituras') return [workName(x.Id_Repertorio), x.Voz, x.TipoPartitura].filter(Boolean).join(' · ');
+    return [workName(x.NomeObra), x.Voz, x.TipoAudio].filter(Boolean).join(' · ');
+  }
+
+  function groups(x:Row):Array<[string,Array<[string,unknown]>]> {
+    if (tab === 'obras') return [
+      ['Autoría', [['Compositor',x.Compositor],['Autor da letra',x.AutorLetra],['Nacemento / falecemento',x['Nac/fall']]]],
+      ['Clasificación', [['Categoría',x.Categoria],['Colección',x.Coleccion],['Orde na colección',x.OrdeColeccion]]],
+      ['Recursos', [['Partitura de referencia',x.Partitura],['Vídeo',x['Vídeo']],['Ligazón ao vídeo',x['Enlace a vídeo']]]],
+      ['Notas', [['Comentarios',x.Comentarios]]]
+    ];
+    if (tab === 'partituras') return [
+      ['Identificación', [['Obra relacionada',workName(x.Id_Repertorio)],['Nome da partitura',x.Nomepartitura],['Versión',x['Versión']]]],
+      ['Clasificación musical', [['Voz',x.Voz],['Tipo de partitura',x.TipoPartitura],['Principal da obra',yesNo(x.Principal)]]],
+      ['Publicación', [['No repertorio activo',isActive(x)?'Si':'Non'],['Publicada na web',yesNo(x['Pública'])]]],
+      ['Documento', [['Ficheiro PDF',x.PDF]]],
+      ['Notas', [['Observacións',x['Observacións']]]]
+    ];
+    return [
+      ['Identificación', [['Obra relacionada',workName(x.NomeObra)],['Voz',x.Voz],['Tipo de audio',x.TipoAudio]]],
+      ['Uso', [['No repertorio activo',isActive(x)?'Si':'Non'],['Data de carga',x.DataCarga],['Orde',x.Orde]]],
+      ['Ficheiro', [['Ficheiro de audio',x.AudioFile]]],
+      ['Notas', [['Observacións',x['Observacións']]]]
+    ];
+  }
+
+  function technical(x:Row):Array<[string,unknown]> {
+    if (tab === 'obras') return [['Identificador',x.Id]];
+    if (tab === 'partituras') return [['Identificador',x.Id_Partitura],['Estado R2',x.EstadoR2],['Data de subida',x.DataSubidaR2],['Tipo MIME',x.MimeType],['Tamaño',x.TamanoR2 ? `${x.TamanoR2} bytes` : '']];
+    return [['Identificador',x.Id_Audio]];
+  }
+
+  function searchText(x:Row) {
+    if (tab === 'obras') return [x.NomeObra,x.Compositor,x.AutorLetra,x.Categoria,x.Coleccion].join(' ');
+    if (tab === 'partituras') return [x.Nomepartitura,workName(x.Id_Repertorio),x.Voz,x.TipoPartitura,x.EstadoMaterial].join(' ');
+    return [x.NomeAudio,workName(x.NomeObra),x.Voz,x.TipoAudio].join(' ');
+  }
+
+  function filtered() {
+    const q = norm((($('#rep-v2-search') as HTMLInputElement)?.value));
+    const showInactive = (($('#rep-v2-inactive') as HTMLInputElement)?.checked === true);
+    return (data[tab] || [])
+      .filter(x => (showInactive || isActive(x)) && (!q || norm(searchText(x)).includes(q)))
+      .sort((a,b) => rowTitle(a).localeCompare(rowTitle(b),'gl',{sensitivity:'base'}));
+  }
+
+  function drawSelector() {
+    const items = filtered();
+    const select = $('#rep-v2-record-select') as HTMLSelectElement;
+    select.innerHTML = `<option value="">Escolle ${tab === 'obras' ? 'unha obra' : tab === 'partituras' ? 'unha partitura' : 'un audio'}…</option>` + items.map(x => `<option value="${esc(rowId(x))}">${esc(rowTitle(x))}</option>`).join('');
+    if (items.some(x => rowId(x) === selected)) select.value = selected; else selected = '';
+    ($('#rep-v2-summary') as HTMLElement).textContent = `${items.length} ${tab === 'obras' ? 'obras' : tab === 'partituras' ? 'partituras' : 'audios'} dispoñibles`;
+    drawDetail();
+  }
+
+  function drawDetail() {
+    const x = (data[tab] || []).find(r => rowId(r) === selected);
+    const empty = $('#rep-v2-empty') as HTMLElement;
+    const detail = $('#rep-v2-detail') as HTMLElement;
+    if (!x) { empty.hidden = false; detail.hidden = true; return; }
+
+    empty.hidden = true;
+    detail.hidden = false;
+    ($('#rep-v2-detail-kind') as HTMLElement).textContent = tab === 'obras' ? 'Obra' : tab === 'partituras' ? 'Partitura' : 'Audio';
+    ($('#rep-v2-detail-title') as HTMLElement).textContent = rowTitle(x);
+    ($('#rep-v2-detail-subtitle') as HTMLElement).textContent = subtitle(x);
+
+    const badge = $('#rep-v2-detail-state') as HTMLElement;
+    badge.textContent = tab === 'obras' ? 'Catalogada' : tab === 'partituras' ? (isActive(x) ? (clean(x.EstadoMaterial) || 'Sen clasificar') : 'Retirada') : (isActive(x) ? 'Activo' : 'Retirado');
+    badge.className = `badge ${isActive(x) ? 'on' : 'off'}`;
+
+    ($('#rep-v2-detail-groups') as HTMLElement).innerHTML = groups(x).map(([name, fields]) => {
+      const values = fields.filter(([,v]) => clean(v));
+      if (!values.length) return '';
+      return `<section class="form-section"><h3>${esc(name)}</h3><div class="section-grid">${values.map(([label,value]) => `<div class="read-field"><span>${esc(label)}</span><div>${esc(value)}</div></div>`).join('')}</div></section>`;
+    }).join('');
+
+    ($('#rep-v2-technical-fields') as HTMLElement).innerHTML = technical(x).filter(([,v]) => clean(v)).map(([label,value]) => `<div class="read-field"><span>${esc(label)}</span><div>${esc(value)}</div></div>`).join('');
+
+    const actions = $('#rep-v2-detail-actions') as HTMLElement;
+    actions.innerHTML = tab === 'obras' ? '' : `<button class="${isActive(x) ? 'danger' : 'primary'}" data-state>${isActive(x) ? 'Retirar do repertorio activo' : 'Reactivar no repertorio'}</button>`;
+    actions.querySelector('[data-state]')?.addEventListener('click', () => changeState(x));
+    ($('#rep-v2-edit') as HTMLButtonElement).onclick = () => openEdit(x);
+  }
+
+  const workOptions = (value:unknown) => `<option value="">Sen vincular</option>` + data.obras.slice().sort((a,b) => clean(a.NomeObra).localeCompare(clean(b.NomeObra),'gl')).map(o => `<option value="${esc(o.Id)}" ${clean(o.Id) === clean(value) ? 'selected' : ''}>${esc(o.NomeObra)}</option>`).join('');
+
+  function editSchema():Field[] {
+    if (tab === 'obras') return [
+      {key:'NomeObra',label:'Nome da obra'},{key:'Compositor',label:'Compositor'},{key:'AutorLetra',label:'Autor da letra'},{key:'Nac/fall',label:'Nacemento / falecemento'},
+      {key:'Categoria',label:'Categoría'},{key:'Coleccion',label:'Colección'},{key:'OrdeColeccion',label:'Orde na colección',type:'number'},
+      {key:'Partitura',label:'Partitura de referencia'},{key:'Vídeo',label:'Vídeo'},{key:'Enlace a vídeo',label:'Ligazón ao vídeo',type:'url'},
+      {key:'Comentarios',label:'Comentarios',type:'textarea',wide:true}
+    ];
+    if (tab === 'partituras') return [
+      {key:'Id_Repertorio',label:'Obra relacionada',type:'work'},
+      {key:'Nomepartitura',label:'Nome da partitura'},
+      {key:'Voz',label:'Voz',type:'select',options:['General','Soprano','Contralto','Tenor','Baixo']},
+      {key:'Versión',label:'Versión'},
+      {key:'TipoPartitura',label:'Tipo de partitura',type:'select',options:['Coral','Piano','Orquestral','Redución','Histórica','Outra']},
+      {key:'Principal',label:'Principal da obra',type:'boolean'},
+      {key:'Pública',label:'Publicada na web',type:'boolean'},
+      {key:'Observacións',label:'Observacións',type:'textarea',wide:true}
+    ];
+    return [
+      {key:'NomeObra',label:'Obra relacionada',type:'work'},
+      {key:'NomeAudio',label:'Nome do audio'},
+      {key:'Voz',label:'Voz',type:'select',options:['General','Soprano','Contralto','Tenor','Baixo']},
+      {key:'TipoAudio',label:'Tipo de audio'},
+      {key:'Orde',label:'Orde',type:'number'},
+      {key:'Observacións',label:'Observacións',type:'textarea',wide:true}
+    ];
+  }
+
+  function editControl(field:Field, value:unknown) {
+    if (field.type === 'work') return `<select name="${esc(field.key)}">${workOptions(value)}</select>`;
+    if (field.type === 'boolean') return `<select name="${esc(field.key)}"><option value="false" ${!truth(value)?'selected':''}>Non</option><option value="true" ${truth(value)?'selected':''}>Si</option></select>`;
+    if (field.type === 'select') return `<select name="${esc(field.key)}">${(field.options || []).map(o => `<option ${clean(o) === clean(value) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    if (field.type === 'textarea') return `<textarea name="${esc(field.key)}" rows="4">${esc(value)}</textarea>`;
+    return `<input name="${esc(field.key)}" type="${field.type || 'text'}" value="${esc(value)}" />`;
+  }
+
+  function openEdit(x:Row) {
+    ($('#rep-v2-edit-title') as HTMLElement).textContent = `Editar ${tab === 'obras' ? 'obra' : tab === 'partituras' ? 'partitura' : 'audio'}`;
+    ($('#rep-v2-edit-fields') as HTMLElement).innerHTML = editSchema().map(field => `<label class="${field.wide ? 'wide' : ''}"><span>${esc(field.label)}</span>${editControl(field,x[field.key])}</label>`).join('');
+    ($('#rep-v2-edit-status') as HTMLElement).textContent = '';
+    ($('#rep-v2-edit-dialog') as HTMLDialogElement).showModal();
+  }
+
+  function openNewPartitura() {
+    const form = $('#rep-v2-new-partitura-form') as HTMLFormElement;
+    form.reset();
+    const work = $('#rep-v2-new-obra') as HTMLSelectElement;
+    work.innerHTML = workOptions('');
+    const type = form.elements.namedItem('TipoPartitura') as HTMLSelectElement;
+    if (type) type.value = 'Histórica';
+    const version = form.elements.namedItem('Versión') as HTMLInputElement;
+    if (version) version.value = '1.0';
+    ($('#rep-v2-new-status') as HTMLElement).textContent = '';
+    ($('#rep-v2-new-partitura-dialog') as HTMLDialogElement).showModal();
+  }
+
+  const fileToBase64 = (file:File) => new Promise<string>((resolve,reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',').pop() || '');
+    reader.onerror = () => reject(new Error('Non se puido ler o PDF.'));
+    reader.readAsDataURL(file);
+  });
+
+  async function saveNewPartitura() {
+    const form = $('#rep-v2-new-partitura-form') as HTMLFormElement;
+    const fd = new FormData(form);
+    const file = fd.get('ficheiro');
+    if (!(file instanceof File) || !file.size) throw new Error('Selecciona o ficheiro PDF.');
+    if (file.type && file.type !== 'application/pdf') throw new Error('O ficheiro debe ser PDF.');
+    const partitura = {
+      Id_Repertorio:clean(fd.get('Id_Repertorio')),
+      Nomepartitura:clean(fd.get('Nomepartitura')),
+      Voz:clean(fd.get('Voz')) || 'General',
+      'Versión':clean(fd.get('Versión')) || '1.0',
+      TipoPartitura:clean(fd.get('TipoPartitura')) || 'Histórica',
+      Principal:fd.get('Principal') === 'true',
+      'Pública':fd.get('Pública') === 'true',
+      'Observacións':clean(fd.get('Observacións'))
+    };
+    const result = await call('altaPartituraRepertorioAdministracion', {
+      partitura,
+      ficheiro:{ nome:file.name, mimeType:file.type || 'application/pdf', base64:await fileToBase64(file) }
+    });
+    return clean(result.idPartitura);
+  }
+
+  async function saveEdit() {
+    const x = (data[tab] || []).find(r => rowId(r) === selected);
+    if (!x) return;
+    const fd = new FormData($('#rep-v2-edit-form') as HTMLFormElement);
+    const datos = Object.fromEntries([...fd.entries()].map(([k,v]) => [k, v === 'true' ? true : v === 'false' ? false : v]));
+    const accion = tab === 'obras' ? 'actualizarObraRepertorioAdministracion' : tab === 'partituras' ? 'actualizarPartituraRepertorioAdministracion' : 'actualizarAudioRepertorioAdministracion';
+    await call(accion, { id:rowId(x), datos });
+  }
+
+  async function changeState(x:Row) {
+    const verb = isActive(x) ? 'Retirar' : 'Reactivar';
+    if (!confirm(`${verb} “${rowTitle(x)}”?`)) return;
+    await call('estadoRecursoRepertorioAdministracion', { tipo:tab === 'partituras' ? 'partitura' : 'audio', id:rowId(x), activo:!isActive(x) });
+    await load(true);
+  }
+
+  async function load(keep = false) {
+    try {
+      const user = await waitForPortalUser();
+      if (!user) throw new Error('Non hai unha sesión válida.');
+      ($('#rep-v2-email') as HTMLElement).textContent = user.email || '—';
+      const result = await call('listarRepertorioAdministracion');
+      data = {
+        obras:Array.isArray(result.obras) ? result.obras : [],
+        partituras:Array.isArray(result.partituras) ? result.partituras : [],
+        audios:Array.isArray(result.audios) ? result.audios : []
+      };
+      (['obras','partituras','audios'] as Tab[]).forEach(t => {
+        const count = $(`#count-${t}`);
+        if (count) count.textContent = String(data[t].length);
+      });
+      if (!keep) selected = '';
+      ($('#rep-v2-loading') as HTMLElement).hidden = true;
+      ($('#rep-v2-error') as HTMLElement).hidden = true;
+      ($('#rep-v2-app') as HTMLElement).hidden = false;
+      drawSelector();
+    } catch (error) {
+      ($('#rep-v2-loading') as HTMLElement).hidden = true;
+      ($('#rep-v2-app') as HTMLElement).hidden = true;
+      ($('#rep-v2-error') as HTMLElement).hidden = false;
+      ($('#rep-v2-error-copy') as HTMLElement).textContent = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  document.querySelectorAll('#repertorio-v2 [data-tab]').forEach(button => button.addEventListener('click', () => {
+    tab = (button.getAttribute('data-tab') || 'obras') as Tab;
+    selected = '';
+    document.querySelectorAll('#repertorio-v2 [data-tab]').forEach(b => b.classList.toggle('active', b === button));
+    ($('#rep-v2-select-label') as HTMLElement).textContent = tab === 'obras' ? 'Seleccionar obra' : tab === 'partituras' ? 'Seleccionar partitura' : 'Seleccionar audio';
+    ($('#rep-v2-new') as HTMLElement).textContent = tab === 'obras' ? 'Nova obra' : tab === 'partituras' ? 'Nova partitura' : 'Novo audio';
+    drawSelector();
+  }));
+
+  ($('#rep-v2-record-select') as HTMLSelectElement).addEventListener('change', e => { selected = (e.target as HTMLSelectElement).value; drawDetail(); });
+  ($('#rep-v2-search') as HTMLInputElement).addEventListener('input', drawSelector);
+  ($('#rep-v2-inactive') as HTMLInputElement).addEventListener('change', drawSelector);
+  $('#repertorio-v2 [data-retry]')?.addEventListener('click', () => load());
+  $('#rep-v2-new')?.addEventListener('click', () => {
+    if (tab === 'partituras') openNewPartitura();
+    else alert(tab === 'obras' ? 'A alta de obras incorporarase nesta nova pantalla despois de validar a estrutura.' : 'A alta de audios incorporarase nesta nova pantalla despois de validar a estrutura.');
+  });
+
+  document.querySelectorAll('#repertorio-v2 [data-edit-close]').forEach(b => b.addEventListener('click', () => ($('#rep-v2-edit-dialog') as HTMLDialogElement).close()));
+  document.querySelectorAll('#repertorio-v2 [data-new-close]').forEach(b => b.addEventListener('click', () => ($('#rep-v2-new-partitura-dialog') as HTMLDialogElement).close()));
+
+  ($('#rep-v2-edit-form') as HTMLFormElement).addEventListener('submit', async e => {
+    e.preventDefault();
+    const status = $('#rep-v2-edit-status') as HTMLElement;
+    try {
+      status.textContent = 'Gardando…';
+      await saveEdit();
+      status.textContent = '✓ Cambios gardados.';
+      await load(true);
+      setTimeout(() => ($('#rep-v2-edit-dialog') as HTMLDialogElement).close(), 500);
+    } catch (error) {
+      status.textContent = `⚠ ${error instanceof Error ? error.message : String(error)}`;
+    }
+  });
+
+  ($('#rep-v2-new-partitura-form') as HTMLFormElement).addEventListener('submit', async e => {
+    e.preventDefault();
+    const status = $('#rep-v2-new-status') as HTMLElement;
+    const save = (e.currentTarget as HTMLFormElement).querySelector('button[type="submit"]') as HTMLButtonElement;
+    try {
+      save.disabled = true;
+      status.textContent = 'Subindo PDF e creando a partitura…';
+      const newId = await saveNewPartitura();
+      status.textContent = '✓ Partitura creada correctamente.';
+      await load();
+      tab = 'partituras';
+      document.querySelectorAll('#repertorio-v2 [data-tab]').forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === 'partituras'));
+      ($('#rep-v2-select-label') as HTMLElement).textContent = 'Seleccionar partitura';
+      ($('#rep-v2-new') as HTMLElement).textContent = 'Nova partitura';
+      selected = newId;
+      drawSelector();
+      setTimeout(() => ($('#rep-v2-new-partitura-dialog') as HTMLDialogElement).close(), 600);
+    } catch (error) {
+      status.textContent = `⚠ ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  document.addEventListener('portal:logout', () => closePortalSession());
+  load();
+</script>
+
+<style is:global>
+  #repertorio-v2 { display:flex; min-height:100vh; background:#fbfaf9; }
+  #repertorio-v2 .private-main { flex:1; min-width:0; padding:2rem clamp(1rem,3vw,3rem) 4rem; }
+  #repertorio-v2 .page-head { max-width:1220px; display:flex; justify-content:space-between; align-items:flex-start; gap:2rem; margin-bottom:1rem; }
+  #repertorio-v2 .page-head h1 { margin:.2rem 0; font-size:clamp(2rem,4vw,3.5rem); color:#6f1d2b; }
+  #repertorio-v2 .page-head p { margin:.35rem 0; color:#6b625d; }
+  #repertorio-v2 .kicker { font-size:.72rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:#8a2638; }
+  #repertorio-v2 .account { display:grid; gap:.25rem; min-width:220px; padding:1rem 1.15rem; border:1px solid #dfd8d2; background:#fff; }
+  #repertorio-v2 .account small { font-size:.68rem; text-transform:uppercase; color:#81766f; }
+  #repertorio-v2 .account strong { margin-bottom:.35rem; }
+
+  #repertorio-v2 .state,
+  #repertorio-v2 .card { max-width:1220px; border:1px solid #dfd8d2; background:#fff; }
+  #repertorio-v2 .state { padding:1.2rem; }
+  #repertorio-v2 .error { color:#8b1e2d; }
+
+  #repertorio-v2 .tabs { max-width:1220px; display:flex; gap:.5rem; margin:1.2rem 0; }
+  #repertorio-v2 .tabs button { border:1px solid #d9d0ca; background:#fff; padding:.75rem 1rem; font-weight:750; cursor:pointer; }
+  #repertorio-v2 .tabs button.active { background:#6f1d2b; color:#fff; border-color:#6f1d2b; }
+  #repertorio-v2 .tabs b { display:inline-grid; place-items:center; min-width:1.6rem; height:1.6rem; margin-left:.35rem; border-radius:999px; background:#f2ecec; color:#6f1d2b; font-size:.75rem; }
+  #repertorio-v2 .tabs button.active b { background:#fff; color:#6f1d2b; }
+
+  #repertorio-v2 .toolbar { display:grid; grid-template-columns:minmax(220px,1fr) minmax(280px,1.15fr) auto auto; gap:1rem; align-items:end; padding:1rem; }
+  #repertorio-v2 .toolbar label:not(.check) { display:grid; gap:.4rem; }
+  #repertorio-v2 .toolbar label > span,
+  #repertorio-v2 .form-grid label > span,
+  #repertorio-v2 .read-field > span { color:#5d534e; font-size:.74rem; font-weight:800; }
+  #repertorio-v2 input,
+  #repertorio-v2 select,
+  #repertorio-v2 textarea { width:100%; box-sizing:border-box; padding:.72rem .8rem; border:1px solid #d7cec8; border-radius:3px; background:#fff; font:inherit; color:#302a27; }
+  #repertorio-v2 .check { display:flex; align-items:center; gap:.45rem; white-space:nowrap; padding-bottom:.7rem; }
+  #repertorio-v2 .check input { width:auto; }
+
+  #repertorio-v2 .primary,
+  #repertorio-v2 .secondary,
+  #repertorio-v2 .danger { min-height:2.45rem; padding:.65rem .95rem; font:inherit; font-weight:750; cursor:pointer; }
+  #repertorio-v2 .primary { border:1px solid #6f1d2b; background:#6f1d2b; color:#fff; }
+  #repertorio-v2 .secondary { border:1px solid #cbc1ba; background:#fff; color:#3f3935; }
+  #repertorio-v2 .danger { border:1px solid #8f3343; background:#fff; color:#7b2031; }
+  #repertorio-v2 .summary { max-width:1220px; color:#736861; font-size:.85rem; }
+  #repertorio-v2 .empty { padding:3rem; text-align:center; color:#675d57; }
+  #repertorio-v2 .empty strong { display:block; color:#282321; font-size:1.2rem; }
+
+  #repertorio-v2 .record { max-width:900px; overflow:hidden; border-radius:6px; }
+  #repertorio-v2 .record-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:1.25rem 1.3rem; border-bottom:1px solid #e6dfda; }
+  #repertorio-v2 .record-head h2 { margin:.2rem 0 .35rem; color:#6f1d2b; font-size:clamp(1.5rem,2.5vw,2rem); }
+  #repertorio-v2 .record-head p { margin:0; color:#71665f; }
+  #repertorio-v2 .record-actions { display:flex; align-items:center; gap:.65rem; }
+  #repertorio-v2 .badge { padding:.35rem .65rem; border-radius:999px; font-size:.75rem; font-weight:800; }
+  #repertorio-v2 .badge.on { background:#edf5ee; color:#285c38; }
+  #repertorio-v2 .badge.off { background:#f8eaea; color:#8b2637; }
+
+  #repertorio-v2 .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem 1.1rem; padding:1.25rem 1.3rem; background:#fbfaf9; }
+  #repertorio-v2 .form-grid label { display:grid; align-content:start; gap:.4rem; min-width:0; }
+  #repertorio-v2 .form-grid .wide { grid-column:1 / -1; }
+  #repertorio-v2 .form-grid textarea { min-height:6rem; resize:vertical; }
+
+  #repertorio-v2 .readonly-grid { align-items:start; }
+  #repertorio-v2 .form-section { min-width:0; padding:1rem; border:1px solid #ded6d0; border-radius:5px; background:#fff; }
+  #repertorio-v2 .form-section:last-child:nth-child(odd) { grid-column:1 / -1; }
+  #repertorio-v2 .form-section h3 { margin:0 0 .85rem; padding-bottom:.55rem; border-bottom:1px solid #eee7e2; color:#6f1d2b; font-size:.92rem; }
+  #repertorio-v2 .section-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
+  #repertorio-v2 .read-field { display:grid; gap:.35rem; min-width:0; }
+  #repertorio-v2 .read-field > div { min-height:2.45rem; box-sizing:border-box; padding:.7rem .78rem; border:1px solid #d7cec8; border-radius:3px; background:#fff; color:#302a27; line-height:1.35; overflow-wrap:anywhere; }
+
+  #repertorio-v2 .technical { margin:0 1.3rem 1.15rem; border:1px solid #e7e0db; border-radius:4px; background:#fbf9f7; }
+  #repertorio-v2 .technical summary { padding:.8rem 1rem; cursor:pointer; font-weight:750; color:#635953; }
+  #repertorio-v2 .technical-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; padding:0 1rem 1rem; }
+  #repertorio-v2 .record > footer { display:flex; justify-content:flex-end; padding:1rem 1.3rem 1.25rem; border-top:1px solid #eee7e2; }
+
+  #repertorio-v2 dialog { width:min(780px,calc(100vw - 2rem)); padding:0; border:1px solid #d8d0ca; border-radius:6px; background:#fff; box-shadow:0 26px 80px rgb(0 0 0 / 22%); }
+  #repertorio-v2 dialog::backdrop { background:rgb(0 0 0 / 35%); }
+  #repertorio-v2 .dialog-form { display:grid; gap:0; padding:0; }
+  #repertorio-v2 .dialog-form > header { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1.2rem 1.3rem; border-bottom:1px solid #e6dfda; }
+  #repertorio-v2 .dialog-form > header h2 { margin:.2rem 0; color:#6f1d2b; }
+  #repertorio-v2 .dialog-form > footer { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-top:1rem; padding:1rem 1.3rem; border-top:1px solid #e6dfda; }
+  #repertorio-v2 .icon { border:0; background:none; font-size:1.6rem; cursor:pointer; }
+  #repertorio-v2 .status { min-height:1.2rem; margin:0; padding:.75rem 1.3rem 0; color:#7d2939; }
+  #repertorio-v2 .note { margin:0; padding:.75rem 1.3rem 0; color:#71665f; font-size:.82rem; }
+
+  @media(max-width:1000px) {
+    #repertorio-v2 .toolbar { grid-template-columns:1fr 1fr; }
+    #repertorio-v2 .page-head { display:grid; }
+    #repertorio-v2 .account { min-width:0; }
+  }
+  @media(max-width:900px) {
+    #repertorio-v2 { display:block; }
+    #repertorio-v2 .private-main { padding:1rem; }
+    #repertorio-v2 .toolbar,
+    #repertorio-v2 .form-grid,
+    #repertorio-v2 .section-grid,
+    #repertorio-v2 .technical-grid { grid-template-columns:1fr; }
+    #repertorio-v2 .form-grid .wide,
+    #repertorio-v2 .form-section:last-child:nth-child(odd) { grid-column:auto; }
+    #repertorio-v2 .tabs { overflow-x:auto; }
+    #repertorio-v2 .record { max-width:none; }
+    #repertorio-v2 .record-head { display:grid; }
+    #repertorio-v2 .record-actions { justify-content:space-between; }
+  }
+</style>
