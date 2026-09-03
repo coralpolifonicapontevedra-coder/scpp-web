@@ -2,11 +2,11 @@
   const path = window.location.pathname.replace(/\/+$/, '');
   if (path !== '/portal/administracion/persoas') return;
 
-  if (!document.querySelector('script[data-scpp-persoas-invitacion-v2]')) {
+  if (!document.querySelector('script[data-scpp-persoas-invitacion-v3]')) {
     const invitationScript = document.createElement('script');
-    invitationScript.src = '/js/persoas-alta-invitacion-v2.js';
+    invitationScript.src = '/js/persoas-alta-invitacion-v3.js';
     invitationScript.defer = true;
-    invitationScript.dataset.scppPersoasInvitacionV2 = 'true';
+    invitationScript.dataset.scppPersoasInvitacionV3 = 'true';
     document.head.append(invitationScript);
   }
 
