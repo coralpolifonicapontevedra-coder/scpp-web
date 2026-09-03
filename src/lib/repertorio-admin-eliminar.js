@@ -89,6 +89,14 @@ function programarBoton() {
   setTimeout(asegurarBoton, 120);
 }
 
+async function pedirEliminacion(tipo, id, cascada = false) {
+  return portalRequest(
+    '/api/repertorio-admin-eliminar',
+    'eliminarRecursoRepertorioAdministracion',
+    { tipo, id, cascada }
+  );
+}
+
 async function eliminarSeleccionado(event) {
   const button = event.currentTarget;
   const tipo = tipoActual();
@@ -96,27 +104,49 @@ async function eliminarSeleccionado(event) {
   const titulo = tituloSeleccionado();
   if (!id) return;
 
-  const avisoObra = tipo === 'obra'
-    ? '\n\nA obra só se eliminará se non ten partituras nin audios vinculados.'
+  const aviso = tipo === 'obra'
+    ? '\n\nSe ten recursos vinculados, antes de borralos pedirase unha segunda confirmación.'
     : '\n\nTamén se eliminará o ficheiro de R2 asociado, se existe.';
   const confirmado = window.confirm(
-    `Vas eliminar definitivamente a ${etiquetaTipo(tipo)} «${titulo}».\n\nEsta acción non se pode desfacer.${avisoObra}`
+    `Vas eliminar definitivamente a ${etiquetaTipo(tipo)} «${titulo}».\n\nEsta acción non se pode desfacer.${aviso}`
   );
   if (!confirmado) return;
 
   const textoAnterior = button.textContent;
   try {
     button.disabled = true;
-    button.textContent = 'Eliminando…';
-    const result = await portalRequest(
-      '/api/repertorio-admin-eliminar',
-      'eliminarRecursoRepertorioAdministracion',
-      { tipo, id }
-    );
-    const aviso = result.r2Limpo === false
-      ? '\n\nO rexistro foi eliminado, pero non se puido limpar o ficheiro de R2. Quedou anotado para revisión.'
+    button.textContent = 'Comprobando…';
+
+    let result = await pedirEliminacion(tipo, id, false);
+
+    if (tipo === 'obra' && result.requireCascade === true) {
+      const partituras = Number(result.dependencias?.partituras || 0);
+      const audios = Number(result.dependencias?.audios || 0);
+      const confirmarCascada = window.confirm(
+        `A obra «${titulo}» ten ${partituras} partitura(s) e ${audios} audio(s) vinculados.\n\n` +
+        'Se continúas eliminaranse tamén eses recursos e os seus ficheiros de R2.\n\n' +
+        'Queres eliminar todo en cascada?'
+      );
+      if (!confirmarCascada) {
+        button.disabled = false;
+        button.textContent = textoAnterior;
+        return;
+      }
+      button.textContent = 'Eliminando todo…';
+      result = await pedirEliminacion(tipo, id, true);
+    }
+
+    const partes = [];
+    if (result.eliminados) {
+      partes.push(`${Number(result.eliminados.partituras || 0)} partitura(s)`);
+      partes.push(`${Number(result.eliminados.audios || 0)} audio(s)`);
+    }
+    const resumoCascada = partes.length ? `\n\nEliminados tamén: ${partes.join(' e ')}.` : '';
+    const avisoR2 = result.r2Limpo === false
+      ? `\n\nA eliminación nas Sheets rematou, pero fallou a limpeza de ${result.r2Fallos?.length || 0} ficheiro(s) de R2. Quedaron identificados para revisión.`
       : '';
-    window.alert(`✓ ${tipo === 'obra' ? 'Obra' : tipo === 'partitura' ? 'Partitura' : 'Audio'} eliminado correctamente.${aviso}`);
+
+    window.alert(`✓ ${tipo === 'obra' ? 'Obra' : tipo === 'partitura' ? 'Partitura' : 'Audio'} eliminado correctamente.${resumoCascada}${avisoR2}`);
     window.location.reload();
   } catch (error) {
     window.alert(error instanceof Error ? error.message : String(error));
