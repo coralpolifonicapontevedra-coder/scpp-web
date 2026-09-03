@@ -23,8 +23,21 @@
  * Row ID, Id, nome, NIF, voz, cargo, tipo de socio, Activo ou MostrarWeb.
  */
 function configurarPerfilPortal() {
+  PropertiesService.getScriptProperties().setProperties({
+    PERFIL_PERSOAS_SPREADSHEET_ID: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
+    PERFIL_PERSOAS_SHEET_ID: '388888827',
+    PERFIL_USUARIOS_SPREADSHEET_ID: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+    PERFIL_USUARIOS_SHEET_ID: '1291817000',
+    PERFIL_FOTOS_FOLDER_ID: '1qXPUplggCFbFTTLRtm2j16af717o-bQs',
+    PERFIL_FOTOS_APPSHEET_PATH: 'Fotos_Perfil/'
+  });
+
   var contexto = obterContextoPerfil_();
-  console.log('Perfil configurado mediante Script Properties: ' + contexto.follaPersoas.getName() + ' | ' + contexto.follaUsuarios.getName());
+  console.log(
+    'Perfil configurado: ' + contexto.follaPersoas.getParent().getName() +
+    ' | ' + contexto.follaPersoas.getName() +
+    ' | carpeta ' + contexto.carpetaFotos.getName()
+  );
 }
 
 function probarPerfilPortal() {
@@ -253,23 +266,23 @@ function obterContextoPerfil_() {
 
   var persoasSpreadsheetId =
     propiedades.getProperty(
-      'PERSOAS_SPREADSHEET_ID'
+      'PERFIL_PERSOAS_SPREADSHEET_ID'
     );
 
   var persoasSheetId = Number(
     propiedades.getProperty(
-      'PERSOAS_SHEET_ID'
+      'PERFIL_PERSOAS_SHEET_ID'
     )
   );
 
   var usuariosSpreadsheetId =
     propiedades.getProperty(
-      'USUARIOS_WEB_SPREADSHEET_ID'
+      'PERFIL_USUARIOS_SPREADSHEET_ID'
     );
 
   var usuariosSheetId = Number(
     propiedades.getProperty(
-      'USUARIOS_WEB_SHEET_ID'
+      'PERFIL_USUARIOS_SHEET_ID'
     )
   );
 

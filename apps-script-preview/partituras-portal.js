@@ -4,7 +4,7 @@
  * A consulta habitual da web NON pasa por esta folla; este módulo só atende escrituras puntuais.
  */
 
-function idSpreadsheetPartiturasPortal_() { return obterPropiedadeObrigatoria_('PARTITURAS_SPREADSHEET_ID'); }
+var PARTITURAS_PORTAL_SPREADSHEET_ID_ = '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0';
 var PARTITURAS_PORTAL_SHEET_ = 'Partituras_App';
 
 function textoPartiturasPortal_(valor) {
@@ -28,7 +28,7 @@ function indiceHeaderPartiturasPortal_(headers, nomes) {
 }
 
 function follaPartiturasPortal_() {
-  var ss = SpreadsheetApp.openById(idSpreadsheetPartiturasPortal_());
+  var ss = SpreadsheetApp.openById(PARTITURAS_PORTAL_SPREADSHEET_ID_);
   var sheet = ss.getSheetByName(PARTITURAS_PORTAL_SHEET_);
   if (!sheet) throw new Error('Non existe a folla Partituras_App');
   return sheet;

@@ -441,14 +441,6 @@ function doPost(e) {
 
       return respostaJSON(resultado);
     }
-    // Administración → Concertos: dispatcher modular común a Preview e Produción.
-    const respostaConcertosAdmin =
-      despacharConcertosAdministracion_(accion, datos, bloqueo);
-
-    if (respostaConcertosAdmin !== null) {
-      return respostaJSON(respostaConcertosAdmin);
-    }
-
     if (accion === 'listarEnsaiosPortal') {
       const resultado =
         listarEnsaiosPortal_(datos);
@@ -514,10 +506,12 @@ function doPost(e) {
     }
 
     if (accion === 'gardarProgramaConcertoAdministracionPortal') {
+      bloqueo.waitLock(10000);
       return respostaJSON(gardarProgramaConcertoAdministracionPortal_(datos));
     }
 
     if (accion === 'gardarAsistentesConcertoAdministracionPortal') {
+      bloqueo.waitLock(10000);
       return respostaJSON(gardarAsistentesConcertoAdministracionPortal_(datos));
     }
 
@@ -527,27 +521,22 @@ function doPost(e) {
     }
 
     if (accion === 'eliminarConcertoAdministracionPortal') {
-      bloqueo.waitLock(10000);
-      return respostaJSON(eliminarConcertoAdministracionPortal_(datos));
+      try {
+        bloqueo.waitLock(10000);
+        return respostaJSON(eliminarConcertoAdministracionPortal_(datos));
+      } catch (erroEliminarConcerto) {
+        return respostaJSON({ ok:false, codigo:'ADMIN_CONCERTOS_DELETE_EXCEPTION', erro:String(erroEliminarConcerto && erroEliminarConcerto.message ? erroEliminarConcerto.message : erroEliminarConcerto) });
+      }
     }
 
-    if (accion === 'comprobarFotosAdministracionPortal') {
-      return respostaJSON(comprobarFotosAdministracionPortal_(datos));
+    if (accion === 'altaPartituraPortal') {
+      bloqueo.waitLock(10000);
+      return respostaJSON(altaPartituraPortal_(datos));
     }
 
-    if (accion === 'gardarFotoAdministracionPortal') {
+    if (accion === 'eliminarPartituraPortal') {
       bloqueo.waitLock(10000);
-      return respostaJSON(gardarFotoAdministracionPortal_(datos));
-    }
-
-    if (accion === 'eliminarFotoAdministracionPortal') {
-      bloqueo.waitLock(10000);
-      return respostaJSON(eliminarFotoAdministracionPortal_(datos));
-    }
-
-    if (accion === 'eliminarFotoHuerfanaAdministracionPortal') {
-      bloqueo.waitLock(10000);
-      return respostaJSON(eliminarFotoHuerfanaAdministracionPortal_(datos));
+      return respostaJSON(eliminarPartituraPortal_(datos));
     }
 
     if (accion === 'gardarAsistenciaEnsaioPortal') {
@@ -1000,15 +989,15 @@ function listarRepertorioPortal_(datos) {
 
   const ids = {
     repertorio:
-      obterPropiedadeObrigatoria_('REPERTORIO_SPREADSHEET_ID'),
+      '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw',
     audios:
-      obterPropiedadeObrigatoria_('AUDIOS_REPERTORIO_SPREADSHEET_ID'),
+      '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0',
     partituras:
-      obterPropiedadeObrigatoria_('PARTITURAS_SPREADSHEET_ID'),
+      '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0',
     programas:
-      obterPropiedadeObrigatoria_('CONCERTOS_REPERTORIO_SPREADSHEET_ID'),
+      '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig',
     concertos:
-      obterPropiedadeObrigatoria_('CONCERTOS_SPREADSHEET_ID')
+      '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU'
   };
 
   const repertorio = lerFollaRepertorio_(
@@ -1190,7 +1179,7 @@ function listarAsistenciasConcertosPortal_(datos) {
   }
 
   const asistencias = lerFollaRepertorio_(
-    obterPropiedadeObrigatoria_('ASISTENCIAS_CONCERTOS_SPREADSHEET_ID'),
+    '1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0',
     'AsistenciasConcertos'
   );
 
@@ -1331,11 +1320,11 @@ function obterFicheiroRepertorio_(datos) {
 
   const carpetasPermitidas = {
     'Obras_Files_':
-      obterPropiedadeObrigatoria_('OBRAS_FILES_FOLDER_ID'),
+      '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU',
     'Partituras_Files_':
-      obterPropiedadeObrigatoria_('PARTITURAS_FILES_FOLDER_ID'),
+      '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm',
     'AudiosRepertorio_Files_':
-      obterPropiedadeObrigatoria_('AUDIOS_REPERTORIO_FILES_FOLDER_ID')
+      '1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V'
   };
 
   const partes = ruta.split('/');
@@ -1915,12 +1904,12 @@ function rexistrarAcceso(datos) {
 
     // Arquivo independente RexistroAccesosWeb.
     const libroRexistro = SpreadsheetApp.openById(
-      obterPropiedadeObrigatoria_('REXISTRO_ACCESOS_SPREADSHEET_ID')
+      '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU'
     );
 
     // Identificador interno da pestana.
     const follaRexistro =
-      libroRexistro.getSheetById(Number(obterPropiedadeObrigatoria_('REXISTRO_ACCESOS_SHEET_ID')));
+      libroRexistro.getSheetById(1291817000);
 
     if (!follaRexistro) {
       throw new Error(
@@ -1986,11 +1975,11 @@ function autorizarAccesoUsuariosWeb() {
 
 function comprobarRexistroAccesosWeb() {
   const libroRexistro = SpreadsheetApp.openById(
-    obterPropiedadeObrigatoria_('REXISTRO_ACCESOS_SPREADSHEET_ID')
+    '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU'
   );
 
   const follaRexistro =
-    libroRexistro.getSheetById(Number(obterPropiedadeObrigatoria_('REXISTRO_ACCESOS_SHEET_ID')));
+    libroRexistro.getSheetById(1291817000);
 
   if (!follaRexistro) {
     throw new Error(
@@ -2216,7 +2205,7 @@ function probarPostAceptacion() {
  * Este módulo evita que o navegador decida a versión ou o contido aceptado.
  * Tanto a comprobación como o rexistro resolven a fila activa directamente
  * desde TextosLegais.
- */
+ */
 const ACEPTACION_SPREADSHEET_ID_ =
   '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k';
 const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208;
