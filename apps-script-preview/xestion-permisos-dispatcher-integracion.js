@@ -24,7 +24,9 @@ var ACCIONS_ADMIN_XESTION_PERMISOS_ = [
 
 var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
   'crearPersoaAdministracion',
+  'crearPersoaInvitacionAdministracion',
   'actualizarPersoaAdministracion',
+  'completarAltaPersoaAdministracion',
   'cambiarEstadoPersoaAdministracion',
   'enviarRevisionsPersoasAdministracion'
 ];
@@ -38,8 +40,16 @@ function despacharPersoasAdministracionPortal_(accion, datos) {
     return crearPersoaAdministracion_(datos);
   }
 
+  if (accion === 'crearPersoaInvitacionAdministracion') {
+    return crearPersoaInvitacionAdministracion_(datos);
+  }
+
   if (accion === 'actualizarPersoaAdministracion') {
     return actualizarPersoaAdministracion_(datos);
+  }
+
+  if (accion === 'completarAltaPersoaAdministracion') {
+    return completarAltaPersoaAdministracion_(datos);
   }
 
   if (accion === 'cambiarEstadoPersoaAdministracion') {
@@ -93,23 +103,31 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
   if (respostaPersoas !== null) {
     rexistrarAcceso({
       email: String(
-        datos && datos.email || ''
+        dados && dados.email || ''
       ).trim().toLowerCase(),
 
       tipoEvento:
         accion === 'crearPersoaAdministracion'
           ? 'Crear persoa'
           : (
-            accion === 'actualizarPersoaAdministracion'
-              ? 'Actualizar persoa'
+            accion === 'crearPersoaInvitacionAdministracion'
+              ? 'Crear alta por invitación'
               : (
-                accion === 'cambiarEstadoPersoaAdministracion'
-                  ? (
-                    respostaPersoas.activo
-                      ? 'Reactivar persoa'
-                      : 'Dar de baixa persoa'
+                accion === 'actualizarPersoaAdministracion'
+                  ? 'Actualizar persoa'
+                  : (
+                    accion === 'completarAltaPersoaAdministracion'
+                      ? 'Completar alta por invitación'
+                      : (
+                        accion === 'cambiarEstadoPersoaAdministracion'
+                          ? (
+                            respostaPersoas.activo
+                              ? 'Reactivar persoa'
+                              : 'Dar de baixa persoa'
+                          )
+                          : 'Envío masivo de revisións'
+                      )
                   )
-                  : 'Envío masivo de revisións'
               )
           ),
 
