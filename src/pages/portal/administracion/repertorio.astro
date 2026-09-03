@@ -1,0 +1,161 @@
+---
+import BaseLayout from '../../../layouts/Layout.astro';
+import PortalSidebar from '../../../components/PortalSidebar.astro';
+import AdministracionNav from '../../../components/AdministracionNav.astro';
+---
+<BaseLayout title="Administración do repertorio" lang="gl">
+  <div class="private-layout">
+    <PortalSidebar active="administracion" logoutId="rep-logout" />
+    <main class="private-main">
+      <header class="page-head">
+        <div>
+          <span class="kicker">Administración</span>
+          <h1>Repertorio</h1>
+          <p>Catálogo, clasificación e recursos musicais da Sociedade.</p>
+        </div>
+        <aside class="account"><small>Conta identificada</small><strong id="email">—</strong><small>Nivel de acceso</small><strong>Administración</strong></aside>
+      </header>
+      <AdministracionNav active="repertorio" />
+
+      <section id="loading" class="state">Cargando o repertorio…</section>
+      <section id="error" class="state error" hidden><strong>Non foi posible abrir o módulo</strong><p id="error-copy"></p><button class="secondary" data-retry>Tentar de novo</button></section>
+
+      <section id="app" hidden>
+        <nav class="tabs" aria-label="Tipo de rexistro">
+          <button class="active" data-tab="obras">Obras <b id="count-obras">0</b></button>
+          <button data-tab="partituras">Partituras <b id="count-partituras">0</b></button>
+          <button data-tab="audios">Audios <b id="count-audios">0</b></button>
+        </nav>
+
+        <section class="toolbar card">
+          <label class="search-label"><span>Buscar</span><input id="search" type="search" placeholder="Título, compositor, voz ou clasificación…" /></label>
+          <label><span id="select-label">Seleccionar obra</span><select id="record-select"><option value="">Escolle unha obra…</option></select></label>
+          <label class="check"><input id="inactive" type="checkbox" /> <span>Mostrar retirados</span></label>
+          <button id="new" class="primary">Nova obra</button>
+        </section>
+        <p id="summary" class="summary"></p>
+
+        <section id="empty" class="empty-state card">
+          <strong>Selecciona un rexistro</strong>
+          <p>A ficha mostrará os datos musicais e deixará a información técnica nun bloque secundario.</p>
+        </section>
+
+        <article id="detail" class="detail card" hidden>
+          <header class="detail-head">
+            <div><span id="detail-kind" class="kicker"></span><h2 id="detail-title"></h2><p id="detail-subtitle"></p></div>
+            <div class="head-actions"><span id="detail-state" class="badge"></span><button id="edit" class="secondary">Editar datos</button></div>
+          </header>
+          <div id="detail-fields" class="detail-sections"></div>
+          <details id="technical" class="technical"><summary>Información técnica</summary><div id="technical-fields"></div></details>
+          <footer id="detail-actions"></footer>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="edit-dialog">
+    <form id="edit-form">
+      <header><div><span class="kicker">Edición</span><h2 id="edit-title">Editar rexistro</h2></div><button type="button" class="icon" data-close aria-label="Pechar">×</button></header>
+      <div id="edit-fields" class="edit-fields"></div>
+      <p id="edit-status" class="status"></p>
+      <footer><button type="button" class="secondary" data-close>Cancelar</button><button type="submit" class="primary">Gardar cambios</button></footer>
+    </form>
+  </dialog>
+</BaseLayout>
+
+<script>
+  import { closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
+  type Row = Record<string, unknown>;
+  type Tab = 'obras' | 'partituras' | 'audios';
+  type EditField = { key:string; label:string; type?:string; options?:string[]; wide?:boolean };
+  const $ = (s:string) => document.querySelector(s);
+  let data:{obras:Row[];partituras:Row[];audios:Row[]}={obras:[],partituras:[],audios:[]};
+  let tab:Tab='obras'; let selected='';
+  const truth=(v:unknown)=>v===true||['Y','SI','SÍ','TRUE','1','YES'].includes(String(v||'').toUpperCase());
+  const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]||c));
+  const clean=(v:unknown)=>String(v??'').trim();
+  const norm=(v:unknown)=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+  async function call(accion:string, extra:Row={}) {
+    const u=await waitForPortalUser(); if(!u) throw new Error('Non hai unha sesión válida.');
+    const r=await fetch('/api/repertorio-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:await u.getIdToken(),accion,...extra})});
+    const x=await r.json().catch(()=>null); if(!r.ok||!x?.ok) throw new Error(x?.erro||'Non foi posible completar a operación.'); return x;
+  }
+
+  const id=(x:Row)=>clean(tab==='obras'?x.Id:tab==='partituras'?x.Id_Partitura:x.Id_Audio);
+  const title=(x:Row)=>clean(tab==='obras'?x.NomeObra:tab==='partituras'?x.Nomepartitura:(x.NomeAudio||x.AudioFile||'Audio'));
+  const active=(x:Row)=>tab==='obras'?true:truth(x[tab==='partituras'?'Activa':'Activo']);
+  const obraNome=(v:unknown)=>clean(data.obras.find(x=>clean(x.Id)===clean(v))?.NomeObra||v||'Non vinculada');
+  const labelYes=(v:unknown)=>truth(v)?'Si':'Non';
+  const estadoMaterial=(x:Row)=>clean(x.EstadoMaterial)||'Sen clasificar';
+
+  function visibleSections(x:Row){
+    if(tab==='obras') return [
+      ['Autoría',[['Compositor',x.Compositor],['Autor da letra',x.AutorLetra],['Nacemento / falecemento',x['Nac/fall']]]],
+      ['Clasificación',[['Categoría',x.Categoria],['Colección',x.Coleccion],['Orde na colección',x.OrdeColeccion]]],
+      ['Recursos',[['Partitura de referencia',x.Partitura],['Vídeo',x['Vídeo']],['Ligazón ao vídeo',x['Enlace a vídeo']]]],
+      ['Notas',[['Comentarios',x.Comentarios]]]
+    ];
+    if(tab==='partituras') return [
+      ['Identificación',[['Obra relacionada',obraNome(x.Id_Repertorio)],['Versión',x['Versión']]]],
+      ['Clasificación musical',[['Voz',x.Voz],['Tipo de partitura',x.TipoPartitura],['Principal da obra',labelYes(x.Principal)]]],
+      ['Publicación',[['No repertorio activo',active(x)?'Si':'Non'],['Publicada na web',labelYes(x['Pública'])]]],
+      ['Documento',[['Ficheiro PDF',x.PDF]]],
+      ['Notas',[['Observacións',x['Observacións']]]]
+    ];
+    return [
+      ['Identificación',[['Obra relacionada',obraNome(x.NomeObra)],['Voz',x.Voz],['Tipo de audio',x.TipoAudio]]],
+      ['Uso',[['No repertorio activo',active(x)?'Si':'Non'],['Data de carga',x.DataCarga],['Orde',x.Orde]]],
+      ['Ficheiro',[['Ficheiro de audio',x.AudioFile]]],
+      ['Notas',[['Observacións',x['Observacións']]]]
+    ];
+  }
+
+  function technicalSections(x:Row){
+    if(tab==='obras') return [['Identificador',x.Id]];
+    if(tab==='partituras') return [['Identificador',x.Id_Partitura],['Estado R2',x.EstadoR2],['Data de subida',x.DataSubidaR2],['Tipo MIME',x.MimeType],['Tamaño',x.TamanoR2?`${x.TamanoR2} bytes`:'']];
+    return [['Identificador',x.Id_Audio]];
+  }
+
+  function subtitle(x:Row){
+    if(tab==='obras') return [x.Compositor,x.Categoria].filter(Boolean).join(' · ');
+    if(tab==='partituras') return [obraNome(x.Id_Repertorio),x.Voz,x.TipoPartitura].filter(Boolean).join(' · ');
+    return [obraNome(x.NomeObra),x.Voz,x.TipoAudio].filter(Boolean).join(' · ');
+  }
+
+  function renderGroups(x:Row){return visibleSections(x).map(([name,fields])=>{const vals=(fields as Array<[string,unknown]>).filter(([,v])=>clean(v));if(!vals.length)return'';return `<section class="detail-group"><h3>${esc(name)}</h3><dl>${vals.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl></section>`}).join('')}
+  function renderTech(x:Row){return `<dl>${technicalSections(x).filter(([,v])=>clean(v)).map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`}
+
+  function filtered(){const q=norm((($('#search') as HTMLInputElement)?.value));const show=(($('#inactive') as HTMLInputElement)?.checked===true);return (data[tab]||[]).filter(x=>(show||active(x))&&(!q||norm(searchText(x)).includes(q))).sort((a,b)=>title(a).localeCompare(title(b),'gl',{sensitivity:'base'}))}
+  function searchText(x:Row){if(tab==='obras')return [x.NomeObra,x.Compositor,x.AutorLetra,x.Categoria,x.Coleccion].join(' ');if(tab==='partituras')return [x.Nomepartitura,obraNome(x.Id_Repertorio),x.Voz,x.TipoPartitura,x.EstadoMaterial].join(' ');return [x.NomeAudio,obraNome(x.NomeObra),x.Voz,x.TipoAudio].join(' ')}
+
+  function drawSelector(){const items=filtered();const s=$('#record-select') as HTMLSelectElement;s.innerHTML=`<option value="">Escolle ${tab==='obras'?'unha obra':tab==='partituras'?'unha partitura':'un audio'}…</option>`+items.map(x=>`<option value="${esc(id(x))}">${esc(title(x))}</option>`).join('');if(items.some(x=>id(x)===selected))s.value=selected;else selected='';($('#summary') as HTMLElement).textContent=`${items.length} ${tab==='obras'?'obras':tab==='partituras'?'partituras':'audios'} dispoñibles`;drawDetail()}
+
+  function drawDetail(){const x=(data[tab]||[]).find(r=>id(r)===selected);const empty=$('#empty') as HTMLElement;const d=$('#detail') as HTMLElement;if(!x){empty.hidden=false;d.hidden=true;return}empty.hidden=true;d.hidden=false;($('#detail-kind') as HTMLElement).textContent=tab==='obras'?'Obra':tab==='partituras'?'Partitura':'Audio';($('#detail-title') as HTMLElement).textContent=title(x);($('#detail-subtitle') as HTMLElement).textContent=subtitle(x);const b=$('#detail-state') as HTMLElement;b.textContent=tab==='obras'?'Catalogada':tab==='partituras'?(active(x)?estadoMaterial(x):'Retirada'):(active(x)?'Activo':'Retirado');b.className=`badge ${active(x)?'on':'off'}`;($('#detail-fields') as HTMLElement).innerHTML=renderGroups(x);($('#technical-fields') as HTMLElement).innerHTML=renderTech(x);const footer=$('#detail-actions') as HTMLElement;footer.innerHTML=tab==='obras'?'':`<button class="${active(x)?'danger':'primary'}" data-state>${active(x)?'Retirar do repertorio activo':'Reactivar no repertorio'}</button>`;footer.querySelector('[data-state]')?.addEventListener('click',()=>changeState(x));($('#edit') as HTMLButtonElement).onclick=()=>openEdit(x)}
+
+  const workOptions=(value:unknown)=>`<option value="">Sen vincular</option>`+data.obras.slice().sort((a,b)=>clean(a.NomeObra).localeCompare(clean(b.NomeObra),'gl')).map(o=>`<option value="${esc(o.Id)}" ${clean(o.Id)===clean(value)?'selected':''}>${esc(o.NomeObra)}</option>`).join('');
+  function editSchema():EditField[]{if(tab==='obras')return[{key:'NomeObra',label:'Nome da obra'},{key:'Compositor',label:'Compositor'},{key:'AutorLetra',label:'Autor da letra'},{key:'Nac/fall',label:'Nacemento / falecemento'},{key:'Categoria',label:'Categoría'},{key:'Coleccion',label:'Colección'},{key:'OrdeColeccion',label:'Orde na colección',type:'number'},{key:'Partitura',label:'Partitura de referencia'},{key:'Vídeo',label:'Vídeo'},{key:'Enlace a vídeo',label:'Ligazón ao vídeo',type:'url'},{key:'Comentarios',label:'Comentarios',type:'textarea',wide:true}];if(tab==='partituras')return[{key:'Id_Repertorio',label:'Obra relacionada',type:'work'},{key:'Nomepartitura',label:'Nome da partitura'},{key:'Voz',label:'Voz',type:'select',options:['General','Soprano','Contralto','Tenor','Baixo']},{key:'Versión',label:'Versión'},{key:'TipoPartitura',label:'Tipo de partitura',type:'select',options:['Coral','Piano','Orquestral','Redución','Histórica','Outra']},{key:'Principal',label:'Principal da obra',type:'bool'},{key:'Pública',label:'Publicada na web',type:'bool'},{key:'Observacións',label:'Observacións',type:'textarea',wide:true}];return[{key:'NomeObra',label:'Obra relacionada',type:'work'},{key:'NomeAudio',label:'Nome do audio'},{key:'Voz',label:'Voz',type:'select',options:['Audioxeral','Soprano','Contralto','Tenor','Baixo','Homes','Mulleres']},{key:'TipoAudio',label:'Tipo de audio',type:'select',options:['Estudo','Interpretación','Referencia','Ensaio','Histórico','Outro']},{key:'DataCarga',label:'Data de carga',type:'date'},{key:'Orde',label:'Orde',type:'number'},{key:'Observacións',label:'Observacións',type:'textarea',wide:true}]}
+  function fieldHtml(f:EditField,x:Row){const v=x[f.key]??'';if(f.type==='textarea')return `<label class="wide"><span>${esc(f.label)}</span><textarea name="${esc(f.key)}" rows="4">${esc(v)}</textarea></label>`;if(f.type==='work')return `<label><span>${esc(f.label)}</span><select name="${esc(f.key)}">${workOptions(v)}</select></label>`;if(f.type==='select')return `<label><span>${esc(f.label)}</span><select name="${esc(f.key)}">${(f.options||[]).map(o=>`<option ${clean(o)===clean(v)?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;if(f.type==='bool')return `<label><span>${esc(f.label)}</span><select name="${esc(f.key)}"><option value="true" ${truth(v)?'selected':''}>Si</option><option value="false" ${!truth(v)?'selected':''}>Non</option></select></label>`;return `<label class="${f.wide?'wide':''}"><span>${esc(f.label)}</span><input name="${esc(f.key)}" type="${f.type||'text'}" value="${esc(v)}" /></label>`}
+  function openEdit(x:Row){($('#edit-title') as HTMLElement).textContent=`Editar ${tab==='obras'?'obra':tab==='partituras'?'partitura':'audio'}`;($('#edit-fields') as HTMLElement).innerHTML=editSchema().map(f=>fieldHtml(f,x)).join('');($('#edit-status') as HTMLElement).textContent='';($('#edit-dialog') as HTMLDialogElement).showModal()}
+
+  async function changeState(x:Row){const verb=active(x)?'Retirar':'Reactivar';if(!confirm(`${verb} “${title(x)}”?`))return;await call('estadoRecursoRepertorioAdministracion',{tipo:tab==='partituras'?'partitura':'audio',id:id(x),activo:!active(x)});await load(true)}
+  async function saveEdit(){const x=(data[tab]||[]).find(r=>id(r)===selected);if(!x)return;const fd=new FormData($('#edit-form') as HTMLFormElement);const datos:Object=Object.fromEntries([...fd.entries()].map(([k,v])=>[k,v==='true'?true:v==='false'?false:v]));const accion=tab==='obras'?'actualizarObraRepertorioAdministracion':tab==='partituras'?'actualizarPartituraRepertorioAdministracion':'actualizarAudioRepertorioAdministracion';await call(accion,{id:id(x),datos});}
+
+  async function load(keep=false){try{const u=await waitForPortalUser();if(!u)throw new Error('Non hai unha sesión válida.');($('#email') as HTMLElement).textContent=u.email||'—';const x=await call('listarRepertorioAdministracion');data={obras:Array.isArray(x.obras)?x.obras:[],partituras:Array.isArray(x.partituras)?x.partituras:[],audios:Array.isArray(x.audios)?x.audios:[]};(['obras','partituras','audios'] as Tab[]).forEach(t=>{const c=$(`#count-${t}`);if(c)c.textContent=String(data[t].length)});if(!keep)selected='';($('#loading') as HTMLElement).hidden=true;($('#error') as HTMLElement).hidden=true;($('#app') as HTMLElement).hidden=false;drawSelector()}catch(e){($('#loading') as HTMLElement).hidden=true;($('#app') as HTMLElement).hidden=true;($('#error') as HTMLElement).hidden=false;($('#error-copy') as HTMLElement).textContent=e instanceof Error?e.message:String(e)}}
+
+  document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>{tab=(btn.getAttribute('data-tab')||'obras') as Tab;selected='';document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===btn));($('#select-label') as HTMLElement).textContent=tab==='obras'?'Seleccionar obra':tab==='partituras'?'Seleccionar partitura':'Seleccionar audio';($('#new') as HTMLElement).textContent=tab==='obras'?'Nova obra':tab==='partituras'?'Nova partitura':'Novo audio';drawSelector()}));
+  ($('#record-select') as HTMLSelectElement).addEventListener('change',e=>{selected=(e.target as HTMLSelectElement).value;drawDetail()});
+  ($('#search') as HTMLInputElement).addEventListener('input',drawSelector);($('#inactive') as HTMLInputElement).addEventListener('change',drawSelector);
+  $('[data-retry]')?.addEventListener('click',()=>load());
+  $('#new')?.addEventListener('click',()=>alert('Nesta primeira versión de proba mantense o foco na consulta e edición. A alta con ficheiro integrarase despois de validar esta ficha.'));
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>($('#edit-dialog') as HTMLDialogElement).close()));
+  ($('#edit-form') as HTMLFormElement).addEventListener('submit',async e=>{e.preventDefault();const st=$('#edit-status') as HTMLElement;try{st.textContent='Gardando…';await saveEdit();st.textContent='✓ Cambios gardados.';await load(true);setTimeout(()=>(($('#edit-dialog') as HTMLDialogElement).close()),500)}catch(err){st.textContent=`⚠ ${err instanceof Error?err.message:String(err)}`}});
+  document.addEventListener('portal:logout',()=>closePortalSession());
+  load();
+</script>
+
+<style>
+  .private-layout{display:flex;min-height:100vh;background:#fbfaf9}.private-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,3rem) 4rem}.page-head{max-width:1220px;display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1rem}.page-head h1{margin:.2rem 0;font-size:clamp(2rem,4vw,3.5rem);color:#6f1d2b}.page-head p{margin:.35rem 0;color:#6b625d}.kicker{font-size:.72rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a2638}.account{display:grid;gap:.25rem;min-width:220px;padding:1rem 1.15rem;border:1px solid #dfd8d2;background:#fff}.account small{font-size:.68rem;text-transform:uppercase;color:#81766f}.account strong{margin-bottom:.35rem}.state,.card{max-width:1220px;border:1px solid #dfd8d2;background:#fff}.state{padding:1.2rem}.error{color:#8b1e2d}.tabs{max-width:1220px;display:flex;gap:.5rem;margin:1.2rem 0}.tabs button{border:1px solid #d9d0ca;background:#fff;padding:.75rem 1rem;font-weight:750;cursor:pointer}.tabs button.active{background:#6f1d2b;color:#fff;border-color:#6f1d2b}.tabs b{display:inline-grid;place-items:center;min-width:1.6rem;height:1.6rem;margin-left:.35rem;border-radius:999px;background:#f2ecec;color:#6f1d2b;font-size:.75rem}.tabs button.active b{background:#fff;color:#6f1d2b}.toolbar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(280px,1.15fr) auto auto;gap:1rem;align-items:end;padding:1rem}.toolbar label:not(.check){display:grid;gap:.4rem}.toolbar label>span{font-size:.74rem;font-weight:800;color:#5d534e}.toolbar input,.toolbar select,.edit-fields input,.edit-fields select,.edit-fields textarea{width:100%;box-sizing:border-box;border:1px solid #d7cec8;background:#fff;padding:.72rem .8rem;font:inherit}.check{display:flex;align-items:center;gap:.45rem;white-space:nowrap;padding-bottom:.7rem}.check input{width:auto}.primary,.secondary,.danger{min-height:2.45rem;padding:.65rem .95rem;font:inherit;font-weight:750;cursor:pointer}.primary{border:1px solid #6f1d2b;background:#6f1d2b;color:#fff}.secondary{border:1px solid #cbc1ba;background:#fff;color:#3f3935}.danger{border:1px solid #8f3343;background:#fff;color:#7b2031}.summary{max-width:1220px;color:#736861;font-size:.85rem}.empty-state{padding:3rem;text-align:center;color:#675d57}.empty-state strong{display:block;color:#282321;font-size:1.2rem}.detail{overflow:hidden}.detail-head{display:flex;justify-content:space-between;gap:1rem;padding:1.25rem 1.4rem;border-bottom:1px solid #e5dfda}.detail-head h2{margin:.25rem 0;color:#6f1d2b;font-size:clamp(1.5rem,3vw,2rem)}.detail-head p{margin:0;color:#71665f}.head-actions{display:flex;gap:.65rem;align-items:center}.badge{padding:.35rem .65rem;border-radius:999px;font-size:.75rem;font-weight:800}.badge.on{background:#edf5ee;color:#285c38}.badge.off{background:#f8eaea;color:#8b2637}.detail-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-bottom:1px solid #e5dfda}.detail-group{padding:1.25rem 1.4rem;border-right:1px solid #eee8e3;border-bottom:1px solid #eee8e3}.detail-group:nth-child(even){border-right:0}.detail-group h3{margin:0 0 1rem;color:#6f1d2b;font-size:1rem}.detail-group dl,.technical dl{display:grid;gap:.85rem;margin:0}.detail-group dl div,.technical dl div{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(0,1.2fr);gap:1rem}.detail-group dt,.technical dt{color:#70655e;font-size:.78rem}.detail-group dd,.technical dd{margin:0;font-weight:650;overflow-wrap:anywhere}.technical{margin:1rem 1.4rem;border:1px solid #e7e0db;background:#fbf9f7}.technical summary{padding:.8rem 1rem;cursor:pointer;font-weight:750;color:#635953}.technical>div{padding:0 1rem 1rem}.detail>footer{display:flex;justify-content:flex-end;padding:1rem 1.4rem}.status{min-height:1.2rem;color:#7d2939}dialog{width:min(760px,calc(100vw - 2rem));padding:0;border:0;box-shadow:0 26px 80px rgb(0 0 0 / 22%)}dialog::backdrop{background:rgb(0 0 0 / 35%)}dialog form{padding:1.25rem;display:grid;gap:1rem}dialog header,dialog footer{display:flex;justify-content:space-between;gap:1rem;align-items:center}dialog header h2{margin:.2rem 0}.icon{border:0;background:none;font-size:1.6rem;cursor:pointer}.edit-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.edit-fields label{display:grid;gap:.4rem}.edit-fields label span{font-size:.76rem;font-weight:800}.edit-fields .wide{grid-column:1/-1}
+  @media(max-width:1000px){.toolbar{grid-template-columns:1fr 1fr}.check{padding:.4rem 0}.detail-sections{grid-template-columns:1fr}.detail-group{border-right:0}.page-head{display:grid}.account{min-width:0}}
+  @media(max-width:900px){.private-layout{display:block}.private-main{padding:1rem}.toolbar{grid-template-columns:1fr}.tabs{overflow-x:auto}.detail-head{display:grid}.head-actions{justify-content:space-between}.detail-group dl div,.technical dl div{grid-template-columns:1fr;gap:.2rem}.edit-fields{grid-template-columns:1fr}.edit-fields .wide{grid-column:auto}}
+</style>
