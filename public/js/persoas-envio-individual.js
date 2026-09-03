@@ -2,6 +2,14 @@
   const path = window.location.pathname.replace(/\/+$/, '');
   if (path !== '/portal/administracion/persoas') return;
 
+  if (!document.querySelector('script[data-scpp-persoas-invitacion]')) {
+    const invitationScript = document.createElement('script');
+    invitationScript.src = '/js/persoas-alta-invitacion.js';
+    invitationScript.defer = true;
+    invitationScript.dataset.scppPersoasInvitacion = 'true';
+    document.head.append(invitationScript);
+  }
+
   const originalFetch = window.fetch.bind(window);
   let lastIdToken = '';
   let envioEnCurso = false;
@@ -35,6 +43,15 @@
     if (node instanceof HTMLElement) node.textContent = message;
   }
 
+  function syncFileButton() {
+    const select = document.querySelector('#person-select');
+    const button = document.querySelector('#open-file');
+    if (!(button instanceof HTMLButtonElement)) return;
+    const hasSelection = select instanceof HTMLSelectElement && Boolean(select.value);
+    button.hidden = !hasSelection;
+    button.title = hasSelection ? 'Comprobar e abrir a ficha dispoñible en R2' : '';
+  }
+
   function ensureSendButton() {
     const footerActions = document.querySelector('#review-dialog .dialog-footer > div');
     if (!(footerActions instanceof HTMLElement)) return null;
@@ -58,81 +75,47 @@
     const ligazon = linkNode instanceof HTMLInputElement ? linkNode.value.trim() : '';
     const correo = selectedEmail();
 
-    if (!ligazon) {
-      setReviewMessage('Primeiro tes que xerar a ligazón de revisión.');
-      return;
-    }
-    if (!lastIdToken) {
-      setReviewMessage('Non foi posible recuperar a sesión. Pecha esta xanela e xera de novo a revisión.');
-      return;
-    }
-    if (!correo) {
-      setReviewMessage('A persoa seleccionada non ten un correo electrónico válido na ficha.');
-      return;
-    }
+    if (!ligazon) { setReviewMessage('Primeiro tes que xerar a ligazón de revisión.'); return; }
+    if (!lastIdToken) { setReviewMessage('Non foi posible recuperar a sesión. Pecha esta xanela e xera de novo a revisión.'); return; }
+    if (!correo) { setReviewMessage('A persoa seleccionada non ten un correo electrónico válido na ficha.'); return; }
 
-    const ok = window.confirm(
-      `Vas enviar a revisión de datos a ${personName()}.\n\nCorreo: ${correo}\n\nQueres continuar?`
-    );
+    const ok = window.confirm(`Vas enviar a revisión de datos a ${personName()}.\n\nCorreo: ${correo}\n\nQueres continuar?`);
     if (!ok) return;
 
     envioEnCurso = true;
-    if (button instanceof HTMLButtonElement) {
-      button.disabled = true;
-      button.textContent = 'Enviando…';
-    }
+    if (button instanceof HTMLButtonElement) { button.disabled = true; button.textContent = 'Enviando…'; }
     setReviewMessage('Enviando correo…');
 
     try {
       const response = await originalFetch('/api/persoas-revision-envio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken: lastIdToken, ligazons: [ligazon] })
       });
       const result = await response.json().catch(() => null);
       const enviados = Number(result?.envio?.enviados || 0);
-
       if (!response.ok || result?.ok !== true || enviados < 1) {
-        const motivo = String(
-          result?.erro ||
-          result?.envio?.erro ||
-          result?.envio?.detalle?.[0]?.motivo ||
-          'Non foi posible enviar o correo.'
-        ).trim();
+        const motivo = String(result?.erro || result?.envio?.erro || result?.envio?.detalle?.[0]?.motivo || 'Non foi posible enviar o correo.').trim();
         throw new Error(motivo);
       }
-
       const destino = String(result?.envio?.detalle?.[0]?.correo || correo).trim();
       setReviewMessage(destino ? `Correo enviado correctamente a ${destino}.` : 'Correo enviado correctamente.');
     } catch (error) {
       setReviewMessage(error instanceof Error ? error.message : 'Non foi posible enviar o correo.');
     } finally {
       envioEnCurso = false;
-      if (button instanceof HTMLButtonElement) {
-        button.disabled = false;
-        button.textContent = 'Enviar por correo';
-      }
+      if (button instanceof HTMLButtonElement) { button.disabled = false; button.textContent = 'Enviar por correo'; }
     }
   }
 
   window.fetch = async function patchedFetch(input, init) {
     let url = '';
-    try {
-      url = typeof input === 'string' ? input : String(input?.url || '');
-    } catch {
-      return originalFetch(input, init);
-    }
+    try { url = typeof input === 'string' ? input : String(input?.url || ''); }
+    catch { return originalFetch(input, init); }
 
-    if (!url.includes('/api/persoas-revision') || url.includes('/api/persoas-revision-envio')) {
-      return originalFetch(input, init);
-    }
+    if (!url.includes('/api/persoas-revision') || url.includes('/api/persoas-revision-envio')) return originalFetch(input, init);
 
     let body = null;
-    try {
-      body = init?.body ? JSON.parse(String(init.body)) : null;
-    } catch {
-      body = null;
-    }
+    try { body = init?.body ? JSON.parse(String(init.body)) : null; } catch { body = null; }
 
     const response = await originalFetch(input, init);
     if (body?.accion === 'xerarLigazon' && response.ok) {
@@ -143,6 +126,14 @@
     return response;
   };
 
+  document.addEventListener('change', (event) => {
+    if (event.target instanceof HTMLSelectElement && event.target.id === 'person-select') queueMicrotask(syncFileButton);
+  });
+
+  const observer = new MutationObserver(() => syncFileButton());
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
   ensureSendButton();
-  document.addEventListener('DOMContentLoaded', ensureSendButton, { once: true });
+  syncFileButton();
+  document.addEventListener('DOMContentLoaded', () => { ensureSendButton(); syncFileButton(); }, { once: true });
 })();
