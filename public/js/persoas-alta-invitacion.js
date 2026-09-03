@@ -9,6 +9,82 @@
   let lastIdToken = '';
   let generatedLink = '';
   let generatedEmail = '';
+  let statesLoading = false;
+  let statesLoadedForToken = '';
+  const altaStates = new Map();
+
+  function selectedPersonId() {
+    const select = document.querySelector('#person-select');
+    return select instanceof HTMLSelectElement ? String(select.value || '').trim() : '';
+  }
+
+  function estadoAlta(id) {
+    return altaStates.get(String(id || '').trim()) || '';
+  }
+
+  function renderAltaBadge() {
+    const badges = document.querySelector('#person-card .badges');
+    if (!(badges instanceof HTMLElement)) return;
+    let badge = document.querySelector('#person-alta-status');
+    const pending = estadoAlta(selectedPersonId()) === 'PENDENTE';
+    if (!pending) {
+      if (badge instanceof HTMLElement) badge.remove();
+      return;
+    }
+    if (!(badge instanceof HTMLElement)) {
+      badge = document.createElement('span');
+      badge.id = 'person-alta-status';
+      badge.className = 'scpp-alta-pending-badge';
+      badges.append(badge);
+    }
+    badge.textContent = 'Pendente de completar ficha';
+  }
+
+  function renderPendingOptions() {
+    const select = document.querySelector('#person-select');
+    if (!(select instanceof HTMLSelectElement)) return;
+    Array.from(select.options).forEach((option) => {
+      if (!option.value) return;
+      const original = option.dataset.scppOriginalLabel || option.textContent || '';
+      option.dataset.scppOriginalLabel = original.replace(/ · PENDENTE DE COMPLETAR$/, '');
+      option.textContent = estadoAlta(option.value) === 'PENDENTE'
+        ? `${option.dataset.scppOriginalLabel} · PENDENTE DE COMPLETAR`
+        : option.dataset.scppOriginalLabel;
+    });
+    renderAltaBadge();
+  }
+
+  async function loadAltaStates(force = false) {
+    if (!lastIdToken || statesLoading) return;
+    if (!force && statesLoadedForToken === lastIdToken) {
+      renderPendingOptions();
+      return;
+    }
+    statesLoading = true;
+    try {
+      const response = await previousFetch('/api/persoas-estados-alta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: lastIdToken })
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true || !Array.isArray(result?.estados)) return;
+      altaStates.clear();
+      result.estados.forEach((item) => {
+        const state = String(item?.estadoAlta || '').trim();
+        const id = String(item?.idPersoa || '').trim();
+        const rowId = String(item?.rowId || '').trim();
+        if (id) altaStates.set(id, state);
+        if (rowId) altaStates.set(rowId, state);
+      });
+      statesLoadedForToken = lastIdToken;
+      renderPendingOptions();
+    } catch {
+      // O estado visual é auxiliar: non debe bloquear a xestión de Persoas.
+    } finally {
+      statesLoading = false;
+    }
+  }
 
   window.fetch = async function invitationSessionFetch(input, init) {
     try {
@@ -16,12 +92,19 @@
       if (url.includes('/api/persoas-v2') && init?.body) {
         const body = JSON.parse(String(init.body));
         const token = String(body?.idToken || '').trim();
-        if (token) lastIdToken = token;
+        if (token && token !== lastIdToken) {
+          lastIdToken = token;
+          statesLoadedForToken = '';
+          queueMicrotask(() => loadAltaStates());
+        } else if (token) {
+          lastIdToken = token;
+        }
       }
     } catch {
       // Non interromper nunca as peticións normais da páxina.
     }
-    return previousFetch(input, init);
+    const response = await previousFetch(input, init);
+    return response;
   };
 
   function state(message, error = false) {
@@ -129,7 +212,7 @@
     panel = section;
 
     const style = document.createElement('style');
-    style.textContent = `#scpp-invite-panel[hidden]{display:none!important}#scpp-invite-panel{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:1rem;background:rgba(31,25,24,.52)}.scpp-invite-card{width:min(620px,100%);max-height:90vh;overflow:auto;background:#fff;border:1px solid #d8d1cb;padding:1.35rem;box-shadow:0 18px 55px rgba(0,0,0,.22)}.scpp-invite-card form{display:grid;gap:.85rem}.scpp-invite-card label{display:grid;gap:.35rem}.scpp-invite-card input{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2}.scpp-invite-card footer{display:flex;justify-content:flex-end;gap:.65rem;flex-wrap:wrap}.scpp-invite-state[data-error="true"]{color:#8b2530}`;
+    style.textContent = `#scpp-invite-panel[hidden]{display:none!important}#scpp-invite-panel{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:1rem;background:rgba(31,25,24,.52)}.scpp-invite-card{width:min(620px,100%);max-height:90vh;overflow:auto;background:#fff;border:1px solid #d8d1cb;padding:1.35rem;box-shadow:0 18px 55px rgba(0,0,0,.22)}.scpp-invite-card form{display:grid;gap:.85rem}.scpp-invite-card label{display:grid;gap:.35rem}.scpp-invite-card input{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2}.scpp-invite-card footer{display:flex;justify-content:flex-end;gap:.65rem;flex-wrap:wrap}.scpp-invite-state[data-error="true"]{color:#8b2530}.scpp-alta-pending-badge{display:inline-flex;align-items:center;padding:.28rem .55rem;border:1px solid #a47b28;border-radius:999px;background:#fff8e8;color:#6e5018;font-size:.72rem;font-weight:800;letter-spacing:.02em}`;
     document.head.append(style);
 
     section.querySelector('[data-invite-close]')?.addEventListener('click', () => { if (!creating) section.hidden = true; });
@@ -175,10 +258,13 @@
         throw new Error(created?.erro || 'Non foi posible crear a alta por invitación.');
       }
 
+      altaStates.set(String(created.idPersoa), 'PENDENTE');
+      statesLoadedForToken = '';
       state('Alta PENDENTE creada. Xerando ligazón segura…');
       const link = await generateReview(String(created.idPersoa));
       showGeneratedLink(link);
       state('Ligazón xerada correctamente. Revísaa antes de enviar o correo.');
+      void loadAltaStates(true);
     } catch (error) {
       state(error instanceof Error ? error.message : 'Non foi posible preparar a invitación.', true);
     } finally {
@@ -207,8 +293,17 @@
     });
   }
 
-  const observer = new MutationObserver(injectButton);
+  document.addEventListener('change', (event) => {
+    if (event.target instanceof HTMLSelectElement && event.target.id === 'person-select') {
+      queueMicrotask(renderAltaBadge);
+    }
+  });
+
+  const observer = new MutationObserver(() => {
+    injectButton();
+    renderPendingOptions();
+  });
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectButton, { once: true });
-  else injectButton();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { injectButton(); renderPendingOptions(); }, { once: true });
+  else { injectButton(); renderPendingOptions(); }
 })();
