@@ -1,40 +1,28 @@
 (() => {
   const ADMIN_PATH = '/portal/administracion/persoas';
-  const REVIEW_PATH = '/revision-datos';
-  const SURNAME_SENTINEL = '__SCPP_PENDENTE_APELIDO__';
   const path = window.location.pathname.replace(/\/+$/, '');
-
-  function clearPendingSurnameOnPublicReview() {
-    if (path !== REVIEW_PATH) return;
-    let attempts = 0;
-    const timer = window.setInterval(() => {
-      attempts += 1;
-      const form = document.querySelector('#review-form');
-      const input = document.querySelector('#f-primeiro');
-      if (form instanceof HTMLFormElement && input instanceof HTMLInputElement && !form.hidden) {
-        if (input.value === SURNAME_SENTINEL) {
-          input.value = '';
-          input.placeholder = 'Completa o teu primeiro apelido';
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.focus({ preventScroll: true });
-        }
-        window.clearInterval(timer);
-      } else if (attempts > 120) window.clearInterval(timer);
-    }, 100);
-  }
-
-  if (path === REVIEW_PATH) {
-    clearPendingSurnameOnPublicReview();
-    return;
-  }
   if (path !== ADMIN_PATH) return;
 
-  const originalFetch = window.fetch.bind(window);
+  const previousFetch = window.fetch.bind(window);
   let panel = null;
   let creating = false;
+  let lastIdToken = '';
   let generatedLink = '';
-  let generatedToken = '';
   let generatedEmail = '';
+
+  window.fetch = async function invitationSessionFetch(input, init) {
+    try {
+      const url = typeof input === 'string' ? input : String(input?.url || '');
+      if (url.includes('/api/persoas-v2') && init?.body) {
+        const body = JSON.parse(String(init.body));
+        const token = String(body?.idToken || '').trim();
+        if (token) lastIdToken = token;
+      }
+    } catch {
+      // Non interromper nunca as peticións normais da páxina.
+    }
+    return previousFetch(input, init);
+  };
 
   function state(message, error = false) {
     const node = panel?.querySelector('[data-invite-state]');
@@ -62,7 +50,6 @@
 
   function resetGenerated() {
     generatedLink = '';
-    generatedToken = '';
     generatedEmail = '';
     const box = panel?.querySelector('[data-invite-result]');
     const send = panel?.querySelector('[data-invite-send]');
@@ -70,31 +57,31 @@
     if (send instanceof HTMLButtonElement) send.hidden = true;
   }
 
-  async function generateReview(idToken, idPersoa) {
-    const response = await originalFetch('/api/persoas-revision', {
+  async function generateReview(idPersoa) {
+    const response = await previousFetch('/api/persoas-revision', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accion: 'xerarLigazon', idToken, idPersoa })
+      body: JSON.stringify({ accion: 'xerarLigazon', idToken: lastIdToken, idPersoa })
     });
     const result = await response.json().catch(() => null);
     if (!response.ok || result?.ok !== true || !result?.ligazon) {
-      throw new Error(result?.erro || 'A ficha foi creada, pero non se puido xerar a ligazón.');
+      throw new Error(result?.erro || 'A alta quedou creada, pero non se puido xerar a ligazón.');
     }
     return String(result.ligazon);
   }
 
   async function sendGeneratedLink() {
-    if (!generatedLink || !generatedToken) {
+    if (!generatedLink || !lastIdToken) {
       state('Primeiro tes que xerar a ligazón.', true);
       return;
     }
     setBusy(true);
     state('Enviando correo…');
     try {
-      const response = await originalFetch('/api/persoas-revision-envio', {
+      const response = await previousFetch('/api/persoas-revision-envio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: generatedToken, ligazons: [generatedLink] })
+        body: JSON.stringify({ idToken: lastIdToken, ligazons: [generatedLink] })
       });
       const result = await response.json().catch(() => null);
       const enviados = Number(result?.envio?.enviados || 0);
@@ -109,56 +96,6 @@
     }
   }
 
-  function restorePersonDialog() {
-    const dialog = document.querySelector('#person-dialog');
-    if (!(dialog instanceof HTMLDialogElement)) return;
-    dialog.style.removeProperty('visibility');
-    dialog.style.removeProperty('pointer-events');
-    if (dialog.open) dialog.close();
-  }
-
-  window.fetch = async function invitationFetch(input, init) {
-    let url = '';
-    try { url = typeof input === 'string' ? input : String(input?.url || ''); }
-    catch { return originalFetch(input, init); }
-
-    let body = null;
-    if (creating && url.includes('/api/persoas-v2') && init?.body) {
-      try { body = JSON.parse(String(init.body)); } catch { body = null; }
-    }
-
-    const isInvitationCreate = creating &&
-      body?.accion === 'crearPersoaAdministracion' &&
-      body?.persoa?.primeiroApelido === SURNAME_SENTINEL;
-
-    if (!isInvitationCreate) return originalFetch(input, init);
-
-    const response = await originalFetch(input, init);
-    const copy = response.clone();
-    void (async () => {
-      try {
-        const result = await copy.json().catch(() => null);
-        if (!response.ok || result?.ok !== true || !result?.idPersoa) {
-          throw new Error(result?.erro || `Non foi posible crear a ficha provisional (HTTP ${response.status}).`);
-        }
-        const idToken = String(body?.idToken || '').trim();
-        if (!idToken) throw new Error('A ficha foi creada, pero non se puido recuperar a sesión.');
-        state('Ficha provisional creada. Xerando ligazón…');
-        const link = await generateReview(idToken, String(result.idPersoa));
-        generatedToken = idToken;
-        showGeneratedLink(link);
-        state('Ligazón xerada correctamente. Revísaa e, se todo está ben, podes enviar o correo.');
-      } catch (error) {
-        state(error instanceof Error ? error.message : 'Non foi posible preparar a invitación.', true);
-      } finally {
-        creating = false;
-        setBusy(false);
-        restorePersonDialog();
-      }
-    })();
-    return response;
-  };
-
   function createPanel() {
     if (document.querySelector('#scpp-invite-panel')) return;
     const section = document.createElement('section');
@@ -169,7 +106,7 @@
         <header>
           <span>Administración · Persoas</span>
           <h2>Alta por invitación</h2>
-          <p>Introduce os datos mínimos. Primeiro crearase a ficha provisional e a ligazón segura; o correo só se enviará cando o confirmes.</p>
+          <p>Créase unha fila real en Persoas como PENDENTE. A persoa completará esa mesma ficha mediante unha ligazón segura.</p>
         </header>
         <form autocomplete="off">
           <label><span>Nome *</span><input id="invite-name" required /></label>
@@ -208,45 +145,46 @@
   async function submitInvitation(event) {
     event.preventDefault();
     if (creating || !(panel instanceof HTMLElement)) return;
-    const name = String(panel.querySelector('#invite-name')?.value || '').trim();
-    const email = String(panel.querySelector('#invite-email')?.value || '').trim();
-    const phone = String(panel.querySelector('#invite-phone')?.value || '').trim();
-    if (!name || !email || !phone) {
+
+    const nome = String(panel.querySelector('#invite-name')?.value || '').trim();
+    const correo = String(panel.querySelector('#invite-email')?.value || '').trim();
+    const telefono = String(panel.querySelector('#invite-phone')?.value || '').trim();
+    if (!nome || !correo || !telefono) {
       state('Nome, correo e teléfono son obrigatorios.', true);
       return;
     }
-    resetGenerated();
-    generatedEmail = email;
-    const newButton = document.querySelector('#new-person-button');
-    const personForm = document.querySelector('#person-form');
-    const personDialog = document.querySelector('#person-dialog');
-    if (!(newButton instanceof HTMLButtonElement) || !(personForm instanceof HTMLFormElement) || !(personDialog instanceof HTMLDialogElement)) {
-      state('Non se puido abrir o formulario administrativo de alta.', true);
+    if (!lastIdToken) {
+      state('Non se puido recuperar a sesión administrativa. Recarga a páxina e inténtao de novo.', true);
       return;
     }
 
+    resetGenerated();
+    generatedEmail = correo;
     creating = true;
     setBusy(true);
-    state('Creando ficha provisional…');
-    newButton.click();
-    const firstName = document.querySelector('#f-nome');
-    const surname = document.querySelector('#f-primeiro');
-    const emailInput = document.querySelector('#f-correo');
-    const phoneInput = document.querySelector('#f-telefono');
-    if (!(firstName instanceof HTMLInputElement) || !(surname instanceof HTMLInputElement) || !(emailInput instanceof HTMLInputElement) || !(phoneInput instanceof HTMLInputElement)) {
+    state('Creando alta PENDENTE en Persoas…');
+
+    try {
+      const createResponse = await previousFetch('/api/persoas-alta-invitacion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: lastIdToken, nome, correo, telefono })
+      });
+      const created = await createResponse.json().catch(() => null);
+      if (!createResponse.ok || created?.ok !== true || !created?.idPersoa) {
+        throw new Error(created?.erro || 'Non foi posible crear a alta por invitación.');
+      }
+
+      state('Alta PENDENTE creada. Xerando ligazón segura…');
+      const link = await generateReview(String(created.idPersoa));
+      showGeneratedLink(link);
+      state('Ligazón xerada correctamente. Revísaa antes de enviar o correo.');
+    } catch (error) {
+      state(error instanceof Error ? error.message : 'Non foi posible preparar a invitación.', true);
+    } finally {
       creating = false;
       setBusy(false);
-      restorePersonDialog();
-      state('Non se atoparon os campos necesarios.', true);
-      return;
     }
-    firstName.value = name;
-    surname.value = SURNAME_SENTINEL;
-    emailInput.value = email;
-    phoneInput.value = phone;
-    personDialog.style.visibility = 'hidden';
-    personDialog.style.pointerEvents = 'none';
-    personForm.requestSubmit();
   }
 
   function injectButton() {
