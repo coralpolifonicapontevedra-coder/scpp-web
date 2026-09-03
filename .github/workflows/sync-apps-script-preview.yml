@@ -1,0 +1,123 @@
+name: Sync Apps Script Preview
+
+on:
+  push:
+    branches:
+      - preview
+    paths:
+      - 'apps-script-preview/**'
+      - '.github/workflows/sync-apps-script-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-preview-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exacto de preview
+        uses: actions/checkout@v4
+        with:
+          ref: preview
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Blindar proxecto Apps Script
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_ID='1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF'
+          PRODUCTION_ID='1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+          ACTUAL_ID="$(node -e "console.log(require('./apps-script-preview/.clasp.json').scriptId || '')")"
+          test "$ACTUAL_ID" = "$PREVIEW_ID" || { echo "BLOQUEADO: scriptId non é Preview: $ACTUAL_ID"; exit 1; }
+          test "$ACTUAL_ID" != "$PRODUCTION_ID" || { echo 'BLOQUEADO: detectado proxecto de PRODUCIÓN'; exit 1; }
+          echo 'Proxecto Apps Script Preview verificado.'
+
+      - name: Configurar credenciais clasp
+        shell: bash
+        env:
+          CLASP_CREDENTIALS_PREVIEW: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          test -n "${CLASP_CREDENTIALS_PREVIEW:-}" || { echo 'Falta CLASP_CREDENTIALS_PREVIEW'; exit 1; }
+          printf '%s' "$CLASP_CREDENTIALS_PREVIEW" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Integrar dispatcher de Repertorio en Código Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('Código.js')
+          text = path.read_text(encoding='utf-8')
+          marker = "    if (accion === 'listarAsistenciasConcertosPortal') {"
+          begin = "    // SCPP_PREVIEW_REPERTORIO_ADMIN_BEGIN\n"
+          end = "    // SCPP_PREVIEW_REPERTORIO_ADMIN_END\n"
+          block = begin + """    if (accion === 'listarRepertorioAdministracion') return respostaJSON(listarRepertorioAdministracion_());
+    if (accion === 'diagnosticoRepertorioAdministracion') return respostaJSON(diagnosticoRepertorioAdministracion_());
+    if (accion === 'altaObraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(altaObraRepertorioAdministracion_(datos)); }
+    if (accion === 'altaAudioRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(altaAudioRepertorioAdministracion_(datos)); }
+    if (accion === 'estadoRecursoRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(estadoRecursoRepertorioAdministracion_(datos)); }
+    if (accion === 'actualizarObraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarObraRepertorioAdministracion_(datos)); }
+    if (accion === 'actualizarPartituraRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarPartituraRepertorioAdministracion_(datos)); }
+    if (accion === 'actualizarAudioRepertorioAdministracion') { bloqueo.waitLock(10000); return respostaJSON(actualizarAudioRepertorioAdministracion_(datos)); }
+""" + end + "\n"
+
+          if begin in text and end in text:
+              start = text.index(begin)
+              finish = text.index(end, start) + len(end)
+              text = text[:start] + block.rstrip('\n') + text[finish:]
+          else:
+              if marker not in text:
+                  raise SystemExit('BLOQUEADO: non se atopou o punto de integración en Código.js')
+              text = text.replace(marker, block + marker, 1)
+
+          path.write_text(text, encoding='utf-8')
+          print('Dispatcher de Repertorio integrado para Preview.')
+          PY
+
+      - name: Comprobar ficheiros a subir
+        working-directory: apps-script-preview
+        run: npx --yes @google/clasp@3 status
+
+      - name: Subir HEAD ao proxecto Preview
+        working-directory: apps-script-preview
+        run: npx --yes @google/clasp@3 push --force
+
+      - name: Blindar deployment web Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_DEPLOYMENT_ID='AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU'
+          PRODUCTION_DEPLOYMENT_ID='AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+          test "$PREVIEW_DEPLOYMENT_ID" != "$PRODUCTION_DEPLOYMENT_ID" || { echo 'BLOQUEADO: deployment coincide con PRODUCIÓN'; exit 1; }
+          DEPLOYMENTS="$(npx --yes @google/clasp@3 list-deployments)"
+          printf '%s\n' "$DEPLOYMENTS"
+          printf '%s\n' "$DEPLOYMENTS" | grep -Fq "$PREVIEW_DEPLOYMENT_ID" || { echo 'BLOQUEADO: non aparece o deployment Preview'; exit 1; }
+
+      - name: Actualizar deployment web Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_DEPLOYMENT_ID='AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU'
+          npx --yes @google/clasp@3 create-deployment --deploymentId "$PREVIEW_DEPLOYMENT_ID" --description "Preview ${GITHUB_SHA}"
+
+      - name: Confirmación
+        run: |
+          echo 'Apps Script Preview e o seu deployment web quedaron sincronizados.'
+          echo 'Producción non foi modificada.'
