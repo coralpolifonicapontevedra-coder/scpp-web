@@ -41,6 +41,15 @@ const ACCIONS_ACEPTACION_PROTEXIDAS = new Set([
   'rexistrarAceptacion'
 ]);
 
+const ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS = new Set([
+  'listarArquivoAdministracion',
+  'gardarFondoAdministracion',
+  'gardarElementoFondoAdministracion',
+  'gardarMovementoArquivoAdministracion',
+  'gardarElementoMovementoAdministracion',
+  'rexistrarDevolucionArquivoAdministracion'
+]);
+
 const ACCIONS_SO_PRINCIPAL = new Set([
   'subirFoto',
   'actualizarRevisionFoto',
@@ -73,7 +82,13 @@ const ACCIONS_SO_PRINCIPAL = new Set([
   'eliminarPermisoPortal',
   'listarActividadePortal',
   'rexistrarActividadePortal',
-  'obterPermisosUsuarioPortal'
+  'obterPermisosUsuarioPortal',
+  'listarArquivoAdministracion',
+  'gardarFondoAdministracion',
+  'gardarElementoFondoAdministracion',
+  'gardarMovementoArquivoAdministracion',
+  'gardarElementoMovementoAdministracion',
+  'rexistrarDevolucionArquivoAdministracion'
 ]);
 
 export class AppsScriptError extends Error {
@@ -103,7 +118,8 @@ function urlAppsScriptProtexida(env = {}, accion = '') {
   const protexida = ACCIONS_CONCERTOS_PROTEXIDAS.has(accion)
     || ACCIONS_FOTOS_ADMIN_PROTEXIDAS.has(accion)
     || ACCIONS_PERMISOS_PROTEXIDAS.has(accion)
-    || ACCIONS_ACEPTACION_PROTEXIDAS.has(accion);
+    || ACCIONS_ACEPTACION_PROTEXIDAS.has(accion)
+    || ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS.has(accion);
   if (!protexida) return '';
   return ramaSCPP(env) === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
 }
