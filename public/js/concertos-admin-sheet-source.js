@@ -5,9 +5,12 @@
   if (window.__scppConcertosAdminSheetSource) return;
   window.__scppConcertosAdminSheetSource = true;
 
+  // Evita que o interceptor legado de AdministracionNav volva forzar a Sheet.
+  window.__scppConcertosAdminSheetProbas = true;
+
   const fetchNativo = window.fetch.bind(window);
 
-  window.fetch = (input, init) => {
+  window.fetch = async (input, init) => {
     try {
       const valor = typeof input === 'string'
         ? input
@@ -20,19 +23,22 @@
       if (typeof init?.body !== 'string') return fetchNativo(input, init);
 
       const body = JSON.parse(init.body);
-      const destinoPorAccion = {
-        listar: '/api/concertos-admin-list',
-        subirMedio: '/api/concertos-admin-medio'
-      };
-      const destinoPath = destinoPorAccion[body?.accion];
-      if (!destinoPath) return fetchNativo(input, init);
 
-      url.pathname = destinoPath;
-      const destino = typeof input === 'string'
-        ? `${url.pathname}${url.search}`
-        : new Request(url.toString(), input);
+      if (body?.accion === 'listar') {
+        const respostaRapida = await fetchNativo('/api/concertos-admin-fast-list', init);
+        if (respostaRapida.ok) return respostaRapida;
+        return fetchNativo('/api/concertos-admin-list', init);
+      }
 
-      return fetchNativo(destino, init);
+      if (body?.accion === 'subirMedio') {
+        url.pathname = '/api/concertos-admin-medio';
+        const destino = typeof input === 'string'
+          ? `${url.pathname}${url.search}`
+          : new Request(url.toString(), input);
+        return fetchNativo(destino, init);
+      }
+
+      return fetchNativo(input, init);
     } catch {
       return fetchNativo(input, init);
     }
