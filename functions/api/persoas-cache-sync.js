@@ -31,25 +31,35 @@ async function readJson(bucket, key) {
   return object ? object.json().catch(() => null) : null;
 }
 
+function validStoredPhoto(info) {
+  const key = clean(info?.key);
+  return Boolean(key && key !== PROFILE_MARKER_KEY && key.startsWith('persoas/fotos/'));
+}
+
 function profileMarker(persona) {
   return {
     key: PROFILE_MARKER_KEY,
-    source: 'perfil',
-    canonical: true,
+    source: 'legacy-profile',
+    canonical: false,
     ruta: clean(persona?.fotoPerfilLegacy)
   };
 }
 
 function buildProfilePhotoIndex(payload, current) {
   const next = {
-    version: 2,
+    version: 3,
     actualizadaEn: new Date().toISOString(),
     persoas: { ...(current?.persoas || {}) }
   };
 
   for (const persona of payload?.persoas || []) {
     const refs = [persona?.idPersoa, persona?.id, persona?.rowId].map(clean).filter(Boolean);
-    for (const ref of refs) next.persoas[ref] = profileMarker(persona);
+    for (const ref of refs) {
+      const existing = next.persoas[ref];
+      if (validStoredPhoto(existing)) continue;
+      if (clean(persona?.fotoPerfilLegacy)) next.persoas[ref] = profileMarker(persona);
+      else delete next.persoas[ref];
+    }
   }
 
   return next;
@@ -62,7 +72,8 @@ function enrichPhotos(payload, index) {
     ...payload,
     persoas: payload.persoas.map((persoa) => {
       const refs = [persoa?.idPersoa, persoa?.id, persoa?.rowId].map(clean).filter(Boolean);
-      const foto = refs.map((ref) => map[ref]).find(Boolean) || profileMarker(persoa);
+      const foto = refs.map((ref) => map[ref]).find(Boolean)
+        || (clean(persoa?.fotoPerfilLegacy) ? profileMarker(persoa) : null);
       return { ...persoa, fotoR2: foto };
     })
   };
@@ -182,6 +193,6 @@ export async function onRequest({ request, env }) {
     adminCaches,
     fonte: clean(data.fonte || 'sync'),
     entorno: branch(env),
-    fotoCanonica: 'Perfil'
+    fotoCanonica: 'R2'
   });
 }
