@@ -81,6 +81,20 @@ function textoLegalValido(value, expectedId = LEGAL_ID) {
   return { id, version, titulo, texto, ambito, dataVixencia };
 }
 
+function combinarTextos(textoLegal, textoCota) {
+  return {
+    ...textoLegal,
+    titulo: textoLegal.titulo || 'Protección de datos',
+    texto: [
+      textoLegal.texto,
+      'INFORMACIÓN SOBRE O PAGAMENTO DA COTA SOCIAL',
+      textoCota.titulo && textoCota.titulo !== textoLegal.titulo ? textoCota.titulo : '',
+      textoCota.texto,
+      'Esta información sobre a cota social é de carácter informativo e non require unha aceptación independente.'
+    ].filter(Boolean).join('\n\n')
+  };
+}
+
 function snapshotPublico(item) {
   return {
     idPersoa: personKey(item),
@@ -150,10 +164,11 @@ export async function onRequestPost(context) {
   try { authData = await verificarAdministrador(context, data); }
   catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
 
-  const textoLegal = textoLegalValido(authData.listado?.textosLegais?.datosPersoa, LEGAL_ID);
+  const textoLegalBase = textoLegalValido(authData.listado?.textosLegais?.datosPersoa, LEGAL_ID);
   const textoCota = textoLegalValido(authData.listado?.textosLegais?.exencionCota, LEGAL_COTA_ID);
-  if (!textoLegal) return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible en TextosLegais.' });
+  if (!textoLegalBase) return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible en TextosLegais.' });
   if (!textoCota) return json(503, { ok: false, erro: 'A información sobre o pagamento da cota non está dispoñible en TextosLegais.' });
+  const textoLegal = combinarTextos(textoLegalBase, textoCota);
 
   const alcance = String(data.alcance || 'cantores');
   const rexenerar = data.rexenerar === true;
@@ -170,14 +185,14 @@ export async function onRequestPost(context) {
     const correo = primeiroCorreoValido(persoa?.correo);
     if (!idPersoa) { omitidas.push({ nome, motivo: 'Sen identificador interno' }); continue; }
     if (!correo) { omitidas.push({ idPersoa, nome, motivo: 'Sen correo electrónico válido' }); continue; }
-    if (!rexenerar && await tenAceptacionVixente(env, idPersoa, textoLegal.version)) {
-      omitidas.push({ idPersoa, nome, correo, motivo: `Xa ten aceptada a versión ${textoLegal.version}` });
+    if (!rexenerar && await tenAceptacionVixente(env, idPersoa, textoLegalBase.version)) {
+      omitidas.push({ idPersoa, nome, correo, motivo: `Xa ten aceptada a versión ${textoLegalBase.version}` });
       continue;
     }
 
     const token = crearToken();
     const invitation = {
-      version: 3,
+      version: 4,
       revisionId: crypto.randomUUID(),
       token,
       estado: 'PENDENTE',
@@ -187,6 +202,7 @@ export async function onRequestPost(context) {
       caducaEn: new Date(now + TOKEN_TTL_MS).toISOString(),
       persoa: snapshotPublico(persoa),
       textoLegal,
+      textoLegalDatos: textoLegalBase,
       textoCota,
       xeracion: 'MASIVA'
     };
@@ -209,8 +225,8 @@ export async function onRequestPost(context) {
   return json(200, {
     ok: true,
     alcance,
-    versionLegal: textoLegal.version,
-    tituloLegal: textoLegal.titulo,
+    versionLegal: textoLegalBase.version,
+    tituloLegal: textoLegalBase.titulo,
     versionCota: textoCota.version,
     tituloCota: textoCota.titulo,
     candidatas: candidatas.length,
