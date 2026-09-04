@@ -53,10 +53,10 @@
       const header = document.createElement('header');
       const kicker = document.createElement('span');
       kicker.className = 'section-kicker';
-      kicker.textContent = 'Cota social';
+      kicker.textContent = 'Información sobre a cota social';
       const title = document.createElement('h2');
       title.id = 'fee-exemption-title';
-      title.textContent = String(texto.titulo || 'Exención do pagamento da cota social');
+      title.textContent = String(texto.titulo || 'Pagamento da cota social');
       const meta = document.createElement('p');
       meta.textContent = [
         texto.version ? `Versión ${texto.version}` : '',
@@ -71,12 +71,12 @@
 
       const note = document.createElement('p');
       note.className = 'privacy-note';
-      note.textContent = 'Este aviso é informativo e serve para indicar, cando corresponda, a situación de exención da cota. Non é necesario declarar o importe concreto dos ingresos.';
+      note.textContent = 'Esta información sobre a cota social é de carácter informativo e non require unha aceptación independente.';
       card.append(note);
 
-      legalPrincipal.parentElement?.insertBefore(card, legalPrincipal);
+      legalPrincipal.insertAdjacentElement('afterend', card);
     } catch (error) {
-      console.warn('Non foi posible cargar o aviso de exención da cota:', error);
+      console.warn('Non foi posible cargar a información sobre a cota social:', error);
     }
   }
 
