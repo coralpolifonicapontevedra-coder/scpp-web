@@ -57,7 +57,10 @@ async function requestV2(action, extra = {}, blob = false) {
 
 async function requestReview(action, extra = {}, blob = false) {
   const idToken = await token();
-  const response = await fetch('/api/persoas-revision', {
+  const endpoint = action === 'xerarLigazon'
+    ? '/api/persoas-revision-link-v4'
+    : '/api/persoas-revision';
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken, accion: action, ...extra })
