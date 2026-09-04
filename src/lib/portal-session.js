@@ -80,3 +80,12 @@ export async function closePortalSession(redirect = '/portal/') {
   await signOut(auth);
   window.location.href = redirect;
 }
+
+if (typeof window !== 'undefined' && `${window.location.pathname.replace(/\/+$/, '')}/` === '/portal/administracion/repertorio/') {
+  import('./repertorio-admin-altas.js').catch((error) => {
+    console.error('Non foi posible cargar as altas de Repertorio:', error);
+  });
+  import('./repertorio-admin-eliminar.js').catch((error) => {
+    console.error('Non foi posible cargar a eliminación de Repertorio:', error);
+  });
+}
