@@ -2,6 +2,14 @@
   const path = window.location.pathname.replace(/\/+$/, '');
   if (path !== '/portal/administracion/persoas') return;
 
+  if (!document.querySelector('script[data-scpp-persoas-invitacion]')) {
+    const invitationScript = document.createElement('script');
+    invitationScript.src = '/js/persoas-alta-invitacion.js';
+    invitationScript.defer = true;
+    invitationScript.dataset.scppPersoasInvitacion = 'true';
+    document.head.append(invitationScript);
+  }
+
   const originalFetch = window.fetch.bind(window);
   let lastIdToken = '';
   let envioEnCurso = false;
@@ -33,6 +41,19 @@
   function setReviewMessage(message) {
     const node = reviewState();
     if (node instanceof HTMLElement) node.textContent = message;
+  }
+
+  function syncFileButton() {
+    const select = document.querySelector('#person-select');
+    const button = document.querySelector('#open-file');
+    if (!(button instanceof HTMLButtonElement)) return;
+    const hasSelection = select instanceof HTMLSelectElement && Boolean(select.value);
+    // O listado pode traer fichaDisponibleR2 desactualizado. Amosamos o botón
+    // cando hai persoa seleccionada e deixamos que /api/persoas-v2 comprobe R2.
+    button.hidden = !hasSelection;
+    button.title = hasSelection
+      ? 'Comprobar e abrir a ficha dispoñible en R2'
+      : '';
   }
 
   function ensureSendButton() {
@@ -143,6 +164,19 @@
     return response;
   };
 
+  document.addEventListener('change', (event) => {
+    if (event.target instanceof HTMLSelectElement && event.target.id === 'person-select') {
+      queueMicrotask(syncFileButton);
+    }
+  });
+
+  const observer = new MutationObserver(() => syncFileButton());
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
   ensureSendButton();
-  document.addEventListener('DOMContentLoaded', ensureSendButton, { once: true });
+  syncFileButton();
+  document.addEventListener('DOMContentLoaded', () => {
+    ensureSendButton();
+    syncFileButton();
+  }, { once: true });
 })();
