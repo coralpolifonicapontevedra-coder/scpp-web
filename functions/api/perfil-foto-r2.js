@@ -6,6 +6,7 @@ const ALLOWED_TYPES = new Map([
 ]);
 const PERFIS_MAIN = 'persoas/cache/perfis.json';
 const PERFIS_PREVIEW = 'persoas/cache/preview/perfis.json';
+const PROFILE_CACHE_PREFIX = 'persoas/cache/perfis/';
 const PHOTO_INDEX_MAIN = 'persoas/fotos/index.json';
 const PHOTO_INDEX_PREVIEW = 'persoas/fotos/preview/index.json';
 const SNAPSHOT_MAIN = 'persoas/cache/snapshot-v4.json';
@@ -48,12 +49,22 @@ async function readJson(env, key) {
   return object ? object.json().catch(() => null) : null;
 }
 
+async function hashEmail(email) {
+  const bytes = new TextEncoder().encode(clean(email).toLowerCase());
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function normalNif(value) {
   return clean(value).replace(/\s+/g, '').toUpperCase();
 }
 
 function normalName(value) {
-  return clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ');
+  return clean(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
 }
 
 function refs(item) {
@@ -68,37 +79,55 @@ function emailOf(item) {
   return clean(item?.correoElectronico || item?.correo || item?.email).toLowerCase();
 }
 
-async function resolveOwnPerson(env, user, hint = {}) {
+async function trustedProfileForUser(env, user) {
+  if (!user?.email) return null;
+  const key = `${PROFILE_CACHE_PREFIX}${await hashEmail(user.email)}.json`;
+  const entry = await readJson(env, key);
+  return entry?.payload?.ok && entry?.payload?.perfil && typeof entry.payload.perfil === 'object'
+    ? entry.payload.perfil
+    : null;
+}
+
+async function resolveOwnPerson(env, user) {
   const index = await readJson(env, perfisKey(env));
   const people = Array.isArray(index?.persoas) ? index.persoas : [];
-  if (!people.length) return null;
-
-  const hintedIds = refs(hint);
-  if (hintedIds.length) {
-    const direct = people.find((item) => refs(item).some((id) => hintedIds.includes(id)));
-    if (direct && (emailOf(direct) === user.email || !emailOf(direct))) return direct;
-  }
+  if (!people.length || !user?.email) return null;
 
   const byLogin = unique(people.filter((item) => emailOf(item) === user.email));
   if (byLogin) return byLogin;
 
-  const contact = clean(hint?.correoElectronico || hint?.correo).toLowerCase();
+  const trusted = await trustedProfileForUser(env, user);
+  if (!trusted) return null;
+
+  const trustedIds = refs(trusted);
+  if (trustedIds.length) {
+    const byId = unique(people.filter((item) => refs(item).some((id) => trustedIds.includes(id))));
+    if (byId) return byId;
+  }
+
+  const contact = emailOf(trusted);
   if (contact) {
     const byContact = unique(people.filter((item) => emailOf(item) === contact));
     if (byContact) return byContact;
   }
 
-  const nif = normalNif(hint?.nif);
+  const nif = normalNif(trusted?.nif);
   if (nif) {
     const byNif = unique(people.filter((item) => normalNif(item?.nif) === nif));
     if (byNif) return byNif;
   }
 
-  const name = normalName(hint?.nomeCompleto || [hint?.nome, hint?.primeiroApelido, hint?.segundoApelido].filter(Boolean).join(' '));
+  const name = normalName(
+    trusted?.nomeCompleto ||
+    [trusted?.nome, trusted?.primeiroApelido, trusted?.segundoApelido].filter(Boolean).join(' ')
+  );
   if (name) {
-    const byName = unique(people.filter((item) => normalName(item?.nomeCompleto || [item?.nome, item?.primeiroApelido, item?.segundoApelido].filter(Boolean).join(' ')) === name));
+    const byName = unique(people.filter((item) => normalName(
+      item?.nomeCompleto || [item?.nome, item?.primeiroApelido, item?.segundoApelido].filter(Boolean).join(' ')
+    ) === name));
     if (byName) return byName;
   }
+
   return null;
 }
 
@@ -196,7 +225,15 @@ async function storePhoto(env, person, base64, mimeType, user) {
     httpMetadata: { contentType: type, cacheControl: 'private, no-store' },
     customMetadata: { idPersoa: id, actualizadaEn: now, subidaPor: user.email }
   });
-  const info = { key, mimeType: type, size: bytes.byteLength, actualizadaEn: now, subidaPor: user.email, source: 'r2', canonical: true };
+  const info = {
+    key,
+    mimeType: type,
+    size: bytes.byteLength,
+    actualizadaEn: now,
+    subidaPor: user.email,
+    source: 'r2',
+    canonical: true
+  };
   await env.R2_PRIVADO.put(`${prefix(env, id)}latest.json`, JSON.stringify(info), {
     httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
   });
@@ -235,7 +272,7 @@ export async function onRequest(context) {
   const user = await verificarFirebase(data?.idToken, context.env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok: false, erro: 'A sesión non é válida ou caducou.' });
 
-  const person = await resolveOwnPerson(context.env, user, data?.perfil || {});
+  const person = await resolveOwnPerson(context.env, user);
   if (!person) return json(404, { ok: false, erro: 'Non foi posible identificar a túa ficha de Persoas.' });
 
   const action = clean(data?.accion || 'descargar');
@@ -247,7 +284,12 @@ export async function onRequest(context) {
     if (!base64) return json(400, { ok: false, erro: 'Non se recibiu a fotografía.' });
     try {
       const info = await storePhoto(context.env, person, base64, mimeType, user);
-      return json(200, { ok: true, foto: info, idPersoa: clean(person.idPersoa || person.id || person.rowId), fonte: 'R2' });
+      return json(200, {
+        ok: true,
+        foto: info,
+        idPersoa: clean(person.idPersoa || person.id || person.rowId),
+        fonte: 'R2'
+      });
     } catch (error) {
       return json(400, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible gardar a fotografía.' });
     }
