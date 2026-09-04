@@ -201,6 +201,14 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
   }
 
   if (accion === 'listarPermisosPortal') {
+    try {
+      xestionPermisosInstalarTriggers_();
+    } catch (erroTriggerPermisos) {
+      console.warn(
+        'Permisos: non se puideron verificar os triggers de caché: ' +
+        String(erroTriggerPermisos && erroTriggerPermisos.message ? erroTriggerPermisos.message : erroTriggerPermisos)
+      );
+    }
     return listarPermisosPortalXestion_(datos);
   }
 
