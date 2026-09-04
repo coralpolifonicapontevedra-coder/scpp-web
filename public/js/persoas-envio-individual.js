@@ -1,5 +1,17 @@
 (() => {
   const path = window.location.pathname.replace(/\/+$/, '');
+
+  if (path === '/revision-datos') {
+    if (!document.querySelector('script[data-scpp-exencion-cota]')) {
+      const script = document.createElement('script');
+      script.src = '/js/persoas-exencion-revision.js';
+      script.defer = true;
+      script.dataset.scppExencionCota = '1';
+      document.head.append(script);
+    }
+    return;
+  }
+
   if (path !== '/portal/administracion/persoas') return;
 
   const originalFetch = window.fetch.bind(window);
