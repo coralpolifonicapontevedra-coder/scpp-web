@@ -1,0 +1,112 @@
+name: Preparar despregue Persoas Producción
+
+on:
+  push:
+    branches:
+      - release/persoas-production-deploy-20260904
+    paths:
+      - '.github/workflows/prepare-persoas-production-deploy.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar rama de release
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+
+      - name: Configurar credenciais clasp
+        shell: bash
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          test -n "${CLASP_CREDENTIALS:-}"
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Ler Apps Script vivo de Producción
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/prod-live /tmp/prod-before /tmp/persoas-prod-diff
+          mkdir -p /tmp/prod-live /tmp/persoas-prod-diff
+          cat > /tmp/prod-live/.clasp.json <<'JSON'
+          {
+            "scriptId": "1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV",
+            "rootDir": "."
+          }
+          JSON
+          cd /tmp/prod-live
+          npx --yes @google/clasp@3 pull
+          cp -a /tmp/prod-live /tmp/prod-before
+
+      - name: Verificar baseline vivo e deployment actual
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/prod-live
+          test "$(sha256sum xestion-permisos-dispatcher-integracion.js | awk '{print $1}')" = "8e75c4e2587ade728352990d2146456cd76561be1d43580618929dfae66e6385"
+          test "$(sha256sum Código.js | awk '{print $1}')" = "c27d63556c21b8e61c55ba5c1104a405fa65bda729f0510aeaabd3f30e3552d8"
+          test "$(sha256sum persoas-administracion.js | awk '{print $1}')" = "00c6d4ea658a8ffb1bd1e4ce65fa710c5415bd0a8e6bc9f3f627178aec2556c9"
+          DEPLOYS="$(npx --yes @google/clasp@3 deployments)"
+          printf '%s\n' "$DEPLOYS" | grep -F "AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh @101"
+
+      - name: Aplicar só o parche mínimo de Persoas
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp apps-script-production/persoas-administracion-v2.js /tmp/prod-live/persoas-administracion-v2.js
+          cp apps-script-production/persoas-legacy-compat-v2.js /tmp/prod-live/persoas-legacy-compat-v2.js
+          cp apps-script-production/xestion-permisos-dispatcher-integracion.js /tmp/prod-live/xestion-permisos-dispatcher-integracion.js
+
+      - name: Validar que non hai cambios alleos ao módulo
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp
+          git diff --no-index --name-status -- prod-before prod-live > /tmp/persoas-prod-diff/name-status.txt || true
+          git diff --no-index -- prod-before prod-live > /tmp/persoas-prod-diff/diff.patch || true
+          cat /tmp/persoas-prod-diff/name-status.txt
+          python - <<'PY'
+          from pathlib import Path
+          allowed = {
+              'xestion-permisos-dispatcher-integracion.js',
+              'persoas-administracion-v2.js',
+              'persoas-legacy-compat-v2.js',
+          }
+          lines = Path('/tmp/persoas-prod-diff/name-status.txt').read_text().splitlines()
+          changed = set()
+          for line in lines:
+              parts = line.split('\t')
+              for value in parts[1:]:
+                  value = value.replace('prod-before/', '').replace('prod-live/', '')
+                  if value == '.clasp.json':
+                      continue
+                  changed.add(value)
+          unexpected = sorted(changed - allowed)
+          missing = sorted(allowed - changed)
+          if unexpected:
+              raise SystemExit('Cambios inesperados: ' + ', '.join(unexpected))
+          if missing:
+              raise SystemExit('Faltan cambios esperados: ' + ', '.join(missing))
+          print('Diff limitado aos tres ficheiros autorizados de Persoas.')
+          PY
+          cp /tmp/prod-live/persoas-administracion-v2.js /tmp/persoas-prod-diff/
+          cp /tmp/prod-live/persoas-legacy-compat-v2.js /tmp/persoas-prod-diff/
+          cp /tmp/prod-live/xestion-permisos-dispatcher-integracion.js /tmp/persoas-prod-diff/
+
+      - name: Gardar auditoría do parche
+        uses: actions/upload-artifact@v4
+        with:
+          name: persoas-production-deploy-dry-run
+          path: /tmp/persoas-prod-diff
+          retention-days: 3
