@@ -84,6 +84,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
                 <button id="review-person" type="button" class="secondary-action">Xerar revisión</button>
                 <button id="toggle-person" type="button" class="secondary-action"></button>
                 <button id="open-file" type="button" class="primary-action" hidden>Ver ficha escaneada</button>
+                <button id="open-acceptance" type="button" class="primary-action" hidden>Ver aceptación</button>
                 <button id="delete-person" type="button" class="danger-action">Eliminar rexistro</button>
               </div>
             </header>
@@ -152,7 +153,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
   initPersoasAdminV4();
 </script>
 
-<style>
+<style is:global>
   .people-main{flex:1 1 auto;min-width:0;width:auto;padding:clamp(1.4rem,3vw,3rem) clamp(1rem,3vw,3.4rem) 4rem;background:#f5f3f1;color:#2f292b}
   .people-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.4rem;padding-bottom:1.2rem;border-bottom:1px solid #d8d0cb}
   .private-page-header h1{margin:.2rem 0 .55rem;font-size:clamp(1.8rem,3vw,2.55rem);font-weight:650;color:#351f27}.private-page-header p{max-width:780px;margin:0;color:#655b5e;line-height:1.55}.section-kicker{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#775b42}
