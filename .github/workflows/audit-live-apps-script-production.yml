@@ -1,0 +1,82 @@
+name: Audit live Apps Script Production
+
+on:
+  push:
+    branches:
+      - release/persoas-production-v2-livepull
+    paths:
+      - '.github/workflows/audit-live-apps-script-production.yml'
+
+permissions:
+  contents: read
+
+actions:
+
+jobs:
+  pull-live-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configure clasp credentials
+        shell: bash
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLASP_CREDENTIALS:-}" ]; then
+            echo 'Missing clasp credentials secret.'
+            exit 1
+          fi
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Pull live Production Apps Script read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/apps-script-production-live
+          cat > /tmp/apps-script-production-live/.clasp.json <<'JSON'
+          {
+            "scriptId": "1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV",
+            "rootDir": "."
+          }
+          JSON
+          cd /tmp/apps-script-production-live
+          npx --yes @google/clasp@3 pull
+          rm -f .clasp.json
+
+      - name: Produce focused Persoas comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/apps-script-production-audit
+          LIVE=/tmp/apps-script-production-live
+          for f in \
+            persoas-administracion.js \
+            xestion-permisos-dispatcher-integracion.js \
+            xestion-permisos-portal.js \
+            permisos-portal.js \
+            Código.js; do
+            if [ -f "$LIVE/$f" ]; then
+              cp "$LIVE/$f" "/tmp/apps-script-production-audit/live-$f"
+              if [ -f "apps-script-production/$f" ]; then
+                diff -u "apps-script-production/$f" "$LIVE/$f" > "/tmp/apps-script-production-audit/diff-repo-vs-live-$f.txt" || true
+              fi
+            fi
+          done
+          find /tmp/apps-script-production-live -maxdepth 1 -type f -printf '%f\n' | sort > /tmp/apps-script-production-audit/live-files.txt
+
+      - name: Upload live audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apps-script-production-live-persoas-audit
+          path: /tmp/apps-script-production-audit
+          retention-days: 3
