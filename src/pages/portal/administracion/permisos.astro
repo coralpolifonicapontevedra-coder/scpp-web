@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../../layouts/Layout.astro';
 import PortalSidebar from '../../../components/PortalSidebar.astro';
+import AdministracionNav from '../../../components/AdministracionNav.astro';
 ---
 
 <BaseLayout title="Accesos e permisos" lang="gl">
@@ -20,6 +21,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
           <span><small>Nivel de acceso</small><strong id="user-level">Comprobando…</strong></span>
         </div>
       </header>
+      <AdministracionNav active="permisos" />
 
       <section id="loading" class="state-box">Comprobando permisos e cargando a configuración…</section>
       <section id="error-state" class="state-box error-box" hidden>
