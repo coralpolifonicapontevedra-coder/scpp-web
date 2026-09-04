@@ -32,52 +32,101 @@
     return response;
   };
 
-  async function cargar() {
-    try {
-      const response = await originalFetch(`/api/persoas-exencion-cota?token=${encodeURIComponent(token)}`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' }
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.ok !== true || !result?.textoExencionCota?.texto) return;
+  const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-      const legalPrincipal = document.querySelector('#review-form .legal-card');
-      if (!(legalPrincipal instanceof HTMLElement) || document.querySelector('#fee-exemption-card')) return;
-
-      const texto = result.textoExencionCota;
-      const card = document.createElement('section');
-      card.id = 'fee-exemption-card';
-      card.className = 'legal-card';
-      card.setAttribute('aria-labelledby', 'fee-exemption-title');
-
-      const header = document.createElement('header');
-      const kicker = document.createElement('span');
-      kicker.className = 'section-kicker';
-      kicker.textContent = 'Información sobre a cota social';
-      const title = document.createElement('h2');
-      title.id = 'fee-exemption-title';
-      title.textContent = String(texto.titulo || 'Pagamento da cota social');
-      const meta = document.createElement('p');
-      meta.textContent = [
-        texto.version ? `Versión ${texto.version}` : '',
-        texto.dataVixencia ? `vixente desde ${texto.dataVixencia}` : ''
-      ].filter(Boolean).join(' · ');
-      header.append(kicker, title, meta);
-
-      const body = document.createElement('div');
-      body.className = 'legal-text';
-      body.textContent = String(texto.texto || '');
-      card.append(header, body);
-
-      const note = document.createElement('p');
-      note.className = 'privacy-note';
-      note.textContent = 'Esta información sobre a cota social é de carácter informativo e non require unha aceptación independente.';
-      card.append(note);
-
-      legalPrincipal.insertAdjacentElement('afterend', card);
-    } catch (error) {
-      console.warn('Non foi posible cargar a información sobre a cota social:', error);
+  async function esperarTextoPrincipal() {
+    for (let i = 0; i < 30; i += 1) {
+      const legal = document.querySelector('#review-form .legal-card');
+      if (legal instanceof HTMLElement) return legal;
+      await sleep(100);
     }
+    return null;
+  }
+
+  function crearTarxeta(legalPrincipal) {
+    let card = document.querySelector('#fee-exemption-card');
+    if (card instanceof HTMLElement) return card;
+    card = document.createElement('section');
+    card.id = 'fee-exemption-card';
+    card.className = 'legal-card';
+    card.setAttribute('aria-labelledby', 'fee-exemption-title');
+    legalPrincipal.insertAdjacentElement('afterend', card);
+    return card;
+  }
+
+  function renderTexto(card, texto) {
+    card.replaceChildren();
+    const header = document.createElement('header');
+    const kicker = document.createElement('span');
+    kicker.className = 'section-kicker';
+    kicker.textContent = 'Información sobre a cota social';
+    const title = document.createElement('h2');
+    title.id = 'fee-exemption-title';
+    title.textContent = String(texto.titulo || 'Pagamento da cota social');
+    const meta = document.createElement('p');
+    meta.textContent = [
+      texto.version ? `Versión ${texto.version}` : '',
+      texto.dataVixencia ? `vixente desde ${texto.dataVixencia}` : ''
+    ].filter(Boolean).join(' · ');
+    header.append(kicker, title, meta);
+
+    const body = document.createElement('div');
+    body.className = 'legal-text';
+    body.textContent = String(texto.texto || '');
+    body.style.maxHeight = '18rem';
+    body.style.overflowY = 'auto';
+    body.style.paddingRight = '.35rem';
+    card.append(header, body);
+
+    const note = document.createElement('p');
+    note.className = 'privacy-note';
+    note.style.marginTop = '1rem';
+    note.textContent = 'Esta información sobre a cota social é de carácter informativo e non require unha aceptación independente.';
+    card.append(note);
+  }
+
+  function renderErro(card, message) {
+    card.replaceChildren();
+    const header = document.createElement('header');
+    const kicker = document.createElement('span');
+    kicker.className = 'section-kicker';
+    kicker.textContent = 'Información sobre a cota social';
+    const title = document.createElement('h2');
+    title.id = 'fee-exemption-title';
+    title.textContent = 'Non foi posible cargar a información da cota';
+    header.append(kicker, title);
+    const body = document.createElement('p');
+    body.className = 'privacy-note';
+    body.style.margin = '1rem 0 0';
+    body.textContent = message || 'A información da cota non está dispoñible neste momento. Non continúes coa confirmación e comunícao á Sociedade Coral.';
+    card.append(header, body);
+  }
+
+  async function cargar() {
+    const legalPrincipal = await esperarTextoPrincipal();
+    if (!(legalPrincipal instanceof HTMLElement)) return;
+    const card = crearTarxeta(legalPrincipal);
+
+    let lastError = '';
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await originalFetch(`/api/persoas-exencion-cota?token=${encodeURIComponent(token)}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store'
+        });
+        const result = await response.json().catch(() => null);
+        if (response.ok && result?.ok === true && result?.textoExencionCota?.texto) {
+          renderTexto(card, result.textoExencionCota);
+          return;
+        }
+        lastError = String(result?.erro || `Erro HTTP ${response.status}`).trim();
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : 'Erro de conexión.';
+      }
+      if (attempt < 2) await sleep(350 * (attempt + 1));
+    }
+    renderErro(card, lastError);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cargar, { once: true });
