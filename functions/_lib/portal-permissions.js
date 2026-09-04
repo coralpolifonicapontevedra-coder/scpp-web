@@ -1,19 +1,15 @@
 import { obterJsonAppsScript } from './apps-script.js';
 
-const CACHE_MS = 2 * 60 * 1000;
-const R2_PREFIX = 'permisos/cache-v1/';
-const cache = new Map();
+const CACHE_R2_MS = 24 * 60 * 60 * 1000;
+const R2_PREFIX = 'permisos/cache-v2/';
 const niveisValidos = new Set(['sen_acceso', 'lectura', 'escritura', 'administracion']);
 
 const clean = (value) => String(value || '').trim();
+const ramaActual = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
 
 function normalizarNivel(value) {
   const nivel = clean(value).toLowerCase();
   return niveisValidos.has(nivel) ? nivel : 'sen_acceso';
-}
-
-function claveMemoria(user, modulo) {
-  return `${clean(user?.email).toLowerCase()}::${clean(modulo).toLowerCase()}`;
 }
 
 async function hash(value) {
@@ -21,38 +17,26 @@ async function hash(value) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function claveR2(user, modulo) {
-  return `${R2_PREFIX}${await hash(`${clean(user?.email).toLowerCase()}::${clean(modulo).toLowerCase()}`)}.json`;
-}
-
-function lerMemoria(user, modulo) {
-  const key = claveMemoria(user, modulo);
-  const entry = cache.get(key);
-  if (!entry || entry.expiresAt <= Date.now()) {
-    if (entry) cache.delete(key);
-    return null;
-  }
-  return entry.value;
-}
-
-function gardarMemoria(user, modulo, value) {
-  cache.set(claveMemoria(user, modulo), { value, expiresAt: Date.now() + CACHE_MS });
-  while (cache.size > 100) cache.delete(cache.keys().next().value);
+async function claveR2(env, user, modulo) {
+  const email = clean(user?.email).toLowerCase();
+  const nomeModulo = clean(modulo).toLowerCase();
+  return `${R2_PREFIX}${ramaActual(env)}/${await hash(`${email}::${nomeModulo}`)}.json`;
 }
 
 async function lerR2(env, user, modulo) {
   if (!env.R2_PRIVADO?.get) return null;
   try {
-    const object = await env.R2_PRIVADO.get(await claveR2(user, modulo));
+    const object = await env.R2_PRIVADO.get(await claveR2(env, user, modulo));
     if (!object) return null;
     const entry = await object.json().catch(() => null);
+    const email = clean(user?.email).toLowerCase();
+    const nomeModulo = clean(modulo).toLowerCase();
     if (
       !entry?.value?.ok
-      || entry.email !== clean(user?.email).toLowerCase()
-      || entry.modulo !== clean(modulo).toLowerCase()
-      || Date.now() - Number(entry.savedAt || 0) > CACHE_MS
+      || entry.email !== email
+      || entry.modulo !== nomeModulo
+      || Date.now() - Number(entry.savedAt || 0) > CACHE_R2_MS
     ) return null;
-    gardarMemoria(user, modulo, entry.value);
     return { ...entry.value, fonte: 'R2-PERMISOS' };
   } catch (error) {
     console.warn('Non se puido ler a caché común de permisos en R2:', error);
@@ -63,26 +47,42 @@ async function lerR2(env, user, modulo) {
 async function gardarR2(env, user, modulo, value) {
   if (!env.R2_PRIVADO?.put) return;
   try {
-    await env.R2_PRIVADO.put(await claveR2(user, modulo), JSON.stringify({
+    const email = clean(user?.email).toLowerCase();
+    const nomeModulo = clean(modulo).toLowerCase();
+    await env.R2_PRIVADO.put(await claveR2(env, user, nomeModulo), JSON.stringify({
       savedAt: Date.now(),
-      email: clean(user?.email).toLowerCase(),
-      modulo: clean(modulo).toLowerCase(),
+      email,
+      modulo: nomeModulo,
       value
     }), {
       httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' },
-      customMetadata: { tipo: 'permisos-portal', version: '1' }
+      customMetadata: { tipo: 'permisos-portal', version: '2', contorno: ramaActual(env) }
     });
   } catch (error) {
     console.warn('Non se puido gardar a caché común de permisos en R2:', error);
   }
 }
 
+export async function invalidarPermisosPortal(env, email, modulos = []) {
+  if (!env.R2_PRIVADO?.delete) return;
+  const usuario = { email: clean(email).toLowerCase() };
+  if (!usuario.email) return;
+  const lista = [...new Set((Array.isArray(modulos) ? modulos : [modulos])
+    .map((modulo) => clean(modulo).toLowerCase())
+    .filter(Boolean))];
+  await Promise.all(lista.map(async (modulo) => {
+    try {
+      await env.R2_PRIVADO.delete(await claveR2(env, usuario, modulo));
+    } catch (error) {
+      console.warn(`Non se puido invalidar o permiso ${modulo} de ${usuario.email}:`, error);
+    }
+  }));
+}
+
 export async function obterPermisoPortalCacheado(env, user, modulo) {
   const email = clean(user?.email).toLowerCase();
   const nomeModulo = clean(modulo).toLowerCase();
   if (!email || !nomeModulo) return null;
-  const memory = lerMemoria(user, nomeModulo);
-  if (memory) return { ...memory, fonte: 'MEMORIA' };
   return lerR2(env, user, nomeModulo);
 }
 
@@ -128,7 +128,6 @@ export async function obterPermisoPortal(env, user, modulo) {
     podeEscribir: ['escritura', 'administracion'].includes(nivel),
     podeAdministrar: nivel === 'administracion'
   };
-  gardarMemoria(user, nomeModulo, value);
   await gardarR2(env, user, nomeModulo, value);
   return value;
 }
