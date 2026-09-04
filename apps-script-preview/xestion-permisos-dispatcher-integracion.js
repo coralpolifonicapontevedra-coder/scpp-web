@@ -23,7 +23,7 @@ function despacharPersoasAdministracionPortal_(accion, datos) {
   if (accion === 'listarEstadosAltaPersoasAdministracion') return typeof listarEstadosAltaPersoasAdministracion_ === 'function' ? listarEstadosAltaPersoasAdministracion_(datos) : {ok:true,estados:[]};
   if (accion === 'actualizarPersoaAdministracion') return actualizarPersoaAdministracion_(datos);
   if (accion === 'completarAltaPersoaAdministracion') return completarAltaPersoaAdministracion_(datos);
-  if (accion === 'cambiarEstadoPersoaAdministracion') return cambiarEstadoPersoaAdministracion_(datos);
+  if (accion === 'cambiarEstadoPersoaAdministracion') return cambiarEstadoPersoaConBaixaAdministracion_(datos);
   if (accion === 'eliminarPersoaAdministracion') return typeof eliminarPersoaAdministracion_ === 'function' ? eliminarPersoaAdministracion_(datos) : {ok:false,erro:'A eliminación de Persoas non está dispoñible nesta versión.'};
   if (accion === 'enviarRevisionsPersoasAdministracion') return enviarRevisionsPersoasAdministracion_(datos);
   if (accion === 'obterTextoLegalPersoasAdministracion') return obterTextoLegalPersoasAdministracion_(datos);
