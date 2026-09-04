@@ -4,33 +4,30 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const page = readFileSync(
-  resolve(root, 'src/pages/portal/administracion/persoas.astro'),
-  'utf8'
-);
+const controller = readFileSync(resolve(root, 'src/lib/persoas-admin-v4.js'), 'utf8');
 const worker = readFileSync(resolve(root, 'functions/api/persoas-v2.js'), 'utf8');
 
 describe('rendemento de Administración de persoas', () => {
   it('reutiliza o token Firebase válido no navegador', () => {
-    expect(page).toContain('user.getIdToken();');
-    expect(page).not.toContain('getIdToken(true)');
+    expect(controller).toContain('return user.getIdToken();');
+    expect(controller).not.toContain('getIdToken(true)');
   });
 
-  it('serve a ficha desde R2 coa autorización xa cacheada', () => {
-    expect(worker).toContain('function fichaDesdeCache(cacheada, idPersoa)');
-    expect(worker).toContain("return servirFicha(env, fichaCacheada, 0, 'CACHE')");
-    expect(worker).toContain("'X-SCPP-Authorization', autorizacion");
+  it('serve a ficha desde R2 aproveitando o snapshot operativo', () => {
+    expect(worker).toContain('async function lerSnapshot(env)');
+    expect(worker).toContain('const snapshot = force ? null : await lerSnapshot(env);');
+    expect(worker).toContain('return servirFicha(env, persoa);');
+    expect(worker).toContain("headers.set('X-SCPP-Storage', 'R2');");
   });
 
-  it('mantén Apps Script como respaldo cando non hai cache', () => {
-    const direct = worker.indexOf("return servirFicha(env, fichaCacheada, 0, 'CACHE')");
-    const fallback = worker.indexOf('const inicioAppsScript = Date.now();', direct);
-    expect(direct).toBeGreaterThan(-1);
-    expect(fallback).toBeGreaterThan(direct);
+  it('mantén Apps Script como respaldo cando non hai snapshot válido', () => {
+    expect(worker).toContain("return { payload: await consultarListado(env, user, permission), fonte: 'SHEET+R2', savedAt: Date.now() };");
+    expect(worker).toContain("const result = await chamarAppsScript(env, user, 'persoasV2Listar');");
   });
 
-  it('só acepta claves do prefixo privado de fichas', () => {
+  it('só acepta fichas sincronizadas baixo o prefixo privado', () => {
     expect(worker).toContain("key.startsWith('persoas/fichas/')");
-    expect(worker).toContain("persoa.fichaR2Estado || '').trim() !== 'SINCRONIZADO'");
+    expect(worker).toContain("clean(persoa?.fichaR2Estado) !== 'SINCRONIZADO'");
+    expect(worker).toContain('persoa?.fichaDisponibleR2 !== true');
   });
 });
