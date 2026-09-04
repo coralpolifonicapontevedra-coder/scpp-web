@@ -4,6 +4,7 @@ const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8000;
 const TIMEOUT_APPS_SCRIPT_MS = 15000;
 const LEGAL_ID = 'DATOS_PERSOA_SCPP';
+const LEGAL_COTA_ID = 'EXENCION_COTA_SCPP';
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -67,7 +68,7 @@ function safeId(value) { return String(value || '').trim().replace(/[^A-Za-z0-9_
 function keyToken(token) { return `${TOKEN_PREFIX}${token}.json`; }
 function keyAcceptanceIndex(idPersoa) { return `${ACCEPTANCE_PREFIX}${safeId(idPersoa)}/latest.json`; }
 
-function textoLegalValido(value) {
+function textoLegalValido(value, expectedId = LEGAL_ID) {
   const legal = value && typeof value === 'object' ? value : null;
   if (!legal) return null;
   const id = String(legal.id || '').trim();
@@ -76,7 +77,7 @@ function textoLegalValido(value) {
   const texto = String(legal.texto || '').trim();
   const ambito = String(legal.ambito || '').trim();
   const dataVixencia = String(legal.dataVixencia || '').trim();
-  if (id !== LEGAL_ID || !version || !titulo || !texto) return null;
+  if (id !== expectedId || !version || !titulo || !texto) return null;
   return { id, version, titulo, texto, ambito, dataVixencia };
 }
 
@@ -129,12 +130,13 @@ async function verificarAdministrador(context, data) {
   const user = await verificarFirebase(data.idToken, context.env.FIREBASE_API_KEY);
   if (!user) throw Object.assign(new Error('A sesión administrativa non é válida.'), { status: 401 });
   const listado = await chamarAppsScript(context.env, {
-    accion: 'listarPersoasAdministracion',
+    accion: 'persoasV2Listar',
     email: user.email,
-    uidFirebase: user.uid,
-    incluirTextoLegalPersoas: true
+    actorEmail: user.email,
+    uidFirebase: user.uid
   });
-  if (listado?.perfil?.nivel !== 'Administración') throw Object.assign(new Error('Non tes permiso de Administración.'), { status: 403 });
+  const nivel = String(listado?.perfil?.nivel || '').trim().toLowerCase();
+  if (nivel !== 'administracion') throw Object.assign(new Error('Non tes permiso de Administración no módulo Persoas.'), { status: 403 });
   return { user, listado };
 }
 
@@ -148,8 +150,10 @@ export async function onRequestPost(context) {
   try { authData = await verificarAdministrador(context, data); }
   catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
 
-  const textoLegal = textoLegalValido(authData.listado?.textoLegalPersoas);
-  if (!textoLegal) return json(503, { ok: false, erro: 'O texto legal específico de Persoas non está dispoñible.' });
+  const textoLegal = textoLegalValido(authData.listado?.textosLegais?.datosPersoa, LEGAL_ID);
+  const textoCota = textoLegalValido(authData.listado?.textosLegais?.exencionCota, LEGAL_COTA_ID);
+  if (!textoLegal) return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible en TextosLegais.' });
+  if (!textoCota) return json(503, { ok: false, erro: 'A información sobre o pagamento da cota non está dispoñible en TextosLegais.' });
 
   const alcance = String(data.alcance || 'cantores');
   const rexenerar = data.rexenerar === true;
@@ -173,7 +177,7 @@ export async function onRequestPost(context) {
 
     const token = crearToken();
     const invitation = {
-      version: 2,
+      version: 3,
       revisionId: crypto.randomUUID(),
       token,
       estado: 'PENDENTE',
@@ -183,6 +187,7 @@ export async function onRequestPost(context) {
       caducaEn: new Date(now + TOKEN_TTL_MS).toISOString(),
       persoa: snapshotPublico(persoa),
       textoLegal,
+      textoCota,
       xeracion: 'MASIVA'
     };
     try {
@@ -206,6 +211,8 @@ export async function onRequestPost(context) {
     alcance,
     versionLegal: textoLegal.version,
     tituloLegal: textoLegal.titulo,
+    versionCota: textoCota.version,
+    tituloCota: textoCota.titulo,
     candidatas: candidatas.length,
     xeradas: resultados.length,
     omitidas: omitidas.length,
