@@ -5,9 +5,36 @@
   const token = new URLSearchParams(window.location.search).get('token') || '';
   if (!token) return;
 
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async function reviewFetch(input, init) {
+    const response = await originalFetch(input, init);
+    try {
+      const url = typeof input === 'string' ? input : String(input?.url || '');
+      const method = String(init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+      if (method === 'POST' && /\/api\/persoas-revision(?:\?|$)/.test(url) && response.ok) {
+        let body = null;
+        try { body = init?.body ? JSON.parse(String(init.body)) : null; } catch { body = null; }
+        if (body?.accion === 'gardarRevision') {
+          const saved = await response.clone().json().catch(() => null);
+          if (saved?.ok === true) {
+            const sync = await originalFetch('/api/persoas-review-cache-sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token })
+            });
+            if (!sync.ok) console.warn('A revisión gardouse, pero a actualización inmediata da cache non respondeu correctamente.');
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Non foi posible refrescar a cache despois da revisión:', error);
+    }
+    return response;
+  };
+
   async function cargar() {
     try {
-      const response = await fetch(`/api/persoas-exencion-cota?token=${encodeURIComponent(token)}`, {
+      const response = await originalFetch(`/api/persoas-exencion-cota?token=${encodeURIComponent(token)}`, {
         method: 'GET',
         headers: { Accept: 'application/json' }
       });
