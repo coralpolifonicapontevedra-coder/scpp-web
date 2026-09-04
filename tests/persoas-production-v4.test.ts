@@ -8,6 +8,7 @@ const page = read('src/pages/portal/administracion/persoas.astro');
 const controller = read('src/lib/persoas-admin-v4.js');
 const api = read('functions/api/persoas-v2.js');
 const photoApi = read('functions/api/persoas-foto-admin.js');
+const profilePhotoApi = read('functions/api/perfil-foto-r2.js');
 const cacheSync = read('functions/api/persoas-cache-sync.js');
 const reviewSync = read('functions/api/persoas-review-cache-sync.js');
 const reviewLink = read('functions/api/persoas-revision-link-v4.js');
@@ -69,14 +70,16 @@ describe('Administración → Persoas v4 · Producción', () => {
     expect(appsScript).toContain("fonte:'PermisosPortal'");
   });
 
-  it('rexenera Sheet → R2 tras escrituras, revisións, fotos e cambios manuais na Sheet', () => {
+  it('rexenera Sheet → R2 e mantén R2 como fonte canónica da fotografía', () => {
     expect(api).toContain('await consultarListado(context.env, user, permission)');
     expect(cacheSync).toContain("accion: 'persoasV2SyncListar'");
     expect(cacheSync).toContain("'persoas/cache/snapshot-v4.json'");
     expect(appsScript).toContain('persoasV2OnEdit_');
     expect(appsScript).toContain('UrlFetchApp.fetch(PERSOAS_V2_CONFIG_.syncUrl');
     expect(photoApi).toContain('refreshCaches');
-    expect(photoApi).toContain("source: 'perfil'");
+    expect(photoApi).toContain("source: 'r2'");
+    expect(profilePhotoApi).toContain("source: 'r2'");
+    expect(cacheSync).toContain("fotoCanonica: 'R2'");
     expect(syncPerfil).toContain("fonte:'admin-persoas-perfil-foto'");
     expect(reviewSync).toContain("revision?.estado !== 'COMPLETADA'");
     expect(feeReview).toContain('/api/persoas-review-cache-sync');
@@ -92,6 +95,12 @@ describe('Administración → Persoas v4 · Producción', () => {
     expect(legacy).toContain('persoasLegacyRexistrarAceptacion_');
     expect(legacy).toContain("put('Documento', aceptacion.documento)");
     expect(reviewHelper).toContain('/api/persoas-revision-link-v4');
+  });
+
+  it('toma o correo do dd correspondente e non o teléfono da sección', () => {
+    expect(reviewHelper).toContain('const valueNode = term.nextElementSibling');
+    expect(reviewHelper).toContain("valueNode?.tagName === 'DD'");
+    expect(reviewHelper).toContain("return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value) ? value : ''");
   });
 
   it('despacha só as novas accións de Persoas sen crear outro doPost', () => {
