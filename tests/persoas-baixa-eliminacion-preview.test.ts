@@ -17,6 +17,18 @@ describe('Persoas Preview · altas, baixas e eliminación', () => {
     expect(page).not.toContain('Alta por invitación');
   });
 
+  it('respecta o Enum real de BaixasSocios para Motivo', () => {
+    expect(page).toContain('<select id="low-reason" required>');
+    expect(page).toContain('value="Baixa Voluntaria"');
+    expect(page).toContain('value="Impago de Cuotas"');
+    expect(page).toContain('value="Cambio de residencia"');
+    expect(page).toContain('value="Baixa disciplinaria"');
+    expect(page).toContain('value="Falecemento"');
+    expect(page).toContain('value="Problemas de saúde"');
+    expect(page).toContain('value="Outros"');
+    expect(page).not.toContain('id="low-reason" required placeholder=');
+  });
+
   it('separa a baixa histórica da eliminación física', () => {
     expect(page).toContain('Rexistrar baixa');
     expect(page).toContain('Eliminar rexistro da Sheet');
