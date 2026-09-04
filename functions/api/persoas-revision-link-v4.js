@@ -7,6 +7,8 @@ const FIREBASE_TIMEOUT_MS = 8_000;
 const SHEET_FALLBACK_TIMEOUT_MS = 15_000;
 const SNAPSHOT_KEY_MAIN = 'persoas/cache/snapshot-v4.json';
 const SNAPSHOT_KEY_PREVIEW = 'persoas/cache/preview/snapshot-v4.json';
+const LEGAL_DATOS_ID = 'DATOS_PERSOA_SCPP';
+const LEGAL_COTA_ID = 'EXENCION_COTA_SCPP';
 
 const clean = (value) => String(value == null ? '' : value).trim();
 const branch = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
@@ -83,7 +85,7 @@ function snapshotPublico(item) {
   };
 }
 
-function validarTextoLegal(value) {
+function validarTextoLegal(value, expectedId) {
   const item = value && typeof value === 'object' ? value : null;
   if (!item) return null;
   const legal = {
@@ -94,7 +96,7 @@ function validarTextoLegal(value) {
     ambito: clean(item.ambito),
     dataVixencia: clean(item.dataVixencia)
   };
-  if (legal.id !== 'DATOS_PERSOA_SCPP' || !legal.version || !legal.titulo || !legal.texto) return null;
+  if (legal.id !== expectedId || !legal.version || !legal.titulo || !legal.texto) return null;
   return legal;
 }
 
@@ -106,7 +108,8 @@ async function lerSnapshotR2(env) {
     const entry = await object.json().catch(() => null);
     const payload = entry?.payload;
     if (!payload?.ok || !Array.isArray(payload.persoas)) return null;
-    if (!validarTextoLegal(payload?.textosLegais?.datosPersoa)) return null;
+    if (!validarTextoLegal(payload?.textosLegais?.datosPersoa, LEGAL_DATOS_ID)) return null;
+    if (!validarTextoLegal(payload?.textosLegais?.exencionCota, LEGAL_COTA_ID)) return null;
     return payload;
   } catch (error) {
     console.warn('Non se puido ler o snapshot de Persoas para xerar a revisión:', error);
@@ -131,7 +134,6 @@ async function listarDesdeSheet(env, user) {
 async function obterListado(env, user) {
   const r2 = await lerSnapshotR2(env);
   if (r2) return { listado: r2, fonte: 'R2-SNAPSHOT' };
-
   const sheet = await listarDesdeSheet(env, user);
   return { listado: sheet, fonte: 'SHEET-FALLBACK' };
 }
@@ -159,9 +161,7 @@ export async function onRequest({ request, env }) {
   } catch (error) {
     return json(503, {
       ok: false,
-      erro: error instanceof Error
-        ? error.message
-        : 'Non foi posible preparar os datos da revisión.'
+      erro: error instanceof Error ? error.message : 'Non foi posible preparar os datos da revisión.'
     });
   }
   const { listado, fonte } = result;
@@ -177,15 +177,15 @@ export async function onRequest({ request, env }) {
   if (!persoa) return json(404, { ok: false, erro: 'Non se atopou a persoa.' });
   if (persoa?.activo !== true) return json(400, { ok: false, erro: 'Non se xera revisión para unha persoa en baixa.' });
 
-  const textoLegal = validarTextoLegal(listado?.textosLegais?.datosPersoa);
-  if (!textoLegal) {
-    return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible.' });
-  }
+  const textoLegal = validarTextoLegal(listado?.textosLegais?.datosPersoa, LEGAL_DATOS_ID);
+  const textoCota = validarTextoLegal(listado?.textosLegais?.exencionCota, LEGAL_COTA_ID);
+  if (!textoLegal) return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible.' });
+  if (!textoCota) return json(503, { ok: false, erro: 'A información sobre o pagamento da cota non está dispoñible.' });
 
   const token = crearToken();
   const now = Date.now();
   const revision = {
-    version: 2,
+    version: 3,
     revisionId: crypto.randomUUID(),
     token,
     estado: 'PENDENTE',
@@ -194,7 +194,8 @@ export async function onRequest({ request, env }) {
     creadaEn: new Date(now).toISOString(),
     caducaEn: new Date(now + TOKEN_TTL_MS).toISOString(),
     persoa: snapshotPublico(persoa),
-    textoLegal
+    textoLegal,
+    textoCota
   };
 
   await env.R2_PRIVADO.put(`${TOKEN_PREFIX}${token}.json`, JSON.stringify(revision), {
@@ -210,6 +211,7 @@ export async function onRequest({ request, env }) {
     persoa: revision.persoa.nomeCompleto || revision.idPersoa,
     correo: revision.persoa.correo,
     textoLegal: { id: textoLegal.id, version: textoLegal.version, titulo: textoLegal.titulo },
+    textoCota: { id: textoCota.id, version: textoCota.version, titulo: textoCota.titulo },
     envioAutomatico: false,
     fonte
   }, {
