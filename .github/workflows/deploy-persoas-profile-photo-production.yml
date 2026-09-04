@@ -113,17 +113,27 @@ jobs:
         run: |
           set -euo pipefail
           diff -qr live-before live-production | tee audit/effective-diff.txt || true
-          UNEXPECTED="$(diff -qr live-before live-production \
-            | grep -vE '(persoas-foto-perfil-v2\.js|persoas-sync-perfil-v2\.js|xestion-permisos-dispatcher-integracion\.js)$' \
-            || true)"
-          if [ -n "$UNEXPECTED" ]; then
-            echo 'BLOQUEADO: hai cambios inesperados no push:'
-            printf '%s\n' "$UNEXPECTED"
+
+          # Retira das dúas copias os tres ficheiros que están expresamente
+          # autorizados. O resto debe quedar byte a byte idéntico ao proxecto
+          # vivo que acabamos de obter de Producción.
+          rm -rf audit/check-before audit/check-after
+          cp -a live-before audit/check-before
+          cp -a live-production audit/check-after
+          for f in persoas-foto-perfil-v2.js persoas-sync-perfil-v2.js xestion-permisos-dispatcher-integracion.js; do
+            rm -f "audit/check-before/$f" "audit/check-after/$f"
+          done
+          if ! diff -qr audit/check-before audit/check-after > audit/unexpected-diff.txt; then
+            echo 'BLOQUEADO: hai cambios fóra dos tres ficheiros autorizados.'
+            cat audit/unexpected-diff.txt
             exit 1
           fi
-          grep -Eq 'persoas-foto-perfil-v2\.js' audit/effective-diff.txt
-          grep -Eq 'persoas-sync-perfil-v2\.js' audit/effective-diff.txt
-          grep -Eq 'xestion-permisos-dispatcher-integracion\.js' audit/effective-diff.txt
+
+          # Os dous ficheiros novos teñen que existir no parche e o dispatcher
+          # final ten que coincidir exactamente co revisado en GitHub.
+          cmp -s live-production/persoas-foto-perfil-v2.js apps-script-production/persoas-foto-perfil-v2.js
+          cmp -s live-production/persoas-sync-perfil-v2.js apps-script-production/persoas-sync-perfil-v2.js
+          cmp -s live-production/xestion-permisos-dispatcher-integracion.js apps-script-production/xestion-permisos-dispatcher-integracion.js
 
       - name: Subir o proxecto vivo co parche mínimo
         working-directory: live-production
