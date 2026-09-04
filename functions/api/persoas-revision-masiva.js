@@ -78,6 +78,21 @@ async function chamarListadoAppsScript(env, user) {
   return resultado;
 }
 
+async function chamarEstadoEnviosAppsScript(env, user, revisionIds) {
+  if (!env.WEB_WRITE_TOKEN) throw new Error('Apps Script non está configurado.');
+  const { resultado } = await obterJsonAppsScriptPersoas(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion: 'estadoEnviosRevisionsPersoasAdministracion',
+    email: user.email,
+    actorEmail: user.email,
+    uidFirebase: user.uid,
+    autorizadoR2: true,
+    revisionIds
+  }, { timeoutMs: 20_000, attemptTimeoutMs: 20_000 });
+  if (!resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible consultar o estado dos envíos.');
+  return resultado;
+}
+
 function personKey(item) { return clean(item?.idPersoa || item?.id || item?.rowId); }
 function safeId(value) { return clean(value).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120); }
 function keyToken(token) { return `${TOKEN_PREFIX}${token}.json`; }
@@ -209,6 +224,80 @@ async function tenAceptacionVixente(env, idPersoa, versionLegal) {
   } catch { return false; }
 }
 
+async function listarInvitacionsMasivasVixentes(env, emailAdmin) {
+  const invitacions = [];
+  let cursor;
+  do {
+    const listado = await env.R2_PRIVADO.list({ prefix: TOKEN_PREFIX, limit: 1000, cursor });
+    for (const obxecto of listado.objects || []) {
+      const object = await env.R2_PRIVADO.get(obxecto.key);
+      if (!object) continue;
+      const invitation = await object.json().catch(() => null);
+      if (!invitation) continue;
+      if (clean(invitation.xeracion) !== 'MASIVA') continue;
+      if (clean(invitation.administrador).toLowerCase() !== clean(emailAdmin).toLowerCase()) continue;
+      if (clean(invitation.estado) !== 'PENDENTE') continue;
+      if (Date.parse(invitation.caducaEn || '') <= Date.now()) continue;
+      const token = clean(invitation.token) || obxecto.key.slice(TOKEN_PREFIX.length).replace(/\.json$/i, '');
+      invitacions.push({ token, invitation });
+    }
+    cursor = listado.truncated ? listado.cursor : undefined;
+  } while (cursor);
+  return invitacions;
+}
+
+async function recuperarUltimaXeracion(context, authData, requestUrl) {
+  const invitacions = await listarInvitacionsMasivasVixentes(context.env, authData.user.email);
+  if (!invitacions.length) {
+    const estado = await chamarEstadoEnviosAppsScript(context.env, authData.user, []).catch(() => null);
+    return {
+      ok: true,
+      recuperada: false,
+      resultados: [],
+      pendentes: 0,
+      enviados: 0,
+      cotaRestante: estado?.cotaRestante ?? null,
+      restablecementoEstimado: estado?.restablecementoEstimado || '',
+      estimacionRestablecemento: estado?.estimacionRestablecemento === true
+    };
+  }
+
+  const datas = invitacions.map(item => clean(item.invitation.creadaEn)).filter(Boolean).sort();
+  const ultimaData = datas[datas.length - 1];
+  const xeracion = invitacions.filter(item => clean(item.invitation.creadaEn) === ultimaData);
+  const revisionIds = xeracion.map(item => clean(item.invitation.revisionId)).filter(Boolean);
+  const estado = await chamarEstadoEnviosAppsScript(context.env, authData.user, revisionIds);
+  const enviadosIds = new Set((Array.isArray(estado.enviados) ? estado.enviados : []).map(item => clean(item.revisionId)));
+
+  const todos = xeracion.map(({ token, invitation }) => ({
+    revisionId: clean(invitation.revisionId),
+    idPersoa: clean(invitation.idPersoa),
+    nome: clean(invitation?.persoa?.nomeCompleto) || clean(invitation.idPersoa),
+    correo: primeiroCorreoValido(invitation?.persoa?.correo),
+    ligazon: `${requestUrl.origin}/revision-datos/?token=${encodeURIComponent(token)}`,
+    caducaEn: clean(invitation.caducaEn),
+    creadaEn: clean(invitation.creadaEn),
+    versionLegal: clean(invitation?.textoLegalDatos?.version || invitation?.textoLegal?.version),
+    enviado: enviadosIds.has(clean(invitation.revisionId))
+  }));
+  const pendentes = todos.filter(item => !item.enviado);
+
+  return {
+    ok: true,
+    recuperada: true,
+    creadaEn: ultimaData,
+    xeradas: todos.length,
+    enviados: todos.length - pendentes.length,
+    pendentes: pendentes.length,
+    resultados: pendentes,
+    todos,
+    cotaRestante: estado.cotaRestante,
+    cotaObservadaEn: estado.cotaObservadaEn,
+    restablecementoEstimado: estado.restablecementoEstimado,
+    estimacionRestablecemento: estado.estimacionRestablecemento === true
+  };
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY || !env.R2_PRIVADO) {
@@ -222,6 +311,15 @@ export async function onRequestPost(context) {
   let authData;
   try { authData = await verificarAdministrador(context, data); }
   catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
+
+  const url = new URL(request.url);
+  if (clean(data.accion) === 'recuperarPendentes') {
+    try {
+      return json(200, await recuperarUltimaXeracion(context, authData, url));
+    } catch (error) {
+      return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible recuperar os envíos pendentes.' });
+    }
+  }
 
   let source;
   try { source = await obterListado(context, authData.user); }
@@ -238,7 +336,6 @@ export async function onRequestPost(context) {
   const rexenerar = data.rexenerar === true;
   const todas = Array.isArray(source.listado?.persoas) ? source.listado.persoas : [];
   const candidatas = todas.filter(p => p?.activo === true && (alcance === 'todas' || eCantor(p)));
-  const url = new URL(request.url);
   const resultados = [];
   const omitidas = [];
   const now = Date.now();
@@ -276,15 +373,24 @@ export async function onRequestPost(context) {
         httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
       });
       resultados.push({
+        revisionId: invitation.revisionId,
         idPersoa,
         nome,
         correo,
         ligazon: `${url.origin}/revision-datos/?token=${encodeURIComponent(token)}`,
-        caducaEn: invitation.caducaEn
+        caducaEn: invitation.caducaEn,
+        creadaEn: invitation.creadaEn
       });
     } catch (error) {
       omitidas.push({ idPersoa, nome, correo, motivo: error instanceof Error ? error.message : 'Erro ao xerar a ligazón' });
     }
+  }
+
+  let estadoEnvio = null;
+  try {
+    estadoEnvio = await chamarEstadoEnviosAppsScript(env, authData.user, resultados.map(item => item.revisionId));
+  } catch {
+    estadoEnvio = null;
   }
 
   return json(200, {
@@ -300,7 +406,11 @@ export async function onRequestPost(context) {
     omitidas: omitidas.length,
     resultados,
     detalleOmitidas: omitidas,
-    envioAutomatico: false
+    envioAutomatico: false,
+    cotaRestante: estadoEnvio?.cotaRestante ?? null,
+    cotaObservadaEn: estadoEnvio?.cotaObservadaEn || '',
+    restablecementoEstimado: estadoEnvio?.restablecementoEstimado || '',
+    estimacionRestablecemento: estadoEnvio?.estimacionRestablecemento === true
   });
 }
 
