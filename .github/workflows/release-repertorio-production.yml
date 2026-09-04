@@ -1,0 +1,151 @@
+name: Release Repertorio Apps Script Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release-repertorio-production.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-production-repertorio
+  cancel-in-progress: false
+
+jobs:
+  release-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exacto de main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Blindar destino de Apps Script Producción
+        shell: bash
+        run: |
+          set -euo pipefail
+          PRODUCTION_ID='1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+          PREVIEW_ID='1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF'
+          ACTUAL_ID="$(node -e "console.log(require('./apps-script-production/.clasp.json').scriptId || '')")"
+
+          if [ "$ACTUAL_ID" = "$PREVIEW_ID" ]; then
+            echo 'BLOQUEADO: apps-script-production apunta a PREVIEW.'
+            exit 1
+          fi
+          if [ "$ACTUAL_ID" != "$PRODUCTION_ID" ]; then
+            echo "BLOQUEADO: scriptId inesperado: $ACTUAL_ID"
+            exit 1
+          fi
+          echo 'Destino verificado: Apps Script Producción.'
+
+      - name: Preparar dispatcher exclusivo de Repertorio
+        working-directory: apps-script-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f repertorio-administracion.js
+          test -f repertorio-eliminar.js
+          test -f repertorio-id-seguro.js
+          test -f repertorio-dispatcher-integracion.js
+
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'Código.js';
+          let source = fs.readFileSync(path, 'utf8');
+          const call = 'despacharRepertorioAdministracionProduccion_(accion, datos, bloqueo)';
+
+          if (!source.includes(call)) {
+            const marker = "    if (accion === 'rexistrarSolicitudeWeb') {";
+            if (!source.includes(marker)) {
+              throw new Error('Non se atopou o punto seguro para integrar Repertorio en Código.js');
+            }
+            const hook = [
+              '    // Administración → Repertorio: dispatcher validado en Preview.',
+              '    const respostaRepertorioAdmin =',
+              '      despacharRepertorioAdministracionProduccion_(accion, datos, bloqueo);',
+              '',
+              '    if (respostaRepertorioAdmin !== null) {',
+              '      return respostaJSON(respostaRepertorioAdmin);',
+              '    }',
+              '',
+            ].join('\n');
+            source = source.replace(marker, hook + marker);
+            fs.writeFileSync(path, source);
+          }
+
+          if (!source.includes(call)) {
+            throw new Error('A integración de Repertorio non quedou completa.');
+          }
+          NODE
+
+      - name: Configurar credenciais de clasp
+        shell: bash
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLASP_CREDENTIALS:-}" ]; then
+            echo 'Falta o secret de credenciais clasp do repositorio.'
+            exit 1
+          fi
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Comprobar proxecto antes do push
+        working-directory: apps-script-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes @google/clasp@3 status
+
+      - name: Subir código a Apps Script Producción
+        working-directory: apps-script-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes @google/clasp@3 push --force
+
+      - name: Validar deployment de Producción
+        working-directory: apps-script-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          PRODUCTION_DEPLOYMENT_ID='AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+          PREVIEW_DEPLOYMENT_ID='AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU'
+          if [ "$PRODUCTION_DEPLOYMENT_ID" = "$PREVIEW_DEPLOYMENT_ID" ]; then
+            echo 'BLOQUEADO: os deployment IDs coinciden.'
+            exit 1
+          fi
+          DEPLOYMENTS="$(npx --yes @google/clasp@3 list-deployments)"
+          printf '%s\n' "$DEPLOYMENTS"
+          if ! printf '%s\n' "$DEPLOYMENTS" | grep -Fq "$PRODUCTION_DEPLOYMENT_ID"; then
+            echo 'BLOQUEADO: non se atopou o deployment de Producción esperado.'
+            exit 1
+          fi
+
+      - name: Crear nova versión e actualizar o deployment de Producción
+        working-directory: apps-script-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          PRODUCTION_DEPLOYMENT_ID='AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+          npx --yes @google/clasp@3 create-deployment \
+            --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
+            --description "Producción Repertorio ${GITHUB_SHA}"
+
+      - name: Confirmación final
+        shell: bash
+        run: |
+          echo 'Apps Script Producción actualizado para Administración → Repertorio.'
+          echo 'A versión v98 permanece no historial como rollback.'
+          echo 'Preview non foi modificado por este workflow.'
