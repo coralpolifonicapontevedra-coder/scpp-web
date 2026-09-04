@@ -1,0 +1,46 @@
+name: Audit Apps Script Production Deployments
+
+on:
+  push:
+    branches:
+      - release/persoas-production-v2-livepull
+    paths:
+      - '.github/workflows/audit-apps-script-production-deployments.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit-deployments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Configure clasp credentials
+        shell: bash
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          test -n "${CLASP_CREDENTIALS:-}"
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+      - name: Read Production deployments and versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/prod-clasp
+          cat > /tmp/prod-clasp/.clasp.json <<'JSON'
+          {
+            "scriptId": "1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV",
+            "rootDir": "."
+          }
+          JSON
+          cd /tmp/prod-clasp
+          echo '=== DEPLOYMENTS ==='
+          npx --yes @google/clasp@3 deployments
+          echo '=== VERSIONS ==='
+          npx --yes @google/clasp@3 versions
