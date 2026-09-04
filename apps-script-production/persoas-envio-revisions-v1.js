@@ -1,14 +1,13 @@
 /*
  * Producción · Administración → Persoas · envío de revisións por correo.
  *
- * Parche mínimo autocontido para a versión viva de Apps Script. O dispatcher
- * xa coñece `enviarRevisionsPersoasAdministracion`; este ficheiro define a
- * función que faltaba sen depender de helpers que só existen na fonte de
- * desenvolvemento.
- *
  * PERSOAS_ALLOW_EMAIL_SEND é un interruptor de emerxencia:
  * - ausente ou true: envío permitido no script real de Producción;
  * - false / 0 / no / off: envío bloqueado.
+ *
+ * A autorización normal chega xa resolta polo Worker desde a matriz de permisos
+ * R2. Apps Script conserva un fallback de autorización para chamadas antigas e
+ * revalida sempre persoa, correo, estado, caducidade e duplicados antes de MailApp.
  */
 
 var PERSOAS_EMAIL_PRODUCTION_SCRIPT_ID_ =
@@ -116,9 +115,14 @@ function enviarRevisionsPersoasAdministracion_(datos) {
     }
 
     var emailAdmin = persoasEmailTexto_(datos && datos.email).toLowerCase();
+    if (!emailAdmin) return { ok:false, erro:'Non se puido identificar a conta administradora' };
+
     var contexto = obterContextoPersoasAdmin_();
     var valores = contexto.persoas.getDataRange().getValues();
-    var administrador = obterAdministradorPersoasAdmin_(contexto, emailAdmin, valores);
+    var autorizadoR2 = datos && datos.autorizadoR2 === true;
+    var administrador = autorizadoR2
+      ? { email: emailAdmin, fonte: 'R2-PERMISOS' }
+      : obterAdministradorPersoasAdmin_(contexto, emailAdmin, valores);
     if (!administrador) return { ok:false, erro:'Usuario non autorizado' };
 
     var envios = datos && Array.isArray(datos.envios) ? datos.envios : [];
@@ -243,14 +247,6 @@ function enviarRevisionsPersoasAdministracion_(datos) {
           }));
           enviados++;
           detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'ENVIADO' });
-
-          persoasEmailRexistrar_({
-            email:administrador.email,
-            tipoEvento:'Enviar revisión de datos',
-            modulo:'Administración · Persoas',
-            resultado:'Correcto',
-            detalle:'Persoa ' + idPersoa + ' · versión ' + versionLegal
-          });
         } catch (erroEnvio) {
           erros++;
           detalle.push({
@@ -260,22 +256,24 @@ function enviarRevisionsPersoasAdministracion_(datos) {
             estado:'ERRO',
             motivo:String(erroEnvio && erroEnvio.message ? erroEnvio.message : erroEnvio)
           });
-          persoasEmailRexistrar_({
-            email:administrador.email,
-            tipoEvento:'Enviar revisión de datos',
-            modulo:'Administración · Persoas',
-            resultado:'Erro',
-            detalle:'Persoa ' + idPersoa
-          });
         }
       });
     } finally {
       try { bloqueo.releaseLock(); } catch (ignorado) {}
     }
 
+    persoasEmailRexistrar_({
+      email:emailAdmin,
+      tipoEvento:'Enviar revisións de datos',
+      modulo:'Administración · Persoas',
+      resultado:erros > 0 ? 'Parcial' : 'Correcto',
+      detalle:'Solicitados ' + envios.length + ' · enviados ' + enviados + ' · omitidos ' + omitidos + ' · erros ' + erros
+    });
+
     return {
       ok:true,
       ambiente:ambiente,
+      permisoFonte:administrador.fonte || (autorizadoR2 ? 'R2-PERMISOS' : 'APPS-SCRIPT'),
       enviados:enviados,
       omitidos:omitidos,
       erros:erros,
