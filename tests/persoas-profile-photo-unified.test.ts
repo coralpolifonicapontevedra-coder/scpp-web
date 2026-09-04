@@ -3,45 +3,40 @@ import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 
-describe('Persoas usa a mesma fotografía que Perfil', () => {
-  const photoApi = read('functions/api/persoas-foto-admin.js');
+describe('Perfil e Persoas comparten unha única fotografía en R2', () => {
+  const adminPhotoApi = read('functions/api/persoas-foto-admin.js');
+  const selfPhotoApi = read('functions/api/perfil-foto-r2.js');
   const cacheSync = read('functions/api/persoas-cache-sync.js');
-  const dispatcher = read('apps-script-production/xestion-permisos-dispatcher-integracion.js');
-  const appsScript = read('apps-script-production/persoas-foto-perfil-v2.js');
+  const portalHelper = read('public/js/persoas-envio-individual.js');
 
-  it('non garda unha segunda fotografía de Persoas en R2', () => {
-    expect(photoApi).toContain("fonte: 'Perfil'");
-    expect(photoApi).toContain("'persoasV2FotoPerfilGardar'");
-    expect(photoApi).not.toContain('R2_PRIVADO.put(key, await file.arrayBuffer()');
-    expect(photoApi).not.toContain('actual.${extension}');
+  it('garda o binario real da fotografía en R2', () => {
+    expect(adminPhotoApi).toContain('R2_PRIVADO.put(key, bytes');
+    expect(adminPhotoApi).toContain("source: 'r2'");
+    expect(adminPhotoApi).toContain('canonical: true');
+    expect(adminPhotoApi).toContain("'X-SCPP-Photo-Source', 'R2'");
   });
 
-  it('serve a fotografía canónica de Perfil tamén en Administración', () => {
-    expect(photoApi).toContain("'persoasV2FotoPerfilObter'");
-    expect(photoApi).toContain("'X-SCPP-Photo-Source': 'Perfil'");
-    expect(appsScript).toContain('obterFotoPerfilBase64_');
-    expect(appsScript).toContain("ctx.row[ctx.ix.FotoPerfil]");
+  it('migra a fotografía histórica de FotoPerfil sen obrigar a subila de novo', () => {
+    expect(adminPhotoApi).toContain("'persoasV2FotoPerfilObter'");
+    expect(adminPhotoApi).toContain("migradaDesde: 'FotoPerfil'");
+    expect(adminPhotoApi).toContain('migrateLegacyPhoto');
   });
 
-  it('a carga desde Administración escribe FotoPerfil usando os helpers de Perfil', () => {
-    expect(appsScript).toContain('gardarFotoPerfil_');
-    expect(appsScript).toContain('ctx.ix.FotoPerfil + 1');
-    expect(appsScript).toContain('persoasV2MarcarVersion_');
+  it('o Perfil le e escribe esa mesma fotografía de R2', () => {
+    expect(selfPhotoApi).toContain("const PHOTO_INDEX_MAIN = 'persoas/fotos/index.json'");
+    expect(selfPhotoApi).toContain('resolveOwnPerson');
+    expect(selfPhotoApi).toContain('storePhoto');
+    expect(selfPhotoApi).toContain("fonte: 'R2'");
+    expect(portalHelper).toContain("'/api/perfil-foto-r2'");
+    expect(portalHelper).toContain('delete forwarded.fotoBase64');
+    expect(portalHelper).toContain('delete forwarded.fotoTipo');
+    expect(portalHelper).toContain("profile.fotoFonte = 'R2'");
   });
 
-  it('mantén un marcador de Perfil para todas as persoas nas caches', () => {
-    expect(cacheSync).toContain("const PROFILE_MARKER_KEY = '__perfil__'");
-    expect(cacheSync).toContain("source: 'perfil'");
-    expect(cacheSync).toContain('buildProfilePhotoIndex');
-    expect(cacheSync).toContain('next.persoas[ref] = profileMarker(persona)');
-  });
-
-  it('o dispatcher expón as tres operacións de fotografía de Perfil', () => {
-    expect(dispatcher).toContain("'persoasV2FotoPerfilObter'");
-    expect(dispatcher).toContain("'persoasV2FotoPerfilGardar'");
-    expect(dispatcher).toContain("'persoasV2FotoPerfilEliminar'");
-    expect(dispatcher).toContain('return persoasV2FotoPerfilObter_(datos)');
-    expect(dispatcher).toContain('return persoasV2FotoPerfilGardar_(datos)');
-    expect(dispatcher).toContain('return persoasV2FotoPerfilEliminar_(datos)');
+  it('FotoPerfil queda só como pista de migración e nunca pisa unha foto real de R2', () => {
+    expect(cacheSync).toContain('validStoredPhoto(existing)');
+    expect(cacheSync).toContain("source: 'legacy-profile'");
+    expect(cacheSync).toContain('canonical: false');
+    expect(cacheSync).toContain("fotoCanonica: 'R2'");
   });
 });
