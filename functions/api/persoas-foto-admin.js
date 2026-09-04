@@ -9,11 +9,18 @@ const ALLOWED_TYPES = new Map([
 ]);
 const PHOTO_INDEX_MAIN = 'persoas/fotos/index.json';
 const PHOTO_INDEX_PREVIEW = 'persoas/fotos/preview/index.json';
+const SNAPSHOT_MAIN = 'persoas/cache/snapshot-v4.json';
+const SNAPSHOT_PREVIEW = 'persoas/cache/preview/snapshot-v4.json';
+const PERFIS_MAIN = 'persoas/cache/perfis.json';
+const PERFIS_PREVIEW = 'persoas/cache/preview/perfis.json';
+const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 
 const clean = (value) => String(value == null ? '' : value).trim();
 const safeId = (value) => clean(value).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
 const branch = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
 const indexKey = (env) => branch(env) === 'main' ? PHOTO_INDEX_MAIN : PHOTO_INDEX_PREVIEW;
+const snapshotKey = (env) => branch(env) === 'main' ? SNAPSHOT_MAIN : SNAPSHOT_PREVIEW;
+const perfisKey = (env) => branch(env) === 'main' ? PERFIS_MAIN : PERFIS_PREVIEW;
 const prefix = (env, id) => branch(env) === 'main' ? `persoas/fotos/${id}/` : `persoas/fotos/preview/${id}/`;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
@@ -39,10 +46,14 @@ async function verificarFirebase(idToken, apiKey) {
   return { uid: clean(user.localId), email: clean(user.email).toLowerCase() };
 }
 
+async function readJson(env, key) {
+  if (!env.R2_PRIVADO?.get) return null;
+  const object = await env.R2_PRIVADO.get(key);
+  return object ? object.json().catch(() => null) : null;
+}
+
 async function readIndex(env) {
-  if (!env.R2_PRIVADO?.get) return { version: 1, persoas: {} };
-  const object = await env.R2_PRIVADO.get(indexKey(env));
-  const value = object ? await object.json().catch(() => null) : null;
+  const value = await readJson(env, indexKey(env));
   return value?.persoas && typeof value.persoas === 'object' ? value : { version: 1, persoas: {} };
 }
 
@@ -54,6 +65,64 @@ async function saveIndex(env, index) {
   }), {
     httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
   });
+}
+
+function samePerson(item, id) {
+  const ref = clean(id);
+  return [item?.idPersoa, item?.id, item?.rowId].some((value) => clean(value) === ref);
+}
+
+function withPhoto(payload, id, info) {
+  if (!payload?.persoas || !Array.isArray(payload.persoas)) return payload;
+  return {
+    ...payload,
+    persoas: payload.persoas.map((item) => samePerson(item, id) ? { ...item, fotoR2: info || null } : item)
+  };
+}
+
+async function refreshPhotoCaches(env, id, info) {
+  if (!env.R2_PRIVADO?.get || !env.R2_PRIVADO?.put) return;
+  const now = Date.now();
+
+  const snapshot = await readJson(env, snapshotKey(env));
+  if (snapshot?.payload?.persoas) {
+    await env.R2_PRIVADO.put(snapshotKey(env), JSON.stringify({
+      ...snapshot,
+      savedAt: now,
+      payload: withPhoto(snapshot.payload, id, info)
+    }), {
+      httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
+    });
+  }
+
+  const perfis = await readJson(env, perfisKey(env));
+  if (perfis?.persoas && Array.isArray(perfis.persoas)) {
+    await env.R2_PRIVADO.put(perfisKey(env), JSON.stringify({
+      ...perfis,
+      savedAt: now,
+      persoas: perfis.persoas.map((item) => samePerson(item, id) ? { ...item, fotoR2: info || null } : item)
+    }), {
+      httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
+    });
+  }
+
+  if (!env.R2_PRIVADO?.list) return;
+  let cursor;
+  do {
+    const listed = await env.R2_PRIVADO.list({ prefix: ADMIN_CACHE_PREFIX, cursor, limit: 250 });
+    for (const item of listed.objects || []) {
+      const current = await readJson(env, item.key);
+      if (!current?.payload?.persoas) continue;
+      await env.R2_PRIVADO.put(item.key, JSON.stringify({
+        ...current,
+        savedAt: now,
+        payload: withPhoto(current.payload, id, info)
+      }), {
+        httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
+      });
+    }
+    cursor = listed.truncated ? listed.cursor : undefined;
+  } while (cursor);
 }
 
 async function contextFor(env, user, write = false) {
@@ -101,7 +170,8 @@ async function handleJson(context, user, data) {
     if (context.env.R2_PRIVADO.delete) await context.env.R2_PRIVADO.delete(`${prefix(context.env, id)}latest.json`);
     delete index.persoas[id];
     await saveIndex(context.env, index);
-    return json(200, { ok: true, eliminada: true });
+    await refreshPhotoCaches(context.env, id, null);
+    return json(200, { ok: true, eliminada: true, cacheActualizada: true });
   }
 
   return json(400, { ok: false, erro: 'Acción de fotografía non permitida.' });
@@ -140,7 +210,8 @@ async function handleUpload(context, form) {
   });
   globalIndex.persoas[id] = info;
   await saveIndex(context.env, globalIndex);
-  return json(200, { ok: true, disponible: true, foto: info });
+  await refreshPhotoCaches(context.env, id, info);
+  return json(200, { ok: true, disponible: true, foto: info, cacheActualizada: true });
 }
 
 export async function onRequest(context) {
