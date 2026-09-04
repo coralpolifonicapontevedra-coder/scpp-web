@@ -1,5 +1,133 @@
 (() => {
   const path = window.location.pathname.replace(/\/+$/, '');
+  const originalFetch = window.fetch.bind(window);
+
+  function dataUrlParts(value) {
+    const match = /^data:([^;]+);base64,(.+)$/.exec(String(value || '').trim());
+    return match ? { mimeType: match[1].toLowerCase(), base64: match[2] } : null;
+  }
+
+  async function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Non foi posible ler a fotografía de R2.'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function profileHint(profile) {
+    return {
+      idPersoa: String(profile?.idPersoa || profile?.id || profile?.rowId || '').trim(),
+      id: String(profile?.id || '').trim(),
+      rowId: String(profile?.rowId || '').trim(),
+      nif: String(profile?.nif || '').trim(),
+      nomeCompleto: String(profile?.nomeCompleto || '').trim(),
+      nome: String(profile?.nome || '').trim(),
+      primeiroApelido: String(profile?.primeiroApelido || '').trim(),
+      segundoApelido: String(profile?.segundoApelido || '').trim(),
+      correoElectronico: String(profile?.correoElectronico || profile?.correo || '').trim()
+    };
+  }
+
+  async function fetchProfilePhoto(idToken, profile) {
+    return originalFetch('/api/perfil-foto-r2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion: 'descargar', perfil: profileHint(profile) })
+    });
+  }
+
+  async function saveProfilePhoto(idToken, profile, fotoBase64, fotoTipo) {
+    const response = await originalFetch('/api/perfil-foto-r2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken,
+        accion: 'gardar',
+        perfil: profileHint(profile),
+        fotoBase64,
+        fotoTipo
+      })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || result?.ok !== true) throw new Error(result?.erro || 'Non foi posible gardar a fotografía en R2.');
+    return result;
+  }
+
+  async function overlayProfilePhoto(result, idToken, newPhoto = null) {
+    if (!result?.ok || !result?.perfil || !idToken) return result;
+    const profile = { ...result.perfil };
+
+    if (newPhoto?.base64) {
+      await saveProfilePhoto(idToken, profile, newPhoto.base64, newPhoto.mimeType);
+      profile.fotoDataUrl = `data:${newPhoto.mimeType};base64,${newPhoto.base64}`;
+      profile.fotoFonte = 'R2';
+      return { ...result, perfil: profile };
+    }
+
+    const r2 = await fetchProfilePhoto(idToken, profile);
+    if (r2.ok) {
+      profile.fotoDataUrl = await blobToDataUrl(await r2.blob());
+      profile.fotoFonte = 'R2';
+      return { ...result, perfil: profile };
+    }
+
+    const legacy = dataUrlParts(profile.fotoDataUrl);
+    if (legacy && ['image/jpeg', 'image/png', 'image/webp'].includes(legacy.mimeType)) {
+      try {
+        await saveProfilePhoto(idToken, profile, legacy.base64, legacy.mimeType);
+        profile.fotoFonte = 'R2';
+      } catch {
+        // A foto histórica segue visible; a migración poderá repetirse na seguinte carga.
+      }
+    }
+    return { ...result, perfil: profile };
+  }
+
+  if (path === '/portal/perfil') {
+    window.fetch = async function profileFetch(input, init) {
+      let url = '';
+      try { url = typeof input === 'string' ? input : String(input?.url || ''); }
+      catch { return originalFetch(input, init); }
+      if (!/\/api\/perfil(?:\?|$)/.test(url)) return originalFetch(input, init);
+
+      let body = null;
+      try { body = init?.body ? JSON.parse(String(init.body)) : null; }
+      catch { body = null; }
+      if (!body?.idToken) return originalFetch(input, init);
+
+      const newPhoto = body?.accion === 'actualizarPerfil' && body?.fotoBase64
+        ? { base64: String(body.fotoBase64 || ''), mimeType: String(body.fotoTipo || '').toLowerCase() }
+        : null;
+
+      const forwarded = { ...body };
+      delete forwarded.fotoBase64;
+      delete forwarded.fotoTipo;
+      delete forwarded.fotoNome;
+
+      const response = await originalFetch(input, {
+        ...init,
+        headers: { ...(init?.headers || {}), 'Content-Type': 'application/json' },
+        body: JSON.stringify(forwarded)
+      });
+      const result = await response.clone().json().catch(() => null);
+      if (!response.ok || !result?.ok || !result?.perfil) return response;
+
+      try {
+        const overlaid = await overlayProfilePhoto(result, String(body.idToken || ''), newPhoto);
+        const headers = new Headers(response.headers);
+        headers.set('Content-Type', 'application/json; charset=utf-8');
+        headers.set('Cache-Control', 'private, no-store');
+        headers.set('X-SCPP-Photo-Source', overlaid?.perfil?.fotoFonte || 'LEGACY');
+        return new Response(JSON.stringify(overlaid), { status: response.status, statusText: response.statusText, headers });
+      } catch (error) {
+        console.warn('Non se puido sincronizar a fotografía de Perfil con R2:', error);
+        return response;
+      }
+    };
+    return;
+  }
 
   if (path === '/revision-datos') {
     if (!document.querySelector('script[data-scpp-exencion-cota]')) {
@@ -14,7 +142,6 @@
 
   if (path !== '/portal/administracion/persoas') return;
 
-  const originalFetch = window.fetch.bind(window);
   let lastIdToken = '';
   let envioEnCurso = false;
 
@@ -87,9 +214,7 @@
       return;
     }
 
-    const ok = window.confirm(
-      `Vas enviar a revisión de datos a ${personName()}.\n\nCorreo: ${correo}\n\nQueres continuar?`
-    );
+    const ok = window.confirm(`Vas enviar a revisión de datos a ${personName()}.\n\nCorreo: ${correo}\n\nQueres continuar?`);
     if (!ok) return;
 
     envioEnCurso = true;
@@ -110,10 +235,7 @@
 
       if (!response.ok || result?.ok !== true || enviados < 1) {
         const motivo = String(
-          result?.erro ||
-          result?.envio?.erro ||
-          result?.envio?.detalle?.[0]?.motivo ||
-          'Non foi posible enviar o correo.'
+          result?.erro || result?.envio?.erro || result?.envio?.detalle?.[0]?.motivo || 'Non foi posible enviar o correo.'
         ).trim();
         throw new Error(motivo);
       }
@@ -133,22 +255,16 @@
 
   window.fetch = async function patchedFetch(input, init) {
     let url = '';
-    try {
-      url = typeof input === 'string' ? input : String(input?.url || '');
-    } catch {
-      return originalFetch(input, init);
-    }
+    try { url = typeof input === 'string' ? input : String(input?.url || ''); }
+    catch { return originalFetch(input, init); }
 
     if (!url.includes('/api/persoas-revision') || url.includes('/api/persoas-revision-envio')) {
       return originalFetch(input, init);
     }
 
     let body = null;
-    try {
-      body = init?.body ? JSON.parse(String(init.body)) : null;
-    } catch {
-      body = null;
-    }
+    try { body = init?.body ? JSON.parse(String(init.body)) : null; }
+    catch { body = null; }
 
     const useV4Generator = body?.accion === 'xerarLigazon' && /\/api\/persoas-revision(?:\?|$)/.test(url);
     const destination = useV4Generator ? '/api/persoas-revision-link-v4' : input;
