@@ -12,6 +12,7 @@
 
 var PERSOAS_EMAIL_PRODUCTION_SCRIPT_ID_ =
   '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV';
+var PERSOAS_EMAIL_QUOTA_META_KEY_ = 'PERSOAS_EMAIL_QUOTA_META_V1';
 
 function persoasEmailTexto_(valor) {
   return String(valor == null ? '' : valor).trim();
@@ -99,6 +100,86 @@ function persoasEmailLimparRexistros_(propiedades) {
   });
 }
 
+function persoasEmailActualizarMetaCota_(propiedades, cotaActual) {
+  var agora = Date.now();
+  var anterior = null;
+  try {
+    anterior = JSON.parse(propiedades.getProperty(PERSOAS_EMAIL_QUOTA_META_KEY_) || 'null');
+  } catch (erro) {
+    anterior = null;
+  }
+
+  var inicioObservado = Number(anterior && anterior.inicioObservado) || agora;
+  var cotaAnterior = Number(anterior && anterior.cota);
+  if (Number.isFinite(cotaAnterior) && Number(cotaActual) > cotaAnterior) {
+    inicioObservado = agora;
+  }
+
+  var meta = {
+    cota: Math.max(0, Number(cotaActual) || 0),
+    observadaEn: new Date(agora).toISOString(),
+    inicioObservado: inicioObservado,
+    restablecementoEstimado: new Date(inicioObservado + 24 * 60 * 60 * 1000).toISOString(),
+    estimacion: true
+  };
+  propiedades.setProperty(PERSOAS_EMAIL_QUOTA_META_KEY_, JSON.stringify(meta));
+  return meta;
+}
+
+function persoasEmailAutorizar_(datos) {
+  var emailAdmin = persoasEmailTexto_(datos && datos.email).toLowerCase();
+  if (!emailAdmin) return { ok:false, erro:'Non se puido identificar a conta administradora' };
+  if (datos && datos.autorizadoR2 === true) {
+    return { ok:true, email:emailAdmin, administrador:{ email:emailAdmin, fonte:'R2-PERMISOS' } };
+  }
+  var contexto = obterContextoPersoasAdmin_();
+  var valores = contexto.persoas.getDataRange().getValues();
+  var administrador = obterAdministradorPersoasAdmin_(contexto, emailAdmin, valores);
+  if (!administrador) return { ok:false, erro:'Usuario non autorizado' };
+  return { ok:true, email:emailAdmin, administrador:administrador };
+}
+
+function estadoEnviosRevisionsPersoasAdministracion_(datos) {
+  try {
+    if (persoasEmailAmbiente_() !== 'production') {
+      throw new Error('Consulta de envío bloqueada fóra do Apps Script de Producción');
+    }
+    var auth = persoasEmailAutorizar_(datos);
+    if (!auth.ok) return auth;
+
+    var propiedades = PropertiesService.getScriptProperties();
+    persoasEmailLimparRexistros_(propiedades);
+    var ids = datos && Array.isArray(datos.revisionIds) ? datos.revisionIds.slice(0, 250) : [];
+    var enviados = [];
+    ids.forEach(function(revisionId) {
+      var id = persoasEmailTexto_(revisionId);
+      if (!id) return;
+      var chave = 'PERSOAS_EMAIL_SENT_' + id.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
+      var raw = propiedades.getProperty(chave);
+      if (!raw) return;
+      try {
+        var meta = JSON.parse(raw);
+        enviados.push({ revisionId:id, enviadoEn:persoasEmailTexto_(meta && meta.enviadoEn), correo:persoasEmailTexto_(meta && meta.correo) });
+      } catch (erro) {
+        enviados.push({ revisionId:id });
+      }
+    });
+
+    var cota = MailApp.getRemainingDailyQuota();
+    var metaCota = persoasEmailActualizarMetaCota_(propiedades, cota);
+    return {
+      ok:true,
+      enviados:enviados,
+      cotaRestante:cota,
+      cotaObservadaEn:metaCota.observadaEn,
+      restablecementoEstimado:metaCota.restablecementoEstimado,
+      estimacionRestablecemento:true
+    };
+  } catch (erro) {
+    return { ok:false, erro:String(erro && erro.message ? erro.message : erro) };
+  }
+}
+
 function enviarRevisionsPersoasAdministracion_(datos) {
   try {
     var ambiente = persoasEmailAmbiente_();
@@ -129,13 +210,20 @@ function enviarRevisionsPersoasAdministracion_(datos) {
     if (!envios.length) return { ok:false, erro:'Non se indicaron correos para enviar' };
     if (envios.length > 100) return { ok:false, erro:'Máximo 100 envíos por operación' };
 
-    var cota = MailApp.getRemainingDailyQuota();
-    if (cota < envios.length) {
+    var cotaAntes = MailApp.getRemainingDailyQuota();
+    var metaCotaAntes = persoasEmailActualizarMetaCota_(propiedades, cotaAntes);
+    if (cotaAntes <= 0) {
       return {
         ok:false,
-        erro:'Cota diaria de correo insuficiente. Dispoñibles: ' + cota + ' · necesarios: ' + envios.length
+        codigo:'COTA_ESGOTADA',
+        erro:'Cota diaria de correo esgotada. Dispoñibles: 0 · necesarios: ' + envios.length,
+        cotaRestante:0,
+        restablecementoEstimado:metaCotaAntes.restablecementoEstimado
       };
     }
+
+    var enviosProcesables = envios.slice(0, Math.min(cotaAntes, envios.length));
+    var enviosAdiados = envios.slice(enviosProcesables.length);
 
     persoasEmailLimparRexistros_(propiedades);
 
@@ -153,7 +241,7 @@ function enviarRevisionsPersoasAdministracion_(datos) {
     var detalle = [];
 
     try {
-      envios.forEach(function(item) {
+      enviosProcesables.forEach(function(item) {
         var revisionId = persoasEmailTexto_(item && item.revisionId);
         var idPersoa = persoasEmailTexto_(item && item.idPersoa);
         var correo = persoasEmailPrimeiroCorreo_(item && item.correo);
@@ -164,47 +252,47 @@ function enviarRevisionsPersoasAdministracion_(datos) {
 
         if (!revisionId || !idPersoa || !correo || !ligazon) {
           erros++;
-          detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'ERRO', motivo:'Datos de envío incompletos' });
+          detalle.push({ revisionId:revisionId, idPersoa:idPersoa, nome:nome, correo:correo, estado:'ERRO', motivo:'Datos de envío incompletos' });
           return;
         }
 
         if (!/^https:\/\/(?:www\.)?coralpolifonicapontevedra\.org\/revision-datos\/?\?token=[A-Za-z0-9_-]{30,160}(?:&.*)?$/i.test(ligazon)) {
           erros++;
-          detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'ERRO', motivo:'Ligazón non pertencente a Produción' });
+          detalle.push({ revisionId:revisionId, idPersoa:idPersoa, nome:nome, correo:correo, estado:'ERRO', motivo:'Ligazón non pertencente a Produción' });
           return;
         }
 
         var indiceFila = persoasEmailAtoparIndiceFila_(valores, indices, idPersoa);
         if (indiceFila < 1) {
           erros++;
-          detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'ERRO', motivo:'Persoa non atopada' });
+          detalle.push({ revisionId:revisionId, idPersoa:idPersoa, nome:nome, correo:correo, estado:'ERRO', motivo:'Persoa non atopada' });
           return;
         }
 
         var filaActual = valores[indiceFila];
         if (!persoasEmailBooleano_(filaActual[indices.Activo])) {
           omitidos++;
-          detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'Persoa non activa' });
+          detalle.push({ revisionId:revisionId, idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'Persoa non activa' });
           return;
         }
 
         var correoActual = persoasEmailPrimeiroCorreo_(filaActual[indices['Correo electrónico']]);
         if (!correoActual || correoActual !== correo) {
           omitidos++;
-          detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'O correo actual da ficha xa non coincide co da revisión' });
+          detalle.push({ revisionId:revisionId, idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'O correo actual da ficha xa non coincide co da revisión' });
           return;
         }
 
         if (caducaEn && new Date(caducaEn).getTime() <= Date.now()) {
           omitidos++;
-          detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'Ligazón caducada' });
+          detalle.push({ revisionId:revisionId, idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'Ligazón caducada' });
           return;
         }
 
         var chaveEnvio = 'PERSOAS_EMAIL_SENT_' + revisionId.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
         if (propiedades.getProperty(chaveEnvio)) {
           omitidos++;
-          detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'Este enlace xa foi enviado anteriormente' });
+          detalle.push({ revisionId:revisionId, idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'Este enlace xa foi enviado anteriormente' });
           return;
         }
 
@@ -246,10 +334,11 @@ function enviarRevisionsPersoasAdministracion_(datos) {
             versionLegal:versionLegal
           }));
           enviados++;
-          detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'ENVIADO' });
+          detalle.push({ revisionId:revisionId, idPersoa:idPersoa, nome:nome, correo:correo, estado:'ENVIADO' });
         } catch (erroEnvio) {
           erros++;
           detalle.push({
+            revisionId:revisionId,
             idPersoa:idPersoa,
             nome:nome,
             correo:correo,
@@ -258,26 +347,48 @@ function enviarRevisionsPersoasAdministracion_(datos) {
           });
         }
       });
+
+      enviosAdiados.forEach(function(item) {
+        detalle.push({
+          revisionId:persoasEmailTexto_(item && item.revisionId),
+          idPersoa:persoasEmailTexto_(item && item.idPersoa),
+          nome:persoasEmailTexto_(item && item.nome),
+          correo:persoasEmailPrimeiroCorreo_(item && item.correo),
+          estado:'ADIADO_COTA',
+          motivo:'Adiado automaticamente por falta de cota diaria; queda pendente para retomar.'
+        });
+      });
     } finally {
       try { bloqueo.releaseLock(); } catch (ignorado) {}
     }
+
+    var cotaRestante = MailApp.getRemainingDailyQuota();
+    var metaCota = persoasEmailActualizarMetaCota_(propiedades, cotaRestante);
 
     persoasEmailRexistrar_({
       email:emailAdmin,
       tipoEvento:'Enviar revisións de datos',
       modulo:'Administración · Persoas',
       resultado:erros > 0 ? 'Parcial' : 'Correcto',
-      detalle:'Solicitados ' + envios.length + ' · enviados ' + enviados + ' · omitidos ' + omitidos + ' · erros ' + erros
+      detalle:'Solicitados ' + envios.length + ' · enviados ' + enviados + ' · omitidos ' + omitidos + ' · adiados por cota ' + enviosAdiados.length + ' · erros ' + erros
     });
 
     return {
       ok:true,
       ambiente:ambiente,
       permisoFonte:administrador.fonte || (autorizadoR2 ? 'R2-PERMISOS' : 'APPS-SCRIPT'),
+      solicitados:envios.length,
+      procesados:enviosProcesables.length,
       enviados:enviados,
       omitidos:omitidos,
+      adiadosPorCota:enviosAdiados.length,
       erros:erros,
-      detalle:detalle
+      detalle:detalle,
+      cotaAntes:cotaAntes,
+      cotaRestante:cotaRestante,
+      cotaObservadaEn:metaCota.observadaEn,
+      restablecementoEstimado:metaCota.restablecementoEstimado,
+      estimacionRestablecemento:true
     };
   } catch (erro) {
     console.error('Erro en enviarRevisionsPersoasAdministracion_:', erro && erro.stack ? erro.stack : erro);
