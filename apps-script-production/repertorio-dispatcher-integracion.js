@@ -31,7 +31,20 @@ function eAccionEscrituraRepertorioAdministracionProduccion_(accion) {
 
 function despacharRepertorioAdministracionProduccion_(accion, datos, bloqueo) {
   accion = String(accion || '').trim();
-  if (!eAccionRepertorioAdministracionProduccion_(accion)) return null;
+  if (!eAccionRepertorioAdministracionProduccion_(accion)) {
+    // Código.js xa chama este dispatcher antes do rexeitamento final.
+    // Reutilizamos ese punto común para encamiñar tamén Accesos e permisos,
+    // igual que no contorno Preview validado.
+    if (typeof despacharXestionPermisosPortal_ === 'function') {
+      var respostaXestionPermisos =
+        despacharXestionPermisosPortal_(accion, datos, bloqueo);
+
+      if (respostaXestionPermisos !== null) {
+        return respostaXestionPermisos;
+      }
+    }
+    return null;
+  }
 
   if (
     eAccionEscrituraRepertorioAdministracionProduccion_(accion) &&
