@@ -1,0 +1,221 @@
+name: Deploy Fotografias R2 production once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps-script-production/fotos-administracion-v2.js'
+      - 'apps-script-production/xestion-permisos-dispatcher-integracion.js'
+      - '.github/workflows/deploy-fotografias-r2-production-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-production-fotografias-r2
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PRODUCTION_SCRIPT_ID: '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+      PRODUCTION_DEPLOYMENT_ID: 'AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+      CLASP_CREDENTIALS_PRODUCTION: ${{ secrets.CLASP_CREDENTIALS_PRODUCTION }}
+      CLASP_CREDENTIALS_PREVIEW: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+
+    steps:
+      - name: Checkout main exacto
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configurar credenciais de clasp
+        shell: bash
+        run: |
+          set -euo pipefail
+          CREDS="${CLASP_CREDENTIALS_PRODUCTION:-}"
+          SOURCE='production'
+          if [ -z "$CREDS" ]; then
+            CREDS="${CLASP_CREDENTIALS_PREVIEW:-}"
+            SOURCE='preview-credential-as-oauth-fallback'
+          fi
+          if [ -z "$CREDS" ]; then
+            echo 'Faltan credenciais de clasp. Non se modificou Apps Script.'
+            exit 1
+          fi
+          printf '%s' "$CREDS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+          echo "Credencial dispoñible: $SOURCE"
+
+      - name: Identificar deployment vivo
+        id: live
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/scpp-head /tmp/scpp-live /tmp/scpp-before
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$PRODUCTION_SCRIPT_ID" > /tmp/scpp-head/.clasp.json
+          cp /tmp/scpp-head/.clasp.json /tmp/scpp-live/.clasp.json
+
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-before.txt
+          LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-before.txt | head -n 1 || true)"
+          if [ -z "$LINE" ]; then
+            echo 'Non se atopou o deployment de Producción esperado.'
+            exit 1
+          fi
+          OLD_VERSION="$(printf '%s\n' "$LINE" | sed -n 's/.*@\([0-9][0-9]*\).*/\1/p')"
+          if [ -z "$OLD_VERSION" ]; then
+            echo "Non foi posible obter a versión viva desde: $LINE"
+            exit 1
+          fi
+          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Deployment vivo: $PRODUCTION_DEPLOYMENT_ID @ $OLD_VERSION"
+
+      - name: Ler HEAD e deployment vivo
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-head
+          npx --yes @google/clasp@3 pull --deleteUnusedFiles --force
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 pull --versionNumber "${{ steps.live.outputs.old_version }}" --deleteUnusedFiles --force
+          cp -a /tmp/scpp-live/. /tmp/scpp-before/
+
+      - name: Verificar base e routing real
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          def files(root):
+              root = Path(root)
+              out = {}
+              for p in root.rglob('*'):
+                  if not p.is_file() or p.name == '.clasp.json':
+                      continue
+                  out[p.relative_to(root).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
+              return out
+
+          head = files('/tmp/scpp-head')
+          live = files('/tmp/scpp-live')
+          changed = sorted(k for k in set(head) | set(live) if head.get(k) != live.get(k))
+          if changed:
+              print('HEAD de Apps Script difire do deployment vivo:')
+              for name in changed:
+                  print(' -', name)
+              raise SystemExit('Abortado: non se pisa unha base viva divergente.')
+          print('HEAD e deployment vivo coinciden.')
+          PY
+
+          cd /tmp/scpp-live
+          DOPOST_FILE="$(grep -R -l --include='*.js' --include='*.gs' 'function doPost(e)' . | head -n 1 || true)"
+          if [ -z "$DOPOST_FILE" ]; then
+            echo 'Non se atopou o doPost vivo.'
+            exit 2
+          fi
+          echo "doPost vivo: $DOPOST_FILE"
+
+          if grep -F -q 'despacharXestionPermisosPortal_(accion, datos, bloqueo)' "$DOPOST_FILE"; then
+            echo 'Routing directo a Xestión/Permisos confirmado.'
+          elif grep -F -q 'despacharRepertorioAdministracionProduccion_(accion, datos, bloqueo)' "$DOPOST_FILE"; then
+            if ! grep -R -F -q --include='*.js' --include='*.gs' 'despacharXestionPermisosPortal_(accion, datos, bloqueo)' .; then
+              echo 'O dispatcher de Repertorio non enlaza coa Xestión común.'
+              exit 3
+            fi
+            echo 'Routing doPost → Repertorio → Xestión común confirmado.'
+          else
+            echo 'O doPost vivo non encamiña ao dispatcher común. Abortado.'
+            exit 4
+          fi
+
+          for SYMBOL in 'function resolverPermisosPortal_' 'function despacharXestionPermisosPortal_'; do
+            if ! grep -R -F -q --include='*.js' --include='*.gs' "$SYMBOL" .; then
+              echo "Falta dependencia viva: $SYMBOL"
+              exit 5
+            fi
+          done
+
+      - name: Aplicar exclusivamente Fotografias + dispatcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/apps-script-production/fotos-administracion-v2.js" /tmp/scpp-live/fotos-administracion-v2.js
+          cp "$GITHUB_WORKSPACE/apps-script-production/xestion-permisos-dispatcher-integracion.js" /tmp/scpp-live/xestion-permisos-dispatcher-integracion.js
+
+          python - <<'PY'
+          from pathlib import Path
+
+          def snapshot(root):
+              result = {}
+              for p in Path(root).rglob('*'):
+                  if not p.is_file() or p.name == '.clasp.json':
+                      continue
+                  result[p.relative_to(root).as_posix()] = p.read_bytes()
+              return result
+
+          a = snapshot('/tmp/scpp-before')
+          b = snapshot('/tmp/scpp-live')
+          changed = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
+          print('Diff efectivo:', changed)
+          expected = ['fotos-administracion-v2.js', 'xestion-permisos-dispatcher-integracion.js']
+          if changed != expected:
+              raise SystemExit('O diff non é exclusivamente Fotografias + dispatcher. Abortado.')
+          PY
+
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 show-file-status
+
+      - name: Push e crear versión
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 push --force
+          OUT="$(npx --yes @google/clasp@3 create-version 'Fotografias: permisos R2 e unha soa escritura Sheet')"
+          echo "$OUT"
+          NEW_VERSION="$(printf '%s\n' "$OUT" | grep -oE '[0-9]+' | tail -n 1)"
+          if [ -z "$NEW_VERSION" ]; then
+            echo 'Non foi posible obter a nova versión. O deployment segue na anterior.'
+            exit 1
+          fi
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Actualizar deployment e verificar
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-live
+          OLD_VERSION='${{ steps.live.outputs.old_version }}'
+          NEW_VERSION='${{ steps.version.outputs.new_version }}'
+
+          npx --yes @google/clasp@3 create-deployment \
+            --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
+            --versionNumber "$NEW_VERSION" \
+            --description 'Fotografias R2-first'
+
+          npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-after.txt
+          LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-after.txt | head -n 1 || true)"
+          if ! printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
+            echo 'A verificación fallou. Tentando rollback inmediato.'
+            npx --yes @google/clasp@3 create-deployment \
+              --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
+              --versionNumber "$OLD_VERSION" \
+              --description 'Rollback automático Fotografias R2' || true
+            exit 1
+          fi
+
+          echo "Producción actualizada: $OLD_VERSION → $NEW_VERSION"
+          echo "Rollback dispoñible á versión $OLD_VERSION"
