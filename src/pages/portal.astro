@@ -170,6 +170,7 @@ const homeModules = getPortalNavigationModules('home');
 
   let emailLinkPending = isSignInWithEmailLink(auth, window.location.href);
   let checkingUser = false;
+  let accessRetryCount = 0;
 
   function showMessage(text, type = 'erro') {
     if (!(message instanceof HTMLElement)) return;
@@ -260,24 +261,46 @@ const homeModules = getPortalNavigationModules('home');
     document.body.classList.remove('modal-open');
   }
 
+  function statusFromError(error) {
+    if (!error || typeof error !== 'object') return 0;
+    const value = Reflect.get(error, 'status');
+    return Number.isFinite(Number(value)) ? Number(value) : 0;
+  }
+
   async function requestAcceptance(action, extra = {}) {
     const user = auth.currentUser;
-    if (!user?.email) throw new Error('A sesión xa non está activa.');
-    const idToken = await user.getIdToken(true);
+    if (!user?.email) throw Object.assign(new Error('A sesión xa non está activa.'), { status: 401 });
+    const idToken = await user.getIdToken();
     const response = await fetch('/api/aceptacion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken, accion: action, ...extra })
     });
     const result = await response.json().catch(() => null);
-    if (!response.ok || !result?.ok) throw new Error(result?.erro || result?.detalle || 'Non foi posible comprobar o acceso.');
+    if (!response.ok || !result?.ok) {
+      throw Object.assign(
+        new Error(result?.erro || result?.detalle || 'Non foi posible comprobar o acceso.'),
+        { status: response.status }
+      );
+    }
     return result;
+  }
+
+  async function requestAcceptanceWithRetry() {
+    try {
+      return await requestAcceptance('comprobarAceptacion');
+    } catch (error) {
+      const status = statusFromError(error);
+      if (status === 401 || status === 403 || status === 400) throw error;
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      return requestAcceptance('comprobarAceptacion');
+    }
   }
 
   async function requestPhotoAdmin() {
     const user = auth.currentUser;
     if (!user?.email) return false;
-    const idToken = await user.getIdToken(true);
+    const idToken = await user.getIdToken();
     const response = await fetch('/api/fotos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -301,16 +324,31 @@ const homeModules = getPortalNavigationModules('home');
     showChecking(user.email || '');
     hideMessage();
     try {
-      const result = await requestAcceptance('comprobarAceptacion');
+      const result = await requestAcceptanceWithRetry();
+      accessRetryCount = 0;
       if (result.aceptacionVixente) await showDashboard(user);
       else {
         renderTextoLegal(result.textoLegal);
         showPrivacyModal();
       }
     } catch (error) {
-      await signOut(auth).catch(() => undefined);
-      showSignedOut();
-      showMessage(error instanceof Error ? error.message : 'Non foi posible comprobar o acceso.');
+      const status = statusFromError(error);
+      if (status === 401 || status === 403) {
+        await signOut(auth).catch(() => undefined);
+        showSignedOut();
+        showMessage(error instanceof Error ? error.message : 'Non foi posible comprobar o acceso.');
+      } else {
+        showChecking(user.email || '');
+        const base = error instanceof Error ? error.message : 'Non foi posible comprobar o acceso.';
+        const retrying = accessRetryCount < 2;
+        showMessage(retrying ? `${base} Tentaremos de novo automaticamente.` : `${base} A sesión segue activa; podes tentalo de novo recargando a páxina.`);
+        if (retrying) {
+          accessRetryCount += 1;
+          window.setTimeout(() => {
+            if (auth.currentUser?.uid === user.uid) checkAccess(user);
+          }, 2500);
+        }
+      }
     } finally {
       checkingUser = false;
     }
@@ -465,4 +503,3 @@ const homeModules = getPortalNavigationModules('home');
     .privacy-actions button { width: 100%; }
   }
 </style>
-
