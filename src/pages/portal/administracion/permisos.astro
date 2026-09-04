@@ -140,6 +140,16 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
   let gardando = false;
 
   const nome = (u) => u?.nome || u?.persoa || u?.email || '—';
+  const claveOrdenApelidos = (u) => {
+    const completo = String(nome(u) || '').trim();
+    const partes = completo.split(/\s+/).filter(Boolean);
+    if (partes.length <= 1) return completo;
+    const nApelidos = partes.length >= 3 ? 2 : 1;
+    return `${partes.slice(-nApelidos).join(' ')} ${partes.slice(0, -nApelidos).join(' ')}`.trim();
+  };
+  const compararPorApelidos = (a, b) =>
+    claveOrdenApelidos(a).localeCompare(claveOrdenApelidos(b), 'gl', { sensitivity:'base' }) ||
+    nome(a).localeCompare(nome(b), 'gl', { sensitivity:'base' });
   const permisosUsuario = (email) => data.permisos.filter((p) => p.email === email && p.activo !== false);
   const permisosConcedidosUsuario = (email) => permisosUsuario(email).filter((p) => p.nivel !== 'sen_acceso');
   const permisoXeral = (email, modulo) => permisosUsuario(email).find((p) => p.modulo === modulo && !p.contido);
@@ -188,7 +198,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       const coincideTexto = !query || (`${nome(u)} ${u.email}`).toLowerCase().includes(query);
       const coincideModulo = !modulo || permisosConcedidosUsuario(u.email).some((p) => p.modulo === modulo);
       return coincideTexto && coincideModulo;
-    });
+    }).sort(compararPorApelidos);
 
     $('#visible-count').textContent = String(usuarios.length);
     $('#lista').innerHTML = usuarios.map((u) => {
