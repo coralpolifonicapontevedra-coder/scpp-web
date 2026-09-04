@@ -1,0 +1,155 @@
+name: Despregar foto única Perfil-Persoas en Apps Script Producción
+
+on:
+  push:
+    branches:
+      - deploy/persoas-profile-photo-production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-persoas-profile-production
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_SCRIPT_ID: 1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV
+  PRODUCTION_DEPLOYMENT_ID: AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh
+  BASE_DISPATCHER_SHA: 8e64eb3241efc620fa250f9a1934f4786158147f
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout completo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Configurar credenciais de clasp
+        shell: bash
+        env:
+          CLASP_CREDENTIALS_PRODUCTION: ${{ secrets.CLASP_CREDENTIALS_PRODUCTION }}
+          CLASP_CREDENTIALS_PREVIEW: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          CREDS="${CLASP_CREDENTIALS_PRODUCTION:-}"
+          if [ -z "$CREDS" ]; then CREDS="${CLASP_CREDENTIALS_PREVIEW:-}"; fi
+          if [ -z "$CREDS" ]; then
+            echo 'BLOQUEADO: non hai credenciais clasp dispoñibles.'
+            exit 1
+          fi
+          printf '%s' "$CREDS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Obter Apps Script vivo de Producción
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf live-production live-before audit
+          mkdir live-production audit
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$PRODUCTION_SCRIPT_ID" > live-production/.clasp.json
+          cd live-production
+          npx --yes @google/clasp@3 pull
+          cd ..
+          cp -a live-production live-before
+
+      - name: Verificar proxecto e implementación existentes
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_ID="$(node -e "console.log(require('./live-production/.clasp.json').scriptId || '')")"
+          test "$ACTUAL_ID" = "$PRODUCTION_SCRIPT_ID"
+          cd live-production
+          npx --yes @google/clasp@3 deployments | tee ../audit/deployments-before.txt
+          grep -Fq "$PRODUCTION_DEPLOYMENT_ID" ../audit/deployments-before.txt
+          cd ..
+          test -f live-production/perfil-portal.js
+          test -f live-production/persoas-administracion-v2.js
+
+      - name: Auditar dispatcher vivo antes do parche
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "$BASE_DISPATCHER_SHA:apps-script-production/xestion-permisos-dispatcher-integracion.js" > audit/dispatcher-base.js
+          if cmp -s live-production/xestion-permisos-dispatcher-integracion.js audit/dispatcher-base.js; then
+            echo 'Dispatcher vivo coincide coa base esperada.' | tee audit/resumo.txt
+          elif cmp -s live-production/xestion-permisos-dispatcher-integracion.js apps-script-production/xestion-permisos-dispatcher-integracion.js; then
+            echo 'Dispatcher vivo xa coincide co obxectivo.' | tee audit/resumo.txt
+          else
+            echo 'BLOQUEADO: dispatcher vivo diverxe da base e do obxectivo.' | tee audit/resumo.txt
+            diff -u audit/dispatcher-base.js live-production/xestion-permisos-dispatcher-integracion.js > audit/diff-dispatcher-live.txt || true
+            exit 1
+          fi
+
+      - name: Auditar ficheiros novos de foto Perfil
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in persoas-foto-perfil-v2.js persoas-sync-perfil-v2.js; do
+            if [ -f "live-production/$f" ] && ! cmp -s "live-production/$f" "apps-script-production/$f"; then
+              echo "BLOQUEADO: $f xa existe en Producción con outro contido."
+              diff -u "live-production/$f" "apps-script-production/$f" > "audit/diff-$f.txt" || true
+              exit 1
+            fi
+          done
+
+      - name: Aplicar só o parche da fotografía de Perfil
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp apps-script-production/persoas-foto-perfil-v2.js live-production/persoas-foto-perfil-v2.js
+          cp apps-script-production/persoas-sync-perfil-v2.js live-production/persoas-sync-perfil-v2.js
+          cp apps-script-production/xestion-permisos-dispatcher-integracion.js live-production/xestion-permisos-dispatcher-integracion.js
+
+      - name: Blindar o diff efectivo
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t CHANGED < <(diff -qr live-before live-production | sed -E 's#.* (live-before|live-production)/([^ ]+).*#\2#' | sort -u)
+          printf '%s\n' "${CHANGED[@]}" | tee audit/effective-diff.txt
+          ALLOWED='persoas-foto-perfil-v2.js persoas-sync-perfil-v2.js xestion-permisos-dispatcher-integracion.js'
+          for f in "${CHANGED[@]}"; do
+            [ -z "$f" ] && continue
+            case " $ALLOWED " in
+              *" $f "*) ;;
+              *) echo "BLOQUEADO: cambio inesperado no push: $f"; exit 1 ;;
+            esac
+          done
+
+      - name: Subir o proxecto vivo co parche mínimo
+        working-directory: live-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes @google/clasp@3 push --force
+
+      - name: Crear versión e MODIFICAR a implementación existente
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd live-production
+          OUT="$(npx --yes @google/clasp@3 version 'Foto única Perfil-Persoas · Producción')"
+          echo "$OUT"
+          VERSION="$(printf '%s\n' "$OUT" | sed -nE 's/.*[Vv]ersion[^0-9]*([0-9]+).*/\1/p' | tail -1)"
+          test -n "$VERSION"
+          npx --yes @google/clasp@3 deploy -i "$PRODUCTION_DEPLOYMENT_ID" -V "$VERSION" -d 'Foto única Perfil-Persoas · Producción'
+          npx --yes @google/clasp@3 deployments | tee ../audit/deployments-after.txt
+          grep -Fq "$PRODUCTION_DEPLOYMENT_ID" ../audit/deployments-after.txt
+          echo "Versión desplegada: $VERSION" | tee -a ../audit/resumo.txt
+          echo "Deployment ID conservado: $PRODUCTION_DEPLOYMENT_ID" | tee -a ../audit/resumo.txt
+
+      - name: Gardar auditoría
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: persoas-profile-photo-production-deploy
+          path: audit/
+          if-no-files-found: warn
+          retention-days: 7
