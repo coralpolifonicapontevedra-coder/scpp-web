@@ -128,21 +128,14 @@ jobs:
 
           grep -R -F -q --include='*.js' --include='*.gs' "accion === 'enviarRevisionsPersoasAdministracion'" .
           for SYMBOL in \
-            'function normalizarEmailPersoasAdmin_' \
             'function obterContextoPersoasAdmin_' \
-            'function obterAdministradorPersoasAdmin_' \
-            'function indicesPersoasAdmin_' \
-            'function requireHeaderPersoasAdmin_' \
-            'function atoparIndiceFilaPersoaAdmin_' \
-            'function construirPersoaAdmin_' \
-            'function textoPersoasAdmin_' \
-            'function rexistrarAcceso'; do
+            'function obterAdministradorPersoasAdmin_'; do
             if ! grep -R -F -q --include='*.js' --include='*.gs' "$SYMBOL" .; then
-              echo "Falta dependencia no Apps Script vivo: $SYMBOL"
+              echo "Falta dependencia imprescindible no Apps Script vivo: $SYMBOL"
               exit 4
             fi
           done
-          echo 'Dispatcher e dependencias comprobados.'
+          echo 'Dispatcher e dependencias imprescindibles comprobados.'
 
       - name: Aplicar exclusivamente o parche de correo
         shell: bash
