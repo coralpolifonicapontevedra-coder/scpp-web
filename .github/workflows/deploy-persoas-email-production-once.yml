@@ -1,0 +1,220 @@
+name: Deploy Persoas email production once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps-script-production/persoas-envio-revisions-v1.js'
+      - '.github/workflows/deploy-persoas-email-production-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-production-persoas-email
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PRODUCTION_SCRIPT_ID: '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+      PRODUCTION_DEPLOYMENT_ID: 'AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+      CLASP_CREDENTIALS_PRODUCTION: ${{ secrets.CLASP_CREDENTIALS_PRODUCTION }}
+      CLASP_CREDENTIALS_PREVIEW: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+
+    steps:
+      - name: Checkout main exacto
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configurar credenciais de clasp
+        shell: bash
+        run: |
+          set -euo pipefail
+          CREDS="${CLASP_CREDENTIALS_PRODUCTION:-}"
+          SOURCE='production'
+          if [ -z "$CREDS" ]; then
+            CREDS="${CLASP_CREDENTIALS_PREVIEW:-}"
+            SOURCE='preview-credential-as-oauth-fallback'
+          fi
+          if [ -z "$CREDS" ]; then
+            echo 'Faltan credenciais de clasp. Non se modificou Apps Script.'
+            exit 1
+          fi
+          printf '%s' "$CREDS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+          echo "Credencial dispoñible: $SOURCE"
+
+      - name: Identificar deployment vivo de Producción
+        id: live
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/scpp-head /tmp/scpp-live /tmp/scpp-before
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$PRODUCTION_SCRIPT_ID" > /tmp/scpp-head/.clasp.json
+          cp /tmp/scpp-head/.clasp.json /tmp/scpp-live/.clasp.json
+
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-before.txt
+          LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-before.txt | head -n 1 || true)"
+          if [ -z "$LINE" ]; then
+            echo 'Non se atopou o deployment de Producción esperado. Abortado.'
+            exit 1
+          fi
+          OLD_VERSION="$(printf '%s\n' "$LINE" | sed -n 's/.*@\([0-9][0-9]*\).*/\1/p')"
+          if [ -z "$OLD_VERSION" ]; then
+            echo "Non foi posible obter a versión despregada desde: $LINE"
+            exit 1
+          fi
+          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Deployment de Producción: $PRODUCTION_DEPLOYMENT_ID @ $OLD_VERSION"
+
+      - name: Ler HEAD e versión realmente despregada
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-head
+          npx --yes @google/clasp@3 pull --deleteUnusedFiles --force
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 pull --versionNumber "${{ steps.live.outputs.old_version }}" --deleteUnusedFiles --force
+          cp -a /tmp/scpp-live/. /tmp/scpp-before/
+
+      - name: Comprobar diverxencia e dependencias
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          def files(root):
+              root = Path(root)
+              out = {}
+              for p in root.rglob('*'):
+                  if not p.is_file() or p.name == '.clasp.json':
+                      continue
+                  rel = p.relative_to(root).as_posix()
+                  out[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
+              return out
+
+          head = files('/tmp/scpp-head')
+          live = files('/tmp/scpp-live')
+          changed = sorted(k for k in set(head) | set(live) if head.get(k) != live.get(k))
+          if changed:
+              print('HEAD de Apps Script difire da versión realmente despregada:')
+              for name in changed:
+                  print(' -', name)
+              print('Por seguridade non se sobreescribe Producción cando hai cambios HEAD non despregados.')
+              raise SystemExit(2)
+          print('HEAD e deployment vivo coinciden: base segura confirmada.')
+          PY
+
+          cd /tmp/scpp-live
+          if grep -R -F -n --include='*.js' --include='*.gs' 'function enviarRevisionsPersoasAdministracion_' .; then
+            echo 'A función xa existe na versión viva. Abortado para non crear unha definición duplicada.'
+            exit 3
+          fi
+
+          grep -R -F -q --include='*.js' --include='*.gs' "accion === 'enviarRevisionsPersoasAdministracion'" .
+          for SYMBOL in \
+            'function obterAmbienteSCPP_' \
+            'function normalizarEmailPersoasAdmin_' \
+            'function obterContextoPersoasAdmin_' \
+            'function obterAdministradorPersoasAdmin_' \
+            'function indicesPersoasAdmin_' \
+            'function requireHeaderPersoasAdmin_' \
+            'function atoparIndiceFilaPersoaAdmin_' \
+            'function construirPersoaAdmin_' \
+            'function textoPersoasAdmin_' \
+            'function rexistrarAcceso'; do
+            if ! grep -R -F -q --include='*.js' --include='*.gs' "$SYMBOL" .; then
+              echo "Falta dependencia no Apps Script vivo: $SYMBOL"
+              exit 4
+            fi
+          done
+          echo 'Dispatcher e dependencias comprobados.'
+
+      - name: Aplicar exclusivamente o parche de correo
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/apps-script-production/persoas-envio-revisions-v1.js" /tmp/scpp-live/persoas-envio-revisions-v1.js
+
+          python - <<'PY'
+          from pathlib import Path
+
+          before = Path('/tmp/scpp-before')
+          after = Path('/tmp/scpp-live')
+
+          def snapshot(root):
+              result = {}
+              for p in root.rglob('*'):
+                  if not p.is_file() or p.name == '.clasp.json':
+                      continue
+                  result[p.relative_to(root).as_posix()] = p.read_bytes()
+              return result
+
+          a = snapshot(before)
+          b = snapshot(after)
+          changed = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
+          print('Diff efectivo:', changed)
+          if changed != ['persoas-envio-revisions-v1.js']:
+              raise SystemExit('O diff non é exclusivamente o parche de Persoas. Abortado.')
+          PY
+
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 show-file-status
+
+      - name: Push seguro e nova versión
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 push --force
+          OUT="$(npx --yes @google/clasp@3 create-version 'Persoas: completar envío de revisión por correo')"
+          echo "$OUT"
+          NEW_VERSION="$(printf '%s\n' "$OUT" | grep -oE '[0-9]+' | tail -n 1)"
+          if [ -z "$NEW_VERSION" ]; then
+            echo 'Non foi posible obter a nova versión. O deployment segue apuntando á versión anterior.'
+            exit 1
+          fi
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Actualizar só o deployment de Producción
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-live
+          OLD_VERSION='${{ steps.live.outputs.old_version }}'
+          NEW_VERSION='${{ steps.version.outputs.new_version }}'
+
+          npx --yes @google/clasp@3 create-deployment \
+            --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
+            --versionNumber "$NEW_VERSION" \
+            --description 'Persoas · envío de revisión por correo'
+
+          npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-after.txt
+          LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-after.txt | head -n 1 || true)"
+          if ! printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
+            echo 'A verificación do deployment fallou. Tentando rollback inmediato.'
+            npx --yes @google/clasp@3 create-deployment \
+              --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
+              --versionNumber "$OLD_VERSION" \
+              --description 'Rollback automático Persoas email' || true
+            exit 1
+          fi
+
+          echo "Producción actualizada: $PRODUCTION_DEPLOYMENT_ID · $OLD_VERSION → $NEW_VERSION"
+          echo "Rollback dispoñible: redeploy do mesmo ID á versión $OLD_VERSION"
