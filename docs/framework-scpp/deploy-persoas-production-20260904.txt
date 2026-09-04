@@ -1,0 +1,6 @@
+Despregue controlado de Administración → Persoas V2.
+
+Auditoría previa do Apps Script vivo completada correctamente.
+O proxecto real de Producción xa contén Persoas V2 e o dispatcher de permisos co contido obxectivo; queda por aplicar a integración mínima no dispatcher de Repertorio.
+
+A publicación debe partir sempre do Apps Script vivo, aplicar só os ficheiros permitidos e modificar o Deployment ID existente para conservar a mesma URL /exec.
