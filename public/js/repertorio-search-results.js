@@ -227,3 +227,45 @@
 
   loadScript('/js/ensaios-obras.js?v=20260828-5', 'data-ensaios-obras');
 })();
+
+(() => {
+  'use strict';
+
+  if (!window.location.pathname.startsWith('/portal/administracion/arquivo')) return;
+
+  const setupArquivoMovementButton = () => {
+    const button = document.querySelector('#new');
+    const tabs = document.querySelector('.tabs');
+    if (!(button instanceof HTMLButtonElement) || !(tabs instanceof HTMLElement)) return;
+
+    const isHistory = () => tabs.querySelector('button[data-tab="historico"].active') instanceof HTMLButtonElement;
+
+    const keepVisible = () => {
+      if (button.hidden) button.hidden = false;
+    };
+
+    new MutationObserver(keepVisible).observe(button, { attributes: true, attributeFilter: ['hidden'] });
+    keepVisible();
+
+    tabs.addEventListener('click', () => {
+      window.setTimeout(keepVisible, 0);
+    });
+
+    button.addEventListener('click', (event) => {
+      if (!isHistory()) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const movementsTab = tabs.querySelector('button[data-tab="movementos"]');
+      if (!(movementsTab instanceof HTMLButtonElement)) return;
+      movementsTab.click();
+      window.setTimeout(() => button.click(), 0);
+    }, true);
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupArquivoMovementButton, { once: true });
+  } else {
+    setupArquivoMovementButton();
+  }
+})();
