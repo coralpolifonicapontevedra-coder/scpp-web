@@ -1,0 +1,55 @@
+name: Order permisos surnames production v3
+
+on:
+  push:
+    branches:
+      - ops/order-permisos-surnames-production-20260904
+    paths:
+      - '.github/workflows/order-permisos-surnames-production-v3.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/order-permisos-surnames-production-20260904
+          fetch-depth: 0
+
+      - name: Prepare patch helper
+        run: cp scripts/tmp-order-permisos-surnames.py /tmp/patch.py
+
+      - name: Switch to production main
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+
+      - name: Patch only permisos page
+        run: python /tmp/patch.py
+
+      - name: Verify isolated change
+        run: |
+          test "$(git diff --name-only | wc -l)" -eq 1
+          test "$(git diff --name-only)" = 'src/pages/portal/administracion/permisos.astro'
+          git diff --check
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish production UI only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/pages/portal/administracion/permisos.astro
+          git commit -m 'ui: ordenar persoas por apelidos en permisos'
+          git push origin HEAD:main
