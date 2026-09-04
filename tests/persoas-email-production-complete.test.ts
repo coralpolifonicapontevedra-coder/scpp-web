@@ -37,7 +37,7 @@ describe('Administración → Persoas · revisión e envío en Producción', () 
   it('o endpoint só envía en Producción e valida revisións pendentes', () => {
     expect(endpoint).toContain("'coralpolifonicapontevedra.org'");
     expect(endpoint).toContain("String(invitation.estado || '') !== 'PENDENTE'");
-    expect(endpoint).toContain('Date.parse(invitation.caducaEn || \'\') <= agora');
+    expect(endpoint).toContain("Date.parse(invitation.caducaEn || '') <= agora");
     expect(endpoint).toContain("accion: 'enviarRevisionsPersoasAdministracion'");
   });
 
@@ -47,9 +47,18 @@ describe('Administración → Persoas · revisión e envío en Producción', () 
     expect(mail).toContain('function enviarRevisionsPersoasAdministracion_(datos)');
   });
 
+  it('o hotfix é compatible coa versión viva e verifica o Script ID de Producción', () => {
+    expect(mail).toContain('PERSOAS_EMAIL_PRODUCTION_SCRIPT_ID_');
+    expect(mail).toContain('ScriptApp.getScriptId()');
+    expect(mail).toContain('persoasEmailAtoparIndiceFila_');
+    expect(mail).not.toContain('atoparIndiceFilaPersoaAdmin_');
+    expect(mail).not.toContain('construirPersoaAdmin_');
+    expect(mail).not.toContain('obterAmbienteSCPP_');
+  });
+
   it('Apps Script revalida persoa, correo, caducidade e duplicados antes de MailApp', () => {
     expect(mail).toContain('obterAdministradorPersoasAdmin_');
-    expect(mail).toContain('atoparIndiceFilaPersoaAdmin_');
+    expect(mail).toContain("filaActual[indices['Correo electrónico']]");
     expect(mail).toContain('correoActual !== correo');
     expect(mail).toContain('new Date(caducaEn).getTime() <= Date.now()');
     expect(mail).toContain("PERSOAS_EMAIL_SENT_");
