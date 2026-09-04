@@ -1,27 +1,103 @@
 /*
  * Producción · Administración → Persoas · envío de revisións por correo.
  *
- * Ficheiro autocontido para poder engadilo como parche mínimo sobre a versión
- * viva de Apps Script. O dispatcher xa coñece a acción
- * `enviarRevisionsPersoasAdministracion`; aquí defínese a función que faltaba.
+ * Parche mínimo autocontido para a versión viva de Apps Script. O dispatcher
+ * xa coñece `enviarRevisionsPersoasAdministracion`; este ficheiro define a
+ * función que faltaba sen depender de helpers que só existen na fonte de
+ * desenvolvemento.
  *
- * PERSOAS_ALLOW_EMAIL_SEND actúa como interruptor de emerxencia:
- * - ausente ou true: envío permitido en production;
+ * PERSOAS_ALLOW_EMAIL_SEND é un interruptor de emerxencia:
+ * - ausente ou true: envío permitido no script real de Producción;
  * - false / 0 / no / off: envío bloqueado.
  */
 
 var PERSOAS_EMAIL_PRODUCTION_SCRIPT_ID_ =
   '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV';
 
+function persoasEmailTexto_(valor) {
+  return String(valor == null ? '' : valor).trim();
+}
+
 function persoasEmailAmbiente_() {
   try {
-    return String(ScriptApp.getScriptId() || '').trim() ===
+    return persoasEmailTexto_(ScriptApp.getScriptId()) ===
       PERSOAS_EMAIL_PRODUCTION_SCRIPT_ID_
       ? 'production'
       : 'blocked';
   } catch (erro) {
     return 'blocked';
   }
+}
+
+function persoasEmailIndices_(cabeceiras) {
+  return (cabeceiras || []).reduce(function(saida, valor, indice) {
+    saida[persoasEmailTexto_(valor)] = indice;
+    return saida;
+  }, {});
+}
+
+function persoasEmailRequire_(indices, cabeceira) {
+  if (indices[cabeceira] === undefined) {
+    throw new Error('Falta a columna ' + cabeceira + ' na folla Persoas');
+  }
+}
+
+function persoasEmailAtoparIndiceFila_(valores, indices, referencia) {
+  var ref = persoasEmailTexto_(referencia);
+  for (var i = 1; i < valores.length; i += 1) {
+    var id = indices.Id === undefined ? '' : persoasEmailTexto_(valores[i][indices.Id]);
+    var rowId = indices['Row ID'] === undefined ? '' : persoasEmailTexto_(valores[i][indices['Row ID']]);
+    if (ref && (ref === id || ref === rowId)) return i;
+  }
+  return -1;
+}
+
+function persoasEmailBooleano_(valor) {
+  if (valor === true) return true;
+  var texto = persoasEmailTexto_(valor).toLowerCase();
+  return ['true', 'y', 'yes', 'si', 'sí', '1', 'x', 'verdadeiro'].indexOf(texto) >= 0;
+}
+
+function persoasEmailPrimeiroCorreo_(value) {
+  var candidatos = String(value || '').split(/[;,\s]+/).map(function(v) {
+    return String(v || '').trim().toLowerCase();
+  }).filter(Boolean);
+  for (var i = 0; i < candidatos.length; i++) {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidatos[i])) return candidatos[i];
+  }
+  return '';
+}
+
+function persoasEmailEscaparHtml_(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function persoasEmailRexistrar_(datos) {
+  try {
+    if (typeof rexistrarAcceso === 'function') rexistrarAcceso(datos);
+  } catch (erro) {
+    console.warn('Non se puido rexistrar a actividade de envío de Persoas: ' + String(erro));
+  }
+}
+
+function persoasEmailLimparRexistros_(propiedades) {
+  var todas = propiedades.getProperties();
+  var limite = Date.now() - (21 * 24 * 60 * 60 * 1000);
+  Object.keys(todas).forEach(function(chave) {
+    if (chave.indexOf('PERSOAS_EMAIL_SENT_') !== 0) return;
+    try {
+      var meta = JSON.parse(todas[chave]);
+      var momento = Date.parse(meta && meta.enviadoEn ? meta.enviadoEn : '');
+      if (!momento || momento < limite) propiedades.deleteProperty(chave);
+    } catch (erro) {
+      propiedades.deleteProperty(chave);
+    }
+  });
 }
 
 function enviarRevisionsPersoasAdministracion_(datos) {
@@ -39,7 +115,7 @@ function enviarRevisionsPersoasAdministracion_(datos) {
       throw new Error('O envío de correos de Persoas está desactivado en Produción');
     }
 
-    var emailAdmin = normalizarEmailPersoasAdmin_(datos && datos.email);
+    var emailAdmin = persoasEmailTexto_(datos && datos.email).toLowerCase();
     var contexto = obterContextoPersoasAdmin_();
     var valores = contexto.persoas.getDataRange().getValues();
     var administrador = obterAdministradorPersoasAdmin_(contexto, emailAdmin, valores);
@@ -59,8 +135,11 @@ function enviarRevisionsPersoasAdministracion_(datos) {
 
     persoasEmailLimparRexistros_(propiedades);
 
-    var indices = indicesPersoasAdmin_(valores[0] || []);
-    requireHeaderPersoasAdmin_(indices, 'Id', 'Persoas');
+    var indices = persoasEmailIndices_(valores[0] || []);
+    persoasEmailRequire_(indices, 'Id');
+    persoasEmailRequire_(indices, 'Activo');
+    persoasEmailRequire_(indices, 'Correo electrónico');
+
     var bloqueo = LockService.getScriptLock();
     bloqueo.waitLock(15000);
 
@@ -71,13 +150,13 @@ function enviarRevisionsPersoasAdministracion_(datos) {
 
     try {
       envios.forEach(function(item) {
-        var revisionId = textoPersoasAdmin_(item && item.revisionId);
-        var idPersoa = textoPersoasAdmin_(item && item.idPersoa);
+        var revisionId = persoasEmailTexto_(item && item.revisionId);
+        var idPersoa = persoasEmailTexto_(item && item.idPersoa);
         var correo = persoasEmailPrimeiroCorreo_(item && item.correo);
-        var nome = textoPersoasAdmin_(item && item.nome) || idPersoa;
-        var ligazon = textoPersoasAdmin_(item && item.ligazon);
-        var caducaEn = textoPersoasAdmin_(item && item.caducaEn);
-        var versionLegal = textoPersoasAdmin_(item && item.versionLegal);
+        var nome = persoasEmailTexto_(item && item.nome) || idPersoa;
+        var ligazon = persoasEmailTexto_(item && item.ligazon);
+        var caducaEn = persoasEmailTexto_(item && item.caducaEn);
+        var versionLegal = persoasEmailTexto_(item && item.versionLegal);
 
         if (!revisionId || !idPersoa || !correo || !ligazon) {
           erros++;
@@ -91,21 +170,21 @@ function enviarRevisionsPersoasAdministracion_(datos) {
           return;
         }
 
-        var indiceFila = atoparIndiceFilaPersoaAdmin_(valores, indices, idPersoa);
+        var indiceFila = persoasEmailAtoparIndiceFila_(valores, indices, idPersoa);
         if (indiceFila < 1) {
           erros++;
           detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'ERRO', motivo:'Persoa non atopada' });
           return;
         }
 
-        var persoaActual = construirPersoaAdmin_(valores[indiceFila], indices);
-        if (persoaActual.activo !== true) {
+        var filaActual = valores[indiceFila];
+        if (!persoasEmailBooleano_(filaActual[indices.Activo])) {
           omitidos++;
           detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'Persoa non activa' });
           return;
         }
 
-        var correoActual = persoasEmailPrimeiroCorreo_(persoaActual.correo);
+        var correoActual = persoasEmailPrimeiroCorreo_(filaActual[indices['Correo electrónico']]);
         if (!correoActual || correoActual !== correo) {
           omitidos++;
           detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'OMITIDO', motivo:'O correo actual da ficha xa non coincide co da revisión' });
@@ -165,7 +244,7 @@ function enviarRevisionsPersoasAdministracion_(datos) {
           enviados++;
           detalle.push({ idPersoa:idPersoa, nome:nome, correo:correo, estado:'ENVIADO' });
 
-          rexistrarAcceso({
+          persoasEmailRexistrar_({
             email:administrador.email,
             tipoEvento:'Enviar revisión de datos',
             modulo:'Administración · Persoas',
@@ -181,7 +260,7 @@ function enviarRevisionsPersoasAdministracion_(datos) {
             estado:'ERRO',
             motivo:String(erroEnvio && erroEnvio.message ? erroEnvio.message : erroEnvio)
           });
-          rexistrarAcceso({
+          persoasEmailRexistrar_({
             email:administrador.email,
             tipoEvento:'Enviar revisión de datos',
             modulo:'Administración · Persoas',
@@ -206,38 +285,4 @@ function enviarRevisionsPersoasAdministracion_(datos) {
     console.error('Erro en enviarRevisionsPersoasAdministracion_:', erro && erro.stack ? erro.stack : erro);
     return { ok:false, erro:String(erro && erro.message ? erro.message : erro) };
   }
-}
-
-function persoasEmailPrimeiroCorreo_(value) {
-  var candidatos = String(value || '').split(/[;,\s]+/).map(function(v) {
-    return String(v || '').trim().toLowerCase();
-  }).filter(Boolean);
-  for (var i = 0; i < candidatos.length; i++) {
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidatos[i])) return candidatos[i];
-  }
-  return '';
-}
-
-function persoasEmailEscaparHtml_(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function persoasEmailLimparRexistros_(propiedades) {
-  var todas = propiedades.getProperties();
-  var limite = Date.now() - (21 * 24 * 60 * 60 * 1000);
-  Object.keys(todas).forEach(function(chave) {
-    if (chave.indexOf('PERSOAS_EMAIL_SENT_') !== 0) return;
-    try {
-      var meta = JSON.parse(todas[chave]);
-      var momento = Date.parse(meta && meta.enviadoEn ? meta.enviadoEn : '');
-      if (!momento || momento < limite) propiedades.deleteProperty(chave);
-    } catch (erro) {
-      propiedades.deleteProperty(chave);
-    }
-  });
 }
