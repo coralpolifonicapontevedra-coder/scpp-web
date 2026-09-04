@@ -1,0 +1,190 @@
+name: Fix permisos live production once
+
+on:
+  push:
+    branches:
+      - ops/fix-permisos-live-production-20260904
+    paths:
+      - '.github/workflows/fix-permisos-live-production-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-production-live
+  cancel-in-progress: false
+
+jobs:
+  patch-live-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PRODUCTION_SCRIPT_ID: '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+      PRODUCTION_DEPLOYMENT_ID: 'AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+
+    steps:
+      - name: Checkout só para obter configuración
+        uses: actions/checkout@v4
+        with:
+          ref: ops/fix-permisos-live-production-20260904
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configurar credenciais clasp
+        shell: bash
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS_PRODUCTION || secrets.CLASP_CREDENTIALS_PREVIEW }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLASP_CREDENTIALS:-}" ]; then
+            echo 'BLOQUEADO: non hai credenciais clasp dispoñibles.'
+            exit 1
+          fi
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Crear espello temporal do Apps Script vivo
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/scpp-prod-live /tmp/scpp-prod-baseline
+          mkdir -p /tmp/scpp-prod-live
+          cat > /tmp/scpp-prod-live/.clasp.json <<EOF
+          {"scriptId":"${PRODUCTION_SCRIPT_ID}"}
+          EOF
+          cd /tmp/scpp-prod-live
+          npx --yes @google/clasp@3 pull
+
+          ACTUAL_ID="$(node -e "console.log(require('/tmp/scpp-prod-live/.clasp.json').scriptId || '')")"
+          if [ "$ACTUAL_ID" != "$PRODUCTION_SCRIPT_ID" ]; then
+            echo "BLOQUEADO: scriptId inesperado: $ACTUAL_ID"
+            exit 1
+          fi
+
+          cp -a /tmp/scpp-prod-live /tmp/scpp-prod-baseline
+
+      - name: Validar que o backend de permisos xa existe no vivo
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f /tmp/scpp-prod-live/xestion-permisos-dispatcher-integracion.js || {
+            echo 'BLOQUEADO: falta xestion-permisos-dispatcher-integracion.js no Apps Script vivo.'
+            exit 1
+          }
+          test -f /tmp/scpp-prod-live/xestion-permisos-portal.js || {
+            echo 'BLOQUEADO: falta xestion-permisos-portal.js no Apps Script vivo.'
+            exit 1
+          }
+          grep -q "function despacharXestionPermisosPortal_" /tmp/scpp-prod-live/xestion-permisos-dispatcher-integracion.js || {
+            echo 'BLOQUEADO: o dispatcher de permisos non ten a función esperada.'
+            exit 1
+          }
+
+      - name: Engadir só a chamada de permisos ao doPost vivo
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('/tmp/scpp-prod-live')
+          candidatos = []
+          for p in root.glob('*.js'):
+              texto = p.read_text(encoding='utf-8')
+              if 'function doPost(e)' in texto and "detalle: 'Acción non permitida'" in texto:
+                  candidatos.append((p, texto))
+
+          if len(candidatos) != 1:
+              raise SystemExit(f'BLOQUEADO: esperábase un único doPost co rexeitamento final e atopáronse {len(candidatos)}.')
+
+          path, texto = candidatos[0]
+          chamada = "despacharXestionPermisosPortal_(accion, datos, bloqueo)"
+          if chamada in texto:
+              raise SystemExit('BLOQUEADO: o doPost vivo xa chama o dispatcher de permisos; non se duplica nada.')
+
+          marcador = "    rexistrarAcceso({\n      email: correo,\n      tipoEvento: String(\n        accion || 'Acción descoñecida'\n      ),\n      modulo: 'UsuariosWeb',\n      resultado: 'Rexeitado',\n      detalle: 'Acción non permitida'\n    });"
+          if texto.count(marcador) != 1:
+              raise SystemExit('BLOQUEADO: non se atopou exactamente unha vez o rexeitamento final coñecido.')
+
+          bloque = """    const respostaPermisosAdmin =\n      despacharXestionPermisosPortal_(\n        accion,\n        datos,\n        bloqueo\n      );\n\n    if (respostaPermisosAdmin !== null) {\n      return respostaJSON(respostaPermisosAdmin);\n    }\n\n"""
+          novo = texto.replace(marcador, bloque + marcador, 1)
+          path.write_text(novo, encoding='utf-8')
+          print(f'Parche preparado en {path.name}')
+          PY
+
+      - name: Verificar diff efectivo dun único arquivo
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          a = Path('/tmp/scpp-prod-baseline')
+          b = Path('/tmp/scpp-prod-live')
+
+          def files(root):
+              return sorted(p.relative_to(root) for p in root.rglob('*') if p.is_file())
+
+          fa, fb = files(a), files(b)
+          if fa != fb:
+              raise SystemExit('BLOQUEADO: cambiou o conxunto de ficheiros do proxecto durante o parche.')
+
+          cambios = []
+          for rel in fa:
+              ha = hashlib.sha256((a / rel).read_bytes()).hexdigest()
+              hb = hashlib.sha256((b / rel).read_bytes()).hexdigest()
+              if ha != hb:
+                  cambios.append(str(rel))
+
+          print('Ficheiros modificados:', cambios)
+          if len(cambios) != 1:
+              raise SystemExit(f'BLOQUEADO: o parche modifica {len(cambios)} ficheiros, non exactamente un.')
+          if cambios[0] not in ('Código.js', 'Codigo.js'):
+              raise SystemExit(f'BLOQUEADO: o único ficheiro modificado non é Código.js: {cambios[0]}')
+          PY
+
+      - name: Comprobar estado antes do push
+        working-directory: /tmp/scpp-prod-live
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes @google/clasp@3 status
+
+      - name: Publicar o espello vivo cun único cambio efectivo
+        working-directory: /tmp/scpp-prod-live
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes @google/clasp@3 push --force
+
+      - name: Verificar deployment exacto de Producción
+        working-directory: /tmp/scpp-prod-live
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes @google/clasp@3 deployments | tee /tmp/scpp-deployments.txt
+          grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/scpp-deployments.txt >/dev/null || {
+            echo 'BLOQUEADO: non se atopou o deployment exacto usado pola web de Producción.'
+            exit 1
+          }
+
+      - name: Actualizar só o deployment usado pola web de Producción
+        working-directory: /tmp/scpp-prod-live
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes @google/clasp@3 deploy \
+            --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
+            --description 'Fix Accesos e permisos 2026-09-04'
+
+      - name: Confirmación final
+        shell: bash
+        run: |
+          echo 'Apps Script de Producción actualizado desde un pull vivo.'
+          echo 'Diff efectivo antes do push: un único ficheiro, Código.js.'
+          echo 'Deployment actualizado: o mesmo ID que usa a web de Producción.'
