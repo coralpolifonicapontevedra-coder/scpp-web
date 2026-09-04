@@ -227,8 +227,8 @@ export async function onRequestPost(context) {
     'rexistrarActividadePortal'
   ]);
 
-  let permisoAdmin = null;
   if (accionsAdmin.has(accion)) {
+    let permisoAdmin;
     try {
       permisoAdmin = await obterPermisoPortal(env, user, 'permisos');
     } catch (error) {
@@ -239,7 +239,7 @@ export async function onRequestPost(context) {
     }
   }
 
-  const contextoPersoas = accion === 'listarPermisosPortal' || accionsAdmin.has(accion)
+  const contextoPersoas = accionsAdmin.has(accion)
     ? await obterContextoPersoas(env, user)
     : null;
 
