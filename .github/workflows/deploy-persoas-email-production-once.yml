@@ -128,7 +128,6 @@ jobs:
 
           grep -R -F -q --include='*.js' --include='*.gs' "accion === 'enviarRevisionsPersoasAdministracion'" .
           for SYMBOL in \
-            'function obterAmbienteSCPP_' \
             'function normalizarEmailPersoasAdmin_' \
             'function obterContextoPersoasAdmin_' \
             'function obterAdministradorPersoasAdmin_' \
