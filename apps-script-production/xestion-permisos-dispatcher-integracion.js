@@ -26,7 +26,15 @@ var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
   'crearPersoaAdministracion',
   'actualizarPersoaAdministracion',
   'cambiarEstadoPersoaAdministracion',
-  'enviarRevisionsPersoasAdministracion'
+  'enviarRevisionsPersoasAdministracion',
+  'persoasV2Listar',
+  'persoasV2SyncListar',
+  'persoasV2Version',
+  'persoasV2Crear',
+  'persoasV2Actualizar',
+  'persoasV2Estado',
+  'persoasV2Eliminar',
+  'persoasV2InstalarTrigger'
 ];
 
 function despacharPersoasAdministracionPortal_(accion, datos) {
@@ -48,6 +56,38 @@ function despacharPersoasAdministracionPortal_(accion, datos) {
 
   if (accion === 'enviarRevisionsPersoasAdministracion') {
     return enviarRevisionsPersoasAdministracion_(datos);
+  }
+
+  if (accion === 'persoasV2Listar') {
+    return persoasV2Listar_(datos);
+  }
+
+  if (accion === 'persoasV2SyncListar') {
+    return persoasV2SyncListar_(datos);
+  }
+
+  if (accion === 'persoasV2Version') {
+    return persoasV2Version_(datos);
+  }
+
+  if (accion === 'persoasV2Crear') {
+    return persoasV2Crear_(datos);
+  }
+
+  if (accion === 'persoasV2Actualizar') {
+    return persoasV2Actualizar_(datos);
+  }
+
+  if (accion === 'persoasV2Estado') {
+    return persoasV2Estado_(datos);
+  }
+
+  if (accion === 'persoasV2Eliminar') {
+    return persoasV2Eliminar_(datos);
+  }
+
+  if (accion === 'persoasV2InstalarTrigger') {
+    return persoasV2InstalarTrigger_(datos);
   }
 
   return null;
@@ -97,19 +137,23 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
       ).trim().toLowerCase(),
 
       tipoEvento:
-        accion === 'crearPersoaAdministracion'
-          ? 'Crear persoa'
+        accion.indexOf('persoasV2') === 0
+          ? 'Persoas V2 · ' + accion
           : (
-            accion === 'actualizarPersoaAdministracion'
-              ? 'Actualizar persoa'
+            accion === 'crearPersoaAdministracion'
+              ? 'Crear persoa'
               : (
-                accion === 'cambiarEstadoPersoaAdministracion'
-                  ? (
-                    respostaPersoas.activo
-                      ? 'Reactivar persoa'
-                      : 'Dar de baixa persoa'
+                accion === 'actualizarPersoaAdministracion'
+                  ? 'Actualizar persoa'
+                  : (
+                    accion === 'cambiarEstadoPersoaAdministracion'
+                      ? (
+                        respostaPersoas.activo
+                          ? 'Reactivar persoa'
+                          : 'Dar de baixa persoa'
+                      )
+                      : 'Envío masivo de revisións'
                   )
-                  : 'Envío masivo de revisións'
               )
           ),
 
@@ -125,6 +169,7 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
           ? String(
               respostaPersoas.idPersoa ||
               respostaPersoas.enviados ||
+              respostaPersoas.version ||
               ''
             )
           : String(respostaPersoas.erro || '')

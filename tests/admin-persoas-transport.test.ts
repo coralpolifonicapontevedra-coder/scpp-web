@@ -35,7 +35,27 @@ describe('Administración → Persoas transport', () => {
 
     vi.stubGlobal('fetch', fetchMock);
 
+    const permissionObject = {
+      json: vi.fn().mockResolvedValue({
+        savedAt: Date.now(),
+        email: 'admin@example.com',
+        modulo: 'persoas',
+        value: {
+          ok: true,
+          nivel: 'administracion',
+          fonte: 'PERMISOS_PORTAL',
+          configurado: true,
+          podeLer: true,
+          podeEscribir: true,
+          podeAdministrar: true
+        }
+      })
+    };
+    const get = vi.fn()
+      .mockResolvedValueOnce(permissionObject)
+      .mockResolvedValueOnce(null);
     const put = vi.fn().mockResolvedValue(undefined);
+
     const response = await onRequest({
       request: new Request('https://example.test/api/persoas-v2', {
         method: 'POST',
@@ -52,7 +72,7 @@ describe('Administración → Persoas transport', () => {
         WEB_WRITE_TOKEN: 'secret',
         CF_PAGES_BRANCH: 'main',
         APPS_SCRIPT_WEBAPP_URL: PROD_URL,
-        R2_PRIVADO: { put }
+        R2_PRIVADO: { get, put }
       }
     } as never);
 
@@ -64,7 +84,12 @@ describe('Administración → Persoas transport', () => {
       ok: true,
       idPersoa: 'persoa-1',
       cacheActualizada: true,
-      perfil: { nivel: 'Administración' }
+      permiso: {
+        nivel: 'administracion',
+        podeLer: true,
+        podeEscribir: true,
+        podeAdministrar: true
+      }
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(5);
@@ -75,6 +100,7 @@ describe('Administración → Persoas transport', () => {
     expect(fetchMock.mock.calls[2][1]).not.toHaveProperty('body');
     expect(fetchMock.mock.calls[3][0]).toBe(PROD_URL);
     expect(fetchMock.mock.calls[4][0]).toBe(listRedirect);
-    expect(put).toHaveBeenCalledTimes(2);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(put).toHaveBeenCalledTimes(3);
   });
 });

@@ -1,5 +1,17 @@
 (() => {
   const path = window.location.pathname.replace(/\/+$/, '');
+
+  if (path === '/revision-datos') {
+    if (!document.querySelector('script[data-scpp-exencion-cota]')) {
+      const script = document.createElement('script');
+      script.src = '/js/persoas-exencion-revision.js';
+      script.defer = true;
+      script.dataset.scppExencionCota = '1';
+      document.head.append(script);
+    }
+    return;
+  }
+
   if (path !== '/portal/administracion/persoas') return;
 
   const originalFetch = window.fetch.bind(window);
@@ -134,7 +146,9 @@
       body = null;
     }
 
-    const response = await originalFetch(input, init);
+    const useV4Generator = body?.accion === 'xerarLigazon' && /\/api\/persoas-revision(?:\?|$)/.test(url);
+    const destination = useV4Generator ? '/api/persoas-revision-link-v4' : input;
+    const response = await originalFetch(destination, init);
     if (body?.accion === 'xerarLigazon' && response.ok) {
       lastIdToken = String(body?.idToken || '').trim();
       ensureSendButton();
