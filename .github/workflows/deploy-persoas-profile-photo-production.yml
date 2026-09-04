@@ -112,16 +112,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t CHANGED < <(diff -qr live-before live-production | sed -E 's#.* (live-before|live-production)/([^ ]+).*#\2#' | sort -u)
-          printf '%s\n' "${CHANGED[@]}" | tee audit/effective-diff.txt
-          ALLOWED='persoas-foto-perfil-v2.js persoas-sync-perfil-v2.js xestion-permisos-dispatcher-integracion.js'
-          for f in "${CHANGED[@]}"; do
-            [ -z "$f" ] && continue
-            case " $ALLOWED " in
-              *" $f "*) ;;
-              *) echo "BLOQUEADO: cambio inesperado no push: $f"; exit 1 ;;
-            esac
-          done
+          diff -qr live-before live-production | tee audit/effective-diff.txt || true
+          UNEXPECTED="$(diff -qr live-before live-production \
+            | grep -vE '(persoas-foto-perfil-v2\.js|persoas-sync-perfil-v2\.js|xestion-permisos-dispatcher-integracion\.js)$' \
+            || true)"
+          if [ -n "$UNEXPECTED" ]; then
+            echo 'BLOQUEADO: hai cambios inesperados no push:'
+            printf '%s\n' "$UNEXPECTED"
+            exit 1
+          fi
+          grep -Eq 'persoas-foto-perfil-v2\.js' audit/effective-diff.txt
+          grep -Eq 'persoas-sync-perfil-v2\.js' audit/effective-diff.txt
+          grep -Eq 'xestion-permisos-dispatcher-integracion\.js' audit/effective-diff.txt
 
       - name: Subir o proxecto vivo co parche mínimo
         working-directory: live-production
