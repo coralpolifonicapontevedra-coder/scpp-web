@@ -144,6 +144,7 @@
   if (path !== '/portal/administracion/persoas') return;
 
   let lastIdToken = '';
+  let lastReviewEmail = '';
   let envioEnCurso = false;
   let envioCompletado = false;
 
@@ -160,6 +161,9 @@
   }
 
   function selectedEmail() {
+    const direct = String(lastReviewEmail || '').trim().toLowerCase();
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(direct)) return direct;
+
     const sections = document.querySelectorAll('#person-sections .data-section');
     for (const section of sections) {
       const terms = section.querySelectorAll('dt');
@@ -276,6 +280,8 @@
     const response = await originalFetch(destination, init);
     if (body?.accion === 'xerarLigazon' && response.ok) {
       lastIdToken = String(body?.idToken || '').trim();
+      const generated = await response.clone().json().catch(() => null);
+      lastReviewEmail = String(generated?.correo || '').trim().toLowerCase();
       envioCompletado = false;
       envioEnCurso = false;
       ensureSendButton();
