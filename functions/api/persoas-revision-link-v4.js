@@ -100,6 +100,20 @@ function validarTextoLegal(value, expectedId) {
   return legal;
 }
 
+function combinarTextos(textoLegal, textoCota) {
+  return {
+    ...textoLegal,
+    titulo: textoLegal.titulo || 'Protección de datos',
+    texto: [
+      textoLegal.texto,
+      'INFORMACIÓN SOBRE O PAGAMENTO DA COTA SOCIAL',
+      textoCota.titulo && textoCota.titulo !== textoLegal.titulo ? textoCota.titulo : '',
+      textoCota.texto,
+      'Esta información sobre a cota social é de carácter informativo e non require unha aceptación independente.'
+    ].filter(Boolean).join('\n\n')
+  };
+}
+
 async function lerSnapshotR2(env) {
   if (!env.R2_PRIVADO?.get) return null;
   try {
@@ -177,15 +191,16 @@ export async function onRequest({ request, env }) {
   if (!persoa) return json(404, { ok: false, erro: 'Non se atopou a persoa.' });
   if (persoa?.activo !== true) return json(400, { ok: false, erro: 'Non se xera revisión para unha persoa en baixa.' });
 
-  const textoLegal = validarTextoLegal(listado?.textosLegais?.datosPersoa, LEGAL_DATOS_ID);
+  const textoLegalBase = validarTextoLegal(listado?.textosLegais?.datosPersoa, LEGAL_DATOS_ID);
   const textoCota = validarTextoLegal(listado?.textosLegais?.exencionCota, LEGAL_COTA_ID);
-  if (!textoLegal) return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible.' });
+  if (!textoLegalBase) return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible.' });
   if (!textoCota) return json(503, { ok: false, erro: 'A información sobre o pagamento da cota non está dispoñible.' });
+  const textoLegal = combinarTextos(textoLegalBase, textoCota);
 
   const token = crearToken();
   const now = Date.now();
   const revision = {
-    version: 3,
+    version: 4,
     revisionId: crypto.randomUUID(),
     token,
     estado: 'PENDENTE',
@@ -195,6 +210,7 @@ export async function onRequest({ request, env }) {
     caducaEn: new Date(now + TOKEN_TTL_MS).toISOString(),
     persoa: snapshotPublico(persoa),
     textoLegal,
+    textoLegalDatos: textoLegalBase,
     textoCota
   };
 
