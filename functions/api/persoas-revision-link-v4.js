@@ -153,12 +153,9 @@ export async function onRequest({ request, env }) {
   const permiso = await obterPermisoPortal(env, user, 'persoas').catch(() => null);
   if (!permiso?.podeEscribir) return json(403, { ok: false, erro: 'Non tes permiso de escritura no módulo Persoas.' });
 
-  let listado;
-  let fonte = '';
+  let result;
   try {
-    const result = await obterListado(env, user);
-    listado = result.listado;
-    fonte = result.fonte;
+    result = await obterListado(env, user);
   } catch (error) {
     return json(503, {
       ok: false,
@@ -167,6 +164,7 @@ export async function onRequest({ request, env }) {
         : 'Non foi posible preparar os datos da revisión.'
     });
   }
+  const { listado, fonte } = result;
 
   if (!listado?.ok || !Array.isArray(listado.persoas)) {
     return json(503, { ok: false, erro: listado?.erro || 'Non hai un snapshot válido de Persoas dispoñible.' });
