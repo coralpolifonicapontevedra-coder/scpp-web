@@ -1,0 +1,63 @@
+name: Fix arquivo new movement once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/fix-arquivo-new-movement-once.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-arquivo-new-movement-once
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Aplicar parche mínimo
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/portal/administracion/arquivo.astro')
+          text = path.read_text(encoding='utf-8')
+
+          old_tab = "const button=$('#new') as HTMLButtonElement;button.hidden=tab==='historico';button.textContent=tab==='fondos'?'Novo fondo':tab==='catalogo'?'Novo elemento':'Novo movemento';"
+          new_tab = "const button=$('#new') as HTMLButtonElement;button.hidden=false;button.textContent=tab==='fondos'?'Novo fondo':tab==='catalogo'?'Novo elemento':'Novo movemento';"
+
+          old_click = "$('#new')?.addEventListener('click',()=>tab==='movementos'?openMovement():openSimple());"
+          new_click = "$('#new')?.addEventListener('click',()=>['movementos','historico'].includes(tab)?openMovement():openSimple());"
+
+          if text.count(old_tab) != 1:
+              raise SystemExit('Non se atopou exactamente unha vez a lóxica de visibilidade esperada. Abortado.')
+          if text.count(old_click) != 1:
+              raise SystemExit('Non se atopou exactamente unha vez o listener esperado. Abortado.')
+
+          text = text.replace(old_tab, new_tab).replace(old_click, new_click)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          git diff --check
+          git diff -- src/pages/portal/administracion/arquivo.astro
+
+      - name: Commit e push
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/pages/portal/administracion/arquivo.astro
+          git commit -m 'Fix arquivo new movement button in history tab'
+          git push origin HEAD:main
