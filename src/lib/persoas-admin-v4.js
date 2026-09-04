@@ -474,8 +474,8 @@ export function initPersoasAdminV4() {
       const file = nodes.formPhoto instanceof HTMLInputElement ? nodes.formPhoto.files?.[0] : null;
       if (file && id) await uploadPhoto(id, file);
       if (nodes.personDialog instanceof HTMLDialogElement) nodes.personDialog.close();
-      await loadPeople(id, true);
       notify(file ? 'Datos e fotografía gardados.' : 'Datos gardados.');
+      await loadPeople(id, false);
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Non foi posible gardar a persoa.', 'error');
     } finally {
@@ -490,8 +490,8 @@ export function initPersoasAdminV4() {
     const id = keyOf(selected);
     try {
       await requestV2('estado', { idPersoa: id, activo: active });
-      await loadPeople(id, true);
       notify(active ? 'Persoa reactivada.' : 'Baixa rexistrada.');
+      await loadPeople(id, false);
     } catch (error) { notify(error instanceof Error ? error.message : 'Non foi posible modificar o estado.', 'error'); }
   }
 
@@ -564,8 +564,8 @@ export function initPersoasAdminV4() {
       await requestV2('eliminar', { idPersoa: id, confirmacion: confirmation });
       if (nodes.deleteDialog instanceof HTMLDialogElement) nodes.deleteDialog.close();
       selected = null;
-      await loadPeople('', true);
       notify(`${name}: rexistro eliminado.`);
+      await loadPeople('', false);
     } catch (error) { notify(error instanceof Error ? error.message : 'Non foi posible eliminar o rexistro.', 'error'); }
     finally { if (nodes.confirmDelete instanceof HTMLButtonElement) nodes.confirmDelete.disabled = false; }
   }
