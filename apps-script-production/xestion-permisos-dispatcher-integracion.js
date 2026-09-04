@@ -3,9 +3,6 @@
  *
  * Inserir estes bloques antes do rexistro final de "Acción non permitida".
  * O token xa se valida ao inicio do doPost actual.
- * A identidade chega validada por Firebase desde /api/permisos e as accións
- * administrativas volven comprobar aquí o permiso real mediante
- * resolverPermisosPortal_().
  */
 
 var ACCIONS_ADMIN_XESTION_PERMISOS_ = [
@@ -40,78 +37,62 @@ var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
   'persoasV2FotoPerfilEliminar'
 ];
 
+var ACCIONS_FOTOS_ADMIN_PORTAL_ = [
+  'comprobarFotosAdministracionPortal',
+  'gardarFotoAdministracionPortal',
+  'eliminarFotoAdministracionPortal',
+  'eliminarFotoHuerfanaAdministracionPortal'
+];
+
 function despacharPersoasAdministracionPortal_(accion, datos) {
-  if (ACCIONS_PERSOAS_ADMIN_PORTAL_.indexOf(accion) < 0) {
-    return null;
+  if (ACCIONS_PERSOAS_ADMIN_PORTAL_.indexOf(accion) < 0) return null;
+
+  if (accion === 'crearPersoaAdministracion') return crearPersoaAdministracion_(datos);
+  if (accion === 'actualizarPersoaAdministracion') return actualizarPersoaAdministracion_(datos);
+  if (accion === 'cambiarEstadoPersoaAdministracion') return cambiarEstadoPersoaAdministracion_(datos);
+  if (accion === 'enviarRevisionsPersoasAdministracion') return enviarRevisionsPersoasAdministracion_(datos);
+  if (accion === 'persoasV2Listar') return persoasV2Listar_(datos);
+  if (accion === 'persoasV2SyncListar') return persoasV2SyncListar_(datos);
+  if (accion === 'persoasV2Version') return persoasV2Version_(datos);
+  if (accion === 'persoasV2Crear') return persoasV2Crear_(datos);
+  if (accion === 'persoasV2Actualizar') return persoasV2Actualizar_(datos);
+  if (accion === 'persoasV2Estado') return persoasV2Estado_(datos);
+  if (accion === 'persoasV2Eliminar') return persoasV2Eliminar_(datos);
+  if (accion === 'persoasV2InstalarTrigger') return persoasV2InstalarTriggerESincronizarPerfil_(datos);
+  if (accion === 'persoasV2FotoPerfilObter') return persoasV2FotoPerfilObter_(datos);
+  if (accion === 'persoasV2FotoPerfilGardar') return persoasV2FotoPerfilGardar_(datos);
+  if (accion === 'persoasV2FotoPerfilEliminar') return persoasV2FotoPerfilEliminar_(datos);
+
+  return null;
+}
+
+function despacharFotosAdministracionPortal_(accion, datos, bloqueo) {
+  if (ACCIONS_FOTOS_ADMIN_PORTAL_.indexOf(accion) < 0) return null;
+
+  if (accion === 'comprobarFotosAdministracionPortal') {
+    return comprobarFotosAdministracionPortal_(datos);
   }
 
-  if (accion === 'crearPersoaAdministracion') {
-    return crearPersoaAdministracion_(datos);
+  if (accion === 'gardarFotoAdministracionPortal') {
+    if (bloqueo && !bloqueo.hasLock()) bloqueo.waitLock(10000);
+    return gardarFotoAdministracionPortal_(datos);
   }
 
-  if (accion === 'actualizarPersoaAdministracion') {
-    return actualizarPersoaAdministracion_(datos);
+  if (accion === 'eliminarFotoAdministracionPortal') {
+    if (bloqueo && !bloqueo.hasLock()) bloqueo.waitLock(10000);
+    return eliminarFotoAdministracionPortal_(datos);
   }
 
-  if (accion === 'cambiarEstadoPersoaAdministracion') {
-    return cambiarEstadoPersoaAdministracion_(datos);
-  }
-
-  if (accion === 'enviarRevisionsPersoasAdministracion') {
-    return enviarRevisionsPersoasAdministracion_(datos);
-  }
-
-  if (accion === 'persoasV2Listar') {
-    return persoasV2Listar_(datos);
-  }
-
-  if (accion === 'persoasV2SyncListar') {
-    return persoasV2SyncListar_(datos);
-  }
-
-  if (accion === 'persoasV2Version') {
-    return persoasV2Version_(datos);
-  }
-
-  if (accion === 'persoasV2Crear') {
-    return persoasV2Crear_(datos);
-  }
-
-  if (accion === 'persoasV2Actualizar') {
-    return persoasV2Actualizar_(datos);
-  }
-
-  if (accion === 'persoasV2Estado') {
-    return persoasV2Estado_(datos);
-  }
-
-  if (accion === 'persoasV2Eliminar') {
-    return persoasV2Eliminar_(datos);
-  }
-
-  if (accion === 'persoasV2InstalarTrigger') {
-    return persoasV2InstalarTriggerESincronizarPerfil_(datos);
-  }
-
-  if (accion === 'persoasV2FotoPerfilObter') {
-    return persoasV2FotoPerfilObter_(datos);
-  }
-
-  if (accion === 'persoasV2FotoPerfilGardar') {
-    return persoasV2FotoPerfilGardar_(datos);
-  }
-
-  if (accion === 'persoasV2FotoPerfilEliminar') {
-    return persoasV2FotoPerfilEliminar_(datos);
+  if (accion === 'eliminarFotoHuerfanaAdministracionPortal') {
+    if (bloqueo && !bloqueo.hasLock()) bloqueo.waitLock(10000);
+    return eliminarFotoHuerfanaAdministracionPortal_(datos);
   }
 
   return null;
 }
 
 function autorizarXestionPermisosPortal_(accion, datos) {
-  if (ACCIONS_ADMIN_XESTION_PERMISOS_.indexOf(accion) < 0) {
-    return null;
-  }
+  if (ACCIONS_ADMIN_XESTION_PERMISOS_.indexOf(accion) < 0) return null;
 
   var correo = String(
     datos && (datos.actorEmail || datos.email) || ''
@@ -131,8 +112,7 @@ function autorizarXestionPermisosPortal_(accion, datos) {
     return {
       ok: false,
       codigo: 'ADMIN_REQUIRED',
-      erro:
-        'A túa conta non ten permisos de administración para esta operación.'
+      erro: 'A túa conta non ten permisos de administración para esta operación.'
     };
   }
 
@@ -142,15 +122,11 @@ function autorizarXestionPermisosPortal_(accion, datos) {
 function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
   accion = String(accion || '').trim();
 
-  var respostaPersoas =
-    despacharPersoasAdministracionPortal_(accion, datos);
+  var respostaPersoas = despacharPersoasAdministracionPortal_(accion, datos);
 
   if (respostaPersoas !== null) {
     rexistrarAcceso({
-      email: String(
-        datos && datos.email || ''
-      ).trim().toLowerCase(),
-
+      email: String(datos && datos.email || '').trim().toLowerCase(),
       tipoEvento:
         accion.indexOf('persoasV2') === 0
           ? 'Persoas V2 · ' + accion
@@ -162,43 +138,33 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
                   ? 'Actualizar persoa'
                   : (
                     accion === 'cambiarEstadoPersoaAdministracion'
-                      ? (
-                        respostaPersoas.activo
-                          ? 'Reactivar persoa'
-                          : 'Dar de baixa persoa'
-                      )
+                      ? (respostaPersoas.activo ? 'Reactivar persoa' : 'Dar de baixa persoa')
                       : 'Envío masivo de revisións'
                   )
               )
           ),
-
       modulo: 'Administración · Persoas',
-
-      resultado:
-        respostaPersoas.ok
-          ? 'Correcto'
-          : 'Rexeitado',
-
-      detalle:
-        respostaPersoas.ok
-          ? String(
-              respostaPersoas.idPersoa ||
-              respostaPersoas.enviados ||
-              respostaPersoas.version ||
-              ''
-            )
-          : String(respostaPersoas.erro || '')
+      resultado: respostaPersoas.ok ? 'Correcto' : 'Rexeitado',
+      detalle: respostaPersoas.ok
+        ? String(
+            respostaPersoas.idPersoa ||
+            respostaPersoas.enviados ||
+            respostaPersoas.version ||
+            ''
+          )
+        : String(respostaPersoas.erro || '')
     });
 
     return respostaPersoas;
   }
 
-  var erroAutorizacion =
-    autorizarXestionPermisosPortal_(accion, datos);
+  // Fotografías xa chega autorizada polo Worker mediante o permiso efectivo
+  // do módulo en R2. Non se engade aquí outro rexistro sincrónico en Sheets.
+  var respostaFotos = despacharFotosAdministracionPortal_(accion, datos, bloqueo);
+  if (respostaFotos !== null) return respostaFotos;
 
-  if (erroAutorizacion) {
-    return erroAutorizacion;
-  }
+  var erroAutorizacion = autorizarXestionPermisosPortal_(accion, datos);
+  if (erroAutorizacion) return erroAutorizacion;
 
   if (accion === 'listarPermisosPortal') {
     try {
@@ -212,53 +178,39 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
     return listarPermisosPortalXestion_(datos);
   }
 
-  if (accion === 'obterPermisosUsuarioPortal') {
-    return obterPermisosUsuarioPortalXestion_(datos);
-  }
+  if (accion === 'obterPermisosUsuarioPortal') return obterPermisosUsuarioPortalXestion_(datos);
 
   if (accion === 'gardarPermisoPortal') {
     if (bloqueo) bloqueo.waitLock(10000);
-
     return gardarPermisoPortalXestion_(datos);
   }
 
   if (accion === 'gardarPermisosPortalLote') {
     if (bloqueo) bloqueo.waitLock(10000);
-
     return gardarPermisosPortalLoteXestion_(datos);
   }
 
   if (accion === 'eliminarPermisoPortal') {
     if (bloqueo) bloqueo.waitLock(10000);
-
     return eliminarPermisoPortalXestion_(datos);
   }
 
-  if (accion === 'rexistrarActividadePortal') {
-    return rexistrarActividadePortalXestion_(datos);
-  }
-
-  if (accion === 'listarActividadePortal') {
-    return listarActividadePortalXestion_(datos);
-  }
+  if (accion === 'rexistrarActividadePortal') return rexistrarActividadePortalXestion_(datos);
+  if (accion === 'listarActividadePortal') return listarActividadePortalXestion_(datos);
 
   /* ───────────────────────────────
    * DOAZÓNS
    * ─────────────────────────────── */
 
-  if (accion === 'listarDoazonsAdministracion') {
-    return listarDoazonsAdministracion_(datos);
-  }
+  if (accion === 'listarDoazonsAdministracion') return listarDoazonsAdministracion_(datos);
 
   if (accion === 'actualizarEstadoDoazonAdministracion') {
     if (bloqueo) bloqueo.waitLock(10000);
-
     return actualizarEstadoDoazonAdministracion_(datos);
   }
 
   if (accion === 'eliminarDoazonAdministracion') {
     if (bloqueo) bloqueo.waitLock(10000);
-
     return eliminarDoazonAdministracion_(datos);
   }
 
@@ -269,18 +221,13 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
  * BLOQUE A ENGADIR NO doPost(e) REAL:
  *
  *     const respostaPermisosAdmin =
- *       despacharXestionPermisosPortal_(
- *         accion,
- *         datos,
- *         bloqueo
- *       );
+ *       despacharXestionPermisosPortal_(accion, datos, bloqueo);
  *
  *     if (respostaPermisosAdmin !== null) {
  *       return respostaJSON(respostaPermisosAdmin);
  *     }
  *
- * Colocación recomendada: despois dos dispatchers/módulos
- * de Administración e antes do bloque final que rexistra
+ * Colocación recomendada: antes do bloque final que rexistra
  * "Acción non permitida".
  */
 
@@ -289,6 +236,9 @@ var ACCIONS_ESCRITURA_XESTION_PERMISOS_ = [
   'gardarPermisosPortalLote',
   'eliminarPermisoPortal',
   'rexistrarActividadePortal',
+  'gardarFotoAdministracionPortal',
+  'eliminarFotoAdministracionPortal',
+  'eliminarFotoHuerfanaAdministracionPortal',
 
   // Doazóns
   'actualizarEstadoDoazonAdministracion',
