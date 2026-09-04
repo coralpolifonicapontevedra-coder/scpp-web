@@ -10,10 +10,13 @@ const PERFIS_KEY_PREVIEW = 'persoas/cache/preview/perfis.json';
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const PHOTO_INDEX_MAIN = 'persoas/fotos/index.json';
 const PHOTO_INDEX_PREVIEW = 'persoas/fotos/preview/index.json';
+const MAINTENANCE_KEY_MAIN = 'persoas/cache/maintenance-v1.json';
+const MAINTENANCE_KEY_PREVIEW = 'persoas/cache/preview/maintenance-v1.json';
 const REVISION_PREFIX = 'persoas/revisions/';
 const FIREBASE_TIMEOUT_MS = 8_000;
 const VERSION_TIMEOUT_MS = 5_000;
 const LIST_TIMEOUT_MS = 30_000;
+const MAINTENANCE_TTL_MS = 12 * 60 * 60 * 1000;
 
 const legacyActions = new Map([
   ['listarPersoasAdministracion', 'listar'],
@@ -41,6 +44,7 @@ const envBranch = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'pre
 const snapshotKey = (env) => envBranch(env) === 'main' ? SNAPSHOT_KEY_MAIN : SNAPSHOT_KEY_PREVIEW;
 const perfisKey = (env) => envBranch(env) === 'main' ? PERFIS_KEY_MAIN : PERFIS_KEY_PREVIEW;
 const photoIndexKey = (env) => envBranch(env) === 'main' ? PHOTO_INDEX_MAIN : PHOTO_INDEX_PREVIEW;
+const maintenanceKey = (env) => envBranch(env) === 'main' ? MAINTENANCE_KEY_MAIN : MAINTENANCE_KEY_PREVIEW;
 
 async function fetchTimeout(url, options, timeoutMs) {
   const controller = new AbortController();
@@ -123,7 +127,7 @@ function enriquecerFotos(payload, photoIndex) {
     ...payload,
     persoas: payload.persoas.map((persoa) => {
       const ids = [persoa?.idPersoa, persoa?.id, persoa?.rowId].map(clean).filter(Boolean);
-      const foto = ids.map((id) => map[id]).find(Boolean) || null;
+      const foto = ids.map((id) => map[id]).find(Boolean) || persoa?.fotoR2 || null;
       return { ...persoa, fotoR2: foto };
     })
   };
@@ -205,17 +209,63 @@ async function consultarListado(env, user, permission) {
 async function listadoActual(env, user, permission, force = false) {
   const snapshot = force ? null : await lerSnapshot(env);
   if (snapshot?.payload?.persoas) {
-    const currentVersion = await consultarVersion(env, user);
-    if (!currentVersion || currentVersion === clean(snapshot.sourceVersion)) {
-      const photoIndex = await lerPhotoIndex(env);
-      return {
-        payload: enriquecerFotos({ ...snapshot.payload, permiso: permission }, photoIndex),
-        fonte: currentVersion ? 'R2-VERIFICADO' : 'R2-RESPALDO',
-        savedAt: snapshot.savedAt
-      };
-    }
+    const photoIndex = await lerPhotoIndex(env);
+    return {
+      payload: enriquecerFotos({ ...snapshot.payload, permiso: permission }, photoIndex),
+      fonte: 'R2',
+      savedAt: Number(snapshot.savedAt || 0),
+      sourceVersion: clean(snapshot.sourceVersion)
+    };
   }
-  return { payload: await consultarListado(env, user, permission), fonte: 'SHEET+R2', savedAt: Date.now() };
+  return {
+    payload: await consultarListado(env, user, permission),
+    fonte: force ? 'SHEET-FORZADO+R2' : 'SHEET-ARRANQUE+R2',
+    savedAt: Date.now(),
+    sourceVersion: ''
+  };
+}
+
+async function mantementoPersoas(context, user, permission, sourceVersion) {
+  const { env } = context;
+  if (!env.R2_PRIVADO?.get || !env.R2_PRIVADO?.put) return;
+  try {
+    const marker = await lerJsonR2(env.R2_PRIVADO, maintenanceKey(env));
+    const checkedAt = Number(marker?.checkedAt || 0);
+    if (Number.isFinite(checkedAt) && checkedAt > 0 && Date.now() - checkedAt < MAINTENANCE_TTL_MS) return;
+
+    let currentVersion = await consultarVersion(env, user);
+    let rebuilt = false;
+    if (currentVersion && currentVersion !== clean(sourceVersion)) {
+      await consultarListado(env, user, permission);
+      rebuilt = true;
+      currentVersion = clean(currentVersion);
+    }
+
+    let triggerOk = null;
+    if (permission?.podeAdministrar) {
+      try {
+        const trigger = await chamarAppsScript(env, user, 'persoasV2InstalarTrigger', {}, {
+          timeoutMs: 10_000,
+          attemptTimeoutMs: 8_000
+        });
+        triggerOk = trigger?.ok === true;
+      } catch (error) {
+        console.warn('Non se puido verificar o trigger de Persoas en segundo plano:', error);
+        triggerOk = false;
+      }
+    }
+
+    await env.R2_PRIVADO.put(maintenanceKey(env), JSON.stringify({
+      checkedAt: Date.now(),
+      sourceVersion: currentVersion || clean(sourceVersion),
+      rebuilt,
+      triggerOk
+    }), {
+      httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
+    });
+  } catch (error) {
+    console.warn('Mantemento de Persoas en segundo plano non completado:', error);
+  }
 }
 
 function normalizarAction(raw) {
@@ -330,6 +380,53 @@ async function limparR2Eliminacion(env, result) {
   return deleted;
 }
 
+function compararPersoas(a, b) {
+  const aa = [a?.primeiroApelido, a?.segundoApelido, a?.nome].map(clean).join(' ');
+  const bb = [b?.primeiroApelido, b?.segundoApelido, b?.nome].map(clean).join(' ');
+  return aa.localeCompare(bb, 'gl', { sensitivity: 'base' });
+}
+
+async function aplicarEscrituraEnR2(env, user, permission, action, result) {
+  if (!env.R2_PRIVADO?.put) return false;
+  const snapshot = await lerSnapshot(env);
+  if (!snapshot?.payload?.persoas) return false;
+
+  const payload = { ...snapshot.payload, permiso: permission };
+  const persoas = [...payload.persoas];
+  const idPersoa = clean(result?.idPersoa);
+  const rowId = clean(result?.rowId);
+  const index = persoas.findIndex((item) =>
+    [item?.idPersoa, item?.id, item?.rowId].map(clean).some((value) =>
+      value && (value === idPersoa || value === rowId)
+    )
+  );
+
+  if (action === 'eliminar') {
+    if (index >= 0) persoas.splice(index, 1);
+  } else if (result?.persoa && typeof result.persoa === 'object') {
+    const anterior = index >= 0 ? persoas[index] : null;
+    const nova = {
+      ...(anterior || {}),
+      ...result.persoa,
+      fotoR2: anterior?.fotoR2 || result.persoa?.fotoR2 || null
+    };
+    if (index >= 0) persoas[index] = nova;
+    else persoas.push(nova);
+  } else {
+    return false;
+  }
+
+  persoas.sort(compararPersoas);
+  const photoIndex = await lerPhotoIndex(env);
+  const nextPayload = enriquecerFotos({
+    ...payload,
+    sourceVersion: clean(result?.version || snapshot.sourceVersion),
+    persoas
+  }, photoIndex);
+  await gardarSnapshots(env, user, permission, nextPayload, result?.version || snapshot.sourceVersion);
+  return true;
+}
+
 async function handleWrite(context, user, permission, action, data) {
   const map = {
     crear: 'persoasV2Crear',
@@ -367,24 +464,33 @@ async function handleWrite(context, user, permission, action, data) {
     catch (error) { console.error('A persoa eliminouse da Sheet pero fallou parte da limpeza R2:', error); }
   }
 
-  let refreshed = null;
+  let cacheActualizada = false;
   try {
-    refreshed = await consultarListado(context.env, user, permission);
+    cacheActualizada = await aplicarEscrituraEnR2(context.env, user, permission, action, result);
   } catch (error) {
-    console.error('A escritura completouse pero fallou a rexeneración inmediata Sheet → R2:', error);
+    console.error('A escritura completouse pero fallou a actualización puntual de R2:', error);
+  }
+
+  if (!cacheActualizada && action !== 'instalarSync' && typeof context.waitUntil === 'function') {
+    context.waitUntil(
+      consultarListado(context.env, user, permission)
+        .catch((error) => console.warn('Non se puido reconstruír Persoas en R2 en segundo plano:', error))
+    );
   }
 
   return json(200, {
     ...result,
     ok: true,
     version: VERSION,
-    cacheActualizada: Boolean(refreshed),
+    sourceVersion: clean(result?.version),
+    cacheActualizada,
     r2Eliminado,
-    persoas: refreshed?.persoas,
-    schema: refreshed?.schema,
-    textosLegais: refreshed?.textosLegais,
     permiso: permission
-  }, { 'X-SCPP-Persoas-Version': VERSION, 'X-SCPP-Write': 'OK' });
+  }, {
+    'X-SCPP-Persoas-Version': VERSION,
+    'X-SCPP-Write': 'OK',
+    'X-SCPP-Cache-Update': cacheActualizada ? 'R2-PUNTUAL' : 'R2-BACKGROUND'
+  });
 }
 
 export async function onRequest(context) {
@@ -414,16 +520,14 @@ export async function onRequest(context) {
 
   if (action === 'listar') {
     try {
-      const { payload, fonte, savedAt } = await listadoActual(env, user, permission, data.force === true);
-      if (permission.podeAdministrar && typeof context.waitUntil === 'function') {
-        context.waitUntil(
-          chamarAppsScript(env, user, 'persoasV2InstalarTrigger', {}, { timeoutMs: 10_000, attemptTimeoutMs: 8_000 })
-            .catch((error) => console.warn('Non se puido verificar o trigger de sincronización de Persoas:', error))
-        );
+      const { payload, fonte, savedAt, sourceVersion } = await listadoActual(env, user, permission, data.force === true);
+      if (fonte === 'R2' && typeof context.waitUntil === 'function') {
+        context.waitUntil(mantementoPersoas(context, user, permission, sourceVersion));
       }
       return json(200, { ...payload, fonte, cacheSavedAt: savedAt, permiso: permission }, {
         'X-SCPP-Persoas-Version': VERSION,
-        'X-SCPP-Cache': fonte
+        'X-SCPP-Cache': fonte,
+        'Server-Timing': fonte === 'R2' ? 'apps-script;dur=0' : 'apps-script;desc="rebuild"'
       });
     } catch (error) {
       return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible cargar Persoas.' });
