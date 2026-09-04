@@ -4,15 +4,21 @@ import { obterPermisoPortal } from '../_lib/portal-permissions.js';
 const TOKEN_PREFIX = 'persoas/revisions/';
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const FIREBASE_TIMEOUT_MS = 8_000;
+const SHEET_FALLBACK_TIMEOUT_MS = 15_000;
+const SNAPSHOT_KEY_MAIN = 'persoas/cache/snapshot-v4.json';
+const SNAPSHOT_KEY_PREVIEW = 'persoas/cache/preview/snapshot-v4.json';
 
 const clean = (value) => String(value == null ? '' : value).trim();
-const json = (status, body) => new Response(JSON.stringify(body), {
+const branch = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
+const snapshotKey = (env) => branch(env) === 'main' ? SNAPSHOT_KEY_MAIN : SNAPSHOT_KEY_PREVIEW;
+const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff',
-    'Referrer-Policy': 'no-referrer'
+    'Referrer-Policy': 'no-referrer',
+    ...extraHeaders
   }
 });
 
@@ -92,6 +98,22 @@ function validarTextoLegal(value) {
   return legal;
 }
 
+async function lerSnapshotR2(env) {
+  if (!env.R2_PRIVADO?.get) return null;
+  try {
+    const object = await env.R2_PRIVADO.get(snapshotKey(env));
+    if (!object) return null;
+    const entry = await object.json().catch(() => null);
+    const payload = entry?.payload;
+    if (!payload?.ok || !Array.isArray(payload.persoas)) return null;
+    if (!validarTextoLegal(payload?.textosLegais?.datosPersoa)) return null;
+    return payload;
+  } catch (error) {
+    console.warn('Non se puido ler o snapshot de Persoas para xerar a revisión:', error);
+    return null;
+  }
+}
+
 async function listarDesdeSheet(env, user) {
   const { resultado } = await obterJsonAppsScriptPersoas(env, {
     token: env.WEB_WRITE_TOKEN,
@@ -99,13 +121,24 @@ async function listarDesdeSheet(env, user) {
     email: user.email,
     actorEmail: user.email,
     uidFirebase: user.uid
-  }, { timeoutMs: 30_000, attemptTimeoutMs: 12_000 });
+  }, {
+    timeoutMs: SHEET_FALLBACK_TIMEOUT_MS,
+    attemptTimeoutMs: 8_000
+  });
   return resultado;
+}
+
+async function obterListado(env, user) {
+  const r2 = await lerSnapshotR2(env);
+  if (r2) return { listado: r2, fonte: 'R2-SNAPSHOT' };
+
+  const sheet = await listarDesdeSheet(env, user);
+  return { listado: sheet, fonte: 'SHEET-FALLBACK' };
 }
 
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
-  if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN || !env.R2_PRIVADO?.put) {
+  if (!env.FIREBASE_API_KEY || !env.WEB_WRITE_TOKEN || !env.R2_PRIVADO?.get || !env.R2_PRIVADO?.put) {
     return json(500, { ok: false, erro: 'O servizo de revisión de Persoas non está configurado.' });
   }
 
@@ -121,17 +154,35 @@ export async function onRequest({ request, env }) {
   if (!permiso?.podeEscribir) return json(403, { ok: false, erro: 'Non tes permiso de escritura no módulo Persoas.' });
 
   let listado;
-  try { listado = await listarDesdeSheet(env, user); }
-  catch (error) { return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible cargar Persoas.' }); }
-  if (!listado?.ok || !Array.isArray(listado.persoas)) return json(503, { ok: false, erro: listado?.erro || 'A Sheet de Persoas non devolveu un listado válido.' });
+  let fonte = '';
+  try {
+    const result = await obterListado(env, user);
+    listado = result.listado;
+    fonte = result.fonte;
+  } catch (error) {
+    return json(503, {
+      ok: false,
+      erro: error instanceof Error
+        ? error.message
+        : 'Non foi posible preparar os datos da revisión.'
+    });
+  }
+
+  if (!listado?.ok || !Array.isArray(listado.persoas)) {
+    return json(503, { ok: false, erro: listado?.erro || 'Non hai un snapshot válido de Persoas dispoñible.' });
+  }
 
   const ref = clean(data?.idPersoa || data?.id || data?.rowId);
-  const persoa = listado.persoas.find((item) => [item?.idPersoa, item?.id, item?.rowId].some((value) => clean(value) === ref));
+  const persoa = listado.persoas.find((item) =>
+    [item?.idPersoa, item?.id, item?.rowId].some((value) => clean(value) === ref)
+  );
   if (!persoa) return json(404, { ok: false, erro: 'Non se atopou a persoa.' });
   if (persoa?.activo !== true) return json(400, { ok: false, erro: 'Non se xera revisión para unha persoa en baixa.' });
 
   const textoLegal = validarTextoLegal(listado?.textosLegais?.datosPersoa);
-  if (!textoLegal) return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible en TextosLegais.' });
+  if (!textoLegal) {
+    return json(503, { ok: false, erro: 'O texto de protección de datos de Persoas non está dispoñible.' });
+  }
 
   const token = crearToken();
   const now = Date.now();
@@ -147,6 +198,7 @@ export async function onRequest({ request, env }) {
     persoa: snapshotPublico(persoa),
     textoLegal
   };
+
   await env.R2_PRIVADO.put(`${TOKEN_PREFIX}${token}.json`, JSON.stringify(revision), {
     httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
   });
@@ -159,6 +211,9 @@ export async function onRequest({ request, env }) {
     caducaEn: revision.caducaEn,
     persoa: revision.persoa.nomeCompleto || revision.idPersoa,
     textoLegal: { id: textoLegal.id, version: textoLegal.version, titulo: textoLegal.titulo },
-    envioAutomatico: false
+    envioAutomatico: false,
+    fonte
+  }, {
+    'X-SCPP-Review-Source': fonte
   });
 }
