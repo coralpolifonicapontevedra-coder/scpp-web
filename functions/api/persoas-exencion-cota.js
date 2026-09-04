@@ -38,14 +38,13 @@ function validarTexto(value) {
   return texto.id === LEGAL_ID && texto.version && texto.titulo && texto.texto ? texto : null;
 }
 
-async function revisionValida(env, token) {
-  if (!env.R2_PRIVADO?.get) return false;
+async function obterRevision(env, token) {
+  if (!env.R2_PRIVADO?.get) return null;
   const object = await env.R2_PRIVADO.get(`${REVIEW_PREFIX}${token}.json`);
-  if (!object) return false;
+  if (!object) return null;
   const revision = await object.json().catch(() => null);
-  return revision?.token === token
-    && revision?.estado === 'PENDENTE'
-    && Date.parse(clean(revision?.caducaEn)) > Date.now();
+  if (revision?.token !== token || revision?.estado !== 'PENDENTE' || Date.parse(clean(revision?.caducaEn)) <= Date.now()) return null;
+  return revision;
 }
 
 async function lerR2(env) {
@@ -74,11 +73,11 @@ async function cargarDesdeSheet(env) {
     accion: 'persoasV2SyncListar',
     email: '',
     actorEmail: '',
-    fonte: 'revision-exencion-cota'
+    fonte: 'revision-cota-social'
   }, { timeoutMs: 30_000, attemptTimeoutMs: 12_000 });
   if (!resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible ler os textos legais desde a Sheet.');
   const texto = validarTexto(resultado?.textosLegais?.exencionCota);
-  if (!texto) throw new Error('O texto de exención da cota non está dispoñible en TextosLegais.');
+  if (!texto) throw new Error('A información sobre o pagamento da cota non está dispoñible en TextosLegais.');
   await gardarR2(env, texto);
   return texto;
 }
@@ -87,11 +86,21 @@ export async function onRequest({ request, env }) {
   if (request.method !== 'GET') return json(405, { ok: false, erro: 'Método non permitido.' });
   const token = tokenValido(new URL(request.url).searchParams.get('token'));
   if (!token) return json(400, { ok: false, erro: 'A ligazón de revisión non é válida.' });
-  if (!(await revisionValida(env, token))) {
-    return json(404, { ok: false, erro: 'A revisión non existe, caducou ou xa foi completada.' });
-  }
+
+  const revision = await obterRevision(env, token);
+  if (!revision) return json(404, { ok: false, erro: 'A revisión non existe, caducou ou xa foi completada.' });
 
   try {
+    const incluído = validarTexto(revision?.textoCota);
+    if (incluído) {
+      return json(200, {
+        ok: true,
+        textoExencionCota: incluído,
+        fonte: 'REVISION',
+        entorno: branch(env)
+      });
+    }
+
     const cache = await lerR2(env);
     const texto = cache || await cargarDesdeSheet(env);
     return json(200, {
@@ -101,6 +110,6 @@ export async function onRequest({ request, env }) {
       entorno: branch(env)
     });
   } catch (error) {
-    return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible cargar o texto de exención da cota.' });
+    return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible cargar a información sobre a cota social.' });
   }
 }
