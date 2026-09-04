@@ -1,0 +1,52 @@
+name: Diagnose production routing once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/diagnose-production-routing-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Compare production aliases and latest deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/scpp-diag
+          for host in \
+            coralpolifonicapontevedra.org \
+            www.coralpolifonicapontevedra.org \
+            scpp-web.pages.dev \
+            7f454600.scpp-web.pages.dev; do
+            echo "===== $host ====="
+            echo "-- DNS --"
+            dig +short "$host" A || true
+            dig +short "$host" CNAME || true
+            echo "-- HEAD --"
+            curl -sSIL --connect-timeout 10 --max-time 30 "https://$host/portal/administracion/persoas/" | sed -n '1,40p' || true
+            echo "-- BODY HASH --"
+            curl -sSL --connect-timeout 10 --max-time 30 "https://$host/portal/administracion/persoas/" -o "/tmp/scpp-diag/${host}.html" || true
+            if [ -f "/tmp/scpp-diag/${host}.html" ]; then
+              sha256sum "/tmp/scpp-diag/${host}.html"
+              grep -Eo '/_astro/[^" ]+\.(js|css)' "/tmp/scpp-diag/${host}.html" | sort -u | head -30 || true
+            fi
+            echo
+          done
+
+          echo '===== revision page markers ====='
+          for host in coralpolifonicapontevedra.org scpp-web.pages.dev 7f454600.scpp-web.pages.dev; do
+            echo "-- $host --"
+            curl -sSL --connect-timeout 10 --max-time 30 "https://$host/revision-datos/" -o "/tmp/scpp-diag/${host}-revision.html" || true
+            if [ -f "/tmp/scpp-diag/${host}-revision.html" ]; then
+              sha256sum "/tmp/scpp-diag/${host}-revision.html"
+              grep -F 'Información sobre a cota social' "/tmp/scpp-diag/${host}-revision.html" || true
+              grep -F 'fee-exemption-card' "/tmp/scpp-diag/${host}-revision.html" || true
+            fi
+          done
