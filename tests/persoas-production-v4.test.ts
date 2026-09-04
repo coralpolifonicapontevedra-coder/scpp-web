@@ -14,6 +14,7 @@ const reviewLink = read('functions/api/persoas-revision-link-v4.js');
 const appsScript = read('apps-script-production/persoas-administracion-v2.js');
 const legacy = read('apps-script-production/persoas-legacy-compat-v2.js');
 const dispatcher = read('apps-script-production/xestion-permisos-dispatcher-integracion.js');
+const syncPerfil = read('apps-script-production/persoas-sync-perfil-v2.js');
 const feeApi = read('functions/api/persoas-exencion-cota.js');
 const feeReview = read('public/js/persoas-exencion-revision.js');
 const reviewHelper = read('public/js/persoas-envio-individual.js');
@@ -76,6 +77,7 @@ describe('Administración → Persoas v4 · Producción', () => {
     expect(appsScript).toContain('UrlFetchApp.fetch(PERSOAS_V2_CONFIG_.syncUrl');
     expect(photoApi).toContain('refreshCaches');
     expect(photoApi).toContain("source: 'perfil'");
+    expect(syncPerfil).toContain("fonte:'admin-persoas-perfil-foto'");
     expect(reviewSync).toContain("revision?.estado !== 'COMPLETADA'");
     expect(feeReview).toContain('/api/persoas-review-cache-sync');
   });
@@ -96,7 +98,7 @@ describe('Administración → Persoas v4 · Producción', () => {
     expect(dispatcher).toContain("'persoasV2Listar'");
     expect(dispatcher).toContain("'persoasV2Crear'");
     expect(dispatcher).toContain("'persoasV2Eliminar'");
-    expect(dispatcher).toContain('return persoasV2InstalarTrigger_(datos)');
+    expect(dispatcher).toContain('return persoasV2InstalarTriggerESincronizarPerfil_(datos)');
     expect(dispatcher).not.toContain('function doPost');
   });
 });
