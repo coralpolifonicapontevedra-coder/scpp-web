@@ -16,42 +16,24 @@
     });
   }
 
-  function profileHint(profile) {
-    return {
-      idPersoa: String(profile?.idPersoa || profile?.id || profile?.rowId || '').trim(),
-      id: String(profile?.id || '').trim(),
-      rowId: String(profile?.rowId || '').trim(),
-      nif: String(profile?.nif || '').trim(),
-      nomeCompleto: String(profile?.nomeCompleto || '').trim(),
-      nome: String(profile?.nome || '').trim(),
-      primeiroApelido: String(profile?.primeiroApelido || '').trim(),
-      segundoApelido: String(profile?.segundoApelido || '').trim(),
-      correoElectronico: String(profile?.correoElectronico || profile?.correo || '').trim()
-    };
-  }
-
-  async function fetchProfilePhoto(idToken, profile) {
+  async function fetchProfilePhoto(idToken) {
     return originalFetch('/api/perfil-foto-r2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion: 'descargar', perfil: profileHint(profile) })
+      body: JSON.stringify({ idToken, accion: 'descargar' })
     });
   }
 
-  async function saveProfilePhoto(idToken, profile, fotoBase64, fotoTipo) {
+  async function saveProfilePhoto(idToken, fotoBase64, fotoTipo) {
     const response = await originalFetch('/api/perfil-foto-r2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        idToken,
-        accion: 'gardar',
-        perfil: profileHint(profile),
-        fotoBase64,
-        fotoTipo
-      })
+      body: JSON.stringify({ idToken, accion: 'gardar', fotoBase64, fotoTipo })
     });
     const result = await response.json().catch(() => null);
-    if (!response.ok || result?.ok !== true) throw new Error(result?.erro || 'Non foi posible gardar a fotografía en R2.');
+    if (!response.ok || result?.ok !== true) {
+      throw new Error(result?.erro || 'Non foi posible gardar a fotografía en R2.');
+    }
     return result;
   }
 
@@ -60,13 +42,13 @@
     const profile = { ...result.perfil };
 
     if (newPhoto?.base64) {
-      await saveProfilePhoto(idToken, profile, newPhoto.base64, newPhoto.mimeType);
+      await saveProfilePhoto(idToken, newPhoto.base64, newPhoto.mimeType);
       profile.fotoDataUrl = `data:${newPhoto.mimeType};base64,${newPhoto.base64}`;
       profile.fotoFonte = 'R2';
       return { ...result, perfil: profile };
     }
 
-    const r2 = await fetchProfilePhoto(idToken, profile);
+    const r2 = await fetchProfilePhoto(idToken);
     if (r2.ok) {
       profile.fotoDataUrl = await blobToDataUrl(await r2.blob());
       profile.fotoFonte = 'R2';
@@ -76,7 +58,7 @@
     const legacy = dataUrlParts(profile.fotoDataUrl);
     if (legacy && ['image/jpeg', 'image/png', 'image/webp'].includes(legacy.mimeType)) {
       try {
-        await saveProfilePhoto(idToken, profile, legacy.base64, legacy.mimeType);
+        await saveProfilePhoto(idToken, legacy.base64, legacy.mimeType);
         profile.fotoFonte = 'R2';
       } catch {
         // A foto histórica segue visible; a migración poderá repetirse na seguinte carga.
@@ -120,9 +102,28 @@
         headers.set('Content-Type', 'application/json; charset=utf-8');
         headers.set('Cache-Control', 'private, no-store');
         headers.set('X-SCPP-Photo-Source', overlaid?.perfil?.fotoFonte || 'LEGACY');
-        return new Response(JSON.stringify(overlaid), { status: response.status, statusText: response.statusText, headers });
+        return new Response(JSON.stringify(overlaid), {
+          status: response.status,
+          statusText: response.statusText,
+          headers
+        });
       } catch (error) {
         console.warn('Non se puido sincronizar a fotografía de Perfil con R2:', error);
+        if (newPhoto) {
+          return new Response(JSON.stringify({
+            ok: false,
+            parcial: true,
+            erro: 'Os datos gardáronse, pero non foi posible actualizar a fotografía en R2. Tenta gardar de novo a fotografía.',
+            detalle: error instanceof Error ? error.message : ''
+          }), {
+            status: 502,
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Cache-Control': 'private, no-store',
+              'X-SCPP-Photo-Source': 'R2-ERROR'
+            }
+          });
+        }
         return response;
       }
     };
@@ -144,6 +145,7 @@
 
   let lastIdToken = '';
   let envioEnCurso = false;
+  let envioCompletado = false;
 
   function reviewState() {
     return document.querySelector('#review-state');
@@ -183,19 +185,22 @@
     if (!(footerActions instanceof HTMLElement)) return null;
 
     let button = document.querySelector('#send-review-email');
-    if (button instanceof HTMLButtonElement) return button;
+    if (!(button instanceof HTMLButtonElement)) {
+      button = document.createElement('button');
+      button.id = 'send-review-email';
+      button.type = 'button';
+      button.className = 'primary-action';
+      footerActions.prepend(button);
+      button.addEventListener('click', sendReviewEmail);
+    }
 
-    button = document.createElement('button');
-    button.id = 'send-review-email';
-    button.type = 'button';
-    button.className = 'primary-action';
-    button.textContent = 'Enviar por correo';
-    footerActions.prepend(button);
-    button.addEventListener('click', sendReviewEmail);
+    button.disabled = envioEnCurso || envioCompletado;
+    button.textContent = envioCompletado ? 'Enviado' : (envioEnCurso ? 'Enviando…' : 'Enviar por correo');
     return button;
   }
 
   async function sendReviewEmail() {
+    if (envioEnCurso || envioCompletado) return;
     const button = ensureSendButton();
     const linkNode = reviewLink();
     const ligazon = linkNode instanceof HTMLInputElement ? linkNode.value.trim() : '';
@@ -214,14 +219,13 @@
       return;
     }
 
-    const ok = window.confirm(`Vas enviar a revisión de datos a ${personName()}.\n\nCorreo: ${correo}\n\nQueres continuar?`);
+    const ok = window.confirm(
+      `Vas enviar a revisión de datos a ${personName()}.\n\nCorreo: ${correo}\n\nQueres continuar?`
+    );
     if (!ok) return;
 
     envioEnCurso = true;
-    if (button instanceof HTMLButtonElement) {
-      button.disabled = true;
-      button.textContent = 'Enviando…';
-    }
+    ensureSendButton();
     setReviewMessage('Enviando correo…');
 
     try {
@@ -235,21 +239,22 @@
 
       if (!response.ok || result?.ok !== true || enviados < 1) {
         const motivo = String(
-          result?.erro || result?.envio?.erro || result?.envio?.detalle?.[0]?.motivo || 'Non foi posible enviar o correo.'
+          result?.erro ||
+          result?.envio?.erro ||
+          result?.envio?.detalle?.[0]?.motivo ||
+          'Non foi posible enviar o correo.'
         ).trim();
         throw new Error(motivo);
       }
 
+      envioCompletado = true;
       const destino = String(result?.envio?.detalle?.[0]?.correo || correo).trim();
       setReviewMessage(destino ? `Correo enviado correctamente a ${destino}.` : 'Correo enviado correctamente.');
     } catch (error) {
       setReviewMessage(error instanceof Error ? error.message : 'Non foi posible enviar o correo.');
     } finally {
       envioEnCurso = false;
-      if (button instanceof HTMLButtonElement) {
-        button.disabled = false;
-        button.textContent = 'Enviar por correo';
-      }
+      ensureSendButton();
     }
   }
 
@@ -271,6 +276,8 @@
     const response = await originalFetch(destination, init);
     if (body?.accion === 'xerarLigazon' && response.ok) {
       lastIdToken = String(body?.idToken || '').trim();
+      envioCompletado = false;
+      envioEnCurso = false;
       ensureSendButton();
       setReviewMessage('Ligazón xerada. Podes enviala por correo ou copiala manualmente.');
     }
