@@ -10,11 +10,25 @@
  * - false / 0 / no / off: envío bloqueado.
  */
 
+var PERSOAS_EMAIL_PRODUCTION_SCRIPT_ID_ =
+  '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV';
+
+function persoasEmailAmbiente_() {
+  try {
+    return String(ScriptApp.getScriptId() || '').trim() ===
+      PERSOAS_EMAIL_PRODUCTION_SCRIPT_ID_
+      ? 'production'
+      : 'blocked';
+  } catch (erro) {
+    return 'blocked';
+  }
+}
+
 function enviarRevisionsPersoasAdministracion_(datos) {
   try {
-    var ambiente = obterAmbienteSCPP_();
+    var ambiente = persoasEmailAmbiente_();
     if (ambiente !== 'production') {
-      throw new Error('Envío de correos bloqueado no ambiente ' + ambiente);
+      throw new Error('Envío de correos bloqueado fóra do Apps Script de Producción');
     }
 
     var propiedades = PropertiesService.getScriptProperties();
