@@ -1,8 +1,13 @@
 function persoasNovoListarCompleto_(datos) {
   var resultado = listarPersoasAdministracion_(datos || {});
   if (!resultado || resultado.ok !== true) return resultado;
+
   try { resultado.textoLegalPersoas = obterTextoLegalPersoasAdmin_(); }
   catch (erroLegal) { resultado.textoLegalErro = String(erroLegal && erroLegal.message ? erroLegal.message : erroLegal); }
+
+  try { resultado.textoExencionCota = obterTextoExencionCotaPersoasAdmin_(); }
+  catch (erroExencion) { resultado.textoExencionCotaErro = String(erroExencion && erroExencion.message ? erroExencion.message : erroExencion); }
+
   try {
     var contexto = obterContextoPersoasAdmin_();
     var valores = contexto.persoas.getDataRange().getValues();
@@ -19,5 +24,6 @@ function persoasNovoListarCompleto_(datos) {
       (resultado.persoas || []).forEach(function(p){ p.estadoAlta = estados[String(p.idPersoa||p.id||p.rowId||'')] || 'COMPLETA'; });
     }
   } catch (erroEstado) { console.warn('Non se puido completar EstadoAlta:', erroEstado); }
+
   return resultado;
 }
