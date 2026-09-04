@@ -16,13 +16,18 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
         <a class="secondary-action back-link" href="/portal/administracion/persoas/">← Volver a Persoas</a>
       </header>
 
-      <section id="loading" class="state-box">Comprobando a sesión…</section>
+      <section id="loading" class="state-box">Comprobando a sesión e recuperando envíos pendentes…</section>
       <section id="error-state" class="state-box error-box" hidden><strong>Non foi posible abrir a ferramenta</strong><p id="error-message"></p></section>
 
       <section id="mass-app" class="mass-app" hidden>
         <section id="environment-card" class="warning-card">
           <strong id="environment-title">Comprobando ambiente…</strong>
           <p id="environment-text"></p>
+        </section>
+
+        <section id="quota-card" class="quota-card" hidden>
+          <div><span class="section-kicker">Cota de correo</span><strong id="quota-remaining">—</strong><small>destinatarios dispoñibles</small></div>
+          <p id="quota-reset">A hora de recuperación é unha estimación.</p>
         </section>
 
         <section class="control-card">
@@ -39,7 +44,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
         </section>
 
         <section id="results-section" class="results-card" hidden>
-          <header><div><h2>Ligazóns xeradas</h2><p id="results-note"></p></div><button id="copy-all" class="secondary-action" type="button">Copiar todas</button></header>
+          <header><div><h2 id="results-title">Ligazóns xeradas</h2><p id="results-note"></p></div><button id="copy-all" class="secondary-action" type="button">Copiar todas</button></header>
           <div class="table-wrap"><table><thead><tr><th>Persoa</th><th>Correo</th><th>Caduca</th><th>Ligazón</th></tr></thead><tbody id="results-body"></tbody></table></div>
         </section>
 
@@ -67,7 +72,7 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   const PRODUCTION_HOSTS=new Set(['coralpolifonicapontevedra.org','www.coralpolifonicapontevedra.org']);
   const SEND_BATCH_SIZE=5;
   const q=(s)=>document.querySelector(s);
-  const loading=q('#loading'),errorState=q('#error-state'),errorMessage=q('#error-message'),app=q('#mass-app'),generate=q('#generate'),scope=q('#scope'),regenerate=q('#regenerate'),summary=q('#summary'),resultsSection=q('#results-section'),omittedSection=q('#omitted-section'),resultsBody=q('#results-body'),omittedBody=q('#omitted-body'),copyAll=q('#copy-all'),logout=q('#persoas-revisions-logout'),sendSection=q('#send-section'),sendAll=q('#send-all'),sendHelp=q('#send-help'),sendResult=q('#send-result'),environmentTitle=q('#environment-title'),environmentText=q('#environment-text'),environmentCard=q('#environment-card');
+  const loading=q('#loading'),errorState=q('#error-state'),errorMessage=q('#error-message'),app=q('#mass-app'),generate=q('#generate'),scope=q('#scope'),regenerate=q('#regenerate'),summary=q('#summary'),resultsSection=q('#results-section'),omittedSection=q('#omitted-section'),resultsBody=q('#results-body'),omittedBody=q('#omitted-body'),copyAll=q('#copy-all'),logout=q('#persoas-revisions-logout'),sendSection=q('#send-section'),sendAll=q('#send-all'),sendHelp=q('#send-help'),sendResult=q('#send-result'),environmentTitle=q('#environment-title'),environmentText=q('#environment-text'),environmentCard=q('#environment-card'),quotaCard=q('#quota-card'),quotaRemaining=q('#quota-remaining'),quotaReset=q('#quota-reset');
   let lastResults=[];
   let pendingSendResults=[];
   const isProduction=PRODUCTION_HOSTS.has(location.hostname.toLowerCase());
@@ -75,15 +80,34 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   function renderEnvironment(){
     if(environmentTitle instanceof HTMLElement)environmentTitle.textContent=isProduction?'Produción · envío dispoñible con confirmación':'Preview · envío real bloqueado';
     if(environmentText instanceof HTMLElement)environmentText.textContent=isProduction
-      ?'Podes xerar as ligazóns e, despois de revisalas, enviar correos individuais. O envío masivo faise en lotes pequenos e pode retomarse se unha chamada falla.'
+      ?'Podes xerar as ligazóns e, despois de revisalas, enviar correos individuais. Os pendentes gárdanse no backend e recupéranse ao volver abrir esta pantalla.'
       :'Podes xerar, abrir, copiar e revisar as ligazóns. Ningún correo nin notificación poderá saír desde este ambiente.';
     if(environmentCard instanceof HTMLElement)environmentCard.classList.toggle('production-card',isProduction);
   }
 
-  async function requestMass(){
+  function formatDateTime(value){
+    if(!value)return'';
+    const d=new Date(value);return Number.isNaN(d.getTime())?'':d.toLocaleString('gl-ES');
+  }
+
+  function renderQuota(data){
+    if(!(quotaCard instanceof HTMLElement))return;
+    const quota=Number(data?.cotaRestante);
+    if(!Number.isFinite(quota)){quotaCard.hidden=true;return;}
+    quotaCard.hidden=false;
+    if(quotaRemaining instanceof HTMLElement)quotaRemaining.textContent=String(quota);
+    if(quotaReset instanceof HTMLElement){
+      const reset=formatDateTime(data?.restablecementoEstimado);
+      quotaReset.textContent=reset
+        ?`Recuperación estimada arredor de ${reset}. Google non facilita a hora exacta; esta é unha estimación conservadora baseada na primeira observación deste ciclo.`
+        :'Google non facilita directamente a hora exacta de restablecemento da cota.';
+    }
+  }
+
+  async function requestMass(extra={}){
     const user=auth.currentUser;if(!user?.email)throw new Error('A sesión non está activa.');
     const idToken=await user.getIdToken();
-    const response=await fetch('/api/persoas-revision-masiva',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,alcance:scope instanceof HTMLSelectElement?scope.value:'cantores',rexenerar:regenerate instanceof HTMLInputElement&&regenerate.checked})});
+    const response=await fetch('/api/persoas-revision-masiva',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,alcance:scope instanceof HTMLSelectElement?scope.value:'cantores',rexenerar:regenerate instanceof HTMLInputElement&&regenerate.checked,...extra})});
     const result=await response.json().catch(()=>null);if(!response.ok||!result?.ok)throw new Error(result?.erro||`Erro HTTP ${response.status}`);return result;
   }
 
@@ -95,23 +119,46 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   }
 
   function cell(text){const td=document.createElement('td');td.textContent=String(text??'');return td;}
-  function render(result){
-    if(summary instanceof HTMLElement)summary.hidden=false;
-    q('#m-candidates').textContent=String(result.candidatas||0);q('#m-generated').textContent=String(result.xeradas||0);q('#m-omitted').textContent=String(result.omitidas||0);q('#m-version').textContent=String(result.versionLegal||'—');
-    lastResults=Array.isArray(result.resultados)?result.resultados:[];
+
+  function renderResults(items, recovered=false){
+    lastResults=Array.isArray(items)?items:[];
     pendingSendResults=[...lastResults];
     if(resultsBody instanceof HTMLElement){resultsBody.replaceChildren();lastResults.forEach(item=>{const tr=document.createElement('tr');tr.append(cell(item.nome),cell(item.correo),cell(item.caducaEn?new Date(item.caducaEn).toLocaleString('gl-ES'):''));const td=document.createElement('td'),a=document.createElement('a');a.href=item.ligazon;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Abrir';td.append(a);tr.append(td);resultsBody.append(tr);});}
     if(resultsSection instanceof HTMLElement)resultsSection.hidden=!lastResults.length;
+    const title=q('#results-title');if(title instanceof HTMLElement)title.textContent=recovered?'Correos pendentes recuperados':'Ligazóns xeradas';
+    const note=q('#results-note');if(note instanceof HTMLElement)note.textContent=recovered
+      ?`${lastResults.length} correos da última xeración seguen pendentes. Non se volverán enviar os que xa constan como enviados.`
+      :`${lastResults.length} ligazóns individuais. A xeración non envía correos automaticamente.`;
     if(sendSection instanceof HTMLElement)sendSection.hidden=!lastResults.length;
-    if(sendAll instanceof HTMLButtonElement){sendAll.disabled=!isProduction||!lastResults.length;sendAll.textContent=isProduction?'Enviar correos':'Envío bloqueado en Preview';}
+    if(sendAll instanceof HTMLButtonElement){sendAll.disabled=!isProduction||!lastResults.length;sendAll.textContent=isProduction?(recovered?`Retomar ${lastResults.length} pendentes`:'Enviar correos'):'Envío bloqueado en Preview';}
     if(sendHelp instanceof HTMLElement)sendHelp.textContent=isProduction
-      ?`Hai ${lastResults.length} ligazóns preparadas. Enviaranse en lotes de ${SEND_BATCH_SIZE}; se unha chamada falla poderás retomar só os pendentes.`
+      ?`Hai ${lastResults.length} correos pendentes. Enviaranse en lotes de ${SEND_BATCH_SIZE}; se a cota non chega para todo o lote, enviaranse os posibles e o resto quedará gardado como pendente.`
       :'En Preview esta función é só visible para probar o deseño. O backend rexeita calquera intento real de envío.';
+  }
+
+  function render(result){
+    if(summary instanceof HTMLElement)summary.hidden=false;
+    q('#m-candidates').textContent=String(result.candidatas||0);q('#m-generated').textContent=String(result.xeradas||0);q('#m-omitted').textContent=String(result.omitidas||0);q('#m-version').textContent=String(result.versionLegal||'—');
+    renderResults(Array.isArray(result.resultados)?result.resultados:[],false);
+    renderQuota(result);
     if(sendResult instanceof HTMLElement){sendResult.hidden=true;sendResult.textContent='';}
     const omitted=Array.isArray(result.detalleOmitidas)?result.detalleOmitidas:[];
     if(omittedBody instanceof HTMLElement){omittedBody.replaceChildren();omitted.forEach(item=>{const tr=document.createElement('tr');tr.append(cell(item.nome),cell(item.correo||'—'),cell(item.motivo));omittedBody.append(tr);});}
     if(omittedSection instanceof HTMLElement)omittedSection.hidden=!omitted.length;
-    const note=q('#results-note');if(note instanceof HTMLElement)note.textContent=`${lastResults.length} ligazóns individuais. A xeración non envía correos automaticamente.`;
+  }
+
+  async function recoverPending(){
+    if(!isProduction)return;
+    try{
+      const result=await requestMass({accion:'recuperarPendentes'});
+      renderQuota(result);
+      if(result?.recuperada&&Array.isArray(result.resultados)&&result.resultados.length){
+        renderResults(result.resultados,true);
+        if(sendResult instanceof HTMLElement){sendResult.hidden=false;sendResult.textContent=`Recuperada a última xeración: ${Number(result.enviados||0)} xa enviados · ${Number(result.pendentes||0)} pendentes.`;}
+      }
+    }catch(error){
+      console.warn('Non se puideron recuperar automaticamente os envíos pendentes:',error);
+    }
   }
 
   async function generateAll(){if(!(generate instanceof HTMLButtonElement))return;if(!confirm('Vas xerar ligazóns individuais para o grupo seleccionado. A xeración non envía correos. Queres continuar?'))return;const old=generate.textContent;generate.disabled=true;generate.textContent='Xerando…';try{render(await requestMass());}catch(error){alert(error instanceof Error?error.message:'Non foi posible xerar as ligazóns.');}finally{generate.disabled=false;generate.textContent=old||'Xerar ligazóns masivas';}}
@@ -125,29 +172,34 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     if(!pendingSendResults.length){showSendProgress('Non quedan correos pendentes nesta xeración.');sendAll.disabled=true;sendAll.textContent='Envío rematado';return;}
 
     const totalPendente=pendingSendResults.length;
-    const answer=prompt(`Vanse procesar ${totalPendente} correos pendentes en lotes de ${SEND_BATCH_SIZE}. Esta operación é real.\n\nSe un lote falla, poderás retomar desde os pendentes sen duplicar os xa enviados.\n\nEscribe ENVIAR para continuar:`,'');
+    const answer=prompt(`Vanse procesar ${totalPendente} correos pendentes en lotes de ${SEND_BATCH_SIZE}. Esta operación é real.\n\nSe a cota diaria se esgota, os restantes quedarán gardados como pendentes para retomalos máis tarde.\n\nEscribe ENVIAR para continuar:`,'');
     if(answer!=='ENVIAR')return;
 
     sendAll.disabled=true;
-    let enviados=0,omitidos=0,erros=0,procesados=0;
+    let enviados=0,omitidos=0,erros=0,procesados=0,adiados=0;
     const pendentesAoComezo=[...pendingSendResults];
     const fallidos=[];
 
     while(procesados<pendentesAoComezo.length){
       const lote=pendentesAoComezo.slice(procesados,procesados+SEND_BATCH_SIZE);
       sendAll.textContent=`Enviando ${Math.min(procesados+lote.length,pendentesAoComezo.length)}/${pendentesAoComezo.length}…`;
-      showSendProgress(`Procesando lote ${Math.floor(procesados/SEND_BATCH_SIZE)+1} · ${procesados}/${pendentesAoComezo.length} completados nesta execución.`);
+      showSendProgress(`Procesando lote ${Math.floor(procesados/SEND_BATCH_SIZE)+1} · ${procesados}/${pendentesAoComezo.length} revisados nesta execución.`);
       try{
         const result=await requestSend(lote.map(item=>item.ligazon));
         const envio=result?.envio||{};
+        renderQuota(envio);
         enviados+=Number(envio.enviados||0);
         omitidos+=Number(envio.omitidos||0);
         erros+=Number(envio.erros||0);
-        const correosConErro=new Set((Array.isArray(envio.detalle)?envio.detalle:[]).filter(item=>String(item?.estado||'').toUpperCase()==='ERRO').map(item=>String(item?.correo||'').trim().toLowerCase()).filter(Boolean));
-        lote.forEach(item=>{if(correosConErro.has(String(item?.correo||'').trim().toLowerCase()))fallidos.push(item);});
+        adiados+=Number(envio.adiadosPorCota||0);
+        const detalle=Array.isArray(envio.detalle)?envio.detalle:[];
+        const pendentesIds=new Set(detalle.filter(item=>['ERRO','ADIADO_COTA'].includes(String(item?.estado||'').toUpperCase())).map(item=>String(item?.revisionId||'').trim()).filter(Boolean));
+        const pendentesCorreos=new Set(detalle.filter(item=>['ERRO','ADIADO_COTA'].includes(String(item?.estado||'').toUpperCase())).map(item=>String(item?.correo||'').trim().toLowerCase()).filter(Boolean));
+        lote.forEach(item=>{if(pendentesIds.has(String(item?.revisionId||'').trim())||pendentesCorreos.has(String(item?.correo||'').trim().toLowerCase()))fallidos.push(item);});
         procesados+=lote.length;
         pendingSendResults=[...fallidos,...pendentesAoComezo.slice(procesados)];
-        showSendProgress(`Progreso: ${procesados}/${pendentesAoComezo.length} · ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro.`);
+        showSendProgress(`Progreso: ${procesados}/${pendentesAoComezo.length} revisados · ${enviados} enviados · ${omitidos} omitidos · ${adiados} adiados por cota · ${erros} con erro.`);
+        if(Number(envio.cotaRestante)===0&&pendingSendResults.length)break;
       }catch(error){
         pendingSendResults=[...fallidos,...pendentesAoComezo.slice(procesados)];
         const message=error instanceof Error?error.message:'Non foi posible contactar co servizo de envío.';
@@ -158,11 +210,13 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
       }
     }
 
-    pendingSendResults=[...fallidos];
+    pendingSendResults=[...fallidos,...pendentesAoComezo.slice(procesados)];
     if(pendingSendResults.length){
-      showSendProgress(`Rematou a pasada: ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro. Quedan ${pendingSendResults.length} para reintentar.`);
+      lastResults=[...pendingSendResults];
+      renderResults(lastResults,true);
+      showSendProgress(`Pausa por cota ou erro: ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro. Quedan ${pendingSendResults.length} pendentes e quedan gardados para retomar máis tarde.`);
       sendAll.disabled=false;
-      sendAll.textContent=`Reintentar ${pendingSendResults.length} pendentes`;
+      sendAll.textContent=`Retomar ${pendingSendResults.length} pendentes`;
     }else{
       showSendProgress(`Envío rematado: ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro.`);
       sendAll.textContent='Envío rematado';
@@ -171,10 +225,10 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   }
 
   renderEnvironment();
-  waitForPortalUser().then(user=>{if(!user?.email){location.href='/portal/';return;}if(loading instanceof HTMLElement)loading.hidden=true;if(app instanceof HTMLElement)app.hidden=false;}).catch(error=>{if(loading instanceof HTMLElement)loading.hidden=true;if(errorState instanceof HTMLElement)errorState.hidden=false;if(errorMessage instanceof HTMLElement)errorMessage.textContent=error instanceof Error?error.message:'Erro de sesión';});
+  waitForPortalUser().then(async user=>{if(!user?.email){location.href='/portal/';return;}if(loading instanceof HTMLElement)loading.hidden=true;if(app instanceof HTMLElement)app.hidden=false;await recoverPending();}).catch(error=>{if(loading instanceof HTMLElement)loading.hidden=true;if(errorState instanceof HTMLElement)errorState.hidden=false;if(errorMessage instanceof HTMLElement)errorMessage.textContent=error instanceof Error?error.message:'Erro de sesión';});
   generate?.addEventListener('click',generateAll);copyAll?.addEventListener('click',copyAllLinks);sendAll?.addEventListener('click',sendAllEmails);logout?.addEventListener('click',()=>closePortalSession());
 </script>
 
 <style is:global>
-  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.mass-main{flex:1;min-width:0;padding:2.1rem clamp(1.25rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.8rem}.section-kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}h1{margin:.2rem 0 .55rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.5rem)}.private-page-header p{max-width:780px;margin:0;color:#625c58}.back-link{text-decoration:none}.mass-app{display:grid;gap:1rem}.state-box,.warning-card,.control-card,.results-card,.send-card{padding:1.1rem 1.2rem;border:1px solid #ded8d3;background:#fff}.warning-card{border-color:#c8b47a;background:#fffdf5}.warning-card.production-card{border-color:#9eaa93;background:#fbfdf8}.warning-card p,.results-card header p,.send-card p{margin:.3rem 0 0;color:#68605b}.control-card{display:grid;grid-template-columns:minmax(220px,1fr) minmax(320px,1.4fr) auto;gap:1rem;align-items:end}.control-card label{display:grid;gap:.4rem}.control-card label>span{font-size:.76rem;font-weight:800;text-transform:uppercase}.check-line{grid-template-columns:auto 1fr!important;align-items:center!important}.check-line input{width:1rem}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem}.summary-grid>div{display:grid;gap:.2rem;padding:.9rem 1rem;border:1px solid #ded8d3;background:#fff}.summary-grid small{font-size:.7rem;font-weight:800;text-transform:uppercase;color:#786f69}.summary-grid strong{font-size:1.35rem;color:var(--color-principal)}.results-card{padding:0}.results-card header{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem 1.2rem;border-bottom:1px solid #e5ded8}.results-card h2,.send-card h2{margin:.1rem 0;color:var(--color-principal)}.send-card{display:flex;justify-content:space-between;align-items:center;gap:1.5rem;border-color:#c8b47a}.send-card .primary-action:disabled{opacity:.55;cursor:not-allowed}.send-result{font-weight:800;color:var(--color-principal)!important}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:.75rem .9rem;border-bottom:1px solid #eee8e3;text-align:left;vertical-align:top}th{font-size:.7rem;text-transform:uppercase;color:#6d655f;background:#faf8f6}td{font-size:.9rem}td a{font-weight:800;color:var(--color-principal)}select{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2;background:#fff;font:inherit}.primary-action,.secondary-action{min-height:2.6rem;padding:.6rem .9rem;border-radius:3px;font:inherit;font-weight:750;cursor:pointer}.primary-action{border:1px solid var(--color-principal);background:var(--color-principal);color:#fff}.secondary-action{border:1px solid #c7beb7;background:#fff;color:#393431}.error-box{border-color:#ba8f94}@media(max-width:900px){.control-card{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.private-page-header,.send-card{display:grid}}@media(max-width:600px){.mass-main{padding:1.2rem .8rem 3rem}.summary-grid{grid-template-columns:1fr}.results-card header{display:grid}}
+  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.mass-main{flex:1;min-width:0;padding:2.1rem clamp(1.25rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.8rem}.section-kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}h1{margin:.2rem 0 .55rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.5rem)}.private-page-header p{max-width:780px;margin:0;color:#625c58}.back-link{text-decoration:none}.mass-app{display:grid;gap:1rem}.state-box,.warning-card,.quota-card,.control-card,.results-card,.send-card{padding:1.1rem 1.2rem;border:1px solid #ded8d3;background:#fff}.warning-card{border-color:#c8b47a;background:#fffdf5}.warning-card.production-card{border-color:#9eaa93;background:#fbfdf8}.warning-card p,.results-card header p,.send-card p{margin:.3rem 0 0;color:#68605b}.quota-card{display:flex;justify-content:space-between;gap:1.2rem;align-items:center;border-color:#c8b47a;background:#fffdf7}.quota-card[hidden]{display:none}.quota-card>div{display:grid;gap:.1rem}.quota-card strong{font-size:1.7rem;color:var(--color-principal)}.quota-card small{color:#6c645f}.quota-card p{max-width:680px;margin:0;color:#68605b;font-size:.88rem;line-height:1.45}.control-card{display:grid;grid-template-columns:minmax(220px,1fr) minmax(320px,1.4fr) auto;gap:1rem;align-items:end}.control-card label{display:grid;gap:.4rem}.control-card label>span{font-size:.76rem;font-weight:800;text-transform:uppercase}.check-line{grid-template-columns:auto 1fr!important;align-items:center!important}.check-line input{width:1rem}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem}.summary-grid>div{display:grid;gap:.2rem;padding:.9rem 1rem;border:1px solid #ded8d3;background:#fff}.summary-grid small{font-size:.7rem;font-weight:800;text-transform:uppercase;color:#786f69}.summary-grid strong{font-size:1.35rem;color:var(--color-principal)}.results-card{padding:0}.results-card header{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem 1.2rem;border-bottom:1px solid #e5ded8}.results-card h2,.send-card h2{margin:.1rem 0;color:var(--color-principal)}.send-card{display:flex;justify-content:space-between;align-items:center;gap:1.5rem;border-color:#c8b47a}.send-card .primary-action:disabled{opacity:.55;cursor:not-allowed}.send-result{font-weight:800;color:var(--color-principal)!important}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:.75rem .9rem;border-bottom:1px solid #eee8e3;text-align:left;vertical-align:top}th{font-size:.7rem;text-transform:uppercase;color:#6d655f;background:#faf8f6}td{font-size:.9rem}td a{font-weight:800;color:var(--color-principal)}select{width:100%;min-height:2.8rem;padding:.6rem .75rem;border:1px solid #cfc8c2;background:#fff;font:inherit}.primary-action,.secondary-action{min-height:2.6rem;padding:.6rem .9rem;border-radius:3px;font:inherit;font-weight:750;cursor:pointer}.primary-action{border:1px solid var(--color-principal);background:var(--color-principal);color:#fff}.secondary-action{border:1px solid #c7beb7;background:#fff;color:#393431}.error-box{border-color:#ba8f94}@media(max-width:900px){.control-card{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.private-page-header,.send-card,.quota-card{display:grid}}@media(max-width:600px){.mass-main{padding:1.2rem .8rem 3rem}.summary-grid{grid-template-columns:1fr}.results-card header{display:grid}}
 </style>
