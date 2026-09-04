@@ -74,7 +74,8 @@ describe('Administración → Persoas v4 · Producción', () => {
     expect(cacheSync).toContain("'persoas/cache/snapshot-v4.json'");
     expect(appsScript).toContain('persoasV2OnEdit_');
     expect(appsScript).toContain('UrlFetchApp.fetch(PERSOAS_V2_CONFIG_.syncUrl');
-    expect(photoApi).toContain('refreshPhotoCaches');
+    expect(photoApi).toContain('refreshCaches');
+    expect(photoApi).toContain("source: 'perfil'");
     expect(reviewSync).toContain("revision?.estado !== 'COMPLETADA'");
     expect(feeReview).toContain('/api/persoas-review-cache-sync');
   });
