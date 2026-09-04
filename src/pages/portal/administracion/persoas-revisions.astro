@@ -65,15 +65,17 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
 <script>
   import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
   const PRODUCTION_HOSTS=new Set(['coralpolifonicapontevedra.org','www.coralpolifonicapontevedra.org']);
+  const SEND_BATCH_SIZE=5;
   const q=(s)=>document.querySelector(s);
   const loading=q('#loading'),errorState=q('#error-state'),errorMessage=q('#error-message'),app=q('#mass-app'),generate=q('#generate'),scope=q('#scope'),regenerate=q('#regenerate'),summary=q('#summary'),resultsSection=q('#results-section'),omittedSection=q('#omitted-section'),resultsBody=q('#results-body'),omittedBody=q('#omitted-body'),copyAll=q('#copy-all'),logout=q('#persoas-revisions-logout'),sendSection=q('#send-section'),sendAll=q('#send-all'),sendHelp=q('#send-help'),sendResult=q('#send-result'),environmentTitle=q('#environment-title'),environmentText=q('#environment-text'),environmentCard=q('#environment-card');
   let lastResults=[];
+  let pendingSendResults=[];
   const isProduction=PRODUCTION_HOSTS.has(location.hostname.toLowerCase());
 
   function renderEnvironment(){
     if(environmentTitle instanceof HTMLElement)environmentTitle.textContent=isProduction?'Produción · envío dispoñible con confirmación':'Preview · envío real bloqueado';
     if(environmentText instanceof HTMLElement)environmentText.textContent=isProduction
-      ?'Podes xerar as ligazóns e, despois de revisalas, enviar correos individuais. O sistema pedirá unha confirmación expresa antes de enviar.'
+      ?'Podes xerar as ligazóns e, despois de revisalas, enviar correos individuais. O envío masivo faise en lotes pequenos e pode retomarse se unha chamada falla.'
       :'Podes xerar, abrir, copiar e revisar as ligazóns. Ningún correo nin notificación poderá saír desde este ambiente.';
     if(environmentCard instanceof HTMLElement)environmentCard.classList.toggle('production-card',isProduction);
   }
@@ -85,10 +87,10 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     const result=await response.json().catch(()=>null);if(!response.ok||!result?.ok)throw new Error(result?.erro||`Erro HTTP ${response.status}`);return result;
   }
 
-  async function requestSend(){
+  async function requestSend(ligazons){
     const user=auth.currentUser;if(!user?.email)throw new Error('A sesión non está activa.');
     const idToken=await user.getIdToken();
-    const response=await fetch('/api/persoas-revision-envio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,ligazons:lastResults.map(item=>item.ligazon)})});
+    const response=await fetch('/api/persoas-revision-envio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,ligazons})});
     const result=await response.json().catch(()=>null);if(!response.ok||!result?.ok)throw new Error(result?.erro||`Erro HTTP ${response.status}`);return result;
   }
 
@@ -97,12 +99,13 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     if(summary instanceof HTMLElement)summary.hidden=false;
     q('#m-candidates').textContent=String(result.candidatas||0);q('#m-generated').textContent=String(result.xeradas||0);q('#m-omitted').textContent=String(result.omitidas||0);q('#m-version').textContent=String(result.versionLegal||'—');
     lastResults=Array.isArray(result.resultados)?result.resultados:[];
+    pendingSendResults=[...lastResults];
     if(resultsBody instanceof HTMLElement){resultsBody.replaceChildren();lastResults.forEach(item=>{const tr=document.createElement('tr');tr.append(cell(item.nome),cell(item.correo),cell(item.caducaEn?new Date(item.caducaEn).toLocaleString('gl-ES'):''));const td=document.createElement('td'),a=document.createElement('a');a.href=item.ligazon;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Abrir';td.append(a);tr.append(td);resultsBody.append(tr);});}
     if(resultsSection instanceof HTMLElement)resultsSection.hidden=!lastResults.length;
     if(sendSection instanceof HTMLElement)sendSection.hidden=!lastResults.length;
     if(sendAll instanceof HTMLButtonElement){sendAll.disabled=!isProduction||!lastResults.length;sendAll.textContent=isProduction?'Enviar correos':'Envío bloqueado en Preview';}
     if(sendHelp instanceof HTMLElement)sendHelp.textContent=isProduction
-      ?`Hai ${lastResults.length} ligazóns preparadas. O envío será individual e non mostrará os enderezos doutras persoas.`
+      ?`Hai ${lastResults.length} ligazóns preparadas. Enviaranse en lotes de ${SEND_BATCH_SIZE}; se unha chamada falla poderás retomar só os pendentes.`
       :'En Preview esta función é só visible para probar o deseño. O backend rexeita calquera intento real de envío.';
     if(sendResult instanceof HTMLElement){sendResult.hidden=true;sendResult.textContent='';}
     const omitted=Array.isArray(result.detalleOmitidas)?result.detalleOmitidas:[];
@@ -114,19 +117,57 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
   async function generateAll(){if(!(generate instanceof HTMLButtonElement))return;if(!confirm('Vas xerar ligazóns individuais para o grupo seleccionado. A xeración non envía correos. Queres continuar?'))return;const old=generate.textContent;generate.disabled=true;generate.textContent='Xerando…';try{render(await requestMass());}catch(error){alert(error instanceof Error?error.message:'Non foi posible xerar as ligazóns.');}finally{generate.disabled=false;generate.textContent=old||'Xerar ligazóns masivas';}}
   async function copyAllLinks(){if(!lastResults.length)return;const text=lastResults.map(item=>`${item.nome}\t${item.correo}\t${item.ligazon}`).join('\n');try{await navigator.clipboard.writeText(text);if(copyAll instanceof HTMLButtonElement)copyAll.textContent='Copiadas';setTimeout(()=>{if(copyAll instanceof HTMLButtonElement)copyAll.textContent='Copiar todas'},1800);}catch{alert('Non foi posible copiar automaticamente.');}}
 
+  function showSendProgress(text){if(sendResult instanceof HTMLElement){sendResult.hidden=false;sendResult.textContent=text;}}
+
   async function sendAllEmails(){
     if(!isProduction){alert('O envío está bloqueado en Preview.');return;}
     if(!lastResults.length||!(sendAll instanceof HTMLButtonElement))return;
-    const answer=prompt(`Vanse enviar ${lastResults.length} correos individuais co enlace de revisión. Esta operación é real.\n\nEscribe ENVIAR para continuar:`,'');
+    if(!pendingSendResults.length){showSendProgress('Non quedan correos pendentes nesta xeración.');sendAll.disabled=true;sendAll.textContent='Envío rematado';return;}
+
+    const totalPendente=pendingSendResults.length;
+    const answer=prompt(`Vanse procesar ${totalPendente} correos pendentes en lotes de ${SEND_BATCH_SIZE}. Esta operación é real.\n\nSe un lote falla, poderás retomar desde os pendentes sen duplicar os xa enviados.\n\nEscribe ENVIAR para continuar:`,'');
     if(answer!=='ENVIAR')return;
-    const old=sendAll.textContent;sendAll.disabled=true;sendAll.textContent='Enviando…';
-    try{
-      const result=await requestSend();
-      const envio=result?.envio||{};
-      const enviados=Number(envio.enviados||0),omitidos=Number(envio.omitidos||0),erros=Number(envio.erros||0);
-      if(sendResult instanceof HTMLElement){sendResult.hidden=false;sendResult.textContent=`Resultado: ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro.`;}
+
+    sendAll.disabled=true;
+    let enviados=0,omitidos=0,erros=0,procesados=0;
+    const pendentesAoComezo=[...pendingSendResults];
+    const fallidos=[];
+
+    while(procesados<pendentesAoComezo.length){
+      const lote=pendentesAoComezo.slice(procesados,procesados+SEND_BATCH_SIZE);
+      sendAll.textContent=`Enviando ${Math.min(procesados+lote.length,pendentesAoComezo.length)}/${pendentesAoComezo.length}…`;
+      showSendProgress(`Procesando lote ${Math.floor(procesados/SEND_BATCH_SIZE)+1} · ${procesados}/${pendentesAoComezo.length} completados nesta execución.`);
+      try{
+        const result=await requestSend(lote.map(item=>item.ligazon));
+        const envio=result?.envio||{};
+        enviados+=Number(envio.enviados||0);
+        omitidos+=Number(envio.omitidos||0);
+        erros+=Number(envio.erros||0);
+        const correosConErro=new Set((Array.isArray(envio.detalle)?envio.detalle:[]).filter(item=>String(item?.estado||'').toUpperCase()==='ERRO').map(item=>String(item?.correo||'').trim().toLowerCase()).filter(Boolean));
+        lote.forEach(item=>{if(correosConErro.has(String(item?.correo||'').trim().toLowerCase()))fallidos.push(item);});
+        procesados+=lote.length;
+        pendingSendResults=[...fallidos,...pendentesAoComezo.slice(procesados)];
+        showSendProgress(`Progreso: ${procesados}/${pendentesAoComezo.length} · ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro.`);
+      }catch(error){
+        pendingSendResults=[...fallidos,...pendentesAoComezo.slice(procesados)];
+        const message=error instanceof Error?error.message:'Non foi posible contactar co servizo de envío.';
+        showSendProgress(`Envío interrompido tras ${procesados}/${pendentesAoComezo.length}. Quedan ${pendingSendResults.length} pendentes. ${message}`);
+        sendAll.disabled=false;
+        sendAll.textContent=`Retomar ${pendingSendResults.length} pendentes`;
+        return;
+      }
+    }
+
+    pendingSendResults=[...fallidos];
+    if(pendingSendResults.length){
+      showSendProgress(`Rematou a pasada: ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro. Quedan ${pendingSendResults.length} para reintentar.`);
+      sendAll.disabled=false;
+      sendAll.textContent=`Reintentar ${pendingSendResults.length} pendentes`;
+    }else{
+      showSendProgress(`Envío rematado: ${enviados} enviados · ${omitidos} omitidos · ${erros} con erro.`);
       sendAll.textContent='Envío rematado';
-    }catch(error){alert(error instanceof Error?error.message:'Non foi posible enviar os correos.');sendAll.disabled=false;sendAll.textContent=old||'Enviar correos';}
+      sendAll.disabled=true;
+    }
   }
 
   renderEnvironment();
