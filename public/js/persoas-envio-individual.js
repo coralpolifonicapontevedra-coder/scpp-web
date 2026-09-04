@@ -147,6 +147,8 @@
   let lastReviewEmail = '';
   let envioEnCurso = false;
   let envioCompletado = false;
+  let photoObjectUrl = '';
+  let photoLoadSeq = 0;
 
   function reviewState() {
     return document.querySelector('#review-state');
@@ -205,7 +207,6 @@
 
   async function sendReviewEmail() {
     if (envioEnCurso || envioCompletado) return;
-    const button = ensureSendButton();
     const linkNode = reviewLink();
     const ligazon = linkNode instanceof HTMLInputElement ? linkNode.value.trim() : '';
     const correo = selectedEmail();
@@ -262,18 +263,61 @@
     }
   }
 
+  async function bridgeSelectedPhoto() {
+    const select = document.querySelector('#person-select');
+    const image = document.querySelector('#person-photo');
+    const empty = document.querySelector('#person-photo-empty');
+    const idPersoa = select instanceof HTMLSelectElement ? String(select.value || '').trim() : '';
+    if (!idPersoa || !lastIdToken || !(image instanceof HTMLImageElement)) return;
+    if (!image.hidden && image.getAttribute('src')) return;
+
+    const seq = ++photoLoadSeq;
+    try {
+      const response = await originalFetch('/api/persoas-foto-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: lastIdToken, accion: 'descargar', idPersoa })
+      });
+      if (!response.ok || seq !== photoLoadSeq) return;
+      const blob = await response.blob();
+      if (!blob.size || seq !== photoLoadSeq) return;
+      if (photoObjectUrl) URL.revokeObjectURL(photoObjectUrl);
+      photoObjectUrl = URL.createObjectURL(blob);
+      image.src = photoObjectUrl;
+      image.hidden = false;
+      if (empty instanceof HTMLElement) empty.hidden = true;
+    } catch {
+      // Sen foto histórica: mantense o estado baleiro normal da ficha.
+    }
+  }
+
+  function attachPhotoBridge() {
+    const select = document.querySelector('#person-select');
+    if (!(select instanceof HTMLSelectElement) || select.dataset.photoBridge === '1') return;
+    select.dataset.photoBridge = '1';
+    select.addEventListener('change', () => window.setTimeout(bridgeSelectedPhoto, 80));
+  }
+
   window.fetch = async function patchedFetch(input, init) {
     let url = '';
     try { url = typeof input === 'string' ? input : String(input?.url || ''); }
     catch { return originalFetch(input, init); }
 
-    if (!url.includes('/api/persoas-revision') || url.includes('/api/persoas-revision-envio')) {
-      return originalFetch(input, init);
+    let body = null;
+    try { body = init?.body && typeof init.body === 'string' ? JSON.parse(init.body) : null; }
+    catch { body = null; }
+
+    if (body?.idToken && (url.includes('/api/persoas-v2') || url.includes('/api/persoas-revision'))) {
+      lastIdToken = String(body.idToken || '').trim();
     }
 
-    let body = null;
-    try { body = init?.body ? JSON.parse(String(init.body)) : null; }
-    catch { body = null; }
+    if (!url.includes('/api/persoas-revision') || url.includes('/api/persoas-revision-envio')) {
+      const response = await originalFetch(input, init);
+      if (url.includes('/api/persoas-v2') && body?.accion === 'listar' && response.ok) {
+        window.setTimeout(attachPhotoBridge, 0);
+      }
+      return response;
+    }
 
     const useV4Generator = body?.accion === 'xerarLigazon' && /\/api\/persoas-revision(?:\?|$)/.test(url);
     const destination = useV4Generator ? '/api/persoas-revision-link-v4' : input;
@@ -291,5 +335,12 @@
   };
 
   ensureSendButton();
-  document.addEventListener('DOMContentLoaded', ensureSendButton, { once: true });
+  attachPhotoBridge();
+  document.addEventListener('DOMContentLoaded', () => {
+    ensureSendButton();
+    attachPhotoBridge();
+  }, { once: true });
+  window.addEventListener('beforeunload', () => {
+    if (photoObjectUrl) URL.revokeObjectURL(photoObjectUrl);
+  });
 })();
