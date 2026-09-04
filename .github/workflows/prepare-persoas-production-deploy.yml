@@ -1,4 +1,4 @@
-name: Preparar despregue Persoas Producción
+name: Despregar Persoas Producción
 
 on:
   push:
@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  preparar:
+  despregar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Descargar rama de release
         uses: actions/checkout@v4
@@ -103,10 +103,38 @@ jobs:
           cp /tmp/prod-live/persoas-administracion-v2.js /tmp/persoas-prod-diff/
           cp /tmp/prod-live/persoas-legacy-compat-v2.js /tmp/persoas-prod-diff/
           cp /tmp/prod-live/xestion-permisos-dispatcher-integracion.js /tmp/persoas-prod-diff/
+          printf '%s\n' 'Rollback deployment: versión 101' > /tmp/persoas-prod-diff/rollback.txt
+          printf '%s\n' 'Deployment: AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh' >> /tmp/persoas-prod-diff/rollback.txt
 
-      - name: Gardar auditoría do parche
+      - name: Gardar auditoría previa
         uses: actions/upload-artifact@v4
         with:
-          name: persoas-production-deploy-dry-run
+          name: persoas-production-deploy-audit
           path: /tmp/persoas-prod-diff
           retention-days: 3
+
+      - name: Publicar código e actualizar só o deployment de Producción
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOYMENT_ID='AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+          DESCRIPTION='Producción - Administración Persoas v2 2026-09-04'
+          cd /tmp/prod-live
+          npx --yes @google/clasp@3 push --force
+          VERSION_OUTPUT="$(npx --yes @google/clasp@3 version "$DESCRIPTION")"
+          printf '%s\n' "$VERSION_OUTPUT"
+          VERSION="$(printf '%s\n' "$VERSION_OUTPUT" | sed -nE 's/.*Created version ([0-9]+).*/\1/p' | tail -1)"
+          test -n "$VERSION"
+          npx --yes @google/clasp@3 deploy -V "$VERSION" -d "$DESCRIPTION" -i "$DEPLOYMENT_ID"
+          DEPLOYS="$(npx --yes @google/clasp@3 deployments)"
+          printf '%s\n' "$DEPLOYS"
+          printf '%s\n' "$DEPLOYS" | grep -F "$DEPLOYMENT_ID @$VERSION"
+          printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
+        id: deploy
+
+      - name: Resumo final
+        shell: bash
+        run: |
+          echo "Apps Script Producción actualizado."
+          echo "Nova versión: ${{ steps.deploy.outputs.version }}"
+          echo "Rollback inmediato dispoñible: deployment anterior @101."
