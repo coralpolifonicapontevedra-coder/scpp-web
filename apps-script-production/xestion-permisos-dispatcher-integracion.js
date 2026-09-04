@@ -34,7 +34,10 @@ var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
   'persoasV2Actualizar',
   'persoasV2Estado',
   'persoasV2Eliminar',
-  'persoasV2InstalarTrigger'
+  'persoasV2InstalarTrigger',
+  'persoasV2FotoPerfilObter',
+  'persoasV2FotoPerfilGardar',
+  'persoasV2FotoPerfilEliminar'
 ];
 
 function despacharPersoasAdministracionPortal_(accion, datos) {
@@ -88,6 +91,18 @@ function despacharPersoasAdministracionPortal_(accion, datos) {
 
   if (accion === 'persoasV2InstalarTrigger') {
     return persoasV2InstalarTrigger_(datos);
+  }
+
+  if (accion === 'persoasV2FotoPerfilObter') {
+    return persoasV2FotoPerfilObter_(datos);
+  }
+
+  if (accion === 'persoasV2FotoPerfilGardar') {
+    return persoasV2FotoPerfilGardar_(datos);
+  }
+
+  if (accion === 'persoasV2FotoPerfilEliminar') {
+    return persoasV2FotoPerfilEliminar_(datos);
   }
 
   return null;
