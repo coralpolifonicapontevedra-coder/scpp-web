@@ -208,6 +208,7 @@ export async function onRequest({ request, env }) {
     ligazon,
     caducaEn: revision.caducaEn,
     persoa: revision.persoa.nomeCompleto || revision.idPersoa,
+    correo: revision.persoa.correo,
     textoLegal: { id: textoLegal.id, version: textoLegal.version, titulo: textoLegal.titulo },
     envioAutomatico: false,
     fonte
