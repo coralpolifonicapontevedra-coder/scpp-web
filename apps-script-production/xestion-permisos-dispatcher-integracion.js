@@ -90,7 +90,7 @@ function despacharPersoasAdministracionPortal_(accion, datos) {
   }
 
   if (accion === 'persoasV2InstalarTrigger') {
-    return persoasV2InstalarTrigger_(datos);
+    return persoasV2InstalarTriggerESincronizarPerfil_(datos);
   }
 
   if (accion === 'persoasV2FotoPerfilObter') {
