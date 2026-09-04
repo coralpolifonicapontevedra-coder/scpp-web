@@ -46,7 +46,15 @@ jobs:
             curl -sSL --connect-timeout 10 --max-time 30 "https://$host/revision-datos/" -o "/tmp/scpp-diag/${host}-revision.html" || true
             if [ -f "/tmp/scpp-diag/${host}-revision.html" ]; then
               sha256sum "/tmp/scpp-diag/${host}-revision.html"
+              echo 'assets:'
+              grep -Eo '/_astro/[^" ]+\.(js|css)' "/tmp/scpp-diag/${host}-revision.html" | sort -u | head -50 || true
+              echo 'scripts:'
+              grep -Eo '<script[^>]+src="[^"]+"[^>]*>' "/tmp/scpp-diag/${host}-revision.html" | head -50 || true
+              echo 'markers:'
               grep -F 'Información sobre a cota social' "/tmp/scpp-diag/${host}-revision.html" || true
               grep -F 'fee-exemption-card' "/tmp/scpp-diag/${host}-revision.html" || true
             fi
           done
+
+          echo '===== DIFF principal vs scpp-web.pages.dev (/revision-datos/) ====='
+          diff -u "/tmp/scpp-diag/coralpolifonicapontevedra.org-revision.html" "/tmp/scpp-diag/scpp-web.pages.dev-revision.html" | sed -n '1,220p' || true
