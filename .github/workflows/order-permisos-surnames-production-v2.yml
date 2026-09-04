@@ -1,0 +1,85 @@
+name: Order permisos by surnames production v2
+
+on:
+  push:
+    branches:
+      - ops/order-permisos-surnames-production-20260904
+    paths:
+      - '.github/workflows/order-permisos-surnames-production-v2.yml'
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch only permisos page
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/pages/portal/administracion/permisos.astro')
+          s = p.read_text(encoding='utf-8')
+          old = "  const nome = (u) => u?.nome || u?.persoa || u?.email || '—';\n  const permisosUsuario = (email) => data.permisos.filter((p) => p.email === email && p.activo !== false);"
+          new = """  const nome = (u) => u?.nome || u?.persoa || u?.email || '—';
+  const claveOrdenApelidos = (u) => {
+    const completo = String(nome(u) || '').trim();
+    const partes = completo.split(/\\s+/).filter(Boolean);
+    if (partes.length <= 1) return completo;
+    const nApelidos = partes.length >= 3 ? 2 : 1;
+    return `${partes.slice(-nApelidos).join(' ')} ${partes.slice(0, -nApelidos).join(' ')}`.trim();
+  };
+  const compararPorApelidos = (a, b) =>
+    claveOrdenApelidos(a).localeCompare(claveOrdenApelidos(b), 'gl', { sensitivity:'base' }) ||
+    nome(a).localeCompare(nome(b), 'gl', { sensitivity:'base' });
+  const permisosUsuario = (email) => data.permisos.filter((p) => p.email === email && p.activo !== false);"""
+          if s.count(old) != 1:
+              raise SystemExit('BLOQUEADO: punto de inserción inesperado')
+          s = s.replace(old, new, 1)
+          old2 = """    const usuarios = data.usuarios.filter((u) => {
+      const coincideTexto = !query || (`${nome(u)} ${u.email}`).toLowerCase().includes(query);
+      const coincideModulo = !modulo || permisosConcedidosUsuario(u.email).some((p) => p.modulo === modulo);
+      return coincideTexto && coincideModulo;
+    });"""
+          new2 = old2[:-2] + ".sort(compararPorApelidos);"
+          if s.count(old2) != 1:
+              raise SystemExit('BLOQUEADO: lista visual inesperada')
+          s = s.replace(old2, new2, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Verify one frontend file only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git diff --name-only | wc -l)" -eq 1
+          test "$(git diff --name-only)" = 'src/pages/portal/administracion/permisos.astro'
+          ! git diff --name-only | grep -E '^(apps-script|functions)/'
+          git diff --check
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit production-only UI change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/pages/portal/administracion/permisos.astro
+          git commit -m 'ui: ordenar persoas por apelidos en permisos'
+          git push origin HEAD:main
