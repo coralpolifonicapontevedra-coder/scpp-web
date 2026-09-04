@@ -37,4 +37,18 @@ export default [
       '@typescript-eslint/no-unused-vars': 'off',
     },
   },
+  {
+    // O alta de audios elimina deliberadamente caracteres de control do nome do ficheiro.
+    files: ['functions/api/repertorio-admin-altas.js'],
+    rules: {
+      'no-control-regex': 'off',
+    },
+  },
+  {
+    // Excepción acoutada ao formulario de Repertorio xa validado en Preview.
+    files: ['src/pages/portal/administracion/repertorio.astro'],
+    rules: {
+      '@typescript-eslint/no-wrapper-object-types': 'off',
+    },
+  },
 ];
