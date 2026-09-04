@@ -314,6 +314,9 @@ async function executarEscritura(context, user, action, data, duracionFirebase, 
     extra.rowId = String(data.rowId || '').trim();
   }
   if (typeof data.activo === 'boolean') extra.activo = data.activo;
+  if (data.dataBaixa !== undefined) extra.dataBaixa = String(data.dataBaixa || '').trim();
+  if (data.motivoBaixa !== undefined) extra.motivoBaixa = String(data.motivoBaixa || '').trim();
+  if (data.observacionsBaixa !== undefined) extra.observacionsBaixa = String(data.observacionsBaixa || '').trim();
 
   const inicioAppsScript = Date.now();
   let result;

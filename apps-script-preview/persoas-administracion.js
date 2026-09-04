@@ -7,9 +7,9 @@
  */
 
 const PERSOAS_ADMIN_CONFIG = {
-  persoasSpreadsheetId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
+  persoasSpreadsheetId: '1o45U0odJynzPXNTBhOm11_sko13Sat-_r0saZ0BjBEg',
   persoasSheetId: 388888827,
-  usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+  usuariosSpreadsheetId: '1mqXN0_P21KZKPizPlPM-qM-Wx0QYxyR9T5wlObnmeA8',
   usuariosSheetId: 1291817000
 };
 
@@ -43,7 +43,6 @@ function listarPersoasAdministracion_(datos) {
     const email = normalizarEmailPersoasAdmin_(datos && datos.email);
     const contexto = obterContextoPersoasAdmin_();
 
-    // Persoas léese unha única vez para autorización e listado.
     const valoresPersoas = contexto.persoas.getDataRange().getValues();
     const administrador = obterAdministradorPersoasAdmin_(
       contexto,
@@ -111,10 +110,6 @@ function listarPersoasAdministracion_(datos) {
   }
 }
 
-/*
- * Valida permisos e devolve só a clave privada de R2.
- * O Worker é quen le R2 e entrega o PDF.
- */
 function obterFichaPersoaAdministracion_(datos) {
   try {
     const email = normalizarEmailPersoasAdmin_(
@@ -320,7 +315,7 @@ function obterAdministradorPersoasAdmin_(
     try {
       return JSON.parse(cacheado);
     } catch (erroCache) {
-      console.warn('Cache de administraci\u00f3n non v\u00e1lida:', erroCache);
+      console.warn('Cache de administración non válida:', erroCache);
     }
   }
 
@@ -371,10 +366,10 @@ function obterAdministradorPersoasAdmin_(
           ? ''
           : textoPersoasAdmin_(fila[ip['Row ID']]);
       const correo =
-        ip['Correo electr\u00f3nico'] === undefined
+        ip['Correo electrónico'] === undefined
           ? ''
           : normalizarEmailPersoasAdmin_(
-              fila[ip['Correo electr\u00f3nico']]
+              fila[ip['Correo electrónico']]
             );
 
       return (
@@ -408,7 +403,7 @@ function obterAdministradorPersoasAdmin_(
             )
       ),
     cargo: permiso.cargo || permiso.funcion || '',
-    nivel: 'Administraci\u00f3n',
+    nivel: 'Administración',
     perfis: permiso.perfis || [],
     fonte: permiso.fonte || ''
   };
@@ -466,8 +461,6 @@ function construirPersoaAdmin_(
     texto('FichaR2Estado');
 
   return {
-    // Mantéñense os tres identificadores
-    // para compatibilidade co frontend actual.
     rowId: rowId || id,
     id: id,
     idPersoa: id,
@@ -527,10 +520,7 @@ function construirPersoaAdmin_(
         valor('DataActualizacionPerfil')
       ),
 
-    // Ficha orixinal queda como metadato.
     ficha: texto('Ficha'),
-
-    // A web só utiliza estes campos.
     fichaR2Key: fichaR2Key,
     fichaR2Estado: fichaR2Estado,
     fichaDisponibleR2:
