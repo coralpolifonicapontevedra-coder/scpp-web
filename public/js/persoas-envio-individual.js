@@ -146,7 +146,9 @@
       body = null;
     }
 
-    const response = await originalFetch(input, init);
+    const useV4Generator = body?.accion === 'xerarLigazon' && /\/api\/persoas-revision(?:\?|$)/.test(url);
+    const destination = useV4Generator ? '/api/persoas-revision-link-v4' : input;
+    const response = await originalFetch(destination, init);
     if (body?.accion === 'xerarLigazon' && response.ok) {
       lastIdToken = String(body?.idToken || '').trim();
       ensureSendButton();
