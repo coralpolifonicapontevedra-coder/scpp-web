@@ -36,7 +36,11 @@
       const terms = section.querySelectorAll('dt');
       for (const term of terms) {
         if (String(term.textContent || '').trim() !== 'Correo electrónico') continue;
-        return String(term.parentElement?.querySelector('dd')?.textContent || '').trim();
+        const valueNode = term.nextElementSibling;
+        const value = valueNode?.tagName === 'DD'
+          ? String(valueNode.textContent || '').trim().toLowerCase()
+          : '';
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : '';
       }
     }
     return '';
