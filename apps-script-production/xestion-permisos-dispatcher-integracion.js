@@ -24,6 +24,7 @@ var ACCIONS_PERSOAS_ADMIN_PORTAL_ = [
   'actualizarPersoaAdministracion',
   'cambiarEstadoPersoaAdministracion',
   'enviarRevisionsPersoasAdministracion',
+  'estadoEnviosRevisionsPersoasAdministracion',
   'persoasV2Listar',
   'persoasV2SyncListar',
   'persoasV2Version',
@@ -51,6 +52,7 @@ function despacharPersoasAdministracionPortal_(accion, datos) {
   if (accion === 'actualizarPersoaAdministracion') return actualizarPersoaAdministracion_(datos);
   if (accion === 'cambiarEstadoPersoaAdministracion') return cambiarEstadoPersoaAdministracion_(datos);
   if (accion === 'enviarRevisionsPersoasAdministracion') return enviarRevisionsPersoasAdministracion_(datos);
+  if (accion === 'estadoEnviosRevisionsPersoasAdministracion') return estadoEnviosRevisionsPersoasAdministracion_(datos);
   if (accion === 'persoasV2Listar') return persoasV2Listar_(datos);
   if (accion === 'persoasV2SyncListar') return persoasV2SyncListar_(datos);
   if (accion === 'persoasV2Version') return persoasV2Version_(datos);
@@ -139,7 +141,11 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
                   : (
                     accion === 'cambiarEstadoPersoaAdministracion'
                       ? (respostaPersoas.activo ? 'Reactivar persoa' : 'Dar de baixa persoa')
-                      : 'Envío masivo de revisións'
+                      : (
+                        accion === 'estadoEnviosRevisionsPersoasAdministracion'
+                          ? 'Consulta estado de revisións'
+                          : 'Envío masivo de revisións'
+                      )
                   )
               )
           ),
@@ -150,6 +156,7 @@ function despacharXestionPermisosPortal_(accion, datos, bloqueo) {
             respostaPersoas.idPersoa ||
             respostaPersoas.enviados ||
             respostaPersoas.version ||
+            respostaPersoas.cotaRestante ||
             ''
           )
         : String(respostaPersoas.erro || '')
