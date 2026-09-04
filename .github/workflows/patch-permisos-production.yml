@@ -1,0 +1,89 @@
+name: Patch permisos production branch
+
+on:
+  push:
+    branches:
+      - fix/permisos-production-routing-20260904
+    paths:
+      - '.github/workflows/patch-permisos-production.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout da rama exacta
+        uses: actions/checkout@v4
+        with:
+          ref: fix/permisos-production-routing-20260904
+          fetch-depth: 0
+
+      - name: Aplicar corrección illada
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'Non se atopou o marcador esperado en {path}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'apps-script-production/repertorio-dispatcher-integracion.js',
+              "  if (!eAccionRepertorioAdministracionProduccion_(accion)) return null;",
+              """  if (!eAccionRepertorioAdministracionProduccion_(accion)) {\n    // Código.js xa chama este dispatcher antes do rexeitamento final.\n    // Reutilizamos ese punto común para encamiñar tamén Accesos e permisos,\n    // igual que no contorno Preview validado.\n    if (typeof despacharXestionPermisosPortal_ === 'function') {\n      var respostaXestionPermisos =\n        despacharXestionPermisosPortal_(accion, datos, bloqueo);\n\n      if (respostaXestionPermisos !== null) {\n        return respostaXestionPermisos;\n      }\n    }\n    return null;\n  }"""
+          )
+
+          replace_once(
+              'src/components/AdministracionNav.astro',
+              "  { id: 'auditoria', label: 'Auditoría', path: '/portal/administracion/auditoria/' },\n  { id: 'estado', label: 'Estado do sistema', path: '/portal/administracion/estado/' }",
+              "  { id: 'auditoria', label: 'Auditoría', path: '/portal/administracion/auditoria/' },\n  { id: 'permisos', label: 'Accesos e permisos', path: '/portal/administracion/permisos/' },\n  { id: 'estado', label: 'Estado do sistema', path: '/portal/administracion/estado/' }"
+          )
+
+          replace_once(
+              'src/pages/portal/administracion/permisos.astro',
+              "import PortalSidebar from '../../../components/PortalSidebar.astro';\n---",
+              "import PortalSidebar from '../../../components/PortalSidebar.astro';\nimport AdministracionNav from '../../../components/AdministracionNav.astro';\n---"
+          )
+
+          replace_once(
+              'src/pages/portal/administracion/permisos.astro',
+              '      </header>\n\n      <section id="loading"',
+              '      </header>\n      <AdministracionNav active="permisos" />\n\n      <section id="loading"'
+          )
+
+          test = Path('tests/permisos-production-routing.test.ts')
+          test.write_text("""import { describe, expect, it } from 'vitest';\nimport { readFileSync } from 'node:fs';\nimport { resolve } from 'node:path';\n\nconst root = resolve(process.cwd());\nconst read = (file: string) => readFileSync(resolve(root, file), 'utf8');\n\ndescribe('Accesos e permisos en Producción', () => {\n  it('encamiña as accións de permisos antes do rexeitamento final', () => {\n    const dispatcher = read('apps-script-production/repertorio-dispatcher-integracion.js');\n    expect(dispatcher).toContain("typeof despacharXestionPermisosPortal_ === 'function'");\n    expect(dispatcher).toContain('despacharXestionPermisosPortal_(accion, datos, bloqueo)');\n  });\n\n  it('integra Accesos e permisos na navegación administrativa común', () => {\n    const nav = read('src/components/AdministracionNav.astro');\n    const page = read('src/pages/portal/administracion/permisos.astro');\n    expect(nav).toContain("id: 'permisos'");\n    expect(nav).toContain("/portal/administracion/permisos/");\n    expect(page).toContain("import AdministracionNav from '../../../components/AdministracionNav.astro'");\n    expect(page).toContain('<AdministracionNav active="permisos" />');\n  });\n});\n""", encoding='utf-8')
+          PY
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Proba de regresión de permisos
+        run: npx vitest run tests/permisos-production-routing.test.ts
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Retirar workflow temporal e gardar cambios
+        shell: bash
+        run: |
+          rm -f .github/workflows/patch-permisos-production.yml
+          git config user.name 'coralpolifonicapontevedra-coder'
+          git config user.email 'coralpolifonicapontevedra@gmail.com'
+          git add apps-script-production/repertorio-dispatcher-integracion.js \
+                  src/components/AdministracionNav.astro \
+                  src/pages/portal/administracion/permisos.astro \
+                  tests/permisos-production-routing.test.ts \
+                  .github/workflows/patch-permisos-production.yml
+          git commit -m 'fix: conectar permisos en produción e integrar navegación'
+          git push origin HEAD:fix/permisos-production-routing-20260904
