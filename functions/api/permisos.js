@@ -1,7 +1,12 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
-import { invalidarPermisosPortal, obterPermisoPortal } from '../_lib/portal-permissions.js';
+import {
+  invalidarPermisosPortal,
+  obterPermisoPortal,
+  obterPermisoPortalCacheado
+} from '../_lib/portal-permissions.js';
 
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
+const ADMIN_CONTEXT_MAX_MS = 60 * 60 * 1000;
 const LIST_CACHE_PREFIX = 'permisos/xestion-cache-v1/';
 const LIST_CACHE_FRESH_MS = 60 * 60 * 1000;
 const LIST_CACHE_BACKUP_MS = 24 * 60 * 60 * 1000;
@@ -46,6 +51,17 @@ async function hashEmail(email) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function nivelNormalizado(value) {
+  return clean(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function eContextoAdministracion(payload) {
+  return nivelNormalizado(payload?.perfil?.nivel) === 'administracion';
+}
+
 async function obterContextoPersoas(env, user) {
   if (!env.R2_PRIVADO?.get) return null;
   try {
@@ -53,10 +69,21 @@ async function obterContextoPersoas(env, user) {
     if (!object) return null;
     const entry = await object.json().catch(() => null);
     if (clean(entry?.administrador).toLowerCase() !== user.email) return null;
+    const savedAt = Number(entry?.savedAt || 0);
+    if (!savedAt || Date.now() - savedAt < 0 || Date.now() - savedAt > ADMIN_CONTEXT_MAX_MS) return null;
     return entry?.payload || null;
   } catch (error) {
     console.warn('Non se puido ler o contexto de Persoas en R2:', error);
     return null;
+  }
+}
+
+async function invalidarContextoPersoas(env, email) {
+  if (!env.R2_PRIVADO?.delete || !clean(email)) return;
+  try {
+    await env.R2_PRIVADO.delete(`${ADMIN_CACHE_PREFIX}${await hashEmail(email)}.json`);
+  } catch (error) {
+    console.warn('Non se puido invalidar o contexto administrativo de Persoas:', error);
   }
 }
 
@@ -170,7 +197,9 @@ async function refrescarListado(env, user, contextoPersoas) {
 
 function modulosAfectados(accion, body) {
   if (accion === 'gardarPermisosPortalLote') {
-    return (Array.isArray(body?.cambios) ? body.cambios : []).map((item) => clean(item?.modulo).toLowerCase()).filter(Boolean);
+    return [...new Set((Array.isArray(body?.cambios) ? body.cambios : [])
+      .map((item) => clean(item?.modulo).toLowerCase())
+      .filter(Boolean))];
   }
   if (accion === 'gardarPermisoPortal' || accion === 'eliminarPermisoPortal') {
     const modulo = clean(body?.modulo).toLowerCase();
@@ -227,21 +256,27 @@ export async function onRequestPost(context) {
     'rexistrarActividadePortal'
   ]);
 
-  if (accionsAdmin.has(accion)) {
-    let permisoAdmin;
-    try {
-      permisoAdmin = await obterPermisoPortal(env, user, 'permisos');
-    } catch (error) {
-      return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible comprobar os permisos.' });
-    }
-    if (!permisoAdmin?.podeEscribir) {
-      return json(403, { ok: false, codigo: 'ADMIN_REQUIRED', erro: 'A túa conta non ten permiso para xestionar os accesos.' });
-    }
-  }
-
   const contextoPersoas = accionsAdmin.has(accion)
     ? await obterContextoPersoas(env, user)
     : null;
+
+  if (accionsAdmin.has(accion)) {
+    const lecturaAdministrativa = accion === 'listarPermisosPortal' || accion === 'listarActividadePortal';
+    const autorizadoDesdeR2 = lecturaAdministrativa && eContextoAdministracion(contextoPersoas);
+
+    if (!autorizadoDesdeR2) {
+      let permisoAdmin;
+      try {
+        permisoAdmin = await obterPermisoPortalCacheado(env, user, 'permisos');
+        if (!permisoAdmin) permisoAdmin = await obterPermisoPortal(env, user, 'permisos');
+      } catch (error) {
+        return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible comprobar os permisos.' });
+      }
+      if (!permisoAdmin?.podeEscribir) {
+        return json(403, { ok: false, codigo: 'ADMIN_REQUIRED', erro: 'A túa conta non ten permiso para xestionar os accesos.' });
+      }
+    }
+  }
 
   if (accion === 'listarPermisosPortal') {
     const cache = await lerCacheListado(env);
@@ -291,6 +326,7 @@ export async function onRequestPost(context) {
     const destinatario = clean(body?.usuarioEmail).toLowerCase();
     if (destinatario && modulos.length) {
       await invalidarPermisosPortal(env, destinatario, modulos);
+      if (modulos.includes('permisos')) await invalidarContextoPersoas(env, destinatario);
     }
 
     if (['gardarPermisoPortal', 'gardarPermisosPortalLote', 'eliminarPermisoPortal'].includes(accion)) {
