@@ -2,6 +2,8 @@
 
 Web pública e portal privado da Sociedade Coral Polifónica de Pontevedra.
 
+> **Antes de calquera modificación que poida afectar a Producción é obrigatorio ler `AGENTS.md` e, para Apps Script, `docs/framework-scpp/apps-script-production-promotion.md`.** A regra é sempre a mesma: partir do código vivo de Producción, comparalo co equivalente validado en Preview, analizar o impacto sobre o resto da web e aplicar só o cambio mínimo imprescindible.
+
 O proxecto está construído con Astro e desprégase en Cloudflare Pages. As funcións de servidor execútanse como Cloudflare Pages Functions; Cloudflare R2 proporciona o almacenamento operativo de ficheiros públicos e privados.
 
 ## Arquitectura
@@ -37,6 +39,8 @@ As páxinas de lectura deben utilizar índices válidos de R2 e conservar a últ
 
 Antes de modificar a arquitectura, os fluxos de ficheiros, os permisos ou a caché, consulta:
 
+- [Regra obrigatoria para axentes e Producción](AGENTS.md)
+- [Promoción segura de Apps Script a Producción](docs/framework-scpp/apps-script-production-promotion.md)
 - [Framework SCPP](docs/framework-scpp/README.md)
 - [Arquitectura xeral](docs/framework-scpp/ARQUITECTURA.md)
 - [Arquitectura de rendemento](docs/framework-scpp/ARQUITECTURA-RENDIMIENTO.md)
@@ -118,6 +122,7 @@ docs/framework-scpp/    Arquitectura, decisións, convencións e folla de ruta
 8. Rutas temporais só durante a validación; despois debe quedar unha única ruta oficial.
 9. Actualizar a documentación cando cambie a arquitectura.
 10. Non incluír secretos, tokens nin credenciais no repositorio.
+11. Para calquera cambio en Producción, partir do estado vivo, comparar con Preview, analizar impacto, aplicar un parche mínimo e manter rollback.
 
 ## Comprobación mínima
 
