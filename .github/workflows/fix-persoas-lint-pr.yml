@@ -1,0 +1,43 @@
+name: Fix persoas lint PR
+
+on:
+  push:
+    branches:
+      - 'fix/arquivo-return-action-20260905'
+    paths:
+      - '.github/workflows/fix-persoas-lint-pr.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/arquivo-return-action-20260905
+      - name: Remove useless assignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('functions/api/persoas-revision-masiva.js')
+          s=p.read_text(encoding='utf-8')
+          old="  } catch {\n    estadoEnvio = null;\n  }"
+          new="  } catch {\n    // Mantense o valor inicial null se non se pode consultar a cota.\n  }"
+          if old not in s:
+              raise SystemExit('lint target not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+          git diff --check
+      - name: Commit and push branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add functions/api/persoas-revision-masiva.js
+          git commit -m 'Fix persoas quota lint'
+          git push origin HEAD:fix/arquivo-return-action-20260905
