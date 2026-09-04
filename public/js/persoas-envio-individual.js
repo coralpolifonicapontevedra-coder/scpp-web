@@ -11,6 +11,7 @@
   }
 
   const originalFetch = window.fetch.bind(window);
+  const nativeConfirm = window.confirm.bind(window);
   const WRITE_ACTIONS = new Map([
     ['crearPersoaAdministracion', 'crear'],
     ['actualizarPersoaAdministracion', 'actualizar'],
@@ -18,6 +19,8 @@
   ]);
   const PENDING_SURNAME = '__SCPP_PENDENTE_APELIDO__';
   let lastIdToken = '';
+  let exencionCota = null;
+  let exencionPromise = null;
 
   function rememberToken(body) {
     const token = String(body?.idToken || '').trim();
@@ -61,6 +64,25 @@
     if (!button.hidden) button.title = 'Abrir a ficha escaneada dispoñible en R2';
   }
 
+  function syncDeleteButton() {
+    const button = document.querySelector('#delete-person');
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.textContent = 'Eliminar alta errónea (Sheet + R2)';
+    button.title = 'Eliminación física reservada para altas creadas por erro. Se hai UsuarioWeb ou aceptación legal, a operación bloquearase.';
+  }
+
+  window.confirm = function scppConfirm(message) {
+    const text = String(message || '');
+    if (text.includes('borrarase fisicamente a fila da Sheet Persoas') && text.includes('non elimina ficheiros')) {
+      const updated = text.replace(
+        'borrarase fisicamente a fila da Sheet Persoas. Non se pode desfacer e non elimina ficheiros, revisións nin aceptacións asociados.',
+        'eliminarase fisicamente a fila da Sheet Persoas e limparanse os seus recursos de R2 (fotografía, ficha e revisións pendentes). Non se pode desfacer. Se xa existe UsuarioWeb ou aceptación legal, a eliminación bloquearase e deberás tramitar unha baixa.'
+      );
+      return nativeConfirm(updated);
+    }
+    return nativeConfirm(message);
+  };
+
   function ensurePhotoField() {
     if (document.querySelector('#f-foto-perfil')) return;
     const form = document.querySelector('#person-form');
@@ -82,6 +104,69 @@
         </label>
       </div>`;
     privacy.before(fieldset);
+  }
+
+  function ensureExencionField() {
+    const form = document.querySelector('#person-form');
+    if (!(form instanceof HTMLFormElement)) return null;
+
+    let fieldset = document.querySelector('#exencion-cota-fieldset');
+    if (!(fieldset instanceof HTMLFieldSetElement)) {
+      fieldset = document.createElement('fieldset');
+      fieldset.id = 'exencion-cota-fieldset';
+      fieldset.innerHTML = `
+        <legend>Exención do pagamento da cota social</legend>
+        <div class="exencion-cota-box" style="display:grid;gap:.65rem;line-height:1.55">
+          <p id="exencion-cota-resumo" style="margin:0;color:#5f5955">Cargando o criterio de exención…</p>
+          <details id="exencion-cota-details" hidden>
+            <summary style="cursor:pointer;font-weight:700">Ler o texto completo</summary>
+            <div id="exencion-cota-texto" style="white-space:pre-line;margin-top:.75rem"></div>
+          </details>
+        </div>`;
+      const footer = form.querySelector('.dialog-footer');
+      if (footer) footer.before(fieldset);
+      else form.append(fieldset);
+    }
+
+    const summary = fieldset.querySelector('#exencion-cota-resumo');
+    const details = fieldset.querySelector('#exencion-cota-details');
+    const text = fieldset.querySelector('#exencion-cota-texto');
+
+    if (exencionCota) {
+      if (summary instanceof HTMLElement) {
+        summary.textContent = `${exencionCota.titulo} · versión ${exencionCota.version}. O SMI vixente úsase como criterio de referencia para a exención da cota.`;
+      }
+      if (text instanceof HTMLElement) text.textContent = String(exencionCota.texto || '');
+      if (details instanceof HTMLDetailsElement) details.hidden = false;
+    }
+    return fieldset;
+  }
+
+  async function loadExencionCota(idToken = lastIdToken) {
+    const token = String(idToken || '').trim();
+    ensureExencionField();
+    if (!token) return null;
+    if (exencionCota) return exencionCota;
+    if (exencionPromise) return exencionPromise;
+
+    exencionPromise = (async () => {
+      const response = await originalFetch('/api/persoas-exencion-cota', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token })
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true || !result?.textoExencionCota) {
+        const summary = document.querySelector('#exencion-cota-resumo');
+        if (summary instanceof HTMLElement) summary.textContent = String(result?.erro || 'Non foi posible cargar o criterio de exención da cota.');
+        return null;
+      }
+      exencionCota = result.textoExencionCota;
+      ensureExencionField();
+      return exencionCota;
+    })().finally(() => { exencionPromise = null; });
+
+    return exencionPromise;
   }
 
   function pendingPhoto() {
@@ -107,6 +192,25 @@
       return { ok: false, erro: String(result?.erro || 'Non foi posible gardar a fotografía.') };
     }
     return { ok: true };
+  }
+
+  async function cleanupDeletedPersonR2(idToken, result, requestedId) {
+    const payload = {
+      idToken,
+      idPersoa: String(result?.idPersoa || requestedId || '').trim(),
+      rowId: String(result?.rowId || '').trim(),
+      fichaR2Key: String(result?.fichaR2Key || '').trim()
+    };
+    const response = await originalFetch('/api/persoas-eliminar-r2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.ok !== true) {
+      return { ok: false, erro: String(data?.erro || 'Non foi posible completar a limpeza de R2.') };
+    }
+    return { ok: true, eliminadosR2: Number(data.eliminadosR2 || 0) };
   }
 
   function alphabeticalName(text) {
@@ -227,6 +331,35 @@
     });
   }
 
+  async function routeDelete(input, init, body) {
+    const idToken = String(body?.idToken || '').trim();
+    const requestedId = String(body?.idPersoa || body?.id || body?.rowId || '').trim();
+    const response = await originalFetch(input, init);
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok || result?.ok !== true) {
+      return new Response(JSON.stringify(result || { ok: false, erro: `Erro HTTP ${response.status}` }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-store' }
+      });
+    }
+
+    const cleanup = await cleanupDeletedPersonR2(idToken, result, requestedId);
+    if (cleanup.ok) {
+      result.mensaxe = `Rexistro eliminado da Sheet e de R2${cleanup.eliminadosR2 ? ` (${cleanup.eliminadosR2} obxectos R2)` : ''}.`;
+      result.r2Limpeza = { ok: true, eliminados: cleanup.eliminadosR2 };
+    } else {
+      result.mensaxe = `O rexistro foi eliminado da Sheet, pero quedou pendente revisar a limpeza de R2: ${cleanup.erro}`;
+      result.r2Limpeza = { ok: false, erro: cleanup.erro };
+    }
+
+    scheduleSort();
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-store' }
+    });
+  }
+
   window.fetch = async function patchedFetch(input, init) {
     let url = '';
     try { url = typeof input === 'string' ? input : String(input?.url || ''); }
@@ -237,10 +370,15 @@
 
     if (url.includes('/api/persoas-v2')) {
       rememberToken(body);
+      if (body?.accion === 'eliminarPersoaAdministracion') return routeDelete(input, init, body);
+
       const routed = await routeWrite(body);
       if (routed) return routed;
       const response = await originalFetch(input, init);
-      if (body?.accion === 'listarPersoasAdministracion' && response.ok) scheduleSort();
+      if (body?.accion === 'listarPersoasAdministracion' && response.ok) {
+        scheduleSort();
+        void loadExencionCota(lastIdToken);
+      }
       return response;
     }
 
@@ -248,9 +386,13 @@
       return originalFetch(input, init);
     }
 
+    if (body?.accion === 'xerarLigazon') {
+      rememberToken(body);
+      await loadExencionCota(lastIdToken);
+    }
+
     const response = await originalFetch(input, init);
     if (body?.accion === 'xerarLigazon' && response.ok) {
-      rememberToken(body);
       ensureSendButton();
       setReviewMessage('Ligazón xerada. Podes enviala por correo ou copiala manualmente.');
     }
@@ -266,13 +408,18 @@
   });
 
   ensurePhotoField();
+  ensureExencionField();
   ensureSendButton();
   syncFileButton();
+  syncDeleteButton();
   scheduleSort();
   document.addEventListener('DOMContentLoaded', () => {
     ensurePhotoField();
+    ensureExencionField();
     ensureSendButton();
     syncFileButton();
+    syncDeleteButton();
     scheduleSort();
+    if (lastIdToken) void loadExencionCota(lastIdToken);
   }, { once: true });
 })();
