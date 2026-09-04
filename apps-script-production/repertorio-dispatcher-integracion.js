@@ -31,6 +31,15 @@ function eAccionEscrituraRepertorioAdministracionProduccion_(accion) {
 
 function despacharRepertorioAdministracionProduccion_(accion, datos, bloqueo) {
   accion = String(accion || '').trim();
+
+  // O doPost de Producción pasa primeiro por este integrador. Se a acción
+  // pertence á xestión común de permisos/Persoas, déixase resolver polo seu
+  // dispatcher antes de considerar a acción como propia de Repertorio.
+  if (typeof despacharXestionPermisosPortal_ === 'function') {
+    var respostaPermisos = despacharXestionPermisosPortal_(accion, datos, bloqueo);
+    if (respostaPermisos !== null) return respostaPermisos;
+  }
+
   if (!eAccionRepertorioAdministracionProduccion_(accion)) return null;
 
   if (
