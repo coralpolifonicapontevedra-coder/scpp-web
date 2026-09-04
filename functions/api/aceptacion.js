@@ -1,18 +1,25 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
-const CACHE_TOKEN_MS = 5 * 60 * 1000;
+const CACHE_TOKEN_MS = 10 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8 * 1000;
 const TIMEOUT_APPS_SCRIPT_MS = 18 * 1000;
-const CACHE_ACEPTACION_MS = 10 * 60 * 1000;
-const CACHE_ACEPTACION_PREFIX = 'cache/aceptacion-portal-v1/';
+const CACHE_ACEPTACION_FRESCA_MS = 60 * 60 * 1000;
+const CACHE_ACEPTACION_RESPALDO_MS = 30 * 24 * 60 * 60 * 1000;
+const CACHE_ACEPTACION_PREFIX = 'cache/aceptacion-portal-v2/';
+const PERFIS_MAIN = 'persoas/cache/perfis.json';
+const PERFIS_PREVIEW = 'persoas/cache/preview/perfis.json';
 
 const cacheTokens = new Map();
+const clean = (value) => String(value || '').trim();
+const ramaActual = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
+const perfisKey = (env) => ramaActual(env) === 'main' ? PERFIS_MAIN : PERFIS_PREVIEW;
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
     ...extraHeaders
   }
 });
@@ -27,35 +34,41 @@ async function fetchConTempoLimite(url, options, timeoutMs) {
   }
 }
 
-async function claveCacheAceptacion(email) {
-  const datos = new TextEncoder().encode(String(email || '').trim().toLowerCase());
+async function hashTexto(value) {
+  const datos = new TextEncoder().encode(clean(value).toLowerCase());
   const hash = await crypto.subtle.digest('SHA-256', datos);
-  return CACHE_ACEPTACION_PREFIX + Array.from(new Uint8Array(hash), (byte) =>
-    byte.toString(16).padStart(2, '0')
-  ).join('') + '.json';
+  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function claveCacheAceptacion(env, email) {
+  return `${CACHE_ACEPTACION_PREFIX}${ramaActual(env)}/${await hashTexto(email)}.json`;
 }
 
 function textoLegalCompleto(textoLegal) {
   return Boolean(
-    String(textoLegal?.version || '').trim() &&
-    String(textoLegal?.titulo || '').trim() &&
-    String(textoLegal?.texto || '').trim()
+    clean(textoLegal?.version) &&
+    clean(textoLegal?.titulo) &&
+    clean(textoLegal?.texto)
   );
 }
 
 async function lerCacheAceptacion(env, email) {
-  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+  if (!env.R2_PRIVADO?.get) return null;
   try {
-    const obxecto = await env.R2_PRIVADO.get(await claveCacheAceptacion(email));
+    const obxecto = await env.R2_PRIVADO.get(await claveCacheAceptacion(env, email));
     if (!obxecto) return null;
-    const cache = await obxecto.json();
-    const gardadaEn = Date.parse(String(cache?.gardadaEn || ''));
-    if (!Number.isFinite(gardadaEn) || Date.now() - gardadaEn > CACHE_ACEPTACION_MS) return null;
+    const cache = await obxecto.json().catch(() => null);
+    const gardadaEnMs = Date.parse(clean(cache?.gardadaEn));
+    if (!Number.isFinite(gardadaEnMs)) return null;
+    const idadeMs = Date.now() - gardadaEnMs;
+    if (idadeMs < 0 || idadeMs > CACHE_ACEPTACION_RESPALDO_MS) return null;
     if (typeof cache?.aceptacionVixente !== 'boolean') return null;
     if (cache.aceptacionVixente === false && !textoLegalCompleto(cache.textoLegal)) return null;
     return {
       aceptacionVixente: cache.aceptacionVixente,
-      textoLegal: cache.textoLegal || null
+      textoLegal: cache.textoLegal || null,
+      idadeMs,
+      fresca: idadeMs <= CACHE_ACEPTACION_FRESCA_MS
     };
   } catch (erro) {
     console.warn('Non se puido ler a caché de aceptación:', erro);
@@ -64,10 +77,10 @@ async function lerCacheAceptacion(env, email) {
 }
 
 async function gardarCacheAceptacion(env, email, resultado) {
-  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
+  if (!env.R2_PRIVADO?.put) return;
   try {
     await env.R2_PRIVADO.put(
-      await claveCacheAceptacion(email),
+      await claveCacheAceptacion(env, email),
       JSON.stringify({
         gardadaEn: new Date().toISOString(),
         aceptacionVixente: resultado.aceptacionVixente === true,
@@ -76,8 +89,9 @@ async function gardarCacheAceptacion(env, email, resultado) {
       {
         httpMetadata: {
           contentType: 'application/json; charset=utf-8',
-          cacheControl: 'private, max-age=600'
-        }
+          cacheControl: 'private, no-store'
+        },
+        customMetadata: { tipo: 'aceptacion-portal', version: '2', contorno: ramaActual(env) }
       }
     );
   } catch (erro) {
@@ -85,8 +99,29 @@ async function gardarCacheAceptacion(env, email, resultado) {
   }
 }
 
+function correoPersoa(persoa) {
+  return clean(persoa?.correoElectronico || persoa?.correo || persoa?.email).toLowerCase();
+}
+
+async function estadoPersoaR2(env, email) {
+  if (!env.R2_PRIVADO?.get) return null;
+  try {
+    const object = await env.R2_PRIVADO.get(perfisKey(env));
+    if (!object) return null;
+    const indice = await object.json().catch(() => null);
+    const persoa = Array.isArray(indice?.persoas)
+      ? indice.persoas.find((item) => correoPersoa(item) === clean(email).toLowerCase())
+      : null;
+    if (!persoa) return null;
+    return persoa?.activo === false ? false : true;
+  } catch (error) {
+    console.warn('Non se puido comprobar o estado da persoa en R2:', error);
+    return null;
+  }
+}
+
 async function verificarTokenFirebase(idToken, apiKey) {
-  const token = String(idToken || '').trim();
+  const token = clean(idToken);
   if (!token) return null;
 
   const cacheado = cacheTokens.get(token);
@@ -107,11 +142,43 @@ async function verificarTokenFirebase(idToken, apiKey) {
   if (!usuario?.email || usuario.emailVerified !== true) return null;
 
   const resultado = {
-    uid: String(usuario.localId || ''),
-    email: String(usuario.email).trim().toLowerCase()
+    uid: clean(usuario.localId),
+    email: clean(usuario.email).toLowerCase()
   };
   cacheTokens.set(token, { usuario: resultado, expira: Date.now() + CACHE_TOKEN_MS });
+  while (cacheTokens.size > 100) cacheTokens.delete(cacheTokens.keys().next().value);
   return resultado;
+}
+
+function corpoAppsScript(env, usuario, accion, extra = {}) {
+  return {
+    token: env.WEB_WRITE_TOKEN,
+    accion,
+    email: usuario.email,
+    uidFirebase: usuario.uid,
+    ...extra
+  };
+}
+
+async function consultarAppsScript(env, usuario, accion, extra = {}) {
+  return obterJsonAppsScript(
+    env,
+    corpoAppsScript(env, usuario, accion, extra),
+    { timeoutMs: TIMEOUT_APPS_SCRIPT_MS }
+  );
+}
+
+async function refrescarAceptacion(context, usuario) {
+  try {
+    const { resultado } = await consultarAppsScript(context.env, usuario, 'comprobarAceptacion');
+    if (!resultado?.ok) return;
+    await gardarCacheAceptacion(context.env, usuario.email, {
+      aceptacionVixente: resultado.aceptacionVixente === true,
+      textoLegal: resultado.textoLegal || null
+    });
+  } catch (error) {
+    console.warn('Non se puido refrescar a aceptación en segundo plano:', error);
+  }
 }
 
 export async function onRequest(context) {
@@ -128,8 +195,8 @@ export async function onRequest(context) {
     return json(400, { ok: false, erro: 'Solicitude non válida' });
   }
 
-  const idToken = String(datos.idToken || '').trim();
-  const accion = String(datos.accion || 'rexistrarAceptacion').trim();
+  const idToken = clean(datos.idToken);
+  const accion = clean(datos.accion || 'rexistrarAceptacion');
 
   if (!idToken) return json(401, { ok: false, erro: 'É necesario identificarse de novo' });
   if (!['obterTextoLegalVixente', 'comprobarAceptacion', 'rexistrarAceptacion'].includes(accion)) {
@@ -148,37 +215,36 @@ export async function onRequest(context) {
   if (!usuarioFirebase) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
   if (accion === 'comprobarAceptacion') {
+    const estadoPersoa = await estadoPersoaR2(env, usuarioFirebase.email);
+    if (estadoPersoa === false) {
+      return json(403, { ok: false, erro: 'A túa conta xa non está activa no Portal.' }, {
+        'X-SCPP-Access-Source': 'R2-PERSOAS'
+      });
+    }
+
     const cache = await lerCacheAceptacion(env, usuarioFirebase.email);
     if (cache) {
+      if (!cache.fresca) {
+        const tarefa = refrescarAceptacion(context, usuarioFirebase);
+        if (typeof context.waitUntil === 'function') context.waitUntil(tarefa);
+      }
       return json(200, {
         ok: true,
         email: usuarioFirebase.email,
-        ...cache
+        aceptacionVixente: cache.aceptacionVixente,
+        textoLegal: cache.textoLegal
       }, {
-        'X-SCPP-AppScript': 'R2-CACHE',
+        'X-SCPP-AppScript': cache.fresca ? 'R2-CACHE' : 'R2-STALE-WHILE-REVALIDATE',
+        'X-SCPP-Data-Age': String(Math.max(0, Math.floor(cache.idadeMs / 1000))),
         'Server-Timing': 'apps-script;dur=0'
       });
     }
   }
 
-  const corpoAppsScript = {
-    token: env.WEB_WRITE_TOKEN,
-    accion,
-    email: usuarioFirebase.email,
-    uidFirebase: usuarioFirebase.uid
-  };
-
-  if (accion === 'rexistrarAceptacion') {
-    corpoAppsScript.aceptaFines = true;
-  }
-
   const inicio = Date.now();
   try {
-    const { resultado, usouRespaldo, intento } = await obterJsonAppsScript(
-      env,
-      corpoAppsScript,
-      { timeoutMs: TIMEOUT_APPS_SCRIPT_MS }
-    );
+    const extra = accion === 'rexistrarAceptacion' ? { aceptaFines: true } : {};
+    const { resultado, usouRespaldo, intento } = await consultarAppsScript(env, usuarioFirebase, accion, extra);
 
     if (!resultado?.ok) {
       return json(resultado?.erro === 'Usuario non autorizado' ? 403 : 400, {
@@ -202,7 +268,7 @@ export async function onRequest(context) {
     if (accion === 'comprobarAceptacion') {
       const respostaAceptacion = {
         aceptacionVixente: resultado.aceptacionVixente === true,
-        textoLegal: resultado.textoLegal
+        textoLegal: resultado.textoLegal || null
       };
       await gardarCacheAceptacion(env, usuarioFirebase.email, respostaAceptacion);
       return json(200, {
@@ -235,7 +301,6 @@ export async function onRequest(context) {
     });
   } catch (erro) {
     console.error('Erro no servizo de aceptación:', erro);
-
     const status = erro instanceof AppsScriptError && erro.code === 'APPS_SCRIPT_TIMEOUT' ? 504 : 503;
     return json(status, {
       ok: false,
