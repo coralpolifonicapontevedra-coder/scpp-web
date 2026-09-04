@@ -10,8 +10,6 @@ on:
 permissions:
   contents: read
 
-actions:
-
 jobs:
   pull-live-production:
     runs-on: ubuntu-latest
