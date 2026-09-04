@@ -8,6 +8,7 @@ const PERFIS_KEY_PREVIEW = 'persoas/cache/preview/perfis.json';
 const PHOTO_INDEX_MAIN = 'persoas/fotos/index.json';
 const PHOTO_INDEX_PREVIEW = 'persoas/fotos/preview/index.json';
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
+const PROFILE_MARKER_KEY = '__perfil__';
 
 const clean = (value) => String(value == null ? '' : value).trim();
 const branch = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
@@ -30,6 +31,30 @@ async function readJson(bucket, key) {
   return object ? object.json().catch(() => null) : null;
 }
 
+function profileMarker(persona) {
+  return {
+    key: PROFILE_MARKER_KEY,
+    source: 'perfil',
+    canonical: true,
+    ruta: clean(persona?.fotoPerfilLegacy)
+  };
+}
+
+function buildProfilePhotoIndex(payload, current) {
+  const next = {
+    version: 2,
+    actualizadaEn: new Date().toISOString(),
+    persoas: { ...(current?.persoas || {}) }
+  };
+
+  for (const persona of payload?.persoas || []) {
+    const refs = [persona?.idPersoa, persona?.id, persona?.rowId].map(clean).filter(Boolean);
+    for (const ref of refs) next.persoas[ref] = profileMarker(persona);
+  }
+
+  return next;
+}
+
 function enrichPhotos(payload, index) {
   if (!payload?.ok || !Array.isArray(payload.persoas)) return payload;
   const map = index?.persoas && typeof index.persoas === 'object' ? index.persoas : {};
@@ -37,7 +62,7 @@ function enrichPhotos(payload, index) {
     ...payload,
     persoas: payload.persoas.map((persoa) => {
       const refs = [persoa?.idPersoa, persoa?.id, persoa?.rowId].map(clean).filter(Boolean);
-      const foto = refs.map((ref) => map[ref]).find(Boolean) || null;
+      const foto = refs.map((ref) => map[ref]).find(Boolean) || profileMarker(persoa);
       return { ...persoa, fotoR2: foto };
     })
   };
@@ -109,8 +134,8 @@ export async function onRequest({ request, env }) {
     return json(502, { ok: false, erro: result?.erro || 'Apps Script non devolveu un listado válido.' });
   }
 
-  const photoIndex = await readJson(env.R2_PRIVADO, photoIndexKey(env));
-  const payload = enrichPhotos({
+  const currentPhotoIndex = await readJson(env.R2_PRIVADO, photoIndexKey(env));
+  const basePayload = {
     ok: true,
     version: VERSION,
     sourceVersion: clean(result.version || data.version),
@@ -119,8 +144,13 @@ export async function onRequest({ request, env }) {
     schema: result.schema || { fields: [] },
     textosLegais: result.textosLegais || {},
     persoas: result.persoas
-  }, photoIndex);
+  };
+  const photoIndex = buildProfilePhotoIndex(basePayload, currentPhotoIndex);
+  await env.R2_PRIVADO.put(photoIndexKey(env), JSON.stringify(photoIndex), {
+    httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' }
+  });
 
+  const payload = enrichPhotos(basePayload, photoIndex);
   const savedAt = Date.now();
   await Promise.all([
     env.R2_PRIVADO.put(snapshotKey(env), JSON.stringify({
@@ -151,6 +181,7 @@ export async function onRequest({ request, env }) {
     totalPersoas: payload.persoas.length,
     adminCaches,
     fonte: clean(data.fonte || 'sync'),
-    entorno: branch(env)
+    entorno: branch(env),
+    fotoCanonica: 'Perfil'
   });
 }
