@@ -59,7 +59,9 @@ async function requestReview(action, extra = {}, blob = false) {
   const idToken = await token();
   const endpoint = action === 'xerarLigazon'
     ? '/api/persoas-revision-link-v4'
-    : '/api/persoas-revision';
+    : ['estadoAceptacion', 'obterAceptacion'].includes(action)
+      ? '/api/persoas-aceptacion-r2'
+      : '/api/persoas-revision';
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
