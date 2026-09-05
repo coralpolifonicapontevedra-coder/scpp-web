@@ -155,7 +155,19 @@ export async function onRequest({ request, env }) {
       indiceReparado: aceptacion?.reparada === true
     });
   }
-  if (!aceptacion) return json(404, { ok: false, erro: 'Esta persoa aínda non ten unha aceptación electrónica dispoñible en R2.' });
+  if (!aceptacion) {
+    const diagnostico = acceso?.permiso?.podeAdministrar === true
+      ? await diagnosticarRevision(env, idPersoa, '')
+      : { atopada: false };
+    if (diagnostico?.atopada) {
+      return json(404, {
+        ok: false,
+        erro: `O PDF non está en R2, pero atopouse a revisión ${diagnostico.revisionId} en estado ${diagnostico.estado || 'descoñecido'}${diagnostico.tenPersoaConfirmada ? ' con datos confirmados conservados' : ''}.`,
+        diagnostico
+      });
+    }
+    return json(404, { ok: false, erro: 'Esta persoa aínda non ten unha aceptación electrónica dispoñible en R2 e non se atopou unha revisión recuperable.' });
+  }
 
   const headers = new Headers();
   aceptacion.pdf.writeHttpMetadata?.(headers);
