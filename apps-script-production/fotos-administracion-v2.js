@@ -147,30 +147,24 @@ function gardarFotoAdministracionPortal_(datos) {
   asignarFotoAdministracionV2_(row, index, 'Data_Publicacion_Publica', publicarPublica ? agora : '');
   asignarFotoAdministracionV2_(row, index, 'Data_Publicacion_Privada', publicarPrivada ? agora : '');
 
+  // Unha única escritura atómica da fila. Evítanse flush e segunda lectura
+  // síncronas: setValues xa confirma a escritura ou lanza excepción.
   sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
-  SpreadsheetApp.flush();
-
-  var rowAfter = sheet.getRange(rowNumber, 1, 1, row.length).getValues()[0];
-  var publicaAfter = valorBooleanoFotosAdministracionV2_(rowAfter[index.Publicar_Publica]);
-  var privadaAfter = valorBooleanoFotosAdministracionV2_(rowAfter[index.Publicar_Privada]);
-  if (publicaAfter !== publicarPublica || privadaAfter !== publicarPrivada) {
-    return { ok: false, erro: 'A verificación da publicación na Sheet non coincide co solicitado' };
-  }
 
   return {
     ok: true,
     idFoto: idFoto,
-    publicarPublica: publicaAfter,
-    publicarPrivada: privadaAfter,
-    titulo: String(rowAfter[index.Titulo] || '').trim(),
-    peFoto: String(rowAfter[index.PeFoto] || '').trim(),
-    observacions: String(rowAfter[index.Observacions] || '').trim(),
-    estadoRevision: String(rowAfter[index.EstadoRevision] || '').trim(),
-    rutaR2Publica: String(rowAfter[index.RutaR2_Publica] || '').trim(),
-    rutaR2Privada: String(rowAfter[index.RutaR2_Privada] || '').trim(),
+    publicarPublica: publicarPublica,
+    publicarPrivada: publicarPrivada,
+    titulo: String(row[index.Titulo] || '').trim(),
+    peFoto: String(row[index.PeFoto] || '').trim(),
+    observacions: String(row[index.Observacions] || '').trim(),
+    estadoRevision: String(row[index.EstadoRevision] || '').trim(),
+    rutaR2Publica: String(row[index.RutaR2_Publica] || '').trim(),
+    rutaR2Privada: String(row[index.RutaR2_Privada] || '').trim(),
     permisoFonte: permiso.fonte,
     entorno: 'production',
-    mensaxe: 'Fotografía gardada e verificada en Sheet e R2'
+    mensaxe: 'Fotografía gardada na Sheet de Producción'
   };
 }
 
