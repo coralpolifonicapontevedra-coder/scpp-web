@@ -63,7 +63,7 @@ jobs:
           [ -n "$OLD_VERSION" ] || { echo 'Non se puido obter a versión viva.'; exit 1; }
           echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Ler HEAD e deployment vivo
+      - name: Gardar HEAD e ler deployment vivo
         shell: bash
         run: |
           set -euo pipefail
@@ -72,29 +72,10 @@ jobs:
           cd /tmp/scpp-live
           npx --yes @google/clasp@3 pull --versionNumber "${{ steps.live.outputs.old_version }}" --deleteUnusedFiles --force
           cp -a /tmp/scpp-live/. /tmp/scpp-before/
+          echo 'HEAD actual gardado para restauralo ao rematar.'
+          echo "Base de Producción: versión ${{ steps.live.outputs.old_version }}"
 
-      - name: Verificar base viva
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          import hashlib
-          def files(root):
-              out={}
-              for p in Path(root).rglob('*'):
-                  if p.is_file() and p.name != '.clasp.json':
-                      out[p.relative_to(root).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
-              return out
-          a,b=files('/tmp/scpp-head'),files('/tmp/scpp-live')
-          changed=sorted(k for k in set(a)|set(b) if a.get(k)!=b.get(k))
-          if changed:
-              print('HEAD de Apps Script difire do deployment vivo:', *changed, sep='\n - ')
-              raise SystemExit('Abortado: non se pisa unha base viva divergente.')
-          print('HEAD e deployment vivo coinciden.')
-          PY
-
-      - name: Aplicar só o borrado individual de asistencia
+      - name: Aplicar só o borrado individual de asistencia sobre Producción
         shell: bash
         run: |
           set -euo pipefail
@@ -109,7 +90,8 @@ jobs:
           text=codigo.read_text()
           if "accion === 'eliminarAsistenciaEnsaioPortal'" not in text:
               anchor="    if (accion === 'gardarAsistenciaEnsaioPortal') {"
-              if anchor not in text: raise SystemExit('Non se atopou o punto seguro de integración.')
+              if anchor not in text:
+                  raise SystemExit('Non se atopou o punto seguro de integración.')
               block="""    if (accion === 'eliminarAsistenciaEnsaioPortal') {\n      bloqueo.waitLock(10000);\n      const resultado = eliminarAsistenciaEnsaioPortal_(datos);\n      rexistrarAcceso({\n        email: correo,\n        tipoEvento: 'Eliminar asistencia a ensaio',\n        modulo: 'Ensaios',\n        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',\n        detalle: resultado.ok ? 'Asistencia eliminada ou xa inexistente' : String(resultado.erro || '')\n      });\n      return respostaJSON(resultado);\n    }\n\n"""
               codigo.write_text(text.replace(anchor, block+anchor, 1))
           PY
@@ -120,7 +102,7 @@ jobs:
               return {p.relative_to(root).as_posix():p.read_bytes() for p in Path(root).rglob('*') if p.is_file() and p.name!='.clasp.json'}
           a,b=snap('/tmp/scpp-before'),snap('/tmp/scpp-live')
           changed=sorted(k for k in set(a)|set(b) if a.get(k)!=b.get(k))
-          print('Diff efectivo:', changed)
+          print('Diff efectivo sobre Producción viva:', changed)
           allowed={'Código.js','Codigo.js','ensaios-asistencia-eliminar.js'}
           if not changed or not set(changed).issubset(allowed):
               raise SystemExit('O diff sae do borrado individual de asistencia. Abortado.')
@@ -128,13 +110,14 @@ jobs:
               raise SystemExit('Non se incorporou a función de borrado.')
           PY
 
-      - name: Push e crear versión
+      - name: Push temporal e crear versión
         id: version
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/scpp-live
           npx --yes @google/clasp@3 push --force
+          echo 'patched_head=1' >> "$GITHUB_OUTPUT"
           OUT="$(npx --yes @google/clasp@3 create-version 'Ensaios: borrado individual de asistencia para finalización R2')"
           echo "$OUT"
           NEW_VERSION="$(printf '%s\n' "$OUT" | grep -oE '[0-9]+' | tail -n 1)"
@@ -158,3 +141,12 @@ jobs:
           fi
           echo "Producción actualizada: $OLD_VERSION → $NEW_VERSION"
           echo "Rollback dispoñible á versión $OLD_VERSION"
+
+      - name: Restaurar HEAD previo de Apps Script
+        if: always() && steps.version.outputs.patched_head == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-head
+          npx --yes @google/clasp@3 push --force
+          echo 'HEAD previo de Apps Script restaurado; o deployment de Producción mantén a versión creada.'
