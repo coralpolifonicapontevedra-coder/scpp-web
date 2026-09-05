@@ -1,3 +1,4 @@
+import hashlib
 import io
 import json
 import os
@@ -10,15 +11,19 @@ from googleapiclient.http import MediaIoBaseDownload
 FILES = [
     {
         "name": "Pano de San David",
-        "drive_id": "1eFX4RgrgWbbmk7nsqiVIYn0xqsediyZ6",
+        "drive_id": "1BcKDwAkVeK56uidUBER_zem53eDWwvTX",
         "r2_key": "fotos/orixinais/c5875c20-7c55-536e-8419-32ad2404c70b.jpg",
         "content_type": "image/png",
+        "expected_size": 775602,
+        "expected_sha256": "c421bc9a66fe96cab03046a499638698f75a54696470ab17edad2574c7375a2f",
     },
     {
         "name": "Rosetón oxival",
-        "drive_id": "1Wq9l6av5HFVaXyNIZFEMs3g9jEs7NrNN",
+        "drive_id": "1Jebe2Ob8fuY7pjCmEd8_RwEdy1rTJi6f",
         "r2_key": "fotos/orixinais/91630e1a-725d-42c9-9aa5-259e6655ef08.jpg",
         "content_type": "image/jpeg",
+        "expected_size": 2132968,
+        "expected_sha256": "dcc2cbd905142811e6f74affcdd972b6600dc2e2a1d274a86036996aeadce8f7",
     },
 ]
 
@@ -54,6 +59,19 @@ def download_drive_file(service, file_id: str) -> bytes:
     return stream.getvalue()
 
 
+def validate_source(item, data: bytes) -> str:
+    digest = hashlib.sha256(data).hexdigest()
+    if len(data) != item["expected_size"]:
+        raise RuntimeError(
+            f"Tamaño inesperado para {item['name']}: {len(data)} != {item['expected_size']}"
+        )
+    if digest != item["expected_sha256"]:
+        raise RuntimeError(
+            f"SHA-256 inesperado para {item['name']}: {digest} != {item['expected_sha256']}"
+        )
+    return digest
+
+
 def main():
     bucket = os.environ.get("R2_BUCKET", "scpp-publico")
     drive = drive_service()
@@ -64,6 +82,8 @@ def main():
         if not data:
             raise RuntimeError(f"Descarga baleira: {item['name']}")
 
+        digest = validate_source(item, data)
+
         r2.put_object(
             Bucket=bucket,
             Key=item["r2_key"],
@@ -73,13 +93,18 @@ def main():
             Metadata={
                 "drive-id": item["drive_id"],
                 "source": "arquivo-scpp-panos-castelao",
+                "sha256": digest,
             },
         )
 
         head = r2.head_object(Bucket=bucket, Key=item["r2_key"])
+        if head.get("ContentLength") != item["expected_size"]:
+            raise RuntimeError(
+                f"R2 gardou tamaño incorrecto para {item['name']}: {head.get('ContentLength')}"
+            )
         print(
             f"OK | {item['name']} | {item['r2_key']} | "
-            f"bytes={head.get('ContentLength')} | etag={head.get('ETag')}"
+            f"bytes={head.get('ContentLength')} | sha256={digest} | etag={head.get('ETag')}"
         )
 
 
