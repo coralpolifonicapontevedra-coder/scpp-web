@@ -1,4 +1,5 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
@@ -68,21 +69,18 @@ async function verificarFirebase(idToken, apiKey) {
   throw lastError || new Error('Firebase non dispoñible');
 }
 
+async function permisoConcertos(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'concertos');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'concertos');
+  return permiso;
+}
+
 async function hashEmail(email) {
   const digest = await crypto.subtle.digest(
     'SHA-256',
     new TextEncoder().encode(String(email || '').trim().toLowerCase())
   );
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function verificarAdministracionR2(env, user) {
-  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return false;
-  const key = `${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`;
-  const object = await env.R2_PRIVADO.get(key);
-  if (!object) return false;
-  const entry = await object.json().catch(() => null);
-  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
 }
 
 async function chamarAppsScript(env, user, accion, datos = {}) {
@@ -323,19 +321,23 @@ async function getDraft(env, user, id) {
   const saved = await readJson(env.R2_PRIVADO, key);
   if (validDraft(saved, id)) return saved;
 
-  let initial;
+  let initial = null;
   try {
+    const desdeR2 = await managementFromR2(env, user, id);
+    if (desdeR2.persoas.length && desdeR2.obras.length) initial = desdeR2;
+  } catch (error) {
+    console.warn('Non se puido inicializar a xestión de Concertos desde R2:', error);
+  }
+
+  if (!initial) {
     initial = fromManagement(
       await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto: id }),
       id
     );
-  } catch (error) {
-    console.warn('Inicialízase a xestión de Concertos desde R2:', error);
-    initial = await managementFromR2(env, user, id);
   }
 
   if (!initial.persoas.length || !initial.obras.length) {
-    throw Object.assign(new Error('Os catálogos R2 de persoas ou repertorio non están dispoñibles.'), { code: 'R2_CATALOG_MISSING' });
+    throw Object.assign(new Error('Os catálogos de persoas ou repertorio non están dispoñibles.'), { code: 'R2_CATALOG_MISSING' });
   }
   return writeJson(env.R2_PRIVADO, key, initial, 'borrador-concerto');
 }
@@ -427,14 +429,24 @@ export async function onRequest(context) {
   if (!user) return erro(401, 'AUTH', 'INVALID_SESSION', 'A identificación non é válida ou caducou.');
 
   try {
-    const adminOk = await verificarAdministracionR2(env, user);
-    if (!adminOk) return erro(403, 'AUTH', 'FORBIDDEN', 'Usuario non autorizado para Administración.');
-
     const accion = String(body.accion || 'listar').trim();
+    const permiso = await permisoConcertos(env, user);
+    const soloLectura = new Set(['listar', 'obterXestion']);
+    const autorizado = soloLectura.has(accion) ? permiso?.podeLer === true : permiso?.podeEscribir === true;
+    if (!autorizado) {
+      return erro(
+        403,
+        'AUTH',
+        'FORBIDDEN',
+        soloLectura.has(accion)
+          ? 'Non tes permiso de lectura no módulo Concertos.'
+          : 'Non tes permiso de escritura no módulo Concertos.'
+      );
+    }
 
     if (accion === 'listar') {
       const concertos = await listFromR2(env);
-      return json(200, { ok: true, nivel: 'Administración', concertos, almacen: 'R2' });
+      return json(200, { ok: true, nivel: permiso.nivel, concertos, almacen: 'R2' });
     }
 
     if (accion === 'cambiarData') {
