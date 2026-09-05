@@ -6,10 +6,10 @@ on:
       - main
     paths:
       - 'apps-script-production/persoas-envio-revisions-v1.js'
+      - 'apps-script-production/persoas-auditoria-envios-v2.js'
       - 'apps-script-production/xestion-permisos-dispatcher-integracion.js'
       - '.github/workflows/deploy-persoas-email-r2-production-once.yml'
 
-# Reexecución 2026-09-05: publicar consulta de estado de envíos para auditoría.
 permissions:
   contents: read
 
@@ -124,11 +124,12 @@ jobs:
           grep -R -F -q --include='*.js' --include='*.gs' 'function obterContextoPersoasAdmin_' .
           grep -R -F -q --include='*.js' --include='*.gs' 'function enviarRevisionsPersoasAdministracion_' .
 
-      - name: Substituír exclusivamente correo e dispatcher de Persoas
+      - name: Substituír exclusivamente correo, auditoría e dispatcher de Persoas
         shell: bash
         run: |
           set -euo pipefail
           cp "$GITHUB_WORKSPACE/apps-script-production/persoas-envio-revisions-v1.js" /tmp/scpp-live/persoas-envio-revisions-v1.js
+          cp "$GITHUB_WORKSPACE/apps-script-production/persoas-auditoria-envios-v2.js" /tmp/scpp-live/persoas-auditoria-envios-v2.js
           cp "$GITHUB_WORKSPACE/apps-script-production/xestion-permisos-dispatcher-integracion.js" /tmp/scpp-live/xestion-permisos-dispatcher-integracion.js
 
           python - <<'PY'
@@ -146,10 +147,17 @@ jobs:
           b = snapshot('/tmp/scpp-live')
           changed = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
           print('Diff efectivo:', changed)
-          expected = {'persoas-envio-revisions-v1.js', 'xestion-permisos-dispatcher-integracion.js'}
+          expected = {
+              'persoas-envio-revisions-v1.js',
+              'persoas-auditoria-envios-v2.js',
+              'xestion-permisos-dispatcher-integracion.js'
+          }
           if not changed or not set(changed).issubset(expected):
-              raise SystemExit('O diff sae do backend de correo/dispatcher de Persoas. Abortado.')
+              raise SystemExit('O diff sae do backend de correo/auditoría/dispatcher de Persoas. Abortado.')
           PY
+
+          cd /tmp/scpp-live
+          grep -F -q 'function listarEnviosRevisionsPersoasAdministracion_' persoas-auditoria-envios-v2.js
 
       - name: Push e crear versión
         id: version
@@ -158,7 +166,7 @@ jobs:
           set -euo pipefail
           cd /tmp/scpp-live
           npx --yes @google/clasp@3 push --force
-          OUT="$(npx --yes @google/clasp@3 create-version 'Persoas: pendentes persistentes e cota de correo')"
+          OUT="$(npx --yes @google/clasp@3 create-version 'Persoas: auditoría directa de envíos')"
           echo "$OUT"
           NEW_VERSION="$(printf '%s\n' "$OUT" | grep -oE '[0-9]+' | tail -n 1)"
           if [ -z "$NEW_VERSION" ]; then
@@ -178,7 +186,7 @@ jobs:
           npx --yes @google/clasp@3 create-deployment \
             --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
             --versionNumber "$NEW_VERSION" \
-            --description 'Persoas · pendentes e cota de correo'
+            --description 'Persoas · auditoría directa de envíos'
 
           npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-after.txt
           LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-after.txt | head -n 1 || true)"
