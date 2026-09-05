@@ -40,7 +40,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
 
   <dialog id="movement-dialog" class="wide-dialog">
     <form method="dialog" id="movement-form">
-      <header><div><small>Arquivo SCPP</small><h2>Novo movemento</h2></div><button type="button" data-close-movement aria-label="Pechar">×</button></header>
+      <header><div><small>Arquivo SCPP</small><h2 id="movement-dialog-title">Novo movemento</h2></div><button type="button" data-close-movement aria-label="Pechar">×</button></header>
       <section class="form-section"><h3>1. Tipo de movemento</h3><div class="form-grid">
         <label><span>Tipo de movemento *</span><select name="TipoMovemento" id="movement-type" required><option value="Envío de copia dixital">Envío de copia dixital</option><option value="Préstamo físico">Préstamo físico</option><option value="Consulta presencial">Consulta presencial</option><option value="Cesión temporal">Cesión temporal</option><option value="Reprodución autorizada">Reprodución autorizada</option><option value="Outro">Outro</option></select></label>
         <label><span>Data de entrega / envío *</span><input name="DataEntrega" id="movement-date" type="date" required /></label>
@@ -55,9 +55,17 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
         <label class="resource-select-wrap"><span>Recurso</span><input id="resource-filter" type="search" placeholder="Filtrar por título ou identificador" /><select id="resource-select"></select><input id="resource-manual" type="text" placeholder="Descrición ou referencia do material" hidden /></label>
         <label><span>Cantidade</span><input id="resource-qty" type="number" min="1" value="1" /></label><button id="add-resource" class="secondary" type="button">Engadir</button>
       </div><div id="selected-resources" class="selected-resources"><p class="muted">Aínda non seleccionaches material.</p></div></section>
-      <section class="form-section"><h3>4. Documento de aceptación / autorización</h3><div class="form-grid"><label class="wide"><span>Xustificante</span><input id="movement-proof" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" /><small>Opcional. Gardarase no arquivo privado e a súa referencia escribirase en MovementosArquivo.Xustificante.</small></label></div></section>
+      <section class="form-section"><h3>4. Documento de aceptación / autorización</h3><div class="form-grid"><label class="wide"><span>Xustificante</span><input id="movement-proof" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" /><small>Opcional. Gardarase no arquivo privado e a súa referencia escribirase en MovementosArquivo.Xustificante.</small><button id="current-proof" type="button" class="link-button" hidden>Consultar o xustificante actual</button></label></div></section>
       <p id="movement-status" class="form-status"></p><footer><button type="button" data-close-movement class="secondary">Cancelar</button><button type="submit" class="primary">Gardar movemento</button></footer>
     </form>
+  </dialog>
+
+  <dialog id="movement-detail-dialog" class="wide-dialog">
+    <div class="detail-dialog-shell">
+      <header><div><small>Arquivo SCPP</small><h2>Ficha do movemento</h2></div><button type="button" data-close-detail aria-label="Pechar">×</button></header>
+      <div id="movement-detail" class="movement-detail"></div>
+      <footer><button type="button" class="secondary" id="detail-proof" hidden>Consultar xustificante</button><button type="button" class="secondary danger" id="detail-delete">Eliminar</button><button type="button" class="primary" id="detail-edit">Editar</button><button type="button" class="secondary" data-close-detail>Pechar</button></footer>
+    </div>
   </dialog>
 
   <dialog id="simple-dialog"><form method="dialog" id="simple-form"><header><div><small>Arquivo SCPP</small><h2 id="simple-title">Nova alta</h2></div><button type="button" data-close-simple aria-label="Pechar">×</button></header><div id="simple-fields" class="form-grid"></div><p id="simple-status" class="form-status"></p><footer><button type="button" data-close-simple class="secondary">Cancelar</button><button type="submit" class="primary">Gardar</button></footer></form></dialog>
@@ -65,33 +73,339 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
 
 <script>
   import { closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
-  type Row=Record<string,unknown>; type Recurso={tipo?:unknown,id?:unknown,titulo?:unknown,detalle?:unknown}; type ArchiveData={fondos:Row[],elementosFondo:Row[],movementos:Row[],elementosMovemento:Row[],recursos?:Record<string,Recurso[]>}; type SelectedResource={tipo:string,id:string,titulo:string,cantidade:number};
-  let data:ArchiveData={fondos:[],elementosFondo:[],movementos:[],elementosMovemento:[],recursos:{}},tab='movementos',simpleEditing:Row|null=null,selectedResources:SelectedResource[]=[];
-  const $=(s:string)=>document.querySelector(s),clean=(v:unknown)=>String(v??'').trim(),esc=(v:unknown)=>clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c)),today=()=>new Date().toISOString().slice(0,10),physicalTypes=new Set(['Préstamo físico','Cesión temporal']);
-  async function request(accion:string,extra:Row={}){const u=await waitForPortalUser();if(!u)throw new Error('Non hai unha sesión válida.');const r=await fetch('/api/arquivo-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:await u.getIdToken(),accion,...extra})});const x=await r.json().catch(()=>null);if(!r.ok||!x?.ok)throw new Error(x?.erro||'Non foi posible completar a operación.');return x;}
-  async function uploadProof(file:File,movementId:string){const u=await waitForPortalUser();if(!u)throw new Error('Non hai unha sesión válida.');const form=new FormData();form.append('idToken',await u.getIdToken());form.append('idMovemento',movementId);form.append('file',file);const r=await fetch('/api/arquivo-xustificante',{method:'POST',body:form});const x=await r.json().catch(()=>null);if(!r.ok||!x?.ok)throw new Error(x?.erro||'Non foi posible gardar o xustificante.');return clean(x.ruta);}
-  const movementElements=(id:string)=>data.elementosMovemento.filter(x=>clean(x.Id_Movemento)===id),isPhysicalMovement=(row:Row)=>physicalTypes.has(clean(row.TipoMovemento)),movementClosed=(row:Row)=>['Devolto','Cancelado'].includes(clean(row.Estado))||(clean(row.Estado)==='Pechado'&&(!isPhysicalMovement(row)||!!clean(row.DataDevolucion)));
-  function metrics(){const open=data.movementos.filter(x=>isPhysicalMovement(x)&&!movementClosed(x)),digital=data.movementos.filter(x=>clean(x.TipoMovemento)==='Envío de copia dixital');($('#m-movementos') as HTMLElement).textContent=String(data.movementos.length);($('#m-abertos') as HTMLElement).textContent=String(open.length);($('#m-dixitais') as HTMLElement).textContent=String(digital.length);($('#m-fondos') as HTMLElement).textContent=String(data.fondos.length);}
-  function resourceList(tipo:string):Recurso[]{if(tipo==='Fondo')return data.fondos.filter(f=>clean(f.Estado)!=='Arquivado').map(f=>({tipo:'Fondo',id:f.Id_Fondo,titulo:f.NomeFondo,detalle:f.TipoFondo}));return Array.isArray(data.recursos?.[tipo])?data.recursos?.[tipo]||[]:[];}
-  function refreshResourcePicker(){const type=$('#resource-type') as HTMLSelectElement,filter=$('#resource-filter') as HTMLInputElement,select=$('#resource-select') as HTMLSelectElement,manual=$('#resource-manual') as HTMLInputElement,tipo=type.value,isManual=tipo==='Outro';filter.hidden=isManual;select.hidden=isManual;manual.hidden=!isManual;if(isManual)return;const q=filter.value.trim().toLowerCase(),items=resourceList(tipo).filter(r=>!q||`${clean(r.titulo)} ${clean(r.detalle)} ${clean(r.id)}`.toLowerCase().includes(q));select.innerHTML=`<option value="">Selecciona un recurso…</option>`+items.map(r=>`<option value="${esc(r.id)}">${esc(r.titulo)}${r.detalle?` — ${esc(r.detalle)}`:''} · ${esc(r.id)}</option>`).join('');}
-  function drawSelectedResources(){const box=$('#selected-resources') as HTMLElement;if(!selectedResources.length){box.innerHTML='<p class="muted">Aínda non seleccionaches material.</p>';return;}box.innerHTML=selectedResources.map((r,i)=>`<article><div><small>${esc(r.tipo)} · ${esc(r.id||'sen referencia')}</small><strong>${esc(r.titulo)}</strong><span>Cantidade: ${r.cantidade}</span></div><button type="button" class="secondary" data-remove-resource="${i}">Retirar</button></article>`).join('');}
-  function addResource(){const tipo=($('#resource-type') as HTMLSelectElement).value,qty=Math.max(1,Number(($('#resource-qty') as HTMLInputElement).value||1));let id='',titulo='';if(tipo==='Outro'){titulo=clean(($('#resource-manual') as HTMLInputElement).value);if(!titulo)return alert('Indica unha descrición do material.');}else{id=clean(($('#resource-select') as HTMLSelectElement).value);if(!id)return alert('Selecciona un recurso.');const item=resourceList(tipo).find(r=>clean(r.id)===id);titulo=clean(item?.titulo)||id;}if(selectedResources.some(r=>r.tipo===tipo&&r.id===id&&r.titulo===titulo))return alert('Ese material xa está engadido.');selectedResources.push({tipo,id,titulo,cantidade:qty});drawSelectedResources();($('#resource-filter') as HTMLInputElement).value='';($('#resource-manual') as HTMLInputElement).value='';($('#resource-qty') as HTMLInputElement).value='1';refreshResourcePicker();}
-  function updateMovementMode(){const type=clean(($('#movement-type') as HTMLSelectElement).value),physical=physicalTypes.has(type),returnField=$('#return-date-field') as HTMLElement,method=$('#delivery-method') as HTMLSelectElement;returnField.hidden=!physical;if(physical&&['Correo electrónico','Drive','WhatsApp'].includes(method.value))method.value='En man';if(!physical&&['En man','Correo postal'].includes(method.value))method.value='Correo electrónico';}
-  function openMovement(){selectedResources=[];drawSelectedResources();const form=$('#movement-form') as HTMLFormElement;form.reset();($('#movement-type') as HTMLSelectElement).value='Envío de copia dixital';($('#movement-date') as HTMLInputElement).value=today();($('#delivery-method') as HTMLSelectElement).value='Correo electrónico';($('#movement-status') as HTMLElement).textContent='';updateMovementMode();refreshResourcePicker();($('#movement-dialog') as HTMLDialogElement).showModal();}
+
+  type Row=Record<string,unknown>;
+  type Recurso={tipo?:unknown,id?:unknown,titulo?:unknown,detalle?:unknown};
+  type ArchiveData={fondos:Row[],elementosFondo:Row[],movementos:Row[],elementosMovemento:Row[],recursos?:Record<string,Recurso[]>};
+  type SelectedResource={tipo:string,id:string,titulo:string,cantidade:number};
+
+  let data:ArchiveData={fondos:[],elementosFondo:[],movementos:[],elementosMovemento:[],recursos:{}};
+  let tab='movementos';
+  let simpleEditing:Row|null=null;
+  let movementEditing:Row|null=null;
+  let movementDraftId='';
+  let selectedResources:SelectedResource[]=[];
+  let detailMovementId='';
+
+  const $=(s:string)=>document.querySelector(s);
+  const clean=(v:unknown)=>String(v??'').trim();
+  const esc=(v:unknown)=>clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c));
+  const today=()=>new Date().toISOString().slice(0,10);
+  const physicalTypes=new Set(['Préstamo físico','Cesión temporal']);
+
+  async function request(accion:string,extra:Row={}){
+    const u=await waitForPortalUser();
+    if(!u)throw new Error('Non hai unha sesión válida.');
+    const r=await fetch('/api/arquivo-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:await u.getIdToken(),accion,...extra})});
+    const x=await r.json().catch(()=>null);
+    if(!r.ok||!x?.ok)throw new Error(x?.erro||'Non foi posible completar a operación.');
+    return x;
+  }
+
+  async function proofRequest(accion:'ler'|'eliminar',ruta:string){
+    const u=await waitForPortalUser();
+    if(!u)throw new Error('Non hai unha sesión válida.');
+    const form=new FormData();
+    form.append('idToken',await u.getIdToken());
+    form.append('accion',accion);
+    form.append('ruta',ruta);
+    return fetch('/api/arquivo-xustificante',{method:'POST',body:form});
+  }
+
+  async function uploadProof(file:File,movementId:string){
+    const u=await waitForPortalUser();
+    if(!u)throw new Error('Non hai unha sesión válida.');
+    const form=new FormData();
+    form.append('idToken',await u.getIdToken());
+    form.append('idMovemento',movementId);
+    form.append('file',file);
+    const r=await fetch('/api/arquivo-xustificante',{method:'POST',body:form});
+    const x=await r.json().catch(()=>null);
+    if(!r.ok||!x?.ok)throw new Error(x?.erro||'Non foi posible gardar o xustificante.');
+    return clean(x.ruta);
+  }
+
+  async function viewProof(ruta:string){
+    if(!ruta)return;
+    const popup=window.open('','_blank');
+    try{
+      const r=await proofRequest('ler',ruta);
+      if(!r.ok){const x=await r.json().catch(()=>null);throw new Error(x?.erro||'Non foi posible consultar o xustificante.');}
+      const blob=await r.blob();
+      const url=URL.createObjectURL(blob);
+      if(popup)popup.location.href=url;else window.open(url,'_blank','noopener,noreferrer');
+      window.setTimeout(()=>URL.revokeObjectURL(url),120000);
+    }catch(e){if(popup)popup.close();alert(e instanceof Error?e.message:String(e));}
+  }
+
+  const movementElements=(id:string)=>data.elementosMovemento.filter(x=>clean(x.Id_Movemento)===id);
+  const isPhysicalMovement=(row:Row)=>physicalTypes.has(clean(row.TipoMovemento));
+  const movementClosed=(row:Row)=>['Devolto','Cancelado'].includes(clean(row.Estado))||(clean(row.Estado)==='Pechado'&&(!isPhysicalMovement(row)||!!clean(row.DataDevolucion)));
+  const movementTitle=(row:Row)=>clean(row.Destinatario)||clean(row.Entidade)||clean(row.Id_Movemento);
+
+  function metrics(){
+    const open=data.movementos.filter(x=>isPhysicalMovement(x)&&!movementClosed(x));
+    const digital=data.movementos.filter(x=>clean(x.TipoMovemento)==='Envío de copia dixital');
+    ($('#m-movementos') as HTMLElement).textContent=String(data.movementos.length);
+    ($('#m-abertos') as HTMLElement).textContent=String(open.length);
+    ($('#m-dixitais') as HTMLElement).textContent=String(digital.length);
+    ($('#m-fondos') as HTMLElement).textContent=String(data.fondos.length);
+  }
+
+  function resourceList(tipo:string):Recurso[]{
+    if(tipo==='Fondo')return data.fondos.filter(f=>clean(f.Estado)!=='Arquivado').map(f=>({tipo:'Fondo',id:f.Id_Fondo,titulo:f.NomeFondo,detalle:f.TipoFondo}));
+    return Array.isArray(data.recursos?.[tipo])?data.recursos?.[tipo]||[]:[];
+  }
+
+  function refreshResourcePicker(){
+    const type=$('#resource-type') as HTMLSelectElement,filter=$('#resource-filter') as HTMLInputElement,select=$('#resource-select') as HTMLSelectElement,manual=$('#resource-manual') as HTMLInputElement,tipo=type.value,isManual=tipo==='Outro';
+    filter.hidden=isManual;select.hidden=isManual;manual.hidden=!isManual;
+    if(isManual)return;
+    const q=filter.value.trim().toLowerCase(),items=resourceList(tipo).filter(r=>!q||`${clean(r.titulo)} ${clean(r.detalle)} ${clean(r.id)}`.toLowerCase().includes(q));
+    select.innerHTML=`<option value="">Selecciona un recurso…</option>`+items.map(r=>`<option value="${esc(r.id)}">${esc(r.titulo)}${r.detalle?` — ${esc(r.detalle)}`:''} · ${esc(r.id)}</option>`).join('');
+  }
+
+  function drawSelectedResources(){
+    const box=$('#selected-resources') as HTMLElement;
+    if(!selectedResources.length){box.innerHTML='<p class="muted">Aínda non seleccionaches material.</p>';return;}
+    box.innerHTML=selectedResources.map((r,i)=>`<article><div><small>${esc(r.tipo)} · ${esc(r.id||'sen referencia')}</small><strong>${esc(r.titulo)}</strong><span>Cantidade: ${r.cantidade}</span></div><button type="button" class="secondary" data-remove-resource="${i}">Retirar</button></article>`).join('');
+  }
+
+  function addResource(){
+    const tipo=($('#resource-type') as HTMLSelectElement).value,qty=Math.max(1,Number(($('#resource-qty') as HTMLInputElement).value||1));
+    let id='',titulo='';
+    if(tipo==='Outro'){
+      titulo=clean(($('#resource-manual') as HTMLInputElement).value);
+      if(!titulo)return alert('Indica unha descrición do material.');
+    }else{
+      id=clean(($('#resource-select') as HTMLSelectElement).value);
+      if(!id)return alert('Selecciona un recurso.');
+      const item=resourceList(tipo).find(r=>clean(r.id)===id);
+      titulo=clean(item?.titulo)||id;
+    }
+    if(selectedResources.some(r=>r.tipo===tipo&&r.id===id&&r.titulo===titulo))return alert('Ese material xa está engadido.');
+    selectedResources.push({tipo,id,titulo,cantidade:qty});
+    drawSelectedResources();
+    ($('#resource-filter') as HTMLInputElement).value='';
+    ($('#resource-manual') as HTMLInputElement).value='';
+    ($('#resource-qty') as HTMLInputElement).value='1';
+    refreshResourcePicker();
+  }
+
+  function updateMovementMode(){
+    const type=clean(($('#movement-type') as HTMLSelectElement).value),physical=physicalTypes.has(type),returnField=$('#return-date-field') as HTMLElement,method=$('#delivery-method') as HTMLSelectElement;
+    returnField.hidden=!physical;
+    if(physical&&['Correo electrónico','Drive','WhatsApp'].includes(method.value))method.value='En man';
+    if(!physical&&['En man','Correo postal'].includes(method.value))method.value='Correo electrónico';
+  }
+
+  function fillMovementForm(row:Row|null){
+    const form=$('#movement-form') as HTMLFormElement;
+    form.reset();
+    if(row){
+      for(const [name,value] of Object.entries(row)){
+        const field=form.elements.namedItem(name);
+        if(field instanceof HTMLInputElement||field instanceof HTMLSelectElement||field instanceof HTMLTextAreaElement)field.value=clean(value);
+      }
+    }else{
+      ($('#movement-type') as HTMLSelectElement).value='Envío de copia dixital';
+      ($('#movement-date') as HTMLInputElement).value=today();
+      ($('#delivery-method') as HTMLSelectElement).value='Correo electrónico';
+    }
+  }
+
+  function openMovement(row:Row|null=null){
+    movementEditing=row;
+    movementDraftId=clean(row?.Id_Movemento)||`MOV-${crypto.randomUUID()}`;
+    selectedResources=row?movementElements(movementDraftId).map(e=>({tipo:clean(e.TipoRecurso)||'Outro',id:clean(e.Id_Recurso),titulo:clean(e.DescricionElemento)||clean(e.Id_Recurso)||'Material',cantidade:Math.max(1,Number(e.Cantidade||1))})):[];
+    fillMovementForm(row);
+    drawSelectedResources();
+    ($('#movement-status') as HTMLElement).textContent='';
+    ($('#movement-dialog-title') as HTMLElement).textContent=row?'Editar movemento':'Novo movemento';
+    const proofButton=$('#current-proof') as HTMLButtonElement;
+    proofButton.hidden=!clean(row?.Xustificante);
+    proofButton.dataset.ruta=clean(row?.Xustificante);
+    updateMovementMode();
+    refreshResourcePicker();
+    ($('#movement-dialog') as HTMLDialogElement).showModal();
+  }
+
   const fundFields:Array<[string,string,string]>=[['NomeFondo','Nome do fondo *','text'],['Descricion','Descrición','textarea'],['TipoFondo','Tipo de fondo *','select:Persoal|Institucional|Colección|Musical|Documental|Mixto|Outro'],['Procedencia','Procedencia','text'],['PersoaEntidadeOrixe','Persoa ou entidade de orixe','text'],['DataIngreso','Data de ingreso','date'],['TipoIngreso','Tipo de ingreso','select:Doazón|Depósito|Compra|Transferencia|Outro'],['DataInicio','Data de inicio','date'],['DataFin','Data de fin','date'],['Volume','Volume','text'],['EstadoConservacion','Estado de conservación','text'],['LocalizacionFisica','Localización física','text'],['NivelAcceso','Nivel de acceso','select:Coralistas|Xunta Directiva|Administración'],['Estado','Estado','select:Activo|En catalogación|Arquivado'],['Observacions','Observacións','textarea']];
   const catalogFields:Array<[string,string,string]>=[['Id_Fondo','Fondo *','fund'],['TipoRecurso','Tipo de recurso *','select:Documento|Partitura|Fotografía|Audio|Vídeo|Outro'],['Id_Recurso','Identificador do recurso','text'],['TituloElemento','Título do elemento *','text'],['NumeroInventario','Número de inventario','text'],['Caixa','Caixa','text'],['Carpeta','Carpeta','text'],['Orde','Orde','number'],['EstadoConservacion','Estado de conservación','text'],['LocalizacionFisica','Localización física','text'],['Observacions','Observacións','textarea'],['Activo','Activo','checkbox']];
-  function fieldHtml(name:string,label:string,type:string,row:Row|null){const value=row?.[name],required=label.endsWith('*')?'required':'';if(type==='textarea')return`<label class="wide"><span>${esc(label)}</span><textarea name="${name}" ${required}>${esc(value)}</textarea></label>`;if(type==='fund')return`<label><span>${esc(label)}</span><select name="${name}" ${required}><option value="">Selecciona un fondo…</option>${data.fondos.map(f=>`<option value="${esc(f.Id_Fondo)}" ${clean(value)===clean(f.Id_Fondo)?'selected':''}>${esc(f.NomeFondo)}</option>`).join('')}</select></label>`;if(type==='checkbox')return`<label class="check-line"><input name="${name}" type="checkbox" ${value===true||clean(value).toLowerCase()==='true'?'checked':''}/><span>${esc(label)}</span></label>`;if(type.startsWith('select:'))return`<label><span>${esc(label)}</span><select name="${name}" ${required}><option value=""></option>${type.slice(7).split('|').map(v=>`<option value="${esc(v)}" ${clean(value)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`;return`<label><span>${esc(label)}</span><input name="${name}" type="${type}" value="${esc(value)}" ${required}/></label>`;}
-  function openSimple(row:Row|null=null){simpleEditing=row;const fields=tab==='fondos'?fundFields:catalogFields;($('#simple-title') as HTMLElement).textContent=row?'Editar rexistro':tab==='fondos'?'Novo fondo':'Novo elemento de catálogo';($('#simple-fields') as HTMLElement).innerHTML=fields.map(f=>fieldHtml(f[0],f[1],f[2],row)).join('');($('#simple-status') as HTMLElement).textContent='';($('#simple-dialog') as HTMLDialogElement).showModal();}
-  const movementTitle=(row:Row)=>clean(row.Destinatario)||clean(row.Entidade)||clean(row.Id_Movemento);
-  function draw(){const q=clean((($('#search') as HTMLInputElement)?.value)).toLowerCase(),list=$('#list') as HTMLElement;let rows:Row[];if(tab==='fondos')rows=data.fondos;else if(tab==='catalogo')rows=data.elementosFondo;else if(tab==='historico')rows=data.movementos.filter(movementClosed);else rows=data.movementos.filter(x=>!movementClosed(x)||clean(x.TipoMovemento)==='Envío de copia dixital');rows=rows.filter(r=>{const related=clean(r.Id_Movemento)?movementElements(clean(r.Id_Movemento)).map(e=>`${clean(e.DescricionElemento)} ${clean(e.Id_Recurso)}`).join(' '):'';return!q||`${JSON.stringify(r)} ${related}`.toLowerCase().includes(q);});if(!rows.length){list.innerHTML='<p class="state">Non hai rexistros para mostrar.</p>';return;}if(tab==='fondos'){list.innerHTML=rows.map(r=>`<article class="record"><div><small>${esc(r.Id_Fondo)}</small><h2>${esc(r.NomeFondo)}</h2><p>${esc(r.TipoFondo)}${r.LocalizacionFisica?` · ${esc(r.LocalizacionFisica)}`:''}</p></div><strong class="badge">${esc(r.Estado)}</strong><button class="secondary" data-edit-simple="${esc(r.Id_Fondo)}">Editar</button></article>`).join('');return;}if(tab==='catalogo'){list.innerHTML=rows.map(r=>`<article class="record"><div><small>${esc(r.Id_ElementoFondo)} · ${esc(r.TipoRecurso)}</small><h2>${esc(r.TituloElemento)}</h2><p>${esc(r.NumeroInventario||r.Id_Recurso||'')}</p></div><strong class="badge">${esc(r.EstadoConservacion||'')}</strong><button class="secondary" data-edit-simple="${esc(r.Id_ElementoFondo)}">Editar</button></article>`).join('');return;}list.innerHTML=rows.map(r=>{const id=clean(r.Id_Movemento),elements=movementElements(id),items=elements.length?elements.map(e=>clean(e.DescricionElemento)||clean(e.Id_Recurso)).filter(Boolean).join(' · '):'Sen elementos asociados',canReturn=isPhysicalMovement(r)&&!movementClosed(r),proof=clean(r.Xustificante);return`<article class="record movement-record"><div><small>${esc(id)} · ${esc(r.DataEntrega)}</small><h2>${esc(movementTitle(r))}</h2><p><strong>${esc(r.TipoMovemento)}</strong> · ${esc(items)}</p><p>${esc(r.Finalidade||'')}</p>${proof?'<small class="proof-note">Xustificante rexistrado</small>':''}</div><strong class="badge">${esc(canReturn?'Pendente de devolución':r.Estado)}</strong>${canReturn?`<button class="primary" data-return="${esc(id)}">Rexistrar devolución</button>`:''}</article>`;}).join('');}
-  function activateTab(next:string){tab=next;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',(x as HTMLButtonElement).dataset.tab===tab));const button=$('#new') as HTMLButtonElement;button.hidden=tab==='historico';button.textContent=tab==='fondos'?'Novo fondo':tab==='catalogo'?'Novo elemento':'Novo movemento';draw();}
-  async function load(){try{const u=await waitForPortalUser();if(!u)throw new Error('Non hai unha sesión válida.');($('#user-email') as HTMLElement).textContent=u.email||'—';data=await request('listarArquivoAdministracion') as ArchiveData;data.recursos=data.recursos||{};($('#loading') as HTMLElement).hidden=true;($('#app') as HTMLElement).hidden=false;metrics();draw();}catch(e){($('#loading') as HTMLElement).hidden=true;const box=$('#error') as HTMLElement;box.hidden=false;box.textContent=e instanceof Error?e.message:String(e);}}
-  async function saveMovement(event:Event){event.preventDefault();const form=event.currentTarget as HTMLFormElement,status=$('#movement-status') as HTMLElement;if(!selectedResources.length){status.textContent='Engade polo menos un recurso ou material ao movemento.';return;}const values=Object.fromEntries(new FormData(form)),type=clean(values.TipoMovemento),physical=physicalTypes.has(type),movement:Row={...values,DataPrevistaDevolucion:physical?clean(values.DataPrevistaDevolucion):'',DataDevolucion:'',Estado:physical?'Pendente de devolución':'Pechado',Xustificante:''},submit=form.querySelector('button[type="submit"]') as HTMLButtonElement;submit.disabled=true;status.textContent='Gardando o movemento…';try{const saved=await request('gardarMovementoArquivoAdministracion',{movemento:movement}),idMovemento=clean(saved.id);if(!idMovemento)throw new Error('O backend non devolveu o identificador do movemento.');const defaultFormat=physical?'Orixinal físico':'Copia dixital';for(const item of selectedResources){await request('gardarElementoMovementoAdministracion',{elemento:{Id_Movemento:idMovemento,TipoRecurso:item.tipo,Id_Recurso:item.id,DescricionElemento:item.titulo,Cantidade:item.cantidade,FormatoEntrega:defaultFormat,EstadoSaida:physical?'Entregado':'Enviado',EstadoRegreso:'',Devolto:physical?false:'',DataDevolucionElemento:'',Observacions:''}});}const proof=$('#movement-proof') as HTMLInputElement;if(proof.files?.[0]){status.textContent='Gardando o xustificante…';const ruta=await uploadProof(proof.files[0],idMovemento);await request('gardarMovementoArquivoAdministracion',{movemento:{...movement,Id_Movemento:idMovemento,Xustificante:ruta}});}($('#movement-dialog') as HTMLDialogElement).close();status.textContent='';await load();}catch(e){status.textContent=e instanceof Error?e.message:String(e);}finally{submit.disabled=false;}}
-  async function saveSimple(event:Event){event.preventDefault();const form=event.currentTarget as HTMLFormElement,status=$('#simple-status') as HTMLElement,values:Row=Object.fromEntries(new FormData(form));if(tab==='catalogo')values.Activo=(form.elements.namedItem('Activo') as HTMLInputElement)?.checked===true;status.textContent='Gardando…';try{if(tab==='fondos')await request('gardarFondoAdministracion',{fondo:{...simpleEditing,...values}});else await request('gardarElementoFondoAdministracion',{elemento:{...simpleEditing,...values}});($('#simple-dialog') as HTMLDialogElement).close();await load();}catch(e){status.textContent=e instanceof Error?e.message:String(e);}}
-  async function registerReturn(id:string){if(!confirm('Confirmas a devolución deste material físico?'))return;const date=today();try{await request('rexistrarDevolucionArquivoAdministracion',{idMovemento:id,dataDevolucion:date});for(const element of movementElements(id)){await request('gardarElementoMovementoAdministracion',{elemento:{...element,Devolto:true,DataDevolucionElemento:date,EstadoRegreso:'Devolto'}});}await load();}catch(e){alert(e instanceof Error?e.message:String(e));}}
-  $('.tabs')?.addEventListener('click',e=>{const b=e.target as HTMLButtonElement;if(b.dataset.tab)activateTab(b.dataset.tab);});$('#search')?.addEventListener('input',draw);$('#new')?.addEventListener('click',()=>tab==='movementos'?openMovement():openSimple());$('#movement-type')?.addEventListener('change',updateMovementMode);$('#resource-type')?.addEventListener('change',()=>{($('#resource-filter') as HTMLInputElement).value='';refreshResourcePicker();});$('#resource-filter')?.addEventListener('input',refreshResourcePicker);$('#add-resource')?.addEventListener('click',addResource);$('#selected-resources')?.addEventListener('click',e=>{const b=e.target as HTMLButtonElement;if(b.dataset.removeResource==null)return;selectedResources.splice(Number(b.dataset.removeResource),1);drawSelectedResources();});$('#movement-form')?.addEventListener('submit',saveMovement);$('#simple-form')?.addEventListener('submit',saveSimple);$('#list')?.addEventListener('click',e=>{const b=e.target as HTMLButtonElement;if(b.dataset.return)registerReturn(b.dataset.return);if(b.dataset.editSimple){const source=tab==='fondos'?data.fondos:data.elementosFondo,key=tab==='fondos'?'Id_Fondo':'Id_ElementoFondo';openSimple(source.find(r=>clean(r[key])===b.dataset.editSimple)||null);}});document.querySelectorAll('[data-close-movement]').forEach(b=>b.addEventListener('click',()=>($('#movement-dialog') as HTMLDialogElement).close()));document.querySelectorAll('[data-close-simple]').forEach(b=>b.addEventListener('click',()=>($('#simple-dialog') as HTMLDialogElement).close()));$('#arquivo-logout')?.addEventListener('click',()=>closePortalSession());load();
+
+  function fieldHtml(name:string,label:string,type:string,row:Row|null){
+    const value=row?.[name],required=label.endsWith('*')?'required':'';
+    if(type==='textarea')return`<label class="wide"><span>${esc(label)}</span><textarea name="${name}" ${required}>${esc(value)}</textarea></label>`;
+    if(type==='fund')return`<label><span>${esc(label)}</span><select name="${name}" ${required}><option value="">Selecciona un fondo…</option>${data.fondos.map(f=>`<option value="${esc(f.Id_Fondo)}" ${clean(value)===clean(f.Id_Fondo)?'selected':''}>${esc(f.NomeFondo)}</option>`).join('')}</select></label>`;
+    if(type==='checkbox')return`<label class="check-line"><input name="${name}" type="checkbox" ${value===true||clean(value).toLowerCase()==='true'?'checked':''}/><span>${esc(label)}</span></label>`;
+    if(type.startsWith('select:'))return`<label><span>${esc(label)}</span><select name="${name}" ${required}><option value=""></option>${type.slice(7).split('|').map(v=>`<option value="${esc(v)}" ${clean(value)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`;
+    return`<label><span>${esc(label)}</span><input name="${name}" type="${type}" value="${esc(value)}" ${required}/></label>`;
+  }
+
+  function openSimple(row:Row|null=null){
+    simpleEditing=row;
+    const fields=tab==='fondos'?fundFields:catalogFields;
+    ($('#simple-title') as HTMLElement).textContent=row?'Editar rexistro':tab==='fondos'?'Novo fondo':'Novo elemento de catálogo';
+    ($('#simple-fields') as HTMLElement).innerHTML=fields.map(f=>fieldHtml(f[0],f[1],f[2],row)).join('');
+    ($('#simple-status') as HTMLElement).textContent='';
+    ($('#simple-dialog') as HTMLDialogElement).showModal();
+  }
+
+  function movementDetailHtml(row:Row){
+    const id=clean(row.Id_Movemento),elements=movementElements(id),materials=elements.length?elements.map(e=>`<li><strong>${esc(e.DescricionElemento||e.Id_Recurso||'Material')}</strong><span>${esc(e.TipoRecurso)}${e.Cantidade?` · Cantidade ${esc(e.Cantidade)}`:''}</span></li>`).join(''):'<li>Sen elementos asociados</li>';
+    const field=(label:string,value:unknown)=>`<div><small>${esc(label)}</small><strong>${esc(value||'—')}</strong></div>`;
+    return `<section class="detail-grid">${field('Identificador',id)}${field('Tipo',row.TipoMovemento)}${field('Estado',isPhysicalMovement(row)&&!movementClosed(row)?'Pendente de devolución':row.Estado)}${field('Data de entrega / envío',row.DataEntrega)}${field('Medio de entrega',row.MedioEntrega)}${field('Data prevista de devolución',row.DataPrevistaDevolucion)}${field('Data de devolución',row.DataDevolucion)}${field('Destinatario',row.Destinatario)}${field('Entidade',row.Entidade)}${field('Correo electrónico',row.Email)}${field('Teléfono',row.Telefono)}${field('Autorizado por',row.AutorizadoPor)}<div class="wide">${field('Finalidade',row.Finalidade)}</div><div class="wide">${field('Observacións',row.Observacions)}</div></section><section class="detail-material"><h3>Material</h3><ul>${materials}</ul></section>`;
+  }
+
+  function openMovementDetail(id:string){
+    const row=data.movementos.find(r=>clean(r.Id_Movemento)===id);
+    if(!row)return;
+    detailMovementId=id;
+    ($('#movement-detail') as HTMLElement).innerHTML=movementDetailHtml(row);
+    const proof=$('#detail-proof') as HTMLButtonElement;
+    proof.hidden=!clean(row.Xustificante);
+    proof.dataset.ruta=clean(row.Xustificante);
+    ($('#movement-detail-dialog') as HTMLDialogElement).showModal();
+  }
+
+  function draw(){
+    const q=clean((($('#search') as HTMLInputElement)?.value)).toLowerCase(),list=$('#list') as HTMLElement;
+    let rows:Row[];
+    if(tab==='fondos')rows=data.fondos;
+    else if(tab==='catalogo')rows=data.elementosFondo;
+    else if(tab==='historico')rows=data.movementos.filter(movementClosed);
+    else rows=data.movementos.filter(x=>!movementClosed(x)||clean(x.TipoMovemento)==='Envío de copia dixital');
+    rows=rows.filter(r=>{const related=clean(r.Id_Movemento)?movementElements(clean(r.Id_Movemento)).map(e=>`${clean(e.DescricionElemento)} ${clean(e.Id_Recurso)}`).join(' '):'';return!q||`${JSON.stringify(r)} ${related}`.toLowerCase().includes(q);});
+    if(!rows.length){list.innerHTML='<p class="state">Non hai rexistros para mostrar.</p>';return;}
+    if(tab==='fondos'){
+      list.innerHTML=rows.map(r=>`<article class="record"><div><small>${esc(r.Id_Fondo)}</small><h2>${esc(r.NomeFondo)}</h2><p>${esc(r.TipoFondo)}${r.LocalizacionFisica?` · ${esc(r.LocalizacionFisica)}`:''}</p></div><strong class="badge">${esc(r.Estado)}</strong><button class="secondary" data-edit-simple="${esc(r.Id_Fondo)}">Editar</button></article>`).join('');return;
+    }
+    if(tab==='catalogo'){
+      list.innerHTML=rows.map(r=>`<article class="record"><div><small>${esc(r.Id_ElementoFondo)} · ${esc(r.TipoRecurso)}</small><h2>${esc(r.TituloElemento)}</h2><p>${esc(r.NumeroInventario||r.Id_Recurso||'')}</p></div><strong class="badge">${esc(r.EstadoConservacion||'')}</strong><button class="secondary" data-edit-simple="${esc(r.Id_ElementoFondo)}">Editar</button></article>`).join('');return;
+    }
+    list.innerHTML=rows.map(r=>{
+      const id=clean(r.Id_Movemento),elements=movementElements(id),items=elements.length?elements.map(e=>clean(e.DescricionElemento)||clean(e.Id_Recurso)).filter(Boolean).join(' · '):'Sen elementos asociados',canReturn=isPhysicalMovement(r)&&!movementClosed(r),proof=clean(r.Xustificante);
+      return`<article class="record movement-record" data-view-movement="${esc(id)}"><div><small>${esc(id)} · ${esc(r.DataEntrega)}</small><h2>${esc(movementTitle(r))}</h2><p><strong>${esc(r.TipoMovemento)}</strong> · ${esc(items)}</p><p>${esc(r.Finalidade||'')}</p>${proof?'<small class="proof-note">Xustificante rexistrado</small>':''}<small class="open-note">Preme para ver a ficha completa</small></div><strong class="badge">${esc(canReturn?'Pendente de devolución':r.Estado)}</strong><div class="record-actions">${canReturn?`<button class="primary" data-return="${esc(id)}">Rexistrar devolución</button>`:''}<button class="secondary" data-edit-movement="${esc(id)}">Editar</button><button class="secondary danger" data-delete-movement="${esc(id)}">Eliminar</button></div></article>`;
+    }).join('');
+  }
+
+  function activateTab(next:string){
+    tab=next;
+    document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',(x as HTMLButtonElement).dataset.tab===tab));
+    const button=$('#new') as HTMLButtonElement;
+    button.hidden=tab==='historico';
+    button.textContent=tab==='fondos'?'Novo fondo':tab==='catalogo'?'Novo elemento':'Novo movemento';
+    draw();
+  }
+
+  async function load(){
+    try{
+      const u=await waitForPortalUser();
+      if(!u)throw new Error('Non hai unha sesión válida.');
+      ($('#user-email') as HTMLElement).textContent=u.email||'—';
+      data=await request('listarArquivoAdministracion') as ArchiveData;
+      data.recursos=data.recursos||{};
+      ($('#loading') as HTMLElement).hidden=true;
+      ($('#app') as HTMLElement).hidden=false;
+      metrics();draw();
+    }catch(e){
+      ($('#loading') as HTMLElement).hidden=true;
+      const box=$('#error') as HTMLElement;box.hidden=false;box.textContent=e instanceof Error?e.message:String(e);
+    }
+  }
+
+  function movementElementPayload(type:string,physical:boolean){
+    const defaultFormat=physical?'Orixinal físico':'Copia dixital';
+    return selectedResources.map(item=>({Id_Movemento:movementDraftId,TipoRecurso:item.tipo,Id_Recurso:item.id,DescricionElemento:item.titulo,Cantidade:item.cantidade,FormatoEntrega:defaultFormat,EstadoSaida:physical?'Entregado':'Enviado',EstadoRegreso:'',Devolto:physical?false:'',DataDevolucionElemento:'',Observacions:''}));
+  }
+
+  async function saveMovement(event:Event){
+    event.preventDefault();
+    const form=event.currentTarget as HTMLFormElement,status=$('#movement-status') as HTMLElement;
+    if(!selectedResources.length){status.textContent='Engade polo menos un recurso ou material ao movemento.';return;}
+    const values=Object.fromEntries(new FormData(form)),type=clean(values.TipoMovemento),physical=physicalTypes.has(type),oldProof=clean(movementEditing?.Xustificante),oldReturn=clean(movementEditing?.DataDevolucion),movement:Row={...(movementEditing||{}),...values,Id_Movemento:movementDraftId,DataPrevistaDevolucion:physical?clean(values.DataPrevistaDevolucion):'',DataDevolucion:physical?oldReturn:'',Estado:physical?(oldReturn?'Devolto':'Pendente de devolución'):'Pechado',Xustificante:oldProof},submit=form.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const elementos=movementElementPayload(type,physical);
+    submit.disabled=true;
+    status.textContent='Gardando os datos e o material…';
+    try{
+      const saved=await request('gardarMovementoArquivoAdministracion',{movemento:movement,elementos});
+      const idMovemento=clean(saved.id)||movementDraftId;
+      movementDraftId=idMovemento;
+      movementEditing={...movement,Id_Movemento:idMovemento};
+      const proof=$('#movement-proof') as HTMLInputElement;
+      if(proof.files?.[0]){
+        status.textContent='Datos gardados. Gardando o xustificante…';
+        const ruta=await uploadProof(proof.files[0],idMovemento);
+        await request('gardarMovementoArquivoAdministracion',{movemento:{...movementEditing,Xustificante:ruta}});
+        if(oldProof&&oldProof!==ruta){const cleanup=await proofRequest('eliminar',oldProof).catch(()=>null);if(cleanup&&!cleanup.ok)console.warn('Arquivo: non se puido limpar o xustificante anterior.');}
+      }
+      ($('#movement-dialog') as HTMLDialogElement).close();
+      status.textContent='';
+      movementEditing=null;movementDraftId='';
+      await load();
+    }catch(e){
+      const message=e instanceof Error?e.message:String(e);
+      status.textContent=movementEditing?`O movemento quedou identificado como ${movementDraftId}. Podes volver gardalo sen crear un duplicado. ${message}`:message;
+    }finally{submit.disabled=false;}
+  }
+
+  async function saveSimple(event:Event){
+    event.preventDefault();
+    const form=event.currentTarget as HTMLFormElement,status=$('#simple-status') as HTMLElement,values:Row=Object.fromEntries(new FormData(form));
+    if(tab==='catalogo')values.Activo=(form.elements.namedItem('Activo') as HTMLInputElement)?.checked===true;
+    status.textContent='Gardando…';
+    try{if(tab==='fondos')await request('gardarFondoAdministracion',{fondo:{...simpleEditing,...values}});else await request('gardarElementoFondoAdministracion',{elemento:{...simpleEditing,...values}});($('#simple-dialog') as HTMLDialogElement).close();await load();}catch(e){status.textContent=e instanceof Error?e.message:String(e);}
+  }
+
+  async function registerReturn(id:string){
+    if(!confirm('Confirmas a devolución deste material físico?'))return;
+    const date=today();
+    try{await request('rexistrarDevolucionArquivoAdministracion',{idMovemento:id,dataDevolucion:date});for(const element of movementElements(id)){await request('gardarElementoMovementoAdministracion',{elemento:{...element,Devolto:true,DataDevolucionElemento:date,EstadoRegreso:'Devolto'}});}await load();}catch(e){alert(e instanceof Error?e.message:String(e));}
+  }
+
+  async function deleteMovement(id:string){
+    const row=data.movementos.find(r=>clean(r.Id_Movemento)===id);
+    if(!row)return;
+    if(!confirm(`Vas eliminar o movemento de ${movementTitle(row)} e todo o material asociado. Esta acción non se pode desfacer. Continuar?`))return;
+    try{
+      const result=await request('gardarMovementoArquivoAdministracion',{movemento:{Id_Movemento:id},eliminar:true});
+      if(result.aviso)alert(result.aviso);
+      if(detailMovementId===id)( $('#movement-detail-dialog') as HTMLDialogElement).close();
+      await load();
+    }catch(e){alert(e instanceof Error?e.message:String(e));}
+  }
+
+  $('.tabs')?.addEventListener('click',e=>{const b=e.target as HTMLButtonElement;if(b.dataset.tab)activateTab(b.dataset.tab);});
+  $('#search')?.addEventListener('input',draw);
+  $('#new')?.addEventListener('click',()=>tab==='movementos'?openMovement():openSimple());
+  $('#movement-type')?.addEventListener('change',updateMovementMode);
+  $('#resource-type')?.addEventListener('change',()=>{($('#resource-filter') as HTMLInputElement).value='';refreshResourcePicker();});
+  $('#resource-filter')?.addEventListener('input',refreshResourcePicker);
+  $('#add-resource')?.addEventListener('click',addResource);
+  $('#selected-resources')?.addEventListener('click',e=>{const b=e.target as HTMLButtonElement;if(b.dataset.removeResource==null)return;selectedResources.splice(Number(b.dataset.removeResource),1);drawSelectedResources();});
+  $('#movement-form')?.addEventListener('submit',saveMovement);
+  $('#simple-form')?.addEventListener('submit',saveSimple);
+  $('#current-proof')?.addEventListener('click',e=>viewProof((e.currentTarget as HTMLButtonElement).dataset.ruta||''));
+  $('#detail-proof')?.addEventListener('click',e=>viewProof((e.currentTarget as HTMLButtonElement).dataset.ruta||''));
+  $('#detail-edit')?.addEventListener('click',()=>{const row=data.movementos.find(r=>clean(r.Id_Movemento)===detailMovementId);if(row){($('#movement-detail-dialog') as HTMLDialogElement).close();openMovement(row);}});
+  $('#detail-delete')?.addEventListener('click',()=>deleteMovement(detailMovementId));
+  $('#list')?.addEventListener('click',e=>{
+    const target=e.target as HTMLElement;
+    const button=target.closest('button') as HTMLButtonElement|null;
+    if(button?.dataset.return){registerReturn(button.dataset.return);return;}
+    if(button?.dataset.editMovement){const row=data.movementos.find(r=>clean(r.Id_Movemento)===button.dataset.editMovement);if(row)openMovement(row);return;}
+    if(button?.dataset.deleteMovement){deleteMovement(button.dataset.deleteMovement);return;}
+    if(button?.dataset.editSimple){const source=tab==='fondos'?data.fondos:data.elementosFondo,key=tab==='fondos'?'Id_Fondo':'Id_ElementoFondo';openSimple(source.find(r=>clean(r[key])===button.dataset.editSimple)||null);return;}
+    const record=target.closest<HTMLElement>('[data-view-movement]');
+    if(record?.dataset.viewMovement)openMovementDetail(record.dataset.viewMovement);
+  });
+  document.querySelectorAll('[data-close-movement]').forEach(b=>b.addEventListener('click',()=>($('#movement-dialog') as HTMLDialogElement).close()));
+  document.querySelectorAll('[data-close-simple]').forEach(b=>b.addEventListener('click',()=>($('#simple-dialog') as HTMLDialogElement).close()));
+  document.querySelectorAll('[data-close-detail]').forEach(b=>b.addEventListener('click',()=>($('#movement-detail-dialog') as HTMLDialogElement).close()));
+  $('#arquivo-logout')?.addEventListener('click',()=>closePortalSession());
+  load();
 </script>
 
 <style is:global>
-  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.archive-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,3rem) 4rem;font-family:var(--fuente-minimalista)}.page-head{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.4rem}.page-head>div:first-child>span{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.page-head h1{margin:.2rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.4rem)}.page-head p{margin:0;max-width:820px;color:#625c58}.account{display:grid;gap:.15rem;min-width:220px;padding:.75rem 1rem;border-left:2px solid var(--color-acento)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin:1.3rem 0}.metrics article{display:grid;gap:.15rem;padding:.85rem 1rem;background:#fff;border:1px solid #ddd7d2}.metrics strong{font-size:1.35rem;color:var(--color-principal)}.metrics span{font-size:.72rem;text-transform:uppercase;color:#746c67}.tabs{display:flex;gap:.25rem;border-bottom:1px solid #d9d2cc}.tabs button{padding:.75rem 1rem;border:0;background:transparent;font:inherit;font-weight:750;cursor:pointer}.tabs button.active{color:var(--color-principal);border-bottom:3px solid var(--color-principal)}.toolbar{display:flex;gap:.8rem;margin:1rem 0}.toolbar input{flex:1}.records{display:grid;gap:.65rem}.record{display:grid;grid-template-columns:1fr auto auto;gap:1rem;align-items:center;padding:1rem 1.1rem;border:1px solid #ddd7d2;background:#fff}.record h2{margin:.15rem 0;color:var(--color-principal);font-size:1.05rem}.record p{margin:.2rem 0;color:#625c58}.record small{color:#777}.proof-note{display:block;margin-top:.4rem;color:#5d6f54!important;font-weight:700}.badge{font-size:.74rem;padding:.35rem .55rem;border:1px solid #cfc7c0;background:#faf8f6}.state{padding:1rem;border:1px solid #ddd7d2;background:#fff}.error{border-color:#b78489;color:#7b2631}.primary,.secondary{min-height:2.55rem;padding:.55rem .85rem;border-radius:3px;font:inherit;font-weight:750;cursor:pointer}.primary{border:1px solid var(--color-principal);background:var(--color-principal);color:#fff}.secondary{border:1px solid #c9c0b9;background:#fff;color:#342f2c}input,select,textarea{width:100%;box-sizing:border-box;padding:.65rem .7rem;border:1px solid #cfc8c2;background:#fff;font:inherit}dialog{width:min(760px,calc(100vw - 2rem));border:1px solid #cfc8c2;padding:0}.wide-dialog{width:min(1040px,calc(100vw - 2rem))}dialog::backdrop{background:rgba(31,25,22,.48)}dialog form>header,dialog form>footer{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #e1dad4}dialog form>footer{border-top:1px solid #e1dad4;border-bottom:0;justify-content:flex-end}dialog header h2{margin:.1rem 0;color:var(--color-principal)}dialog header>button{border:0;background:none;font-size:1.6rem;cursor:pointer}.form-section{padding:1rem 1.2rem;border-bottom:1px solid #eee8e3}.form-section h3{margin:.1rem 0 .8rem;color:var(--color-principal)}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;padding:1rem 1.2rem}.form-section .form-grid{padding:0}.form-grid label{display:grid;gap:.35rem}.form-grid label>span,.resource-adder label>span{font-size:.75rem;font-weight:800;text-transform:uppercase}.form-grid .wide{grid-column:1/-1}.form-grid small{color:#6f6762;font-size:.75rem}.resource-adder{display:grid;grid-template-columns:180px 1fr 110px auto;gap:.75rem;align-items:end}.resource-adder label{display:grid;gap:.35rem}.resource-select-wrap{grid-template-columns:1fr 1fr}.resource-select-wrap>span{grid-column:1/-1}.selected-resources{display:grid;gap:.5rem;margin-top:.8rem}.selected-resources article{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.7rem .8rem;background:#faf8f6;border:1px solid #e3ddd8}.selected-resources article div{display:grid;gap:.1rem}.selected-resources span,.selected-resources small{font-size:.8rem;color:#6e6661}.muted{margin:.7rem 0;color:#777}.form-status{min-height:1.2rem;margin:.8rem 1.2rem;color:var(--color-principal);font-weight:700}.check-line{display:flex!important;align-items:center;gap:.6rem}.check-line input{width:auto}@media(max-width:900px){.metrics{grid-template-columns:1fr 1fr}.page-head{display:grid}.account{border-left:0;border-top:2px solid var(--color-acento)}.record{grid-template-columns:1fr auto}.record>button{grid-column:1/-1}.resource-adder{grid-template-columns:1fr 1fr}.resource-select-wrap{grid-column:1/-1}}@media(max-width:600px){.archive-main{padding:1.2rem .75rem 3rem}.metrics{grid-template-columns:1fr}.toolbar{display:grid}.tabs{overflow:auto}.form-grid,.resource-adder{grid-template-columns:1fr}.form-grid .wide,.resource-select-wrap{grid-column:auto}.record{grid-template-columns:1fr}.badge{justify-self:start}}
+  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.archive-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,3rem) 4rem;font-family:var(--fuente-minimalista)}.page-head{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.4rem}.page-head>div:first-child>span{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.page-head h1{margin:.2rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.4rem)}.page-head p{margin:0;max-width:820px;color:#625c58}.account{display:grid;gap:.15rem;min-width:220px;padding:.75rem 1rem;border-left:2px solid var(--color-acento)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin:1.3rem 0}.metrics article{display:grid;gap:.15rem;padding:.85rem 1rem;background:#fff;border:1px solid #ddd7d2}.metrics strong{font-size:1.35rem;color:var(--color-principal)}.metrics span{font-size:.72rem;text-transform:uppercase;color:#746c67}.tabs{display:flex;gap:.25rem;border-bottom:1px solid #d9d2cc}.tabs button{padding:.75rem 1rem;border:0;background:transparent;font:inherit;font-weight:750;cursor:pointer}.tabs button.active{color:var(--color-principal);border-bottom:3px solid var(--color-principal)}.toolbar{display:flex;gap:.8rem;margin:1rem 0}.toolbar input{flex:1}.records{display:grid;gap:.65rem}.record{display:grid;grid-template-columns:1fr auto auto;gap:1rem;align-items:center;padding:1rem 1.1rem;border:1px solid #ddd7d2;background:#fff}.movement-record{cursor:pointer}.movement-record:hover{border-color:#b9aaa1}.record h2{margin:.15rem 0;color:var(--color-principal);font-size:1.05rem}.record p{margin:.2rem 0;color:#625c58}.record small{color:#777}.proof-note{display:block;margin-top:.4rem;color:#5d6f54!important;font-weight:700}.open-note{display:block;margin-top:.25rem;font-size:.72rem}.record-actions{display:flex;gap:.45rem;flex-wrap:wrap;justify-content:flex-end}.badge{font-size:.74rem;padding:.35rem .55rem;border:1px solid #cfc7c0;background:#faf8f6}.state{padding:1rem;border:1px solid #ddd7d2;background:#fff}.error{border-color:#b78489;color:#7b2631}.primary,.secondary{min-height:2.55rem;padding:.55rem .85rem;border-radius:3px;font:inherit;font-weight:750;cursor:pointer}.primary{border:1px solid var(--color-principal);background:var(--color-principal);color:#fff}.secondary{border:1px solid #c9c0b9;background:#fff;color:#342f2c}.danger{color:#7b2631;border-color:#c9a8ac}.link-button{width:auto!important;margin-top:.45rem;padding:0;border:0;background:transparent;color:var(--color-principal);text-decoration:underline;font:inherit;font-weight:750;cursor:pointer}input,select,textarea{width:100%;box-sizing:border-box;padding:.65rem .7rem;border:1px solid #cfc8c2;background:#fff;font:inherit}dialog{width:min(760px,calc(100vw - 2rem));border:1px solid #cfc8c2;padding:0}.wide-dialog{width:min(1040px,calc(100vw - 2rem))}dialog::backdrop{background:rgba(31,25,22,.48)}dialog form>header,dialog form>footer,.detail-dialog-shell>header,.detail-dialog-shell>footer{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #e1dad4}.detail-dialog-shell>footer,dialog form>footer{border-top:1px solid #e1dad4;border-bottom:0;justify-content:flex-end}dialog header h2{margin:.1rem 0;color:var(--color-principal)}dialog header>button{border:0;background:none;font-size:1.6rem;cursor:pointer}.form-section{padding:1rem 1.2rem;border-bottom:1px solid #eee8e3}.form-section h3{margin:.1rem 0 .8rem;color:var(--color-principal)}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;padding:1rem 1.2rem}.form-section .form-grid{padding:0}.form-grid label{display:grid;gap:.35rem}.form-grid label>span,.resource-adder label>span{font-size:.75rem;font-weight:800;text-transform:uppercase}.form-grid .wide{grid-column:1/-1}.form-grid small{color:#6f6762;font-size:.75rem}.resource-adder{display:grid;grid-template-columns:180px 1fr 110px auto;gap:.75rem;align-items:end}.resource-adder label{display:grid;gap:.35rem}.resource-select-wrap{grid-template-columns:1fr 1fr}.resource-select-wrap>span{grid-column:1/-1}.selected-resources{display:grid;gap:.5rem;margin-top:.8rem}.selected-resources article{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.7rem .8rem;background:#faf8f6;border:1px solid #e3ddd8}.selected-resources article div{display:grid;gap:.1rem}.selected-resources span,.selected-resources small{font-size:.8rem;color:#6e6661}.muted{margin:.7rem 0;color:#777}.form-status{min-height:1.2rem;margin:.8rem 1.2rem;color:var(--color-principal);font-weight:700}.check-line{display:flex!important;align-items:center;gap:.6rem}.check-line input{width:auto}.movement-detail{padding:1.2rem}.detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}.detail-grid>div{display:grid;gap:.2rem;padding:.7rem;border:1px solid #e3ddd8;background:#faf8f6}.detail-grid>div.wide{grid-column:1/-1}.detail-grid small{font-size:.72rem;text-transform:uppercase;color:#776e69}.detail-grid strong{font-weight:650;white-space:pre-wrap}.detail-material{margin-top:1rem}.detail-material h3{color:var(--color-principal)}.detail-material ul{margin:0;padding-left:1.2rem}.detail-material li{margin:.35rem 0}.detail-material li span{display:block;color:#6e6661;font-size:.85rem}@media(max-width:900px){.metrics{grid-template-columns:1fr 1fr}.page-head{display:grid}.account{border-left:0;border-top:2px solid var(--color-acento)}.record{grid-template-columns:1fr auto}.record-actions{grid-column:1/-1;justify-content:flex-start}.resource-adder{grid-template-columns:1fr 1fr}.resource-select-wrap{grid-column:1/-1}.detail-grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.archive-main{padding:1.2rem .75rem 3rem}.metrics{grid-template-columns:1fr}.toolbar{display:grid}.tabs{overflow:auto}.form-grid,.resource-adder,.detail-grid{grid-template-columns:1fr}.form-grid .wide,.resource-select-wrap,.detail-grid>div.wide{grid-column:auto}.record{grid-template-columns:1fr}.badge{justify-self:start}.record-actions{display:grid;grid-template-columns:1fr}.detail-dialog-shell>footer{flex-wrap:wrap;justify-content:flex-start}}
 </style>
