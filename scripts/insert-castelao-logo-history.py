@@ -52,7 +52,13 @@ PATTERNS = {
 
 for path, block in BLOCKS.items():
     text = path.read_text(encoding="utf-8")
-    text, count = re.subn(PATTERNS[path], block, text, count=1, flags=re.S)
+    text, count = re.subn(
+        PATTERNS[path],
+        lambda _match, replacement=block: replacement,
+        text,
+        count=1,
+        flags=re.S,
+    )
     if count != 1:
         raise SystemExit(f"Non se atopou exactamente un bloque do logotipo en {path}: {count}")
     path.write_text(text, encoding="utf-8")
