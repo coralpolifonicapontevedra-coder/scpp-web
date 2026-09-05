@@ -17,11 +17,12 @@ from PIL import Image, ImageOps
 
 SPREADSHEET_ID = "1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w"
 SHEET_RANGE = "Fotos!A1:AB5000"
-DRIVE_FILE_ID = "1eFX4RgrgWbbmk7nsqiVIYn0xqsediyZ6"
+CANONICAL_DRIVE_FILE_ID = "1eFX4RgrgWbbmk7nsqiVIYn0xqsediyZ6"
+EXPORT_DRIVE_FILE_ID = "1BcKDwAkVeK56uidUBER_zem53eDWwvTX"
 BUCKET = "scpp-publico"
 INDEX_KEY = "indices/galeria-publica-v1.json"
 NAMESPACE = uuid.UUID("a4714804-6df7-4cc6-9c6b-a0be55ccfb82")
-PHOTO_ID = str(uuid.uuid5(NAMESPACE, DRIVE_FILE_ID))
+PHOTO_ID = str(uuid.uuid5(NAMESPACE, CANONICAL_DRIVE_FILE_ID))
 ORIGINAL_KEY = f"fotos/orixinais/{PHOTO_ID}.jpg"
 THUMB_KEY = f"miniaturas/galeria/{PHOTO_ID}.webp"
 
@@ -90,9 +91,17 @@ def main() -> None:
     if not values:
         raise RuntimeError("A folla Fotos está baleira")
     headers = [text(v) for v in values[0]]
-    existing_ids = {text(row[0]) for row in values[1:] if row and text(row[0])}
+    id_col = headers.index("Id_Foto")
+    ruta_col = headers.index("RutaR2_Publica")
+    matching_row = None
+    for idx, row in enumerate(values[1:], start=2):
+        if len(row) > id_col and text(row[id_col]) == PHOTO_ID:
+            matching_row = idx
+            break
+    if matching_row is None:
+        raise RuntimeError("San David debe existir primeiro na folla Fotos")
 
-    source = download(drive, DRIVE_FILE_ID)
+    source = download(drive, EXPORT_DRIVE_FILE_ID)
     original = render(source, (2400, 2400), 90, "JPEG")
     thumb = render(source, (900, 680), 82, "WEBP")
     etag = hashlib.sha256(original).hexdigest()
@@ -100,7 +109,7 @@ def main() -> None:
     r2.put_object(
         Bucket=BUCKET, Key=ORIGINAL_KEY, Body=original,
         ContentType="image/jpeg", CacheControl="public, max-age=31536000, immutable",
-        Metadata={"idfoto": PHOTO_ID, "orixe": "arquivo-scpp-castelao"},
+        Metadata={"idfoto": PHOTO_ID, "orixe": "arquivo-scpp-castelao", "drive-canonico": CANONICAL_DRIVE_FILE_ID},
     )
     r2.put_object(
         Bucket=BUCKET, Key=THUMB_KEY, Body=thumb,
@@ -108,44 +117,14 @@ def main() -> None:
         Metadata={"idfoto": PHOTO_ID, "source-etag": etag},
     )
 
-    now = datetime.now(timezone.utc)
-    if PHOTO_ID not in existing_ids:
-        context = {
-            "Id_Foto": PHOTO_ID,
-            "Foto": "Panos Castelao/San David",
-            "Titulo": "Pano de San David de Castelao",
-            "Data": "",
-            "AnoAproximado": "1926",
-            "Lugar": "Pontevedra",
-            "Concerto": "",
-            "Evento": "Patrimonio histórico da SCPP",
-            "PeFoto": "Pano de San David deseñado por Castelao para a Sociedade Coral Polifónica de Pontevedra.",
-            "Autor": "Alfonso Daniel Rodríguez Castelao",
-            "Procedencia": "Arquivo SCPP",
-            "DereitosUso": "Autorizada para a web",
-            "EstadoRevision": "Aprobada",
-            "Publicar_Publica": True,
-            "Destacada_Publica": False,
-            "Publicar_Privada": False,
-            "Destacada_Privada": False,
-            "Calidade": "Alta",
-            "Observacions": f"Importado do arquivo de Panos Castelao. Drive ID: {DRIVE_FILE_ID}",
-            "DataSubida": now.isoformat(),
-            "SubidaPor": "arquivo-scpp-castelao",
-            "Data_Revision": now.isoformat(),
-            "Revisada_Por": "arquivo-scpp-castelao",
-            "Data_Publicacion_Publica": now.isoformat(),
-            "RutaR2_Publica": ORIGINAL_KEY,
-            "CategoriaPublica": "Historia",
-        }
-        row = [context.get(header, "") for header in headers]
-        sheets.spreadsheets().values().append(
-            spreadsheetId=SPREADSHEET_ID,
-            range="Fotos!A:AB",
-            valueInputOption="USER_ENTERED",
-            insertDataOption="INSERT_ROWS",
-            body={"values": [row]},
-        ).execute()
+    # Actualiza a ruta R2 na mesma fila xa creada na Sheet.
+    col_letter = chr(ord('A') + ruta_col)
+    sheets.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"Fotos!{col_letter}{matching_row}",
+        valueInputOption="USER_ENTERED",
+        body={"values": [[ORIGINAL_KEY]]},
+    ).execute()
 
     try:
         current = json.loads(r2.get_object(Bucket=BUCKET, Key=INDEX_KEY)["Body"].read())
@@ -176,6 +155,8 @@ def main() -> None:
             break
     if not replaced:
         fotos.append(foto)
+
+    now = datetime.now(timezone.utc)
     current.update({
         "ok": True,
         "fotos": fotos,
@@ -190,7 +171,7 @@ def main() -> None:
         ContentType="application/json; charset=utf-8",
         CacheControl="public, max-age=0, no-cache, must-revalidate",
     )
-    print(json.dumps({"ok": True, "idFoto": PHOTO_ID, "rutaR2": ORIGINAL_KEY, "novaFila": PHOTO_ID not in existing_ids}))
+    print(json.dumps({"ok": True, "idFoto": PHOTO_ID, "rutaR2": ORIGINAL_KEY, "miniatura": THUMB_KEY}))
 
 
 if __name__ == "__main__":
