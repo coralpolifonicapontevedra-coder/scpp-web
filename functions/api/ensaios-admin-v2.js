@@ -240,7 +240,9 @@ export async function onRequest({ request, env }) {
         return json(400, { ok: false, erro: 'Data, hora de inicio e tipo de ensaio son obrigatorios.' });
       }
       const concerto = clean(body.concerto);
-      const base = (await getIndex(env, user, false)).index;
+      const base = concerto
+        ? (await getIndex(env, user, false)).index
+        : { concertos: [], repertorio: [] };
       const result = await apps(env, user, 'gardarEnsaioPortal', {
         data, horaInicio, horaFin: clean(body.horaFin), lugar: clean(body.lugar), tipoEnsaio,
         concerto, descricion: clean(body.descricion), observacions: clean(body.observacions), cancelado: false
