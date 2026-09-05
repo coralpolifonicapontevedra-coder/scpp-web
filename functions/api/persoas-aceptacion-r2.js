@@ -17,6 +17,15 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   }
 });
 
+const texto = (status, body) => new Response(String(body || ''), {
+  status,
+  headers: {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff'
+  }
+});
+
 async function verificarFirebase(idToken, apiKey) {
   const token = clean(idToken);
   if (!token || !apiKey) return null;
@@ -124,6 +133,39 @@ async function diagnosticarRevision(env, idPersoa, revisionId) {
   return { atopada: false, revisadas };
 }
 
+function mensaxeDiagnostico(idPersoa, diagnostico) {
+  const lines = [
+    'DIAGNÓSTICO DE ACEPTACIÓN SCPP',
+    '',
+    `Persoa: ${idPersoa}`,
+    'PDF en R2: NON ATOPADO'
+  ];
+  if (diagnostico?.atopada) {
+    lines.push(
+      'Revisión en R2: ATOPADA',
+      `RevisionId: ${diagnostico.revisionId || '—'}`,
+      `Estado: ${diagnostico.estado || '—'}`,
+      `Completada: ${diagnostico.completadaEn || '—'}`,
+      `Versión legal: ${diagnostico.versionLegal || '—'}`,
+      `Datos confirmados conservados: ${diagnostico.tenPersoaConfirmada ? 'SI' : 'NON'}`,
+      `Documento rexistrado: ${diagnostico.documento || '—'}`,
+      `Fila de aceptación: ${diagnostico.aceptacionRowId || '—'}`,
+      '',
+      diagnostico.tenPersoaConfirmada
+        ? 'A revisión conserva a evidencia necesaria para reconstruír o PDF sen pedir unha nova aceptación.'
+        : 'A revisión existe, pero non conserva os datos confirmados completos.'
+    );
+  } else {
+    lines.push(
+      'Revisión en R2: NON ATOPADA',
+      `Revisións examinadas: ${diagnostico?.revisadas ?? 0}`,
+      '',
+      'Non se atopou unha revisión recuperable para esta persoa.'
+    );
+  }
+  return lines.join('\n');
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
   let data;
@@ -159,14 +201,7 @@ export async function onRequest({ request, env }) {
     const diagnostico = acceso?.permiso?.podeAdministrar === true
       ? await diagnosticarRevision(env, idPersoa, '')
       : { atopada: false };
-    if (diagnostico?.atopada) {
-      return json(404, {
-        ok: false,
-        erro: `O PDF non está en R2, pero atopouse a revisión ${diagnostico.revisionId} en estado ${diagnostico.estado || 'descoñecido'}${diagnostico.tenPersoaConfirmada ? ' con datos confirmados conservados' : ''}.`,
-        diagnostico
-      });
-    }
-    return json(404, { ok: false, erro: 'Esta persoa aínda non ten unha aceptación electrónica dispoñible en R2 e non se atopou unha revisión recuperable.' });
+    return texto(200, mensaxeDiagnostico(idPersoa, diagnostico));
   }
 
   const headers = new Headers();
