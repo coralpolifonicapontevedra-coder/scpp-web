@@ -84,7 +84,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
                 <button id="review-person" type="button" class="secondary-action">Xerar revisión</button>
                 <button id="toggle-person" type="button" class="secondary-action"></button>
                 <button id="open-file" type="button" class="primary-action" hidden>Ver ficha escaneada</button>
-                <button id="open-acceptance" type="button" class="primary-action" hidden>Ver aceptación</button>
+                <button id="open-acceptance" type="button" class="acceptance-action" aria-label="Ver aceptación electrónica">Ver aceptación</button>
                 <button id="delete-person" type="button" class="danger-action">Eliminar rexistro</button>
               </div>
             </header>
@@ -151,6 +151,51 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
 <script>
   import { initPersoasAdminV4 } from '../../../lib/persoas-admin-v4.js';
   initPersoasAdminV4();
+
+  const manterBotonAceptacionVisible = () => {
+    const button = document.querySelector('#open-acceptance');
+    const select = document.querySelector('#person-select');
+    if (!(button instanceof HTMLButtonElement) || !(select instanceof HTMLSelectElement)) return;
+    if (button.dataset.scppAcceptanceState === '1') return;
+    button.dataset.scppAcceptanceState = '1';
+
+    const pintar = (disponible) => {
+      button.hidden = false;
+      button.classList.toggle('has-acceptance', disponible === true);
+      button.dataset.available = disponible === true ? 'true' : 'false';
+      button.title = disponible === true
+        ? 'Hai unha aceptación electrónica dispoñible'
+        : 'Non consta unha aceptación electrónica dispoñible';
+    };
+
+    pintar(false);
+
+    const fetchAnterior = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const response = await fetchAnterior(input, init);
+      try {
+        const valor = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input || '');
+        const url = new URL(valor, window.location.href);
+        const body = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
+        if (url.pathname === '/api/persoas-revision' && body?.accion === 'estadoAceptacion') {
+          const copia = response.clone();
+          const result = await copia.json().catch(() => null);
+          if (String(body?.idPersoa || '') === select.value) pintar(result?.disponible === true);
+        }
+      } catch {}
+      return response;
+    };
+
+    const observer = new MutationObserver(() => {
+      if (button.hidden) button.hidden = false;
+    });
+    observer.observe(button, { attributes: true, attributeFilter: ['hidden'] });
+
+    select.addEventListener('change', () => pintar(false));
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', manterBotonAceptacionVisible, { once: true });
+  else manterBotonAceptacionVisible();
 </script>
 
 <style is:global>
@@ -162,7 +207,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
   .people-summary{display:grid;grid-template-columns:repeat(6,minmax(96px,1fr));gap:.65rem;margin-bottom:1rem}.people-summary>div{display:grid;gap:.25rem;padding:.8rem .9rem;background:#fff;border:1px solid #d8d0cb}.people-summary small{color:#71676a}.people-summary strong{font-size:1.35rem}.people-summary-actions{grid-column:1/-1;display:flex;gap:.6rem;justify-content:flex-end;flex-wrap:wrap}
   .filters-panel{display:grid;grid-template-columns:minmax(220px,2fr) repeat(3,minmax(140px,1fr));gap:.75rem;padding:1rem;background:#fff;border:1px solid #d8d0cb}.filters-panel label,.toolbar label,.person-dialog label,.file-field{display:grid;gap:.35rem;font-size:.85rem;font-weight:700;color:#51494b}.filters-panel input,.filters-panel select,.toolbar select,.person-dialog input,.person-dialog select,.person-dialog textarea{box-sizing:border-box;width:100%;min-width:0;max-width:100%;padding:.68rem .72rem;border:1px solid #c9bfba;border-radius:0;background:#fff;color:#2f292b;font:inherit}.toolbar{display:flex;justify-content:space-between;gap:1rem;align-items:end;margin:1rem 0}.toolbar label{width:min(620px,100%)}.toolbar p{margin:0;color:#746b6d}
   .person-card{display:grid;grid-template-columns:160px minmax(0,1fr);gap:1.4rem;padding:1.2rem;background:#fff;border:1px solid #d8d0cb}.person-card-content{min-width:0}.person-photo-column{display:grid;align-content:start;gap:.7rem}.person-photo-frame{display:grid;place-items:center;aspect-ratio:4/5;overflow:hidden;background:#eee9e5;border:1px solid #d2c7c1;color:#817679;font-size:.85rem}.person-photo-frame.small{width:110px}.person-photo-frame img{width:100%;height:100%;object-fit:cover}.person-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding-bottom:1rem;border-bottom:1px solid #e2dbd7}.person-card-header h2{margin:.35rem 0 .25rem;color:#351f27}.person-card-header p{margin:0;color:#71676a}.badges{display:flex;gap:.4rem;flex-wrap:wrap}.status-badge,.relation-badge{display:inline-flex;padding:.25rem .45rem;border:1px solid #cfc4bf;font-size:.76rem;font-weight:800;background:#f8f6f4}.status-badge.is-inactive{background:#eee7e4;color:#6e3e48}.person-actions{display:flex;justify-content:flex-end;gap:.45rem;flex-wrap:wrap;min-width:0}.person-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1rem}.data-section{min-width:0;padding:.85rem;border:1px solid #e0d9d5}.data-section h3{margin:0 0 .65rem;font-size:.9rem;color:#5d142b}.data-section dl{display:grid;grid-template-columns:minmax(120px,.8fr) 1.2fr;gap:.45rem .8rem;margin:0}.data-section dt{color:#746b6d}.data-section dd{margin:0;overflow-wrap:anywhere}
-  .primary-action,.secondary-action,.danger-action,.icon-button{display:inline-flex;align-items:center;justify-content:center;min-height:2.35rem;max-width:100%;padding:.52rem .85rem;border-radius:0;font:inherit;font-size:.86rem;font-weight:750;cursor:pointer;text-decoration:none}.primary-action{border:1px solid #5d142b;background:#5d142b;color:#fff}.secondary-action{border:1px solid #9d8f88;background:#fff;color:#3f3437}.danger-action{border:1px solid #7a2439;background:#fff;color:#7a2439}.primary-action:disabled,.secondary-action:disabled,.danger-action:disabled{opacity:.45;cursor:not-allowed}.icon-button{border:0;background:transparent;font-size:1.5rem;color:#554a4d;padding:.2rem .5rem}
+  .primary-action,.secondary-action,.danger-action,.icon-button,.acceptance-action{display:inline-flex;align-items:center;justify-content:center;min-height:2.35rem;max-width:100%;padding:.52rem .85rem;border-radius:0;font:inherit;font-size:.86rem;font-weight:750;cursor:pointer;text-decoration:none}.primary-action{border:1px solid #5d142b;background:#5d142b;color:#fff}.secondary-action,.acceptance-action{border:1px solid #9d8f88;background:#fff;color:#3f3437}.acceptance-action.has-acceptance{border-color:#5d142b;background:#5d142b;color:#fff}.danger-action{border:1px solid #7a2439;background:#fff;color:#7a2439}.primary-action:disabled,.secondary-action:disabled,.danger-action:disabled,.acceptance-action:disabled{opacity:.45;cursor:not-allowed}.icon-button{border:0;background:transparent;font-size:1.5rem;color:#554a4d;padding:.2rem .5rem}
   .person-dialog{box-sizing:border-box;width:min(940px,calc(100vw - 2rem));max-width:calc(100vw - 2rem);max-height:calc(100vh - 2rem);padding:0;overflow:auto;border:1px solid #b9aca6;background:#f9f7f5;color:#2f292b}.compact-dialog{width:min(650px,calc(100vw - 2rem))}.person-dialog::backdrop{background:rgba(34,25,28,.48)}.person-dialog form{box-sizing:border-box;display:grid;min-width:0;gap:1rem;padding:1.2rem}.dialog-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding-bottom:.8rem;border-bottom:1px solid #d8d0cb}.dialog-header h2{margin:.2rem 0 0;color:#351f27}.dynamic-form{display:grid;min-width:0;gap:1rem}.form-group{min-width:0;margin:0;padding:.9rem;border:1px solid #d8d0cb}.form-group legend{padding:0 .3rem;font-weight:800;color:#5d142b}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.form-grid label.is-wide{grid-column:1/-1}.check-field{display:flex!important;align-items:center;gap:.6rem;padding:.6rem 0}.check-field input{width:auto!important}.person-dialog textarea{min-height:88px;resize:vertical}.photo-fieldset{min-width:0;margin:0;padding:.9rem;border:1px solid #d8d0cb}.photo-fieldset legend{font-weight:800;color:#5d142b}.photo-edit-grid{display:grid;grid-template-columns:120px minmax(0,1fr);gap:1rem;align-items:center}.file-field{min-width:0}.file-field input{min-width:0;max-width:100%}.legal-form-section{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}.legal-card{min-width:0;padding:.9rem;background:#fff;border:1px solid #d8d0cb}.legal-card h3{margin:0 0 .3rem;color:#5d142b;font-size:1rem}.legal-meta,.form-note{margin:.2rem 0;color:#776d70;font-size:.82rem;line-height:1.45}.legal-text{white-space:pre-line;max-height:210px;overflow:auto;overflow-wrap:anywhere;font-size:.88rem;line-height:1.5}.dialog-footer{display:flex;justify-content:flex-end;gap:.55rem;padding-top:.8rem;border-top:1px solid #d8d0cb}.dialog-footer>div{display:flex;gap:.55rem}
   @media(max-width:980px){.people-header{display:grid}.account-card{min-width:0}.people-summary{grid-template-columns:repeat(3,1fr)}.filters-panel{grid-template-columns:1fr 1fr}.person-card{grid-template-columns:120px minmax(0,1fr)}.person-card-header{display:grid}.person-actions{justify-content:flex-start}}
   @media(max-width:720px){.people-main{box-sizing:border-box;width:100%;max-width:100%;padding:1rem .75rem 3rem;overflow-x:hidden}.people-header>*{min-width:0}.account-card{grid-template-columns:1fr;width:100%}.people-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.filters-panel{grid-template-columns:minmax(0,1fr)}.toolbar{display:grid;min-width:0;align-items:stretch}.toolbar label{width:100%}.person-card{grid-template-columns:minmax(0,1fr);padding:.9rem}.person-photo-column{grid-template-columns:100px minmax(0,1fr);align-items:end}.person-card-header{min-width:0}.person-actions{display:grid;grid-template-columns:1fr;width:100%}.person-actions>*{width:100%}.person-sections{grid-template-columns:minmax(0,1fr)}.data-section dl{grid-template-columns:minmax(0,1fr)}.data-section dd{padding-bottom:.3rem}.form-grid,.legal-form-section{grid-template-columns:minmax(0,1fr)}.form-grid label.is-wide{grid-column:auto}.photo-edit-grid{grid-template-columns:85px minmax(0,1fr)}.person-photo-frame.small{width:85px}.person-dialog,.compact-dialog{width:calc(100vw - 1rem);max-width:calc(100vw - 1rem);max-height:calc(100vh - 1rem);max-height:calc(100dvh - 1rem);margin:auto;overflow-x:hidden;overflow-y:auto}.person-dialog form{padding:.9rem}.dialog-header{min-width:0}.dialog-header>div{min-width:0}.dialog-header h2{overflow-wrap:anywhere}.dialog-footer{flex-wrap:wrap}.dialog-footer>*{flex:1 1 100%;min-width:0}.dialog-footer>div{display:grid;width:100%}.dialog-footer button{width:100%}.people-summary-actions{justify-content:stretch}.people-summary-actions>*{flex:1 1 100%;width:100%}}
