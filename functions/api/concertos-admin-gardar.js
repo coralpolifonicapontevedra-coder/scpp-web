@@ -1,8 +1,8 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
 const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
-const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const INDEX_MAIN = 'indices/concertos-privado-v1.json';
 const INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 
@@ -52,17 +52,13 @@ async function verificarFirebase(idToken, apiKey) {
   if (!data?.email || data.emailVerified !== true) return null;
   return { uid: clean(data.localId), email: clean(data.email).toLowerCase() };
 }
-async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean(email).toLowerCase()));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+
+async function permisoConcertos(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'concertos');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'concertos');
+  return permiso;
 }
-async function verificarAdministracionR2(env, user) {
-  if (!env.R2_PRIVADO?.get) return false;
-  const object = await env.R2_PRIVADO.get(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
-  if (!object) return false;
-  const entry = await object.json().catch(() => null);
-  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
-}
+
 async function chamarAppsScript(env, user, accion, datos = {}, senReintento = false) {
   const { resultado } = await obterJsonAppsScript(env, {
     token: env.WEB_WRITE_TOKEN, accion, email: user.email, uidFirebase: user.uid, ...datos
@@ -75,20 +71,31 @@ async function chamarAppsScript(env, user, accion, datos = {}, senReintento = fa
   }
   return payload;
 }
-async function localizarExistente(env, user, concerto) {
-  const payload = await chamarAppsScript(env, user, 'listarConcertosAdministracionPortal');
-  const concertos = Array.isArray(payload?.concertos) ? payload.concertos : [];
-  const key = claveConcerto(concerto);
-  const coincidencias = concertos.filter((item) => {
-    const id = clean(item?.idConcerto);
-    return id && !id.startsWith('hist-') && claveConcerto(item) === key;
-  });
-  return { existente: preferirId(coincidencias), duplicados: coincidencias.map((item) => clean(item.idConcerto)) };
-}
+
 async function lerIndice(env) {
   const object = await env.R2_PRIVADO?.get?.(indexKey(env));
   return object ? object.json().catch(() => null) : null;
 }
+
+async function localizarExistente(env, user, concerto) {
+  const key = claveConcerto(concerto);
+  const indice = await lerIndice(env);
+  if (indice?.ok && Array.isArray(indice.concertos)) {
+    const coincidencias = indice.concertos
+      .map((item) => ({ ...item, idConcerto: clean(item?.id || item?.idConcerto) }))
+      .filter((item) => item.idConcerto && !item.idConcerto.startsWith('hist-') && claveConcerto(item) === key);
+    return { existente: preferirId(coincidencias), duplicados: coincidencias.map((item) => clean(item.idConcerto)), fonte: 'R2' };
+  }
+
+  const payload = await chamarAppsScript(env, user, 'listarConcertosAdministracionPortal');
+  const concertos = Array.isArray(payload?.concertos) ? payload.concertos : [];
+  const coincidencias = concertos.filter((item) => {
+    const id = clean(item?.idConcerto);
+    return id && !id.startsWith('hist-') && claveConcerto(item) === key;
+  });
+  return { existente: preferirId(coincidencias), duplicados: coincidencias.map((item) => clean(item.idConcerto)), fonte: 'SHEET-RECOVERY' };
+}
+
 async function actualizarIndice(env, idConcerto, concerto) {
   const indice = await lerIndice(env);
   if (!indice?.ok || !Array.isArray(indice.concertos)) throw new Error('O índice privado de concertos non está dispoñible.');
@@ -106,7 +113,7 @@ async function actualizarIndice(env, idConcerto, concerto) {
   });
   if (!found) concertos.push({ id, programa: [], ...patch });
   await env.R2_PRIVADO.put(indexKey(env), JSON.stringify({
-    ...indice, concertos, xeradoEn: new Date().toISOString(), xeradoEnMs: Date.now(), actualizadoDesde: 'ADMIN-CONCERTOS-ALTA-IDEMPOTENTE'
+    ...indice, concertos, xeradoEn: new Date().toISOString(), xeradoEnMs: Date.now(), actualizadoDesde: 'ADMIN-CONCERTOS-GARDAR'
   }), { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } });
 }
 
@@ -118,7 +125,9 @@ export async function onRequest({ request, env }) {
   const body = await request.json().catch(() => null);
   const user = await verificarFirebase(body?.idToken, env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok:false, erro:'A identificación non é válida ou caducou.' });
-  if (!(await verificarAdministracionR2(env, user))) return json(403, { ok:false, erro:'Usuario non autorizado para Administración.' });
+
+  const permiso = await permisoConcertos(env, user).catch(() => null);
+  if (!permiso?.podeEscribir) return json(403, { ok:false, erro:'Non tes permiso de escritura no módulo Concertos.' });
 
   const concerto = body?.concerto || {};
   if (!canonData(concerto.data) || !clean(concerto.nome)) return json(400, { ok:false, erro:'A data e o nome son obrigatorios.' });
@@ -127,9 +136,11 @@ export async function onRequest({ request, env }) {
     let idConcerto = clean(concerto.idConcerto);
     let reutilizado = false;
     let duplicados = [];
+    let fonteDuplicados = 'NON-APLICA';
     if (!idConcerto) {
       const localizado = await localizarExistente(env, user, concerto);
       duplicados = localizado.duplicados;
+      fonteDuplicados = localizado.fonte;
       if (localizado.existente) {
         idConcerto = clean(localizado.existente.idConcerto);
         reutilizado = true;
@@ -143,10 +154,12 @@ export async function onRequest({ request, env }) {
 
     return json(200, {
       ok:true,
+      nivel:permiso.nivel,
       resultado:{ ...resultado, idConcerto },
       almacen:rama(env) === 'main' ? 'SHEET-PRODUCION+R2-MAIN' : 'SHEET-PROBAS+R2-PREVIEW',
       reutilizado,
-      duplicadosDetectados:duplicados
+      duplicadosDetectados:duplicados,
+      fonteDuplicados
     });
   } catch (error) {
     const status = error?.code === 'FORBIDDEN' ? 403 : error?.code === 'NOT_FOUND' ? 404 : 502;
