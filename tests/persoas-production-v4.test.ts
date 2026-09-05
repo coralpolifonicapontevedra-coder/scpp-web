@@ -71,7 +71,9 @@ describe('Administración → Persoas v4 · Producción', () => {
   });
 
   it('rexenera Sheet → R2 e mantén R2 como fonte canónica da fotografía', () => {
-    expect(api).toContain('await consultarListado(context.env, user, permission)');
+    expect(api).toContain('aplicarEscrituraEnR2(context.env, user, permission, action, result)');
+    expect(api).toContain('consultarListado(context.env, user, permission)');
+    expect(api).toContain('context.waitUntil(');
     expect(cacheSync).toContain("accion: 'persoasV2SyncListar'");
     expect(cacheSync).toContain("'persoas/cache/snapshot-v4.json'");
     expect(appsScript).toContain('persoasV2OnEdit_');
@@ -91,7 +93,11 @@ describe('Administración → Persoas v4 · Producción', () => {
     expect(feeApi).toContain("const LEGAL_ID = 'EXENCION_COTA_SCPP'");
     expect(feeReview).toContain('fee-exemption-card');
     expect(feeReview).toContain('/api/persoas-exencion-cota');
-    expect(reviewLink).toContain("legal.id !== 'DATOS_PERSOA_SCPP'");
+    expect(reviewLink).toContain("const LEGAL_DATOS_ID = 'DATOS_PERSOA_SCPP'");
+    expect(reviewLink).toContain("const LEGAL_COTA_ID = 'EXENCION_COTA_SCPP'");
+    expect(reviewLink).toContain('validarTextoLegal(listado?.textosLegais?.datosPersoa, LEGAL_DATOS_ID)');
+    expect(reviewLink).toContain('validarTextoLegal(listado?.textosLegais?.exencionCota, LEGAL_COTA_ID)');
+    expect(reviewLink).toContain('combinarTextos(textoLegalBase, textoCota)');
     expect(legacy).toContain('persoasLegacyRexistrarAceptacion_');
     expect(legacy).toContain("put('Documento', aceptacion.documento)");
     expect(reviewHelper).toContain('/api/persoas-revision-link-v4');
