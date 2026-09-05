@@ -26,8 +26,9 @@ describe('integración da administración de fotografías en Producción', () =>
     expect(legacyPage).not.toContain('editor-canvas');
   });
 
-  it('usa o backend v2 único para gardado e publicación', () => {
-    expect(publicationApi).toContain('onRequestFotosAdministracionV2');
+  it('usa o backend v3 único para gardado e publicación', () => {
+    expect(publicationApi).toContain('onRequestFotosAdministracionV3');
+    expect(publicationApi).toContain("from '../_lib/fotos-administracion-v3.js'");
     expect(publicationApi).not.toContain('actualizarPublicacionFoto');
     expect(publicationApi).not.toContain('actualizarRevisionFoto');
     expect(publicationApi).not.toContain('gardarRutasFotoR2');
