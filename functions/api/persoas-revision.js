@@ -1,3 +1,5 @@
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
+
 const TOKEN_PREFIX = 'persoas/revisions/';
 const ACCEPTANCE_PREFIX = 'persoas/aceptacions/';
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -41,6 +43,19 @@ async function verificarFirebase(idToken, apiKey) {
   const user = (await response.json())?.users?.[0];
   if (!user?.email || user.emailVerified !== true) return null;
   return { uid: String(user.localId || ''), email: String(user.email).trim().toLowerCase() };
+}
+
+async function verificarAccesoPersoas(context, data) {
+  const { env } = context;
+  const user = await verificarFirebase(data.idToken, env.FIREBASE_API_KEY);
+  if (!user) throw Object.assign(new Error('A sesión administrativa non é válida.'), { status: 401 });
+
+  let permiso = await obterPermisoPortalCacheado(env, user, 'persoas');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'persoas');
+  if (!permiso?.podeLer) {
+    throw Object.assign(new Error('Non tes permiso de lectura no módulo Persoas.'), { status: 403 });
+  }
+  return user;
 }
 
 function urlAppsScriptPrincipal(env) {
@@ -453,27 +468,31 @@ async function gardarRevision(context, data, token) {
 }
 
 async function estadoAceptacion(context, data) {
-  let authData;
-  try { authData = await verificarAdministrador(context, data); }
+  try { await verificarAccesoPersoas(context, data); }
   catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
-  const persoa = buscarPersoa(authData.listado, data.idPersoa);
-  if (!persoa) return json(404, { ok: false, erro: 'Non se atopou a persoa.' });
-  const object = await context.env.R2_PRIVADO?.get?.(keyAcceptanceIndex(personKey(persoa)));
+
+  const idPersoa = safeId(data.idPersoa);
+  if (!idPersoa) return json(400, { ok: false, erro: 'Falta a persoa.' });
+  const object = await context.env.R2_PRIVADO?.get?.(keyAcceptanceIndex(idPersoa));
   if (!object) return json(200, { ok: true, disponible: false });
   const meta = await object.json();
   return json(200, { ok: true, disponible: true, aceptacion: meta });
 }
 
 async function obterAceptacion(context, data) {
-  let authData;
-  try { authData = await verificarAdministrador(context, data); }
+  try { await verificarAccesoPersoas(context, data); }
   catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
-  const persoa = buscarPersoa(authData.listado, data.idPersoa);
-  if (!persoa) return json(404, { ok: false, erro: 'Non se atopou a persoa.' });
-  const indexObject = await context.env.R2_PRIVADO?.get?.(keyAcceptanceIndex(personKey(persoa)));
+
+  const idPersoa = safeId(data.idPersoa);
+  if (!idPersoa) return json(400, { ok: false, erro: 'Falta a persoa.' });
+  const indexObject = await context.env.R2_PRIVADO?.get?.(keyAcceptanceIndex(idPersoa));
   if (!indexObject) return json(404, { ok: false, erro: 'Esta persoa aínda non ten unha aceptación electrónica dispoñible.' });
   const meta = await indexObject.json();
-  const pdf = await context.env.R2_PRIVADO.get(String(meta.documento || ''));
+  const documento = String(meta?.documento || '');
+  if (!documento.startsWith(`${ACCEPTANCE_PREFIX}${idPersoa}/`)) {
+    return json(400, { ok: false, erro: 'A referencia do PDF de aceptación non é válida.' });
+  }
+  const pdf = await context.env.R2_PRIVADO?.get?.(documento);
   if (!pdf) return json(404, { ok: false, erro: 'O PDF de aceptación non está dispoñible en R2.' });
   const headers = new Headers();
   pdf.writeHttpMetadata?.(headers);
