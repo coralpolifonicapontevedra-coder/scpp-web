@@ -36,7 +36,7 @@ describe('Administración → Persoas · revisión e envío en Producción', () 
 
   it('o endpoint só envía en Producción e valida revisións pendentes', () => {
     expect(endpoint).toContain("'coralpolifonicapontevedra.org'");
-    expect(endpoint).toContain("String(invitation.estado || '') !== 'PENDENTE'");
+    expect(endpoint).toContain("clean(invitation.estado) !== 'PENDENTE'");
     expect(endpoint).toContain("Date.parse(invitation.caducaEn || '') <= agora");
     expect(endpoint).toContain("accion: 'enviarRevisionsPersoasAdministracion'");
   });
