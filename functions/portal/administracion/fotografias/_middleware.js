@@ -18,6 +18,12 @@ const INXECCION = `
 <script>
 (function(){
   const fetchBase=window.fetch.bind(window);
+  const thumbUrls=new Map();
+  const thumbQueued=new Set();
+  const thumbQueue=[];
+  const MAX_THUMBS_ACTIVAS=3;
+  let thumbsActivas=0;
+  let selectedId='';
   let token='';
   let refrescoInicial=false;
   let refrescando=false;
@@ -42,6 +48,68 @@ const INXECCION = `
     }
   }
 
+  function aplicarMiniatura(id,src){
+    document.querySelectorAll('[data-thumb-id="'+CSS.escape(id)+'"]').forEach(function(img){
+      if(img instanceof HTMLImageElement){
+        img.src=src;
+        img.classList.add('is-ready');
+      }
+    });
+    if(selectedId===id){
+      const dialog=document.querySelector('#photo-dialog');
+      const image=document.querySelector('#dialog-image');
+      const placeholder=document.querySelector('#dialog-image-placeholder');
+      if(dialog instanceof HTMLDialogElement&&dialog.open&&image instanceof HTMLImageElement){
+        image.src=src;
+        image.hidden=false;
+        if(placeholder instanceof HTMLElement)placeholder.hidden=true;
+      }
+    }
+  }
+
+  async function cargarMiniaturaIndividual(id){
+    if(!id||!token)return;
+    const existente=thumbUrls.get(id);
+    if(existente){aplicarMiniatura(id,existente);return}
+    const response=await fetchBase('/api/editor-fotos-miniatura?idFoto='+encodeURIComponent(id),{
+      method:'GET',
+      headers:{Authorization:'Bearer '+token},
+      cache:'no-store'
+    });
+    if(!response.ok)throw new Error('Miniatura non dispoñible');
+    const blob=await response.blob();
+    const src=URL.createObjectURL(blob);
+    const anterior=thumbUrls.get(id);
+    if(anterior)URL.revokeObjectURL(anterior);
+    thumbUrls.set(id,src);
+    aplicarMiniatura(id,src);
+  }
+
+  function procesarColaMiniaturas(){
+    while(thumbsActivas<MAX_THUMBS_ACTIVAS&&thumbQueue.length){
+      const id=thumbQueue.shift();
+      if(!id)continue;
+      thumbsActivas+=1;
+      cargarMiniaturaIndividual(id)
+        .catch(function(error){console.warn('Non se puido cargar a miniatura '+id+':',error)})
+        .finally(function(){
+          thumbsActivas-=1;
+          thumbQueued.delete(id);
+          procesarColaMiniaturas();
+        });
+    }
+  }
+
+  function encolarMiniaturas(ids){
+    (ids||[]).forEach(function(id){
+      const clave=String(id||'').trim();
+      if(!clave||thumbUrls.has(clave)||thumbQueued.has(clave))return;
+      thumbQueued.add(clave);
+      thumbQueue.push(clave);
+    });
+    procesarColaMiniaturas();
+  }
+
   window.fetch=async function(input,init){
     let body=null;
     try{
@@ -60,6 +128,19 @@ const INXECCION = `
     ){
       refrescoInicial=true;
       try{await refrescarIndice(token)}catch(error){console.warn('Non se puido refrescar a Sheet antes de abrir Fotografías:',error)}
+    }
+
+    if(
+      url.includes('/api/administracion-fotografias')&&
+      body?.accion==='miniaturas'&&
+      Array.isArray(body.ids)&&
+      token
+    ){
+      encolarMiniaturas(body.ids);
+      return new Response(JSON.stringify({ok:true,imaxes:[],total:body.ids.length,orixe:'R2-PROGRESIVO'}),{
+        status:200,
+        headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}
+      });
     }
 
     return fetchBase(input,init);
@@ -97,6 +178,15 @@ const INXECCION = `
     return true;
   }
 
+  document.addEventListener('click',function(event){
+    const target=event.target instanceof Element?event.target.closest('[data-open]'):null;
+    if(!(target instanceof HTMLElement))return;
+    selectedId=String(target.dataset.open||'');
+    const src=thumbUrls.get(selectedId);
+    if(src)window.setTimeout(function(){aplicarMiniatura(selectedId,src)},0);
+    else encolarMiniaturas([selectedId]);
+  },true);
+
   const observador=new MutationObserver(instalar);
   observador.observe(document.documentElement,{childList:true,subtree:true});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',instalar,{once:true});else instalar();
@@ -107,6 +197,11 @@ const INXECCION = `
       const result=await refrescarIndice(token);
       if(result?.ok)window.location.reload();
     }catch(error){console.warn('Non se puido refrescar Fotografías ao volver á pantalla:',error)}
+  });
+
+  window.addEventListener('pagehide',function(){
+    thumbUrls.forEach(function(src){URL.revokeObjectURL(src)});
+    thumbUrls.clear();
   });
 })();
 </script>`;
