@@ -21,7 +21,8 @@ describe('rendemento de Administración de persoas', () => {
   });
 
   it('mantén Apps Script como respaldo cando non hai snapshot válido', () => {
-    expect(worker).toContain("return { payload: await consultarListado(env, user, permission), fonte: 'SHEET+R2', savedAt: Date.now() };");
+    expect(worker).toContain('payload: await consultarListado(env, user, permission)');
+    expect(worker).toContain("fonte: force ? 'SHEET-FORZADO+R2' : 'SHEET-ARRANQUE+R2'");
     expect(worker).toContain("const result = await chamarAppsScript(env, user, 'persoasV2Listar');");
   });
 
