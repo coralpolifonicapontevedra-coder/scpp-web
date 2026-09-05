@@ -6,7 +6,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
-DRIVE_FILE_ID = "1KTf89fUf-AyyOZbWqcPlmz3v_gmepjvA"  # copia técnica do Roseton.jpg exacto
+DRIVE_FILE_ID = "1Jebe2Ob8fuY7pjCmEd8_RwEdy1rTJi6f"  # copia exacta de Roseton.jpg en Fotos_Images
 PHOTO_ID = "91630e1a-725d-42c9-9aa5-259e6655ef08"
 ORIGINAL_KEY = f"fotos/orixinais/{PHOTO_ID}.jpg"
 THUMB_KEY = f"miniaturas/galeria/{PHOTO_ID}.webp"
