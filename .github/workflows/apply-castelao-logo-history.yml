@@ -1,0 +1,41 @@
+name: Aplicar logotipo de Castelao en Historia
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/insert-castelao-logo-history.py'
+      - '.github/workflows/apply-castelao-logo-history.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Inserir bloque do logotipo
+        run: python scripts/insert-castelao-logo-history.py
+
+      - name: Gardar cambios
+        run: |
+          if git diff --quiet -- src/pages/historia.astro src/pages/es/historia.astro; then
+            echo "Sen cambios pendentes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/historia.astro src/pages/es/historia.astro
+          git commit -m "Engadir o logotipo histórico de Castelao a Historia"
+          git push origin main
