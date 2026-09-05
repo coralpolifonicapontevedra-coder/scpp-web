@@ -158,7 +158,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       const user = await waitForPortalUser();
       if (!user?.email) throw new Error('Non hai unha sesión válida.');
       $('#user-email').textContent = user.email;
-      const data = await portalRequest('/api/permisos', 'listarActividadePortal', { limite: 1000 });
+      const data = await portalRequest('/api/auditoria-admin', 'listarActividadePortal', { limite: 1000 });
       activity = Array.isArray(data.actividade) ? data.actividade : [];
       fillFilters();
       updateMetrics();
