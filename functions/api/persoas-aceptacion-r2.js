@@ -17,15 +17,6 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   }
 });
 
-const texto = (status, body) => new Response(String(body || ''), {
-  status,
-  headers: {
-    'Content-Type': 'text/plain; charset=utf-8',
-    'Cache-Control': 'private, no-store',
-    'X-Content-Type-Options': 'nosniff'
-  }
-});
-
 async function verificarFirebase(idToken, apiKey) {
   const token = clean(idToken);
   if (!token || !apiKey) return null;
@@ -130,9 +121,7 @@ async function diagnosticarRevision(env, idPersoa, revisionId) {
       const sameRevision = revisionId && clean(revision.revisionId) === revisionId;
       if (revisionId ? sameRevision : samePerson) {
         coincidencias.push(resumoRevision(object, revision));
-        if (revisionId) {
-          return { atopada: true, revisadas, coincidencias, diagnostico: coincidencias[0] };
-        }
+        if (revisionId) return { atopada: true, revisadas, coincidencias, diagnostico: coincidencias[0] };
       }
     }
     cursor = listado?.truncated ? clean(listado?.cursor) : '';
@@ -149,44 +138,6 @@ async function diagnosticarRevision(env, idPersoa, revisionId) {
     coincidencias,
     diagnostico: coincidencias.find((item) => item.estado === 'COMPLETADA' && item.tenPersoaConfirmada) || coincidencias[0] || null
   };
-}
-
-function mensaxeDiagnostico(idPersoa, diagnostico) {
-  const lines = [
-    'DIAGNÓSTICO DE ACEPTACIÓN SCPP',
-    '',
-    `Persoa: ${idPersoa}`,
-    'PDF en R2: NON ATOPADO',
-    `Revisións examinadas: ${diagnostico?.revisadas ?? 0}`
-  ];
-
-  const coincidencias = Array.isArray(diagnostico?.coincidencias) ? diagnostico.coincidencias : [];
-  if (!coincidencias.length) {
-    lines.push('', 'Revisións desta persoa en R2: NON ATOPADAS', '', 'Non se atopou unha revisión recuperable para esta persoa.');
-    return lines.join('\n');
-  }
-
-  lines.push('', `Revisións desta persoa en R2: ${coincidencias.length}`);
-  coincidencias.forEach((item, index) => {
-    lines.push(
-      '',
-      `--- REVISIÓN ${index + 1} ---`,
-      `RevisionId: ${item.revisionId || '—'}`,
-      `Estado: ${item.estado || '—'}`,
-      `Creada: ${item.creadaEn || '—'}`,
-      `Completada: ${item.completadaEn || '—'}`,
-      `Versión legal: ${item.versionLegal || '—'}`,
-      `Datos confirmados conservados: ${item.tenPersoaConfirmada ? 'SI' : 'NON'}`,
-      `Documento rexistrado: ${item.documento || '—'}`,
-      `Fila de aceptación: ${item.aceptacionRowId || '—'}`
-    );
-  });
-
-  const recuperable = coincidencias.find((item) => item.estado === 'COMPLETADA' && item.tenPersoaConfirmada);
-  lines.push('', recuperable
-    ? `HAI UNHA REVISIÓN RECUPERABLE: ${recuperable.revisionId}. Conserva os datos necesarios para reconstruír o PDF sen pedir unha nova aceptación.`
-    : 'Non aparece ningunha revisión COMPLETADA con datos confirmados conservados.');
-  return lines.join('\n');
 }
 
 export async function onRequest({ request, env }) {
@@ -221,10 +172,10 @@ export async function onRequest({ request, env }) {
     });
   }
   if (!aceptacion) {
-    const diagnostico = acceso?.permiso?.podeAdministrar === true
-      ? await diagnosticarRevision(env, idPersoa, '')
-      : { atopada: false, coincidencias: [] };
-    return texto(200, mensaxeDiagnostico(idPersoa, diagnostico));
+    return json(404, {
+      ok: false,
+      erro: 'Non consta unha aceptación electrónica dispoñible para abrir.'
+    });
   }
 
   const headers = new Headers();
