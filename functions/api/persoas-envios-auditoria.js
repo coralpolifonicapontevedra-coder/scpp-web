@@ -3,6 +3,10 @@ import { obterPermisoPortal } from '../_lib/portal-permissions.js';
 
 const TOKEN_PREFIX = 'persoas/revisions/';
 const TIMEOUT_FIREBASE_MS = 8000;
+const DIAS_AUDITORIA = 7;
+const MARXE_R2_MS = 24 * 60 * 60 * 1000;
+const R2_READ_BATCH = 25;
+const APPS_SCRIPT_BATCH = 100;
 const clean = (value) => String(value ?? '').trim();
 
 const json = (status, body) => new Response(JSON.stringify(body), {
@@ -51,30 +55,42 @@ function primeiroCorreoValido(value) {
   return candidatos.find(v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) || '';
 }
 
-async function listarInvitacionsMasivas(env, emailAdmin) {
+async function lerInvitacion(env, obxecto, emailAdmin, limiteCreacion) {
+  const object = await env.R2_PRIVADO.get(obxecto.key);
+  if (!object) return null;
+  const invitation = await object.json().catch(() => null);
+  if (!invitation) return null;
+  if (clean(invitation.xeracion) !== 'MASIVA') return null;
+  if (clean(invitation.administrador).toLowerCase() !== clean(emailAdmin).toLowerCase()) return null;
+  const creadaEn = clean(invitation.creadaEn);
+  const revisionId = clean(invitation.revisionId);
+  if (!creadaEn || !revisionId || Date.parse(creadaEn) < limiteCreacion) return null;
+  return {
+    revisionId,
+    creadaEn,
+    idPersoa: clean(invitation.idPersoa),
+    nome: clean(invitation?.persoa?.nomeCompleto) || clean(invitation.idPersoa),
+    correo: primeiroCorreoValido(invitation?.persoa?.correo),
+    estadoRevision: clean(invitation.estado),
+    caducaEn: clean(invitation.caducaEn)
+  };
+}
+
+async function listarInvitacionsMasivasRecentes(env, emailAdmin, limiteCreacion) {
   const invitacions = [];
+  const limiteObxecto = limiteCreacion - MARXE_R2_MS;
   let cursor;
   do {
     const listado = await env.R2_PRIVADO.list({ prefix: TOKEN_PREFIX, limit: 1000, cursor });
-    for (const obxecto of listado.objects || []) {
-      const object = await env.R2_PRIVADO.get(obxecto.key);
-      if (!object) continue;
-      const invitation = await object.json().catch(() => null);
-      if (!invitation) continue;
-      if (clean(invitation.xeracion) !== 'MASIVA') continue;
-      if (clean(invitation.administrador).toLowerCase() !== clean(emailAdmin).toLowerCase()) continue;
-      const creadaEn = clean(invitation.creadaEn);
-      const revisionId = clean(invitation.revisionId);
-      if (!creadaEn || !revisionId) continue;
-      invitacions.push({
-        revisionId,
-        creadaEn,
-        idPersoa: clean(invitation.idPersoa),
-        nome: clean(invitation?.persoa?.nomeCompleto) || clean(invitation.idPersoa),
-        correo: primeiroCorreoValido(invitation?.persoa?.correo),
-        estadoRevision: clean(invitation.estado),
-        caducaEn: clean(invitation.caducaEn)
-      });
+    const candidatos = (listado.objects || []).filter(obxecto => {
+      const uploaded = obxecto?.uploaded instanceof Date ? obxecto.uploaded.getTime() : Date.parse(obxecto?.uploaded || '');
+      return !Number.isFinite(uploaded) || uploaded >= limiteObxecto;
+    });
+
+    for (let i = 0; i < candidatos.length; i += R2_READ_BATCH) {
+      const lote = candidatos.slice(i, i + R2_READ_BATCH);
+      const resultados = await Promise.all(lote.map(obxecto => lerInvitacion(env, obxecto, emailAdmin, limiteCreacion)));
+      for (const item of resultados) if (item) invitacions.push(item);
     }
     cursor = listado.truncated ? listado.cursor : undefined;
   } while (cursor);
@@ -83,8 +99,8 @@ async function listarInvitacionsMasivas(env, emailAdmin) {
 
 async function consultarMarcas(env, user, revisionIds) {
   const enviados = [];
-  for (let i = 0; i < revisionIds.length; i += 200) {
-    const lote = revisionIds.slice(i, i + 200);
+  for (let i = 0; i < revisionIds.length; i += APPS_SCRIPT_BATCH) {
+    const lote = revisionIds.slice(i, i + APPS_SCRIPT_BATCH);
     const { resultado } = await obterJsonAppsScriptPersoas(env, {
       token: env.WEB_WRITE_TOKEN,
       accion: 'estadoEnviosRevisionsPersoasAdministracion',
@@ -145,9 +161,8 @@ export async function onRequest(context) {
   catch (error) { return json(error.status || 503, { ok: false, erro: error.message }); }
 
   try {
-    const invitacions = await listarInvitacionsMasivas(env, user.email);
-    const limite = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const recentes = invitacions.filter(x => Date.parse(x.creadaEn) >= limite);
+    const limite = Date.now() - DIAS_AUDITORIA * 24 * 60 * 60 * 1000;
+    const recentes = await listarInvitacionsMasivasRecentes(env, user.email, limite);
     const revisionIds = recentes.map(x => x.revisionId);
     const marcas = revisionIds.length ? await consultarMarcas(env, user, revisionIds) : [];
     return json(200, {
