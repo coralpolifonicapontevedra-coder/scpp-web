@@ -1,0 +1,152 @@
+name: Deploy Ensaios admin v4 production once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps-script-production/ensaios-admin-v4.js'
+      - '.github/workflows/deploy-ensaios-admin-v4-production-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-production-ensaios-admin-v4
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PRODUCTION_SCRIPT_ID: '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+      PRODUCTION_DEPLOYMENT_ID: 'AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
+      CLASP_CREDENTIALS_PRODUCTION: ${{ secrets.CLASP_CREDENTIALS_PRODUCTION }}
+      CLASP_CREDENTIALS_PREVIEW: ${{ secrets.CLASP_CREDENTIALS_PREVIEW }}
+
+    steps:
+      - name: Checkout main exacto
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configurar credenciais de clasp
+        shell: bash
+        run: |
+          set -euo pipefail
+          CREDS="${CLASP_CREDENTIALS_PRODUCTION:-}"
+          if [ -z "$CREDS" ]; then CREDS="${CLASP_CREDENTIALS_PREVIEW:-}"; fi
+          if [ -z "$CREDS" ]; then echo 'Faltan credenciais de clasp.'; exit 1; fi
+          printf '%s' "$CREDS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Identificar deployment vivo
+        id: live
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/scpp-head /tmp/scpp-live /tmp/scpp-before
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$PRODUCTION_SCRIPT_ID" > /tmp/scpp-head/.clasp.json
+          cp /tmp/scpp-head/.clasp.json /tmp/scpp-live/.clasp.json
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-before.txt
+          LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-before.txt | head -n 1 || true)"
+          [ -n "$LINE" ] || { echo 'Non se atopou o deployment de Producción.'; exit 1; }
+          OLD_VERSION="$(printf '%s\n' "$LINE" | sed -n 's/.*@\([0-9][0-9]*\).*/\1/p')"
+          [ -n "$OLD_VERSION" ] || { echo 'Non se puido obter a versión viva.'; exit 1; }
+          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Gardar HEAD e ler Producción viva
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-head
+          npx --yes @google/clasp@3 pull --deleteUnusedFiles --force
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 pull --versionNumber "${{ steps.live.outputs.old_version }}" --deleteUnusedFiles --force
+          cp -a /tmp/scpp-live/. /tmp/scpp-before/
+          echo "Base de Producción: versión ${{ steps.live.outputs.old_version }}"
+
+      - name: Aplicar só Ensaios admin v4
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/apps-script-production/ensaios-admin-v4.js" /tmp/scpp-live/ensaios-admin-v4.js
+          python - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/scpp-live')
+          needle="accion === 'gardarAsistenciaEnsaioPortal'"
+          candidatos=[p for p in root.glob('*') if p.suffix in ('.js','.gs') and needle in p.read_text(errors='ignore')]
+          if len(candidatos) != 1:
+              raise SystemExit(f'Esperábase un único dispatcher e atopáronse {len(candidatos)}')
+          codigo=candidatos[0]
+          text=codigo.read_text()
+          if "accion === 'reconciliarEnsaioAdministracionV4'" not in text:
+              anchor="    if (accion === 'gardarAsistenciaEnsaioPortal') {"
+              if anchor not in text:
+                  raise SystemExit('Non se atopou o punto seguro de integración.')
+              block="""    if (accion === 'reconciliarEnsaioAdministracionV4') {\n      bloqueo.waitLock(10000);\n      const resultado = reconciliarEnsaioAdministracionV4_(datos);\n      rexistrarAcceso({\n        email: correo,\n        tipoEvento: 'Finalizar xestión de ensaio',\n        modulo: 'Ensaios',\n        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',\n        detalle: resultado.ok ? 'Obras e asistencias reconciliadas nunha única operación' : String(resultado.erro || '')\n      });\n      return respostaJSON(resultado);\n    }\n\n"""
+              codigo.write_text(text.replace(anchor, block+anchor, 1))
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+          def snap(root):
+              return {p.relative_to(root).as_posix():p.read_bytes() for p in Path(root).rglob('*') if p.is_file() and p.name!='.clasp.json'}
+          a,b=snap('/tmp/scpp-before'),snap('/tmp/scpp-live')
+          changed=sorted(k for k in set(a)|set(b) if a.get(k)!=b.get(k))
+          print('Diff efectivo sobre Producción viva:', changed)
+          allowed={'Código.js','Codigo.js','ensaios-admin-v4.js'}
+          if not changed or not set(changed).issubset(allowed):
+              raise SystemExit('O diff sae de Ensaios admin v4. Abortado.')
+          if 'ensaios-admin-v4.js' not in changed:
+              raise SystemExit('Non se incorporou a función v4.')
+          PY
+
+      - name: Push temporal e crear versión
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-live
+          npx --yes @google/clasp@3 push --force
+          echo 'patched_head=1' >> "$GITHUB_OUTPUT"
+          OUT="$(npx --yes @google/clasp@3 create-version 'Ensaios admin v4: finalización única de obras e asistencias')"
+          echo "$OUT"
+          NEW_VERSION="$(printf '%s\n' "$OUT" | grep -oE '[0-9]+' | tail -n 1)"
+          [ -n "$NEW_VERSION" ] || { echo 'Non se obtivo a nova versión.'; exit 1; }
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Actualizar deployment e verificar
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-live
+          OLD_VERSION='${{ steps.live.outputs.old_version }}'
+          NEW_VERSION='${{ steps.version.outputs.new_version }}'
+          npx --yes @google/clasp@3 create-deployment --deploymentId "$PRODUCTION_DEPLOYMENT_ID" --versionNumber "$NEW_VERSION" --description 'Ensaios admin v4'
+          npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-after.txt
+          LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-after.txt | head -n 1 || true)"
+          if ! printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
+            echo 'Fallou a verificación; rollback inmediato.'
+            npx --yes @google/clasp@3 create-deployment --deploymentId "$PRODUCTION_DEPLOYMENT_ID" --versionNumber "$OLD_VERSION" --description 'Rollback automático Ensaios admin v4' || true
+            exit 1
+          fi
+          echo "Producción actualizada: $OLD_VERSION → $NEW_VERSION"
+          echo "Rollback dispoñible á versión $OLD_VERSION"
+
+      - name: Restaurar HEAD previo de Apps Script
+        if: always() && steps.version.outputs.patched_head == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/scpp-head
+          npx --yes @google/clasp@3 push --force
+          echo 'HEAD previo restaurado; Producción mantén a versión creada.'
