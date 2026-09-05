@@ -1,72 +1,59 @@
 from pathlib import Path
+import re
 
-FILES = {
-    Path("src/pages/historia.astro"): {
-        "needle": '        <section class="castelao-timeline" aria-labelledby="castelao-relato-title">',
-        "block": '''        <!-- CASTELAO_LOGO_V1_BEGIN -->
-        <section class="castelao-hero-pano castelao-hero-pano-reverse" aria-labelledby="logo-castelao-title">
-          <div class="castelao-hero-image" style="background:#f3f0ea;">
+BLOCKS = {
+    Path("src/pages/historia.astro"): r'''        <section class="castelao-emblem-note" aria-labelledby="san-david-emblema-title">
+          <div class="castelao-emblem-visuals">
             <img
+              class="castelao-emblem-main"
               src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F373c7089-3234-430a-b035-7eb3b86beb80.jpg"
               alt="Logotipo histórico da Sociedade Coral Polifónica de Pontevedra deseñado por Castelao"
               loading="lazy"
             />
+            <figure class="castelao-emblem-history">
+              <img
+                src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F3ee29336-fc4d-4a1f-97a9-e1575291494c.png"
+                alt="Versión histórica do logotipo de San David coa sinatura de Castelao"
+                loading="lazy"
+              />
+              <figcaption>Versión histórica coa sinatura de Castelao · Arquivo SCPP</figcaption>
+            </figure>
           </div>
-          <div class="castelao-hero-copy">
+          <div>
             <p class="section-kicker">1925 · Identidade visual</p>
-            <h3 id="logo-castelao-title">O logotipo da Polifónica</h3>
+            <h3 id="san-david-emblema-title">O logotipo da Polifónica, deseñado por Castelao</h3>
             <p>
-              Castelao deseñou tamén o logotipo da Sociedade Coral Polifónica de Pontevedra. A figura
-              representa un músico medieval inspirado no rei David da fachada das Praterías da Catedral
-              de Santiago de Compostela, unha imaxe que quedou unida desde os primeiros anos á identidade
-              da Sociedade.
+              O logotipo da Sociedade Coral Polifónica de Pontevedra foi deseñado por Alfonso Daniel
+              Rodríguez Castelao e representa un músico medieval inspirado na figura do rei David da
+              fachada das Praterías da Catedral de Santiago de Compostela. O mesmo motivo preside o
+              pano de boca de San David, empregado desde os primeiros concertos da agrupación en 1926.
             </p>
             <p>
-              O nome da Polifónica aparece cunha grafía de inspiración epigráfica, relacionada coas
-              investigacións de Castelao sobre as inscricións medievais galegas e coa tradición gráfica
-              que acabaría sendo recoñecida como «letra galega».
+              A inscrición que envolve a figura utiliza unha grafía de trazo manual e inspiración
+              epigráfica, ligada ás investigacións de Castelao sobre as inscricións medievais galegas e
+              á tradición gráfica coñecida como «letra galega».
             </p>
             <a class="pano-source-link" href="https://arde.gal/peza/logotipo-sociedad-coral-polifonica-de-pontevedra" target="_blank" rel="noreferrer">
               Ver a ficha do logotipo en AR\DE ↗
             </a>
-            <span class="pano-caption">Arquivo SCPP · Logo San David.jpg · Fotografía publicada desde R2</span>
+            <p class="castelao-emblem-source">Arquivo SCPP · Orixinais da carpeta «Panos castelao» · Publicados desde R2</p>
           </div>
-        </section>
-        <!-- CASTELAO_LOGO_V1_END -->
-
-'''
-    },
-    Path("src/pages/es/historia.astro"): {
-        "needle": '<section class="castelao-timeline"',
-        "block": '''<!-- CASTELAO_LOGO_V1_BEGIN -->
-<section class="castelao-hero-pano castelao-hero-pano-reverse" aria-labelledby="logo-castelao-title-es">
-  <div class="castelao-hero-image" style="background:#f3f0ea;"><img src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F373c7089-3234-430a-b035-7eb3b86beb80.jpg" alt="Logotipo histórico de la Sociedad Coral Polifónica de Pontevedra diseñado por Castelao" loading="lazy" /></div>
-  <div class="castelao-hero-copy">
-    <p class="section-kicker">1925 · Identidad visual</p>
-    <h3 id="logo-castelao-title-es">El logotipo de la Polifónica</h3>
-    <p>Castelao diseñó también el logotipo de la Sociedad Coral Polifónica de Pontevedra. La figura representa a un músico medieval inspirado en el rey David de la fachada de las Platerías de la Catedral de Santiago de Compostela, una imagen unida desde los primeros años a la identidad de la Sociedad.</p>
-    <p>El nombre de la Polifónica aparece con una grafía de inspiración epigráfica, relacionada con las investigaciones de Castelao sobre las inscripciones medievales gallegas y con la tradición gráfica que acabaría siendo reconocida como «letra gallega».</p>
-    <a class="pano-source-link" href="https://arde.gal/peza/logotipo-sociedad-coral-polifonica-de-pontevedra" target="_blank" rel="noreferrer">Ver la ficha del logotipo en AR\DE ↗</a>
-    <span class="pano-caption">Archivo SCPP · Logo San David.jpg · Fotografía publicada desde R2</span>
-  </div>
-</section>
-<!-- CASTELAO_LOGO_V1_END -->
-
-'''
-    },
+        </section>''',
+    Path("src/pages/es/historia.astro"): r'''<section class="castelao-emblem-note" aria-labelledby="san-david-emblema-title-es"><div class="castelao-emblem-visuals">
+          <img class="castelao-emblem-main" src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F373c7089-3234-430a-b035-7eb3b86beb80.jpg" alt="Logotipo histórico de la Sociedad Coral Polifónica de Pontevedra diseñado por Castelao" loading="lazy" />
+          <figure class="castelao-emblem-history"><img src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F3ee29336-fc4d-4a1f-97a9-e1575291494c.png" alt="Versión histórica del logotipo de San David con la firma de Castelao" loading="lazy" /><figcaption>Versión histórica con la firma de Castelao · Archivo SCPP</figcaption></figure>
+        </div><div><p class="section-kicker">1925 · Identidad visual</p><h3 id="san-david-emblema-title-es">El logotipo de la Polifónica, diseñado por Castelao</h3><p>El logotipo de la Sociedad Coral Polifónica de Pontevedra fue diseñado por Alfonso Daniel Rodríguez Castelao y representa a un músico medieval inspirado en la figura del rey David de la fachada de las Platerías de la Catedral de Santiago de Compostela. El mismo motivo preside el telón de boca de San David, utilizado desde los primeros conciertos de la agrupación en 1926.</p><p>La inscripción que rodea la figura utiliza una grafía de trazo manual e inspiración epigráfica, vinculada a las investigaciones de Castelao sobre las inscripciones medievales gallegas y a la tradición gráfica conocida como «letra gallega».</p><a class="pano-source-link" href="https://arde.gal/peza/logotipo-sociedad-coral-polifonica-de-pontevedra" target="_blank" rel="noreferrer">Ver la ficha del logotipo en AR\DE ↗</a><p class="castelao-emblem-source">Archivo SCPP · Originales de la carpeta «Panos castelao» · Publicados desde R2</p></div></section>''',
 }
 
-for path, config in FILES.items():
+PATTERNS = {
+    Path("src/pages/historia.astro"): r'<section class="castelao-emblem-note" aria-labelledby="san-david-emblema-title">.*?</section>',
+    Path("src/pages/es/historia.astro"): r'<section class="castelao-emblem-note" aria-labelledby="san-david-emblema-title-es">.*?</section>',
+}
+
+for path, block in BLOCKS.items():
     text = path.read_text(encoding="utf-8")
-    if "CASTELAO_LOGO_V1_BEGIN" in text:
-        print(f"OK | {path} | bloque xa presente")
-        continue
-
-    needle = config["needle"]
-    pos = text.find(needle)
-    if pos < 0:
-        raise SystemExit(f"Non se atopou o punto de inserción en {path}: {needle}")
-
-    text = text[:pos] + config["block"] + text[pos:]
+    text, count = re.subn(PATTERNS[path], block, text, count=1, flags=re.S)
+    if count != 1:
+        raise SystemExit(f"Non se atopou exactamente un bloque do logotipo en {path}: {count}")
     path.write_text(text, encoding="utf-8")
-    print(f"OK | {path} | bloque inserido")
+    print(f"OK | {path} | bloque do logotipo actualizado")
