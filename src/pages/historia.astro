@@ -568,6 +568,27 @@ const legado = [
           </div>
         </section>
 
+        <section class="castelao-emblem-note" aria-labelledby="san-david-emblema-title">
+          <div class="castelao-emblem-visuals">
+          <img class="castelao-emblem-main" src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F373c7089-3234-430a-b035-7eb3b86beb80.jpg" alt="Anagrama de San David deseñado por Castelao para a Sociedade Coral Polifónica de Pontevedra" loading="lazy" />
+          <figure class="castelao-emblem-history"><img src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F3ee29336-fc4d-4a1f-97a9-e1575291494c.jpg" alt="Versión histórica do anagrama de San David coa sinatura de Castelao" loading="lazy" /><figcaption>Versión histórica con sinatura · Arquivo SCPP</figcaption></figure>
+        </div>
+          <div>
+            <p class="section-kicker">Identidade visual</p>
+            <h3 id="san-david-emblema-title">San David: do pano de boca ao emblema da Polifónica</h3>
+            <p>
+              A figura central representa o rei David músico. Castelao tomou como referencia o San David músico
+              do Pórtico das Praterías da Catedral de Santiago e converteuno no anagrama da Sociedade. A imaxe,
+              nacida no primeiro pano de boca de 1926, acabou identificando á Polifónica ao longo das décadas e
+              segue formando parte da súa identidade gráfica.
+            </p>
+            <p class="castelao-emblem-source">
+              O pano de San David estreouse no concerto do Teatro Principal do 23 de marzo de 1926 e foi restaurado
+              en dúas ocasións, a última no ano 2000.
+            </p>
+          </div>
+        </section>
+
         <section class="castelao-timeline" aria-labelledby="castelao-relato-title">
           <div class="pano-section-title">
             <p class="section-kicker">Da idea ao escenario</p>
@@ -1712,5 +1733,39 @@ const legado = [
     .castelao-hero-copy { padding: 1.35rem; }
   }
   /* CASTELAO_MUSEO_V3_END */
+
+
+
+  .castelao-emblem-note {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 1.6rem;
+    margin: -1.2rem 0 3rem;
+    padding: 1.65rem 1.8rem;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--gold);
+    background: #fbf9f5;
+  }
+  .castelao-emblem-mark {
+    display: grid;
+    place-items: center;
+    min-height: 90px;
+    color: var(--wine);
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: .16em;
+    border: 1px solid rgba(107,29,47,.28);
+  }
+  .castelao-emblem-note h3 { margin: .15rem 0 .7rem; color: var(--wine); font-size: clamp(1.35rem,2.5vw,1.8rem); }
+  .castelao-emblem-note p { margin: 0; color: #4c4744; line-height: 1.7; }
+  .castelao-emblem-note .castelao-emblem-source { margin-top: .8rem; color: var(--muted); font-size: .84rem; }
+  @media (max-width:700px){ .castelao-emblem-note{grid-template-columns:1fr}.castelao-emblem-mark{min-height:64px} }
+
+
+  .castelao-emblem-visuals { display:grid; gap:.8rem; align-content:start; }
+  .castelao-emblem-main { width:100%; max-width:180px; margin:0 auto; display:block; object-fit:contain; background:#fff; border:1px solid rgba(107,29,47,.18); padding:.45rem; }
+  .castelao-emblem-history { margin:0; }
+  .castelao-emblem-history img { width:100%; max-width:180px; margin:0 auto; display:block; object-fit:contain; }
+  .castelao-emblem-history figcaption { margin-top:.35rem; color:var(--muted); font-size:.68rem; line-height:1.35; text-align:center; }
 
 </style>
