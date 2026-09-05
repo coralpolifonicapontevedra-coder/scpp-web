@@ -12,18 +12,20 @@ describe('módulo de arquivo e préstamos', () => {
     expect(read('src/components/AdministracionNav.astro')).toContain("id: 'arquivo'");
   });
 
-  it('ofrece alta, edición, baixa lóxica e reactivación de fondos', () => {
+  it('ofrece alta e edición de fondos con estado lóxico sen eliminación física', () => {
     const page = read('src/pages/portal/administracion/arquivo.astro');
     expect(page).toContain("gardarFondoAdministracion");
-    expect(page).toContain("Dar de baixa");
-    expect(page).toContain("Reactivar");
-    expect(page).toContain("Estado:baixa?'Arquivado':'Activo'");
+    expect(page).toContain("['Estado','Estado','select:Activo|En catalogación|Arquivado']");
+    expect(page).toContain("tab==='fondos'?'Novo fondo':'Novo elemento de catálogo'");
     expect(page).not.toContain('eliminarFondoAdministracion');
   });
 
-  it('restrinxe a API a Administración e ás accións previstas', () => {
+  it('restrinxe a API co permiso específico de Arquivo e ás accións previstas', () => {
     const api = read('functions/api/arquivo-admin.js');
-    expect(api).toContain("Só Administración pode xestionar o arquivo");
+    expect(api).toContain("const MODULO = 'arquivo'");
+    expect(api).toContain('obterPermisoPortal');
+    expect(api).toContain('permisoArquivo(env, user, write)');
+    expect(api).toContain('ARQUIVO_PERMISSION_REQUIRED');
     for (const action of ['listarArquivoAdministracion','gardarFondoAdministracion','gardarElementoFondoAdministracion','gardarMovementoArquivoAdministracion','gardarElementoMovementoAdministracion','rexistrarDevolucionArquivoAdministracion']) {
       expect(api).toContain(action);
     }
