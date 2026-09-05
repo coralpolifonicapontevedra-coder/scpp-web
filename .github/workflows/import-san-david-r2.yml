@@ -1,5 +1,6 @@
 name: Importar pano San David a Fotos e R2
 
+# Relanzamento tras dar de alta o pano na Sheet Fotos.
 on:
   push:
     branches: [feature/castelao-panos-r2]
