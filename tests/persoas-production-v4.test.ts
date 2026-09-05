@@ -82,7 +82,7 @@ describe('Administración → Persoas v4 · Producción', () => {
     expect(photoApi).toContain("source: 'r2'");
     expect(profilePhotoApi).toContain("source: 'r2'");
     expect(cacheSync).toContain("fotoCanonica: 'R2'");
-    expect(syncPerfil).toContain("fonte:'admin-persoas-perfil-foto'");
+    expect(syncPerfil).toContain("fonte:'admin-persoas-cache-r2'");
     expect(reviewSync).toContain("revision?.estado !== 'COMPLETADA'");
     expect(feeReview).toContain('/api/persoas-review-cache-sync');
   });
