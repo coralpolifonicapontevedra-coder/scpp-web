@@ -8,8 +8,8 @@ export async function onRequest({ request, env }) {
   if (!resposta.ok || !tipo.includes('text/html') || request.method === 'HEAD') return resposta;
 
   let html = await resposta.text();
-  const recurso = '<script src="/js/ensaios-admin-rapido.js?v=1"></script>';
-  if (!html.includes('/js/ensaios-admin-rapido.js')) {
+  const recurso = '<script src="/js/ensaios-admin-finalizar.js?v=1"></script>';
+  if (!html.includes('/js/ensaios-admin-finalizar.js')) {
     if (html.includes('</head>')) html = html.replace('</head>', `${recurso}</head>`);
     else html = `${recurso}${html}`;
   }
@@ -19,7 +19,7 @@ export async function onRequest({ request, env }) {
   headers.delete('Content-Encoding');
   headers.delete('ETag');
   headers.set('Cache-Control','private, no-store');
-  headers.set('X-SCPP-Admin-Ensaios','rapido-r2-v1');
+  headers.set('X-SCPP-Admin-Ensaios','borrador-r2-finalizar-v1');
 
   return new Response(html, { status:resposta.status, statusText:resposta.statusText, headers });
 }
