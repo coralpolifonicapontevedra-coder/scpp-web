@@ -390,7 +390,7 @@ export async function onRequestPost(context) {
   try {
     estadoEnvio = await chamarEstadoEnviosAppsScript(env, authData.user, resultados.map(item => item.revisionId));
   } catch {
-    estadoEnvio = null;
+    // Mantense o valor inicial null se non se pode consultar a cota.
   }
 
   return json(200, {
