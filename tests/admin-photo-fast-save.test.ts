@@ -13,14 +13,19 @@ describe('Gardado validado de Fotografías', () => {
   it('usa o backend v3 activo', () => {
     expect(route).toContain('onRequestFotosAdministracionV3');
     expect(route).not.toContain('onRequestFotosAdministracionV2Fast');
-    expect(worker).toContain("accion: 'comprobarFotosAdministracionPortal'");
     expect(worker).toContain("accion: 'gardarFotoAdministracionPortal'");
+    expect(worker).not.toContain("accion: 'comprobarFotosAdministracionPortal'");
   });
 
-  it('mantén verificación de Sheet e índices R2 antes de confirmar', () => {
+  it('confirma Sheet, escribe os catro índices R2 e conserva rollback', () => {
     expect(worker).toContain('A Sheet non confirmou o estado de publicación solicitado');
-    expect(worker).toContain('const [pubV, priV, revV, catV]');
-    expect(worker).toContain('A verificación final de R2 non coincide co estado solicitado');
+    expect(worker).toContain('gardar(env.R2_PUBLICO, INDEX_PUBLICO, pub1, true)');
+    expect(worker).toContain('gardar(env.R2_PRIVADO, INDEX_PRIVADO, pri1, false)');
+    expect(worker).toContain('gardar(env.R2_PRIVADO, INDEX_REVISION, rev1, false)');
+    expect(worker).toContain('gardar(env.R2_PRIVADO, CATALOGO, cat1, false)');
+    expect(worker).toContain('Promise.allSettled([');
+    expect(worker).toContain('gardar(env.R2_PUBLICO, INDEX_PUBLICO, pub0, true)');
+    expect(worker).toContain('gardar(env.R2_PRIVADO, CATALOGO, cat0, false)');
   });
 });
 
