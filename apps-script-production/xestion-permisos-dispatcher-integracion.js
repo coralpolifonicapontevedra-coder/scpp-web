@@ -78,7 +78,15 @@ function despacharFotosAdministracionPortal_(accion, datos, bloqueo) {
   }
 
   if (accion === 'gardarFotoAdministracionPortal') {
-    if (bloqueo && !bloqueo.hasLock()) bloqueo.waitLock(10000);
+    if (bloqueo && !bloqueo.hasLock()) {
+      if (!bloqueo.tryLock(1500)) {
+        return {
+          ok: false,
+          codigo: 'BUSY',
+          erro: 'Hai outro gardado de Fotografías en curso. Téntao de novo nuns segundos.'
+        };
+      }
+    }
     return gardarFotoAdministracionPortal_(datos);
   }
 
