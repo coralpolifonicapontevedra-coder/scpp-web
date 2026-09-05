@@ -1,13 +1,17 @@
+import { obterJsonAppsScript } from '../_lib/apps-script.js';
+
 const INDEX_REVISION = 'indices/revision-fotos-v1.json';
 const INDEX_PUBLICO = 'indices/galeria-publica-v1.json';
 const INDEX_PRIVADO = 'indices/galeria-privada.json';
 const CATALOGO = 'indices/catalogo-fotos.json';
 const PHOTO_AUTH_PREFIX = 'cache/autorizacion-fotos/';
 const ADMIN_AUTH_PREFIX = 'persoas/cache/administracion/';
+const REVISION_FALLBACK_PREFIX = 'fotos/revision-miniaturas/';
 const AUTH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const TOKEN_CACHE_MS = 10 * 60 * 1000;
 const MAX_THUMBS = 18;
 const MAX_FALLBACK_BYTES = 1_500_000;
+const MAX_DRIVE_BYTES = 8 * 1024 * 1024;
 
 const tokenCache = new Map();
 
@@ -97,14 +101,15 @@ async function administracionCacheada(env, usuario) {
 }
 
 async function lerIndice(bucket, clave) {
-  if (!bucket) return { fotos: [], xeradoEn: '', xeradoEnMs: 0 };
+  if (!bucket) return { fotos: [], xeradoEn: '', xeradoEnMs: 0, raw: null };
   const obxecto = await bucket.get(clave);
-  if (!obxecto) return { fotos: [], xeradoEn: '', xeradoEnMs: 0 };
+  if (!obxecto) return { fotos: [], xeradoEn: '', xeradoEnMs: 0, raw: null };
   const datos = await obxecto.json().catch(() => null);
   return {
     fotos: Array.isArray(datos?.fotos) ? datos.fotos : [],
     xeradoEn: texto(datos?.xeradoEn),
-    xeradoEnMs: Number(datos?.xeradoEnMs || 0)
+    xeradoEnMs: Number(datos?.xeradoEnMs || 0),
+    raw: datos
   };
 }
 
@@ -158,7 +163,7 @@ function normalizarCatalogo(indices) {
           : 'nonpublicada';
 
     const miniaturaDisponible = Boolean(texto(
-      foto.rutaMiniaturaRevision || foto.rutaMiniaturaPrivada || foto.rutaMiniaturaPublica || foto.rutaMiniatura
+      foto.rutaMiniaturaRevision || foto.rutaMiniaturaPrivada || foto.rutaMiniaturaPublica || foto.rutaMiniatura || foto.rutaR2Traballo
     ));
 
     return {
@@ -220,8 +225,7 @@ function candidatosMiniatura(foto) {
 
 async function primeiraImaxe(bucket, rutas) {
   if (!bucket) return null;
-  for (let i = 0; i < rutas.length; i += 1) {
-    const ruta = rutas[i];
+  for (const ruta of rutas) {
     const obxecto = await bucket.get(ruta);
     if (!obxecto) continue;
     const pareceMiniatura = /miniatura|thumb/i.test(ruta);
@@ -240,11 +244,99 @@ function base64(bytes) {
   return btoa(binario);
 }
 
-async function miniaturas(env, ids, mapa) {
+function bytesDesdeBase64(valor) {
+  const raw = texto(valor);
+  if (!raw) return null;
+  const binario = atob(raw);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
+  return bytes;
+}
+
+function extensionMime(mimeType) {
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/webp') return 'webp';
+  return 'jpg';
+}
+
+async function gardarRutaFallbackNoIndice(env, id, ruta) {
+  const actual = await lerIndice(env.R2_PRIVADO, INDEX_REVISION);
+  const raw = actual.raw || { ok: true };
+  const fotos = [...actual.fotos];
+  const indice = fotos.findIndex((foto) => idFoto(foto) === id);
+  if (indice === -1) return;
+
+  fotos[indice] = {
+    ...fotos[indice],
+    rutaMiniaturaRevision: ruta,
+    rutaR2Traballo: ruta
+  };
+
+  const agora = new Date();
+  await env.R2_PRIVADO.put(INDEX_REVISION, JSON.stringify({
+    ...raw,
+    ok: true,
+    fotos,
+    total: fotos.length,
+    xeradoEn: agora.toISOString(),
+    xeradoEnMs: agora.getTime(),
+    actualizadoDesde: 'DRIVE-FALLBACK-REVISION'
+  }), {
+    httpMetadata: {
+      contentType: 'application/json; charset=utf-8',
+      cacheControl: 'private, max-age=0, no-cache, must-revalidate'
+    }
+  });
+}
+
+async function recuperarDeDrive(env, usuario, id) {
+  if (!env.WEB_WRITE_TOKEN) return null;
+
+  const { resultado } = await obterJsonAppsScript(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion: 'obterFotoParaR2',
+    email: usuario.email,
+    uidFirebase: usuario.uid,
+    idFoto: id,
+    rowId: id,
+    publicarPrivada: true,
+    publicarPublica: false
+  }, { timeoutMs: 75_000, attemptTimeoutMs: 25_000 });
+
+  if (!resultado?.ok) return null;
+  const mimeType = texto(resultado.mimeType || 'image/jpeg').toLowerCase();
+  const bytes = bytesDesdeBase64(resultado.base64);
+  if (!bytes?.byteLength || bytes.byteLength > MAX_DRIVE_BYTES) return null;
+
+  const ruta = `${REVISION_FALLBACK_PREFIX}${id}.${extensionMime(mimeType)}`;
+  await env.R2_PRIVADO.put(ruta, bytes, {
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: 'private, max-age=86400'
+    },
+    customMetadata: {
+      idFoto: id,
+      orixe: 'drive-fallback-revision',
+      gardadoEn: new Date().toISOString()
+    }
+  });
+  await gardarRutaFallbackNoIndice(env, id, ruta);
+
+  const obxecto = await env.R2_PRIVADO.get(ruta);
+  return obxecto ? { obxecto, ruta, pareceMiniatura: true } : null;
+}
+
+async function miniaturas(env, ids, mapa, usuario) {
   const unicos = [...new Set(ids.map(texto).filter(Boolean))].slice(0, MAX_THUMBS);
-  return Promise.all(unicos.map(async (id) => {
+  const imaxes = [];
+
+  for (const id of unicos) {
     const foto = mapa.get(id);
-    if (!foto) return { idFoto: id, ok: false };
+    if (!foto) {
+      imaxes.push({ idFoto: id, ok: false });
+      continue;
+    }
+
     const candidatos = candidatosMiniatura(foto);
     let atopada = await primeiraImaxe(env.R2_PRIVADO, candidatos.privado);
     let fonte = atopada ? 'R2-PRIVADO' : '';
@@ -252,18 +344,31 @@ async function miniaturas(env, ids, mapa) {
       atopada = await primeiraImaxe(env.R2_PUBLICO, candidatos.publico);
       fonte = atopada ? 'R2-PUBLICO' : '';
     }
-    if (!atopada) return { idFoto: id, ok: false };
+    if (!atopada && estadoRevision(foto).includes('pend')) {
+      atopada = await recuperarDeDrive(env, usuario, id).catch((erro) => {
+        console.warn(`Non se puido recuperar a miniatura ${id} desde Drive:`, erro);
+        return null;
+      });
+      fonte = atopada ? 'DRIVE→R2-PRIVADO' : '';
+    }
+    if (!atopada) {
+      imaxes.push({ idFoto: id, ok: false });
+      continue;
+    }
+
     const bytes = new Uint8Array(await atopada.obxecto.arrayBuffer());
     const tipo = texto(atopada.obxecto.httpMetadata?.contentType) || 'image/jpeg';
-    return {
+    imaxes.push({
       idFoto: id,
       ok: true,
       mimeType: tipo,
       base64: base64(bytes),
       fonte,
       miniatura: atopada.pareceMiniatura
-    };
-  }));
+    });
+  }
+
+  return imaxes;
 }
 
 export async function onRequest({ request, env }) {
@@ -312,9 +417,9 @@ export async function onRequest({ request, env }) {
     if (accion === 'miniaturas') {
       const ids = Array.isArray(datos.ids) ? datos.ids : [];
       if (!ids.length) return json(400, { ok: false, erro: 'Non se indicaron fotografías.' });
-      const imaxes = await miniaturas(env, ids, catalogo.mapa);
-      return json(200, { ok: true, imaxes, total: imaxes.length, orixe: 'R2-BATCH' }, {
-        'X-SCPP-Photos-Source': 'R2-BATCH'
+      const imaxes = await miniaturas(env, ids, catalogo.mapa, usuario);
+      return json(200, { ok: true, imaxes, total: imaxes.length, orixe: 'R2-BATCH-WITH-DRIVE-FALLBACK' }, {
+        'X-SCPP-Photos-Source': 'R2-BATCH-WITH-DRIVE-FALLBACK'
       });
     }
 
