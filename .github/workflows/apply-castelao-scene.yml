@@ -13,59 +13,10 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    env:
-      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Preparar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Instalar dependencias para Drive e imaxes
-        run: pip install google-api-python-client google-auth Pillow
-
-      - name: Descargar as imaxes seguras de Drive
-        shell: python
-        run: |
-          import io, json, os
-          from pathlib import Path
-          from google.oauth2 import service_account
-          from googleapiclient.discovery import build
-          from googleapiclient.http import MediaIoBaseDownload
-          from PIL import Image
-
-          info = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT_JSON'])
-          creds = service_account.Credentials.from_service_account_info(
-              info, scopes=['https://www.googleapis.com/auth/drive.readonly']
-          )
-          drive = build('drive', 'v3', credentials=creds, cache_discovery=False)
-          destino = Path('public/img/historia/panos')
-          destino.mkdir(parents=True, exist_ok=True)
-
-          arquivos = {
-              '1eFX4RgrgWbbmk7nsqiVIYn0xqsediyZ6': 'san-david.webp',
-              '1Wq9l6av5HFVaXyNIZFEMs3g9jEs7NrNN': 'roseton-oxival.webp',
-              '1gkDcJOTXkB2sRoFLHnBlUxOe0lMc1ksa': 'romaria-1986.webp',
-          }
-
-          for file_id, nome in arquivos.items():
-              buffer = io.BytesIO()
-              request = drive.files().get_media(fileId=file_id)
-              downloader = MediaIoBaseDownload(buffer, request)
-              done = False
-              while not done:
-                  _, done = downloader.next_chunk()
-              buffer.seek(0)
-              im = Image.open(buffer).convert('RGB')
-              im.thumbnail((1600, 1600))
-              im.save(destino / nome, 'WEBP', quality=82, method=6)
-              print('Gardada', nome)
-
       - name: Aplicar a sección patrimonial
         run: python scripts/apply_castelao_scene.py
-
       - name: Gardar cambios
         run: |
           if git diff --quiet; then
@@ -74,6 +25,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/pages/historia.astro public/img/historia/panos
+          git add src/pages/historia.astro
           git commit -m "Mellorar Castelao e a escena"
           git push
