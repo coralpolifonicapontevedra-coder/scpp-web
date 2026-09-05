@@ -1,8 +1,8 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
 const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
-const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const CONCERT_INDEX_MAIN = 'indices/concertos-privado-v1.json';
 const CONCERT_INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 const ATTENDANCE_INDEX_MAIN = 'indices/asistencias-concertos.json';
@@ -33,16 +33,13 @@ async function verificarFirebase(idToken, apiKey) {
   if (!data?.email || data.emailVerified !== true) return null;
   return { uid:clean(data.localId), email:clean(data.email).toLowerCase() };
 }
-async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean(email).toLowerCase()));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+
+async function permisoConcertos(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'concertos');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'concertos');
+  return permiso;
 }
-async function verificarAdministracionR2(env, user) {
-  const object = await env.R2_PRIVADO?.get?.(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
-  if (!object) return false;
-  const entry = await object.json().catch(() => null);
-  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
-}
+
 async function lerJson(bucket, key) {
   const object = await bucket?.get?.(key);
   return object ? object.json().catch(() => null) : null;
@@ -92,7 +89,9 @@ export async function onRequest({ request, env }) {
 
   const user = await verificarFirebase(body?.idToken, env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok:false, erro:'A identificación non é válida ou caducou.' });
-  if (!(await verificarAdministracionR2(env, user))) return json(403, { ok:false, erro:'Usuario non autorizado para Administración.' });
+
+  const permiso = await permisoConcertos(env, user).catch(() => null);
+  if (!permiso?.podeAdministrar) return json(403, { ok:false, erro:'Non tes permiso de administración no módulo Concertos.' });
 
   try {
     const { resultado } = await obterJsonAppsScript(env, {
@@ -109,6 +108,7 @@ export async function onRequest({ request, env }) {
     await limparR2(env, id);
     return json(200, {
       ok:true,
+      nivel:permiso.nivel,
       resultado:payload,
       almacen:rama(env) === 'main' ? 'SHEET-PRODUCION+R2-MAIN' : 'SHEET-PROBAS+R2-PREVIEW',
       mediosFisicosConservados:true
