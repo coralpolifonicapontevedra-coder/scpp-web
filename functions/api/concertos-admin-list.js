@@ -1,6 +1,6 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
-const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
 const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
 
@@ -31,17 +31,10 @@ async function verificarFirebase(idToken, apiKey) {
   return { uid: clean(data.localId), email: clean(data.email).toLowerCase() };
 }
 
-async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean(email).toLowerCase()));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function verificarAdministracionR2(env, user) {
-  if (!env.R2_PRIVADO?.get) return false;
-  const object = await env.R2_PRIVADO.get(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
-  if (!object) return false;
-  const entry = await object.json().catch(() => null);
-  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
+async function permisoConcertos(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'concertos');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'concertos');
+  return permiso;
 }
 
 function verificarEntorno(env) {
@@ -75,13 +68,16 @@ export async function onRequest({ request, env }) {
   const body = await request.json().catch(() => null);
   const user = await verificarFirebase(body?.idToken, env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok:false, erro:'A identificación non é válida ou caducou.' });
-  if (!(await verificarAdministracionR2(env, user))) return json(403, { ok:false, erro:'Usuario non autorizado para Administración.' });
+
+  const permiso = await permisoConcertos(env, user).catch(() => null);
+  if (!permiso?.podeLer) return json(403, { ok:false, erro:'Non tes permiso de lectura no módulo Concertos.' });
 
   try {
     const payload = await listarDesdeSheet(env, user);
     return json(200, {
       ok:true,
-      nivel:payload.nivel || 'Administración',
+      nivel:permiso.nivel,
+      permiso,
       concertos:payload.concertos,
       almacen:rama(env) === 'main' ? 'SHEET-PRODUCION' : 'SHEET-PROBAS',
       fonte:rama(env) === 'main' ? 'CONCERTOS_SPREADSHEET_ID-MAIN' : 'CONCERTOS_SPREADSHEET_ID-PREVIEW'
