@@ -1,8 +1,18 @@
 const INXECCION = `
 <style>
-  .photos-refresh-button{min-height:2.55rem;padding:.55rem .8rem;border:1px solid #cfc7c1;background:#fff;color:#4b4642;font:inherit;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
+  .photos-main,.photos-main button,.photos-main input,.photos-main select,.photos-main textarea,.photos-main dialog{font-family:Aptos,'Segoe UI',Arial,sans-serif}
+  .photos-toolbar label,.dialog-fields>label,.account-card span,.dialog-meta span{gap:.42rem}
+  .photos-toolbar label>span,.dialog-fields>label>span,.dialog-fields legend,.account-card small,.dialog-meta small{display:block;margin-bottom:.08rem;color:#6c625e;font-size:.68rem;font-weight:700;line-height:1.2;letter-spacing:.045em;text-transform:uppercase}
+  .photos-toolbar input,.photos-toolbar select,.dialog-fields input,.dialog-fields textarea{font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:.92rem;line-height:1.4;color:#332f2d}
+  .account-card strong,.dialog-meta strong{display:block;margin-top:.08rem;color:#332f2d;font-size:.88rem;font-weight:600;line-height:1.35}
+  .dialog-fields>label{padding:.1rem 0 .35rem}
+  .dialog-meta span{padding:.8rem 0}
+  .summary-grid button{font-family:Aptos,'Segoe UI',Arial,sans-serif}
+  .summary-grid strong{display:block;line-height:1.1}
+  .summary-grid span{display:block;margin-top:.2rem;line-height:1.25}
+  .photos-refresh-button{min-height:2.55rem;padding:.55rem .8rem;border:1px solid #cfc7c1;background:#fff;color:#4b4642;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
   .photos-refresh-button:disabled{opacity:.55;cursor:wait}
-  .photos-refresh-status{display:block;margin-top:.2rem;color:#7c726d;font-size:.68rem}
+  .photos-refresh-status{display:block;margin-top:.28rem;color:#7c726d;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:.68rem;line-height:1.35}
   @media(max-width:820px){.photos-refresh-button{width:100%}}
 </style>
 <script>
