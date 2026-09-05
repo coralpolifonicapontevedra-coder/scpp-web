@@ -1,0 +1,31 @@
+name: Aplicar Castelao final
+
+on:
+  push:
+    branches: [feature/castelao-escena-final]
+    paths:
+      - 'scripts/castelao-final-trigger.txt'
+      - '.github/workflows/apply-castelao-final.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar sección
+        run: python scripts/apply_castelao_scene.py
+      - name: Gardar historia
+        run: |
+          if git diff --quiet; then
+            echo "Sen cambios"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/historia.astro
+          git commit -m "Actualizar Castelao e a escena con panos R2"
+          git push
