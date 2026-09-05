@@ -11,7 +11,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
         <div>
           <span>Administración · Persoas</span>
           <h1>Auditoría de envíos masivos</h1>
-          <p>Consulta as tandas xeradas nos últimos sete días e comproba que revisións foron realmente enviadas por Apps Script.</p>
+          <p>Consulta primeiro os correos realmente enviados no día anterior e, se o precisas, revisa despois o detalle das tandas xeradas.</p>
         </div>
         <a class="back" href="/portal/administracion/persoas-revisions/">Volver ás revisións</a>
       </header>
@@ -30,7 +30,26 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
   const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c));
   const fmt = (v: unknown) => {
     const d = new Date(String(v || ''));
-    return Number.isNaN(d.getTime()) ? String(v || '—') : new Intl.DateTimeFormat('es-ES', { dateStyle:'medium', timeStyle:'short' }).format(d);
+    return Number.isNaN(d.getTime()) ? String(v || '—') : new Intl.DateTimeFormat('es-ES', { dateStyle:'medium', timeStyle:'short', timeZone:'Europe/Madrid' }).format(d);
+  };
+  const madridParts = (value: Date) => {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Madrid', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(value);
+    const get = (type: string) => parts.find(p => p.type === type)?.value || '';
+    return { year:Number(get('year')), month:Number(get('month')), day:Number(get('day')) };
+  };
+  const dateKeyMadrid = (value: unknown) => {
+    const d = new Date(String(value || ''));
+    if (Number.isNaN(d.getTime())) return '';
+    const p = madridParts(d);
+    return `${String(p.year).padStart(4,'0')}-${String(p.month).padStart(2,'0')}-${String(p.day).padStart(2,'0')}`;
+  };
+  const yesterdayMadrid = () => {
+    const p = madridParts(new Date());
+    const previous = new Date(Date.UTC(p.year, p.month - 1, p.day) - 86400000);
+    return {
+      key: `${previous.getUTCFullYear()}-${String(previous.getUTCMonth()+1).padStart(2,'0')}-${String(previous.getUTCDate()).padStart(2,'0')}`,
+      label: new Intl.DateTimeFormat('es-ES', { day:'numeric', month:'numeric', year:'numeric', timeZone:'UTC' }).format(previous)
+    };
   };
 
   async function requestAudit() {
@@ -53,16 +72,29 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       root.innerHTML = '<p class="state">Non hai tandas masivas dos últimos sete días.</p>';
       return;
     }
-    root.innerHTML = tandas.map((t: any, index: number) => {
+
+    const yesterday = yesterdayMadrid();
+    const all = tandas.flatMap((t: any) => Array.isArray(t?.elementos) ? t.elementos : []);
+    const sentYesterday = all
+      .filter((x: any) => x?.enviado === true && dateKeyMadrid(x?.enviadoEn) === yesterday.key)
+      .sort((a: any, b: any) => String(a?.nome || '').localeCompare(String(b?.nome || ''), 'gl', { sensitivity:'base' }));
+
+    const sentYesterdayHtml = sentYesterday.length
+      ? `<section class="yesterday"><div class="yesterday-head"><div><span>Envíos reais</span><h2>Enviados onte · ${esc(yesterday.label)}</h2></div><strong>${esc(sentYesterday.length)} correos</strong></div><div class="rows yesterday-rows">${sentYesterday.map((x: any) => `<article><div><strong>${esc(x.nome || x.idPersoa)}</strong><small>${esc(x.correoEnvio || x.correo || 'Sen correo')}</small></div><div class="send-state sent">${esc(fmt(x.enviadoEn))}</div></article>`).join('')}</div></section>`
+      : `<section class="yesterday"><div class="yesterday-head"><div><span>Envíos reais</span><h2>Enviados onte · ${esc(yesterday.label)}</h2></div><strong>0 correos</strong></div><p class="state compact">Non consta ningún envío realizado nesa data.</p></section>`;
+
+    const batchesHtml = tandas.map((t: any) => {
       const pendentes = Array.isArray(t.pendentesEnvio) ? t.pendentesEnvio : [];
       const todos = Array.isArray(t.elementos) ? t.elementos : [];
       const resumo = `<div class="summary"><strong>${esc(fmt(t.creadaEn))}</strong><span>${esc(t.total)} xerados</span><span class="ok">${esc(t.enviados)} enviados</span><span class="${t.nonEnviados ? 'bad' : 'ok'}">${esc(t.nonEnviados)} non enviados</span></div>`;
       const pendientesHtml = pendentes.length
-        ? `<div class="pending"><h3>Non enviados</h3>${pendentes.map((x: any) => `<article><div><strong>${esc(x.nome || x.idPersoa)}</strong><small>${esc(x.correo || 'Sen correo')}</small></div><span>${esc(x.estadoRevision || 'PENDENTE')}</span></article>`).join('')}</div>`
+        ? `<div class="pending"><h3>Non enviados desta tanda</h3>${pendentes.map((x: any) => `<article><div><strong>${esc(x.nome || x.idPersoa)}</strong><small>${esc(x.correo || 'Sen correo')}</small></div><span>${esc(x.estadoRevision || 'PENDENTE')}</span></article>`).join('')}</div>`
         : '<p class="all-ok">Todos os correos desta tanda constan como enviados.</p>';
-      const detalles = `<details ${index === 0 ? 'open' : ''}><summary>Ver os ${esc(t.total)} rexistros</summary><div class="rows">${todos.map((x: any) => `<article><div><strong>${esc(x.nome || x.idPersoa)}</strong><small>${esc(x.correo || 'Sen correo')}</small></div><div class="send-state ${x.enviado ? 'sent' : 'not-sent'}">${x.enviado ? `Enviado${x.enviadoEn ? ` · ${esc(fmt(x.enviadoEn))}` : ''}` : 'Non enviado'}</div></article>`).join('')}</div></details>`;
+      const detalles = `<details><summary>Ver os ${esc(t.total)} rexistros desta tanda</summary><div class="rows">${todos.map((x: any) => `<article><div><strong>${esc(x.nome || x.idPersoa)}</strong><small>${esc(x.correo || 'Sen correo')}</small></div><div class="send-state ${x.enviado ? 'sent' : 'not-sent'}">${x.enviado ? `Enviado${x.enviadoEn ? ` · ${esc(fmt(x.enviadoEn))}` : ''}` : 'Non enviado'}</div></article>`).join('')}</div></details>`;
       return `<section class="batch">${resumo}${pendientesHtml}${detalles}</section>`;
     }).join('');
+
+    root.innerHTML = `${sentYesterdayHtml}<details class="batches"><summary>Ver detalle das tandas xeradas nos últimos sete días</summary>${batchesHtml}</details>`;
   }
 
   async function init() {
@@ -85,5 +117,5 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
 </script>
 
 <style>
-  .audit-main{min-width:0;padding:2rem clamp(1rem,3vw,3rem) 4rem;background:#f7f6f2;min-height:100vh;color:#24211f}.page-head{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.5rem}.page-head span{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:#766d65}.page-head h1{margin:.35rem 0 .5rem;font-size:clamp(1.8rem,3vw,2.7rem);font-weight:500}.page-head p{margin:0;max-width:52rem;color:#625c57}.back{display:inline-flex;padding:.7rem 1rem;border:1px solid #b9b1a9;border-radius:.4rem;color:inherit;text-decoration:none;white-space:nowrap;background:white}.state{padding:1.25rem;background:white;border:1px solid #ddd6cf;border-radius:.5rem}.error{border-color:#b87474;color:#7f2626}.batch{margin:1.2rem 0;padding:1.25rem;background:white;border:1px solid #ddd6cf;border-radius:.55rem}.summary{display:flex;flex-wrap:wrap;gap:.65rem 1.1rem;align-items:center;padding-bottom:1rem;border-bottom:1px solid #ece7e2}.summary strong{font-size:1.05rem;margin-right:auto}.summary span{font-size:.9rem}.ok{color:#32613e}.bad{color:#9a2f2f;font-weight:600}.pending{margin-top:1rem;padding:1rem;background:#fff8f6;border:1px solid #ebcac4;border-radius:.45rem}.pending h3{margin:0 0 .7rem;color:#862c2c;font-size:1rem}.pending article,.rows article{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-top:1px solid #ece7e2}.pending article:first-of-type,.rows article:first-child{border-top:0}.pending div,.rows div:first-child{display:flex;flex-direction:column;gap:.15rem}.pending small,.rows small{color:#716a64}.all-ok{margin:1rem 0;color:#32613e}details{margin-top:1rem}summary{cursor:pointer;font-weight:600}.rows{margin-top:.75rem}.send-state{text-align:right;align-self:center;font-size:.88rem}.sent{color:#32613e}.not-sent{color:#9a2f2f;font-weight:600}@media(max-width:760px){.audit-main{padding:1rem}.page-head{display:block}.back{margin-top:1rem}.summary strong{width:100%;margin-right:0}.pending article,.rows article{display:block}.send-state{text-align:left;margin-top:.3rem}}
+  .audit-main{min-width:0;padding:2rem clamp(1rem,3vw,3rem) 4rem;background:#f7f6f2;min-height:100vh;color:#24211f}.page-head{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.5rem}.page-head span{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:#766d65}.page-head h1{margin:.35rem 0 .5rem;font-size:clamp(1.8rem,3vw,2.7rem);font-weight:500}.page-head p{margin:0;max-width:52rem;color:#625c57}.back{display:inline-flex;padding:.7rem 1rem;border:1px solid #b9b1a9;border-radius:.4rem;color:inherit;text-decoration:none;white-space:nowrap;background:white}.state{padding:1.25rem;background:white;border:1px solid #ddd6cf;border-radius:.5rem}.state.compact{margin:.9rem 0 0}.error{border-color:#b87474;color:#7f2626}.yesterday{margin:1.2rem 0 1.5rem;padding:1.35rem;background:white;border:1px solid #c9c0b8;border-radius:.6rem}.yesterday-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-end;padding-bottom:1rem;border-bottom:1px solid #ece7e2}.yesterday-head span{display:block;font-size:.74rem;text-transform:uppercase;letter-spacing:.11em;color:#766d65}.yesterday-head h2{margin:.2rem 0 0;font-size:1.35rem;font-weight:600;color:#6f1722}.yesterday-head>strong{font-size:1.05rem;color:#32613e}.yesterday-rows article{padding:.8rem 0}.batches{margin-top:1rem}.batches>summary{padding:1rem 1.15rem;background:#f0ede8;border:1px solid #d8d0c8;border-radius:.5rem}.batch{margin:1.2rem 0;padding:1.25rem;background:white;border:1px solid #ddd6cf;border-radius:.55rem}.summary{display:flex;flex-wrap:wrap;gap:.65rem 1.1rem;align-items:center;padding-bottom:1rem;border-bottom:1px solid #ece7e2}.summary strong{font-size:1.05rem;margin-right:auto}.summary span{font-size:.9rem}.ok{color:#32613e}.bad{color:#9a2f2f;font-weight:600}.pending{margin-top:1rem;padding:1rem;background:#fff8f6;border:1px solid #ebcac4;border-radius:.45rem}.pending h3{margin:0 0 .7rem;color:#862c2c;font-size:1rem}.pending article,.rows article{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-top:1px solid #ece7e2}.pending article:first-of-type,.rows article:first-child{border-top:0}.pending div,.rows div:first-child{display:flex;flex-direction:column;gap:.15rem}.pending small,.rows small{color:#716a64}.all-ok{margin:1rem 0;color:#32613e}details{margin-top:1rem}summary{cursor:pointer;font-weight:600}.rows{margin-top:.75rem}.send-state{text-align:right;align-self:center;font-size:.88rem}.sent{color:#32613e}.not-sent{color:#9a2f2f;font-weight:600}@media(max-width:760px){.audit-main{padding:1rem}.page-head{display:block}.back{margin-top:1rem}.summary strong{width:100%;margin-right:0}.yesterday-head{display:block}.yesterday-head>strong{display:block;margin-top:.6rem}.pending article,.rows article{display:block}.send-state{text-align:left;margin-top:.3rem}}
 </style>
