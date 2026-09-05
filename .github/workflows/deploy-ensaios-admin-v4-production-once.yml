@@ -131,11 +131,25 @@ jobs:
           cd /tmp/scpp-live
           OLD_VERSION='${{ steps.live.outputs.old_version }}'
           NEW_VERSION='${{ steps.version.outputs.new_version }}'
-          npx --yes @google/clasp@3 create-deployment --deploymentId "$PRODUCTION_DEPLOYMENT_ID" --versionNumber "$NEW_VERSION" --description 'Ensaios admin v4'
-          npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-after.txt
-          LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-after.txt | head -n 1 || true)"
-          if ! printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
-            echo 'Fallou a verificación; rollback inmediato.'
+          OUT="$(npx --yes @google/clasp@3 create-deployment --deploymentId "$PRODUCTION_DEPLOYMENT_ID" --versionNumber "$NEW_VERSION" --description 'Ensaios admin v4')"
+          echo "$OUT"
+          printf '%s\n' "$OUT" | grep -F "$PRODUCTION_DEPLOYMENT_ID" >/dev/null || { echo 'A orde de deployment non confirmou o ID esperado.'; exit 1; }
+          printf '%s\n' "$OUT" | grep -Eq "@${NEW_VERSION}([^0-9]|$)" || { echo 'A orde de deployment non confirmou a versión nova.'; exit 1; }
+
+          OK=0
+          for intento in 1 2 3 4 5; do
+            sleep $((intento * 2))
+            npx --yes @google/clasp@3 list-deployments | tee "/tmp/deployments-after-${intento}.txt"
+            LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" "/tmp/deployments-after-${intento}.txt" | head -n 1 || true)"
+            if printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
+              OK=1
+              break
+            fi
+            echo "Verificación ${intento}/5 aínda devolve unha versión anterior; agardando propagación…"
+          done
+
+          if [ "$OK" -ne 1 ]; then
+            echo 'A actualización non se confirmou tras os reintentos; rollback inmediato.'
             npx --yes @google/clasp@3 create-deployment --deploymentId "$PRODUCTION_DEPLOYMENT_ID" --versionNumber "$OLD_VERSION" --description 'Rollback automático Ensaios admin v4' || true
             exit 1
           fi
