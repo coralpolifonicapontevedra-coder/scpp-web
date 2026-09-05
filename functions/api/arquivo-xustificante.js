@@ -50,6 +50,11 @@ function safePart(value, fallback = 'arquivo') {
   return safe || fallback;
 }
 
+function validKey(value) {
+  const key = clean(value);
+  return key.startsWith('arquivo/xustificantes/') && !key.includes('..') ? key : '';
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
   if (!env.FIREBASE_API_KEY || !env.R2_PRIVADO?.put || !env.R2_PRIVADO?.get) {
@@ -58,11 +63,35 @@ export async function onRequest({ request, env }) {
 
   let form;
   try { form = await request.formData(); }
-  catch { return json(400, { ok: false, erro: 'Non foi posible ler o arquivo enviado.' }); }
+  catch { return json(400, { ok: false, erro: 'Non foi posible ler a solicitude.' }); }
 
   const user = await firebase(clean(form.get('idToken')), env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok: false, erro: 'A sesión non é válida.' });
-  if (!(await admin(env, user))) return json(403, { ok: false, erro: 'Só Administración pode gardar xustificantes do arquivo.' });
+  if (!(await admin(env, user))) return json(403, { ok: false, erro: 'Só Administración pode acceder aos xustificantes do arquivo.' });
+
+  const accion = clean(form.get('accion'));
+  if (accion === 'ler') {
+    const key = validKey(form.get('ruta'));
+    if (!key) return json(400, { ok: false, erro: 'A referencia do xustificante non é válida.' });
+    const object = await env.R2_PRIVADO.get(key);
+    if (!object) return json(404, { ok: false, erro: 'Non se atopou o xustificante no arquivo privado.' });
+    const name = clean(object.customMetadata?.originalName) || key.split('/').pop() || 'xustificante';
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('Content-Type', headers.get('Content-Type') || 'application/octet-stream');
+    headers.set('Cache-Control', 'private, no-store, max-age=0');
+    headers.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(name)}`);
+    headers.set('X-Content-Type-Options', 'nosniff');
+    return new Response(object.body, { status: 200, headers });
+  }
+
+  if (accion === 'eliminar') {
+    const key = validKey(form.get('ruta'));
+    if (!key) return json(400, { ok: false, erro: 'A referencia do xustificante non é válida.' });
+    if (!env.R2_PRIVADO?.delete) return json(500, { ok: false, erro: 'O almacén privado non permite eliminar o xustificante.' });
+    await env.R2_PRIVADO.delete(key);
+    return json(200, { ok: true });
+  }
 
   const idMovemento = clean(form.get('idMovemento'));
   if (!idMovemento) return json(400, { ok: false, erro: 'Falta o identificador do movemento.' });
