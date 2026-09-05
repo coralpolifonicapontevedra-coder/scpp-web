@@ -3,10 +3,10 @@ import { obterPermisoPortal } from '../_lib/portal-permissions.js';
 
 const TOKEN_PREFIX = 'persoas/revisions/';
 const TIMEOUT_FIREBASE_MS = 8000;
-const DIAS_AUDITORIA = 7;
+const DIAS_AUDITORIA = 2;
 const MARXE_R2_MS = 24 * 60 * 60 * 1000;
 const R2_READ_BATCH = 25;
-const APPS_SCRIPT_BATCH = 100;
+const APPS_SCRIPT_BATCH = 50;
 const clean = (value) => String(value ?? '').trim();
 
 const json = (status, body) => new Response(JSON.stringify(body), {
@@ -97,23 +97,27 @@ async function listarInvitacionsMasivasRecentes(env, emailAdmin, limiteCreacion)
   return invitacions;
 }
 
+async function consultarLoteMarcas(env, user, lote) {
+  const { resultado } = await obterJsonAppsScriptPersoas(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion: 'estadoEnviosRevisionsPersoasAdministracion',
+    email: user.email,
+    actorEmail: user.email,
+    uidFirebase: user.uid,
+    autorizadoR2: true,
+    revisionIds: lote
+  }, { timeoutMs: 20_000, attemptTimeoutMs: 20_000 });
+  if (!resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible consultar o estado dos envíos.');
+  return Array.isArray(resultado.enviados) ? resultado.enviados : [];
+}
+
 async function consultarMarcas(env, user, revisionIds) {
-  const enviados = [];
+  const lotes = [];
   for (let i = 0; i < revisionIds.length; i += APPS_SCRIPT_BATCH) {
-    const lote = revisionIds.slice(i, i + APPS_SCRIPT_BATCH);
-    const { resultado } = await obterJsonAppsScriptPersoas(env, {
-      token: env.WEB_WRITE_TOKEN,
-      accion: 'estadoEnviosRevisionsPersoasAdministracion',
-      email: user.email,
-      actorEmail: user.email,
-      uidFirebase: user.uid,
-      autorizadoR2: true,
-      revisionIds: lote
-    }, { timeoutMs: 20_000, attemptTimeoutMs: 20_000 });
-    if (!resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible consultar o estado dos envíos.');
-    for (const item of Array.isArray(resultado.enviados) ? resultado.enviados : []) enviados.push(item);
+    lotes.push(revisionIds.slice(i, i + APPS_SCRIPT_BATCH));
   }
-  return enviados;
+  const resultados = await Promise.all(lotes.map(lote => consultarLoteMarcas(env, user, lote)));
+  return resultados.flat();
 }
 
 function agruparTandas(invitacions, marcas) {
