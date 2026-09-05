@@ -7,564 +7,169 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
 <BaseLayout title="Administración de ensaios" lang="gl">
   <div class="private-layout">
     <PortalSidebar active="administracion" logoutId="admin-ensaios-logout" />
-    <main class="admin-rehearsals-main">
-      <header class="private-page-header">
-        <div>
-          <span class="section-kicker">Administración</span>
-          <h1>Administración de ensaios</h1>
-          <p>Planificación, obras a traballar e control de asistencia desde unha única pantalla.</p>
-        </div>
-        <div class="account-card">
-          <span><small>Conta identificada</small><strong id="user-email">—</strong></span>
-          <span><small>Nivel de acceso</small><strong id="user-level">Comprobando…</strong></span>
-        </div>
+    <main class="admin-main">
+      <header class="page-head">
+        <div><span class="kicker">Administración</span><h1>Administración de ensaios</h1><p>Planificación, repertorio e asistencia cun único fluxo R2 → Sheet.</p></div>
+        <div class="account"><small>Conta identificada</small><strong id="user-email">—</strong><small>Nivel de acceso</small><strong id="user-level">Comprobando…</strong></div>
       </header>
-
       <AdministracionNav active="ensaios" />
 
-      <section id="loading" class="state-box">Comprobando permisos e cargando ensaios…</section>
-      <section id="error-state" class="state-box error-box" hidden>
-        <strong>Non foi posible abrir a administración de ensaios</strong>
-        <p id="error-message"></p>
-        <button id="retry" type="button" class="secondary">Tentar de novo</button>
-      </section>
+      <section id="loading" class="box">Cargando ensaios de Producción…</section>
+      <section id="error" class="box error" hidden><strong>Non foi posible abrir Ensaios</strong><p id="error-text"></p><button id="retry" class="secondary">Tentar de novo</button></section>
 
       <section id="app" hidden>
         <div class="toolbar">
-          <label><span>Mostrar</span><select id="filter"><option value="activos">Ensaios activos</option><option value="todos">Todos os ensaios</option><option value="baixa">Dados de baixa</option></select></label>
-          <p id="count"></p>
-          <button id="new-rehearsal" type="button" class="primary">+ Novo ensaio</button>
+          <label>Mostrar<select id="filter"><option value="activos">Ensaios activos</option><option value="todos">Todos</option><option value="baixa">Dados de baixa</option></select></label>
+          <span id="count"></span>
+          <button id="new-btn" class="primary">+ Novo ensaio</button>
         </div>
-        <div id="list" class="rehearsal-list"></div>
+        <div id="list" class="list"></div>
       </section>
     </main>
   </div>
 
-  <dialog id="new-dialog" class="wide-dialog">
-    <form id="new-form">
-      <header><div><small>Planificación</small><h2>Novo ensaio</h2></div><button type="button" data-close="new-dialog">×</button></header>
-      <div class="form-grid">
-        <label><span>Data</span><input name="data" type="date" required /></label>
-        <label><span>Hora de inicio</span><input name="horaInicio" type="time" required /></label>
-        <label><span>Hora de fin</span><input name="horaFin" type="time" /></label>
-        <label><span>Lugar</span><input name="lugar" /></label>
-        <label><span>Tipo de ensaio</span><input name="tipoEnsaio" list="tipos-ensaio" required /></label>
-        <label><span>Concerto relacionado</span><select name="concerto" id="new-concert"><option value="">Sen concerto asociado</option></select></label>
-        <label class="span-2"><span>Descrición</span><textarea name="descricion" rows="3"></textarea></label>
-        <label class="span-2"><span>Observacións</span><textarea name="observacions" rows="3"></textarea></label>
-      </div>
-      <datalist id="tipos-ensaio"><option value="Ordinario"></option><option value="Extraordinario"></option><option value="Xeral"></option><option value="Por cordas"></option></datalist>
-      <p id="new-status" class="dialog-status"></p>
-      <footer><button type="button" class="secondary" data-close="new-dialog">Cancelar</button><button type="submit" class="primary">Gardar ensaio</button></footer>
-    </form>
-  </dialog>
+  <dialog id="new-dialog" class="dialog-wide"><form id="new-form">
+    <header><div><small>Planificación</small><h2>Novo ensaio</h2></div><button type="button" data-close="new-dialog">×</button></header>
+    <div class="grid">
+      <label>Data<input name="data" type="date" required /></label>
+      <label>Hora de inicio<input name="horaInicio" type="time" required /></label>
+      <label>Hora de fin<input name="horaFin" type="time" /></label>
+      <label>Lugar<input name="lugar" value="Centro Social Sur - Luís Braille 40" /></label>
+      <label>Tipo de ensaio<input name="tipoEnsaio" value="Ordinario" required /></label>
+      <label>Concerto relacionado<select name="concerto" id="new-concert"><option value="">Sen concerto asociado</option></select></label>
+      <label class="span2">Descrición<textarea name="descricion" rows="3"></textarea></label>
+      <label class="span2">Observacións<textarea name="observacions" rows="3"></textarea></label>
+    </div>
+    <p id="new-status" class="status"></p>
+    <footer><button type="button" class="secondary" data-close="new-dialog">Cancelar</button><button type="submit" class="primary">Gardar ensaio</button></footer>
+  </form></dialog>
 
-  <dialog id="manage-dialog" class="manage-dialog">
-    <section class="manage-shell">
-      <header><div><small>Xestión do ensaio</small><h2 id="manage-title">Ensaio</h2><p id="manage-meta"></p></div><button type="button" data-close="manage-dialog">×</button></header>
-      <nav class="manage-tabs"><button type="button" class="is-active" data-panel="repertorio">Obras</button><button type="button" data-panel="asistencia">Asistencia</button><button type="button" data-panel="avisos">Avisos<span id="avisos-badge"></span></button></nav>
+  <dialog id="manage-dialog" class="manage-dialog"><section class="manage-shell">
+    <header><div><small>Xestión do ensaio</small><h2 id="manage-title">Ensaio</h2><p id="manage-meta"></p></div><button type="button" data-close="manage-dialog">×</button></header>
+    <nav class="tabs"><button class="is-active" data-panel="obras">Obras</button><button data-panel="asistencia">Asistencia</button><button data-panel="avisos">Avisos <span id="notice-badge"></span></button></nav>
 
-      <section id="panel-repertorio" class="manage-panel">
-        <div class="program-tools">
-          <label><span>Cargar programa dun concerto</span><select id="program-concert"><option value="">Escolle un concerto…</option></select></label>
-          <button id="include-program" type="button" class="secondary draft-action">Cargar programa</button>
-        </div>
-        <div class="work-tools">
-          <input id="work-search" type="search" placeholder="Buscar obra ou compositor…" />
-          <select id="work-select"><option value="">Escolle unha obra…</option></select>
-          <button id="add-work" type="button" class="primary draft-action">Engadir obra</button>
-        </div>
-        <div class="section-heading"><h3>Obras a traballar</h3><strong id="works-count">0</strong></div>
-        <p id="works-status" class="dialog-status"></p>
-        <div id="works-list" class="works-list"></div>
-      </section>
-
-      <section id="panel-asistencia" class="manage-panel" hidden>
-        <div class="voice-tabs"><button type="button" class="is-active" data-voice="Todos">Todos</button><button type="button" data-voice="Soprano">Sopranos</button><button type="button" data-voice="Contralto">Contraltos</button><button type="button" data-voice="Tenor">Tenores</button><button type="button" data-voice="Baixo">Baixos</button></div>
-        <div class="section-heading"><h3>Control de asistencia</h3><strong id="attendance-count">0</strong></div>
-        <p id="attendance-status" class="dialog-status"></p>
-        <div id="attendance-list" class="attendance-list"></div>
-      </section>
-
-      <section id="panel-avisos" class="manage-panel" hidden>
-        <div class="section-heading"><h3>Avisos de non asistencia</h3><strong id="avisos-count">0</strong></div>
-        <p id="avisos-status" class="dialog-status"></p>
-        <div id="avisos-list" class="avisos-list"></div>
-      </section>
-
-      <div class="ensaios-final-bar">
-        <span id="ensaios-final-status">Cargando estado confirmado…</span>
-        <div class="ensaios-final-actions">
-          <button type="button" id="descartar-ensaio" class="secondary">Recargar desde Sheet</button>
-          <button type="button" id="finalizar-ensaio" class="primary" disabled>Finalizar ensaio</button>
-        </div>
-      </div>
+    <section id="panel-obras" class="panel">
+      <div class="row-tools"><select id="program-concert"><option value="">Cargar programa dun concerto…</option></select><button id="program-btn" class="secondary">Cargar programa</button></div>
+      <div class="row-tools"><input id="work-search" type="search" placeholder="Buscar obra ou compositor…" /><select id="work-select"><option value="">Escolle unha obra…</option></select><button id="work-add" class="primary">Engadir obra</button></div>
+      <div class="section-head"><h3>Obras a traballar</h3><strong id="works-count">0</strong></div>
+      <p id="works-status" class="status"></p><div id="works-list" class="rows"></div>
     </section>
-  </dialog>
 
-  <dialog id="date-dialog"><form id="date-form"><header><h2>Cambiar data</h2><button type="button" data-close="date-dialog">×</button></header><p id="date-name"></p><label><span>Nova data</span><input id="new-date" type="date" required /></label><p id="date-status" class="dialog-status"></p><footer><button type="button" class="secondary" data-close="date-dialog">Cancelar</button><button type="submit" class="primary">Gardar nova data</button></footer></form></dialog>
+    <section id="panel-asistencia" class="panel" hidden>
+      <div class="voices"><button class="is-active" data-voice="Todos">Todos</button><button data-voice="Soprano">Sopranos</button><button data-voice="Contralto">Contraltos</button><button data-voice="Tenor">Tenores</button><button data-voice="Baixo">Baixos</button></div>
+      <div class="section-head"><h3>Control de asistencia</h3><strong id="attendance-count">0</strong></div>
+      <p id="attendance-status" class="status"></p><div id="attendance-list" class="rows"></div>
+    </section>
 
-  <dialog id="cancel-dialog"><form id="cancel-form"><header><h2>Dar de baixa o ensaio</h2><button type="button" data-close="cancel-dialog">×</button></header><p id="cancel-name"></p><p class="warning">O ensaio quedará marcado como cancelado. Non se eliminarán o seu identificador nin as relacións existentes.</p><p id="cancel-status" class="dialog-status"></p><footer><button type="button" class="secondary" data-close="cancel-dialog">Volver</button><button type="submit" class="danger">Dar de baixa</button></footer></form></dialog>
+    <section id="panel-avisos" class="panel" hidden>
+      <div class="section-head"><h3>Avisos de non asistencia</h3><strong id="notice-count">0</strong></div>
+      <p id="notice-status" class="status"></p><div id="notice-list" class="rows"></div>
+    </section>
 
-  <dialog id="delete-dialog"><form id="delete-form"><header><h2>Eliminar ensaio</h2><button type="button" data-close="delete-dialog">×</button></header><p id="delete-name"></p><p class="warning"><strong>Esta acción non se pode desfacer.</strong> Eliminarase o ensaio e a información asociada segundo as regras do sistema.</p><label><span>Escribe ELIMINAR para confirmar</span><input id="delete-confirm" autocomplete="off" /></label><p id="delete-status" class="dialog-status"></p><footer><button type="button" class="secondary" data-close="delete-dialog">Cancelar</button><button id="delete-submit" type="submit" class="danger-solid" disabled>Eliminar definitivamente</button></footer></form></dialog>
+    <div class="finalbar"><span id="final-status">Sen cambios pendentes</span><div><button id="reload-sheet" class="secondary">Recargar desde Sheet</button><button id="finalize" class="primary" disabled>Finalizar ensaio</button></div></div>
+  </section></dialog>
+
+  <dialog id="date-dialog"><form id="date-form"><header><h2>Cambiar data</h2><button type="button" data-close="date-dialog">×</button></header><label>Nova data<input id="date-input" type="date" required /></label><p id="date-status" class="status"></p><footer><button type="button" class="secondary" data-close="date-dialog">Cancelar</button><button class="primary">Gardar</button></footer></form></dialog>
+  <dialog id="cancel-dialog"><form id="cancel-form"><header><h2>Dar de baixa</h2><button type="button" data-close="cancel-dialog">×</button></header><p>O ensaio quedará cancelado, sen borrar os seus datos.</p><p id="cancel-status" class="status"></p><footer><button type="button" class="secondary" data-close="cancel-dialog">Cancelar</button><button class="danger">Dar de baixa</button></footer></form></dialog>
+  <dialog id="delete-dialog"><form id="delete-form"><header><h2>Eliminar ensaio</h2><button type="button" data-close="delete-dialog">×</button></header><p class="warning">Eliminaranse o ensaio e as súas obras e asistencias asociadas.</p><label>Escribe ELIMINAR para confirmar<input id="delete-confirm" autocomplete="off" /></label><p id="delete-status" class="status"></p><footer><button type="button" class="secondary" data-close="delete-dialog">Cancelar</button><button id="delete-submit" class="danger" disabled>Eliminar definitivamente</button></footer></form></dialog>
 </BaseLayout>
 
 <script>
   import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
 
-  const $ = (selector) => document.querySelector(selector);
-  const clean = (value = '') => String(value ?? '').trim();
-  const norm = (value = '') => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const esc = (value = '') => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
-  const idEnsaio = (row = {}) => clean(row.idEnsaio || row.id || row.Id_Ensaio);
-  const refEnsaio = (row = {}) => clean(row.ensaio || row.idEnsaio || row.Id_Ensaio);
-  const idPersoa = (row = {}) => clean(row.persoa || row.idPersoa || row.id || row.RowID);
-  const idObra = (row = {}) => clean(row.repertorio || row.idRepertorio || row.id);
-  const nomePersoa = (p = {}) => clean(p.nomeCompleto) || [p.nome, p.primeiroApelido, p.segundoApelido].map(clean).filter(Boolean).join(' ');
-  const nomeOrden = (p = {}) => [p.primeiroApelido, p.segundoApelido, p.nome].map(clean).filter(Boolean).join(' ') || nomePersoa(p);
-  const getVoiceRank = (value) => { const v = norm(value); return v === 'soprano' ? 1 : v === 'contralto' ? 2 : v === 'tenor' ? 3 : v === 'baixo' ? 4 : 5; };
-  const fmt = (value) => { if (!value) return 'Sen data'; const d = new Date(`${String(value).slice(0, 10)}T12:00:00`); return Number.isNaN(d.getTime()) ? String(value) : new Intl.DateTimeFormat('gl-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d); };
-  const truthy = (value) => value === true || ['true', '1', 'si', 'sí', 'yes', 'x'].includes(clean(value).toLowerCase());
+  const $ = (s) => document.querySelector(s);
+  const clean = (v = '') => String(v ?? '').trim();
+  const norm = (v = '') => clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const esc = (v = '') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const idEnsaio = (r = {}) => clean(r.idEnsaio || r.ensaio || r.Id_Ensaio || r.id);
+  const idPersoa = (r = {}) => clean(r.persoa || r.idPersoa || r.Id_Persoa || r.id || r.RowID);
+  const idObra = (r = {}) => clean(r.repertorio || r.idRepertorio || r.Id_Repertorio || r.id);
+  const bool = (v) => v === true || ['true','1','si','sí','yes','x'].includes(clean(v).toLowerCase());
+  const nome = (p = {}) => clean(p.nomeCompleto) || [p.nome,p.primeiroApelido,p.segundoApelido].map(clean).filter(Boolean).join(' ');
+  const fmt = (v) => { const d = new Date(`${clean(v).slice(0,10)}T12:00:00`); return Number.isNaN(d.getTime()) ? clean(v) : new Intl.DateTimeFormat('gl-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d); };
 
   let payload = null;
   let ensaios = [];
   let selected = null;
-  let selectedVoice = 'Todos';
   let draft = null;
-  let avisos = [];
-  let conflito = false;
+  let notices = [];
   let busy = false;
+  let selectedVoice = 'Todos';
 
-  const loading = $('#loading');
-  const errorState = $('#error-state');
-  const errorMessage = $('#error-message');
-  const app = $('#app');
-  const list = $('#list');
-  const filter = $('#filter');
-  const count = $('#count');
-
-  async function call(endpoint, accion, extra = {}) {
+  async function api(accion, extra = {}) {
     const user = auth.currentUser;
     if (!user?.email) throw new Error('A sesión non está activa.');
     const idToken = await user.getIdToken();
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion, ...extra })
-    });
+    const response = await fetch('/api/ensaios-admin-v4', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({idToken,accion,...extra}) });
     const result = await response.json().catch(() => null);
     if (!response.ok || !result?.ok) {
       const error = new Error(result?.erro || `Erro HTTP ${response.status}`);
-      error.code = result?.codigo || '';
+      Object.assign(error,{code:result?.codigo || ''});
       throw error;
     }
     return result;
   }
-  const adminApi = (accion, extra = {}) => call('/api/ensaios-admin-v2', accion, extra);
-  const xestionApi = (accion, extra = {}) => call('/api/ensaios-admin-xestion', accion, { idEnsaio: idEnsaio(selected), ...extra });
 
-  function prepararLista(index) {
-    const countA = new Map();
-    const countW = new Map();
-    for (const row of index?.asistencias || []) { const id = refEnsaio(row); if (id) countA.set(id, (countA.get(id) || 0) + 1); }
-    for (const row of index?.ensaiosRepertorio || []) { const id = refEnsaio(row); if (id) countW.set(id, (countW.get(id) || 0) + 1); }
-    return (index?.ensaios || []).map((row) => {
-      const id = idEnsaio(row);
-      return {
-        idEnsaio: id,
-        data: clean(row.data || row.Data).slice(0, 10),
-        horaInicio: clean(row.horaInicio || row.HoraInicio),
-        horaFin: clean(row.horaFin || row.HoraFin),
-        lugar: clean(row.lugar || row.Lugar),
-        tipoEnsaio: clean(row.tipoEnsaio || row.TipoEnsaio) || 'Ensaio',
-        concerto: clean(row.concerto || row.Concerto),
-        descricion: clean(row.descricion || row.Descricion),
-        observacions: clean(row.observacions || row.Observacions),
-        cancelado: truthy(row.cancelado ?? row.Cancelado),
-        obras: countW.get(id) || 0,
-        asistencias: countA.get(id) || 0
-      };
-    }).filter((row) => row.idEnsaio).sort((a, b) => String(b.data).localeCompare(String(a.data)));
+  function preparar(index) {
+    const a = new Map(), w = new Map();
+    (index?.asistencias || []).forEach((r) => { const id=idEnsaio(r); if(id)a.set(id,(a.get(id)||0)+1); });
+    (index?.ensaiosRepertorio || []).forEach((r) => { const id=idEnsaio(r); if(id)w.set(id,(w.get(id)||0)+1); });
+    return (index?.ensaios || []).map((r) => { const id=idEnsaio(r); return { idEnsaio:id, data:clean(r.data||r.Data).slice(0,10), horaInicio:clean(r.horaInicio||r.HoraInicio), horaFin:clean(r.horaFin||r.HoraFin), lugar:clean(r.lugar||r.Lugar), tipoEnsaio:clean(r.tipoEnsaio||r.TipoEnsaio)||'Ensaio', concerto:clean(r.concerto||r.Concerto), concertoNome:clean(r.concertoNome||r.ConcertoNome), descricion:clean(r.descricion||r.Descricion), observacions:clean(r.observacions||r.Observacions), cancelado:bool(r.cancelado??r.Cancelado), obras:w.get(id)||0, asistencias:a.get(id)||0 }; }).filter(r=>r.idEnsaio).sort((x,y)=>y.data.localeCompare(x.data));
   }
-
-  function visible() {
-    const mode = filter instanceof HTMLSelectElement ? filter.value : 'activos';
-    return ensaios.filter((row) => mode === 'todos' || (mode === 'baixa' ? row.cancelado : !row.cancelado));
-  }
+  function filtered() { const mode = $('#filter')?.value || 'activos'; return ensaios.filter(r => mode==='todos' || (mode==='baixa' ? r.cancelado : !r.cancelado)); }
   function draw() {
-    if (!(list instanceof HTMLElement)) return;
-    const rows = visible();
-    if (count instanceof HTMLElement) count.textContent = `${rows.length} ensaio${rows.length === 1 ? '' : 's'}`;
-    list.innerHTML = rows.length ? rows.map((row) => `<article class="rehearsal-card ${row.cancelado ? 'is-cancelled' : ''}"><div class="rehearsal-date"><small>Data</small><strong>${esc(fmt(row.data))}</strong></div><div class="rehearsal-info"><h2>${esc(row.tipoEnsaio || 'Ensaio')}</h2><p>${esc([row.horaInicio, row.lugar].filter(Boolean).join(' · ') || 'Sen máis datos')}</p><div class="meta"><span>${Number(row.obras || 0)} obras</span><span>${Number(row.asistencias || 0)} asistencias</span></div></div><div class="rehearsal-state"><strong>${row.cancelado ? 'Baixa' : 'Activo'}</strong></div><div class="actions">${row.cancelado ? '' : `<button class="primary manage" data-id="${esc(row.idEnsaio)}">Xestionar</button><button class="secondary change-date" data-id="${esc(row.idEnsaio)}">Cambiar data</button><button class="danger cancel-rehearsal" data-id="${esc(row.idEnsaio)}">Dar de baixa</button>`}<button class="danger delete-rehearsal" data-id="${esc(row.idEnsaio)}">Eliminar</button></div></article>`).join('') : '<section class="state-box">Non hai ensaios para este filtro.</section>';
+    const list=$('#list'), rows=filtered(); if(!(list instanceof HTMLElement))return;
+    const count=$('#count'); if(count instanceof HTMLElement)count.textContent=`${rows.length} ensaio${rows.length===1?'':'s'}`;
+    list.innerHTML = rows.length ? rows.map(r=>`<article class="card ${r.cancelado?'cancelled':''}"><div><small>Data</small><strong>${esc(fmt(r.data))}</strong></div><div><h2>${esc(r.tipoEnsaio)}</h2><p>${esc([r.horaInicio,r.lugar].filter(Boolean).join(' · '))}</p><span>${r.obras} obras · ${r.asistencias} asistencias</span></div><div><b>${r.cancelado?'Baixa':'Activo'}</b></div><div class="actions">${r.cancelado?'':`<button class="primary manage" data-id="${esc(r.idEnsaio)}">Xestionar</button><button class="secondary date" data-id="${esc(r.idEnsaio)}">Cambiar data</button><button class="secondary cancel" data-id="${esc(r.idEnsaio)}">Dar de baixa</button>`}<button class="danger delete" data-id="${esc(r.idEnsaio)}">Eliminar</button></div></article>`).join('') : '<div class="box">Non hai ensaios neste filtro.</div>';
   }
-
   function fillConcerts() {
-    const concerts = [...(payload?.concertos || [])].sort((a, b) => clean(a.data).localeCompare(clean(b.data)));
-    const options = concerts.map((c) => `<option value="${esc(clean(c.id || c.idConcerto))}">${esc([c.data, c.nome || c.titulo].filter(Boolean).join(' · '))}</option>`).join('');
-    const newConcert = $('#new-concert');
-    const programConcert = $('#program-concert');
-    if (newConcert instanceof HTMLSelectElement) newConcert.innerHTML = '<option value="">Sen concerto asociado</option>' + options;
-    if (programConcert instanceof HTMLSelectElement) programConcert.innerHTML = '<option value="">Escolle un concerto…</option>' + options;
+    const options = (payload?.concertos || []).map(c=>({id:clean(c.id||c.idConcerto),name:clean(c.nome||c.nomeConcerto||c.titulo||c.id)})).filter(c=>c.id);
+    ['#new-concert','#program-concert'].forEach(sel=>{ const el=$(sel); if(el instanceof HTMLSelectElement){ const first=sel==='#new-concert'?'Sen concerto asociado':'Cargar programa dun concerto…'; el.innerHTML=`<option value="">${first}</option>`+options.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(''); } });
   }
+  function workName(id) { const r=(payload?.repertorio||[]).find(x=>idObra(x)===id); return r ? `${clean(r.nomeObra||r.nome)}${clean(r.compositor)?` · ${clean(r.compositor)}`:''}` : id; }
+  function updateWorkPicker() { const s=$('#work-search'), sel=$('#work-select'); if(!(sel instanceof HTMLSelectElement))return; const q=norm(s?.value||''); const used=new Set((draft?.repertorio||[]).map(idObra)); const rows=(payload?.repertorio||[]).filter(r=>!used.has(idObra(r))).filter(r=>!q || norm(`${r.nomeObra||r.nome} ${r.compositor||''}`).includes(q)).slice(0,150); sel.innerHTML='<option value="">Escolle unha obra…</option>'+rows.map(r=>`<option value="${esc(idObra(r))}">${esc(workName(idObra(r)))}</option>`).join(''); }
+  function renderWorks() { const rows=$('#works-list'), count=$('#works-count'); const works=[...(draft?.repertorio||[])].sort((a,b)=>(Number(a.orde)||999)-(Number(b.orde)||999)); if(count instanceof HTMLElement)count.textContent=String(works.length); if(rows instanceof HTMLElement)rows.innerHTML=works.length?works.map((r,i)=>`<div class="item"><span class="num">${i+1}</span><div><strong>${esc(workName(idObra(r)))}</strong></div><button class="secondary remove-work" data-work="${esc(idObra(r))}">Quitar</button></div>`).join(''):'<p class="empty">Sen obras.</p>'; updateWorkPicker(); }
+  function attState(row) { if(!row)return ''; if(clean(row.estadoAsistencia).toLowerCase()==='asiste')return 'asiste'; return bool(row.xustificada)?'xustificada':'non'; }
+  function renderAttendance() { const rows=$('#attendance-list'), count=$('#attendance-count'); if(!(rows instanceof HTMLElement))return; const map=new Map((draft?.asistencias||[]).map(r=>[idPersoa(r),r])); let people=[...(payload?.persoas||[])]; if(selectedVoice!=='Todos')people=people.filter(p=>norm(p.voz)===norm(selectedVoice)); people.sort((a,b)=>nome(a).localeCompare(nome(b),'gl')); if(count instanceof HTMLElement)count.textContent=String(people.length); rows.innerHTML=people.map(p=>{ const id=idPersoa(p), state=attState(map.get(id)); return `<div class="person"><div><strong>${esc(nome(p))}</strong><small>${esc(clean(p.voz))}</small></div><div class="att"><button data-att="asiste" data-person="${esc(id)}" class="${state==='asiste'?'chosen':''}">Asiste</button><button data-att="non" data-person="${esc(id)}" class="${state==='non'?'chosen negative':''}">Non asiste</button><button data-att="xustificada" data-person="${esc(id)}" class="${state==='xustificada'?'chosen justified':''}">Xustificada</button></div></div>`; }).join(''); }
+  function renderNotices() { const list=$('#notice-list'), count=$('#notice-count'), badge=$('#notice-badge'); if(count instanceof HTMLElement)count.textContent=String(notices.length); if(badge instanceof HTMLElement)badge.textContent=notices.length?`(${notices.length})`:''; if(list instanceof HTMLElement)list.innerHTML=notices.length?notices.map(n=>`<div class="item"><div><strong>${esc(n.nome||n.persoa)}</strong><small>${esc([n.voz,n.motivo].filter(Boolean).join(' · '))}</small></div><button class="secondary accept-notice" data-person="${esc(n.persoa||n.idPersoa)}" ${n.aceptadoEnBorrador?'disabled':''}>${n.aceptadoEnBorrador?'Aceptado':'Aceptar'}</button></div>`).join(''):'<p class="empty">Non hai avisos pendentes.</p>'; }
+  function updateFinal(text) { const st=$('#final-status'), btn=$('#finalize'); if(st instanceof HTMLElement)st.textContent=text || (draft?.dirty?'Cambios gardados en R2 · pendentes de finalizar':'Sen cambios pendentes'); if(btn instanceof HTMLButtonElement)btn.disabled=busy || draft?.dirty!==true; }
+  function renderManage() { renderWorks(); renderAttendance(); renderNotices(); updateFinal(''); }
 
-  function workById(id) { return (payload?.repertorio || []).find((row) => clean(row.idRepertorio || row.id) === clean(id)) || null; }
-  function isValidWork(work) { const title = clean(work?.nomeObra || work?.nome); return !!clean(work?.idRepertorio || work?.id) && !!title && !/^\d+$/.test(title); }
-  function workRows() { return [...(draft?.repertorio || [])].sort((a, b) => Number(a.orde || 999) - Number(b.orde || 999)); }
-  function attendanceRows() { return draft?.asistencias || []; }
-
-  function updateWorkPicker() {
-    const select = $('#work-select');
-    const search = $('#work-search');
-    if (!(select instanceof HTMLSelectElement)) return;
-    const q = norm(search instanceof HTMLInputElement ? search.value : '');
-    const used = new Set(workRows().map((row) => idObra(row)));
-    const works = (payload?.repertorio || []).filter((work) => {
-      const id = clean(work.idRepertorio || work.id);
-      const title = clean(work.nomeObra || work.nome);
-      if (!isValidWork(work) || used.has(id)) return false;
-      return !q || norm(`${title} ${work.compositor || ''}`).includes(q);
-    }).sort((a, b) => clean(a.nomeObra || a.nome).localeCompare(clean(b.nomeObra || b.nome), 'gl', { sensitivity: 'base' })).slice(0, 120);
-    select.innerHTML = '<option value="">Escolle unha obra…</option>' + works.map((work) => `<option value="${esc(clean(work.idRepertorio || work.id))}">${esc([work.nomeObra || work.nome, work.compositor].filter(Boolean).join(' — '))}</option>`).join('');
+  async function load(force=false) {
+    const loading=$('#loading'), error=$('#error'), app=$('#app'); if(loading instanceof HTMLElement)loading.hidden=false; if(error instanceof HTMLElement)error.hidden=true; if(app instanceof HTMLElement)app.hidden=true;
+    try { const user=await waitForPortalUser(); if(!user?.email)throw new Error('Non hai unha sesión válida.'); const result=await api('listar',{forzar:force}); payload=result.index; ensaios=preparar(payload); const ue=$('#user-email'), ul=$('#user-level'); if(ue instanceof HTMLElement)ue.textContent=user.email; if(ul instanceof HTMLElement)ul.textContent=result.nivel||'lectura'; fillConcerts(); draw(); if(loading instanceof HTMLElement)loading.hidden=true; if(app instanceof HTMLElement)app.hidden=false; }
+    catch(e){ if(loading instanceof HTMLElement)loading.hidden=true; if(error instanceof HTMLElement)error.hidden=false; const t=$('#error-text'); if(t instanceof HTMLElement)t.textContent=e instanceof Error?e.message:String(e); }
   }
+  async function openManage(item) { selected=item; busy=true; const d=$('#manage-dialog'); if(d instanceof HTMLDialogElement)d.showModal(); updateFinal('Cargando estado confirmado desde Sheet…'); try { const result=await api('abrir',{idEnsaio:item.idEnsaio}); payload=result.index; draft=result.draft; notices=Array.isArray(result.avisos)?result.avisos:[]; const title=$('#manage-title'), meta=$('#manage-meta'); if(title instanceof HTMLElement)title.textContent=`${item.tipoEnsaio} · ${fmt(item.data)}`; if(meta instanceof HTMLElement)meta.textContent=[item.horaInicio,item.lugar].filter(Boolean).join(' · '); if(result.conflito)updateFinal('Hai cambios pendentes baseados nun estado anterior. Recarga desde Sheet antes de finalizar.'); renderManage(); } catch(e){ updateFinal(e instanceof Error?e.message:String(e)); } finally { busy=false; updateFinal(''); } }
 
-  function renderWorks() {
-    const box = $('#works-list');
-    const total = $('#works-count');
-    if (!(box instanceof HTMLElement)) return;
-    const rows = workRows().map((row) => ({ row, id: idObra(row), work: workById(idObra(row)) }));
-    if (total instanceof HTMLElement) total.textContent = `${rows.length} obra${rows.length === 1 ? '' : 's'}`;
-    box.innerHTML = rows.length ? rows.map(({ id, work }, index) => `<article class="work-row ${isValidWork(work) ? '' : 'invalid-work'}"><span class="work-order">${isValidWork(work) ? index + 1 : '!'}</span><div><strong>${esc(isValidWork(work) ? work.nomeObra || work.nome : 'Rexistro de obra incorrecto')}</strong><small>${esc(isValidWork(work) ? work.compositor || '' : `Referencia: ${id}`)}</small></div><button type="button" class="remove-work danger draft-action" data-work-id="${esc(id)}">Eliminar</button></article>`).join('') : '<p class="empty">Aínda non hai obras asignadas a este ensaio.</p>';
-    updateWorkPicker();
-  }
+  $('#retry')?.addEventListener('click',()=>void load(true));
+  $('#filter')?.addEventListener('change',draw);
+  $('#new-btn')?.addEventListener('click',()=>{ const f=$('#new-form'); if(f instanceof HTMLFormElement)f.reset(); const d=$('#new-dialog'); if(d instanceof HTMLDialogElement)d.showModal(); });
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{ const id=b.getAttribute('data-close'); const d=id?document.getElementById(id):null; if(d instanceof HTMLDialogElement)d.close(); }));
+  $('#new-form')?.addEventListener('submit',async e=>{ e.preventDefault(); const form=e.currentTarget, st=$('#new-status'); if(!(form instanceof HTMLFormElement))return; try{ if(st instanceof HTMLElement)st.textContent='Gardando ensaio…'; const result=await api('crear',Object.fromEntries(new FormData(form).entries())); payload=result.index; ensaios=preparar(payload); fillConcerts(); draw(); const d=$('#new-dialog'); if(d instanceof HTMLDialogElement)d.close(); if(result.programaPendente)window.alert('O ensaio foi creado. O programa do concerto quedou no borrador R2: abre Xestionar e pulsa Finalizar ensaio para confirmalo na Sheet.'); }catch(err){ if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err); } });
+  $('#list')?.addEventListener('click',e=>{ const b=e.target; if(!(b instanceof HTMLButtonElement))return; const item=ensaios.find(r=>r.idEnsaio===b.dataset.id); if(!item)return; if(b.classList.contains('manage')){void openManage(item);return;} selected=item; if(b.classList.contains('date')){const i=$('#date-input'),d=$('#date-dialog');if(i instanceof HTMLInputElement)i.value=item.data;if(d instanceof HTMLDialogElement)d.showModal();} if(b.classList.contains('cancel')){const d=$('#cancel-dialog');if(d instanceof HTMLDialogElement)d.showModal();} if(b.classList.contains('delete')){const i=$('#delete-confirm'),s=$('#delete-submit'),d=$('#delete-dialog'),st=$('#delete-status');if(i instanceof HTMLInputElement)i.value='';if(s instanceof HTMLButtonElement)s.disabled=true;if(st instanceof HTMLElement)st.textContent='';if(d instanceof HTMLDialogElement)d.showModal();} });
+  $('#date-form')?.addEventListener('submit',async e=>{e.preventDefault();const i=$('#date-input'),st=$('#date-status');if(!selected||!(i instanceof HTMLInputElement))return;try{const r=await api('cambiarData',{idEnsaio:selected.idEnsaio,data:i.value});payload=r.index;ensaios=preparar(payload);draw();const d=$('#date-dialog');if(d instanceof HTMLDialogElement)d.close();}catch(err){if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err);}});
+  $('#cancel-form')?.addEventListener('submit',async e=>{e.preventDefault();const st=$('#cancel-status');if(!selected)return;try{const r=await api('darBaixa',{idEnsaio:selected.idEnsaio});payload=r.index;ensaios=preparar(payload);draw();const d=$('#cancel-dialog');if(d instanceof HTMLDialogElement)d.close();}catch(err){if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err);}});
+  $('#delete-confirm')?.addEventListener('input',e=>{const i=e.target,s=$('#delete-submit');if(s instanceof HTMLButtonElement)s.disabled=!(i instanceof HTMLInputElement&&i.value.trim().toUpperCase()==='ELIMINAR');});
+  $('#delete-form')?.addEventListener('submit',async e=>{e.preventDefault();const st=$('#delete-status');if(!selected)return;try{if(st instanceof HTMLElement)st.textContent='Eliminando na Sheet…';const r=await api('eliminar',{idEnsaio:selected.idEnsaio});if(r.index){payload=r.index;ensaios=preparar(payload);}else await load(true);draw();const d=$('#delete-dialog');if(d instanceof HTMLDialogElement)d.close();if(r.r2Pendente)window.alert(r.aviso||'Eliminado da Sheet; R2 rexenerarase na seguinte carga.');}catch(err){if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err);}});
 
-  function attendanceState(row) {
-    if (!row) return '';
-    if (norm(row.estadoAsistencia) === 'asiste') return 'asiste';
-    if (norm(row.estadoAsistencia) === 'non asiste') return truthy(row.xustificada) ? 'xustificada' : 'non';
-    return '';
-  }
-  function renderAttendance() {
-    const box = $('#attendance-list');
-    const total = $('#attendance-count');
-    if (!(box instanceof HTMLElement)) return;
-    const map = new Map(attendanceRows().map((row) => [idPersoa(row), row]));
-    const people = (payload?.persoas || []).filter((p) => idPersoa(p) && clean(p.voz) && (selectedVoice === 'Todos' || norm(p.voz) === norm(selectedVoice))).sort((a, b) => {
-      const diff = getVoiceRank(a.voz) - getVoiceRank(b.voz);
-      return diff !== 0 ? diff : nomeOrden(a).localeCompare(nomeOrden(b), 'gl', { sensitivity: 'base' });
-    });
-    const present = people.filter((p) => attendanceState(map.get(idPersoa(p))) === 'asiste').length;
-    if (total instanceof HTMLElement) total.textContent = `${present}/${people.length}`;
-    box.innerHTML = people.map((p) => {
-      const state = attendanceState(map.get(idPersoa(p)));
-      return `<article class="person-row" data-person="${esc(idPersoa(p))}"><div><strong>${esc(nomePersoa(p))}</strong><small>${esc(p.voz || '')}</small></div><div class="attendance-actions"><button type="button" data-att="asiste" class="draft-action ${state === 'asiste' ? 'is-selected' : ''}">Asiste</button><button type="button" data-att="non" class="draft-action ${state === 'non' ? 'is-selected negative' : ''}">Non asiste</button><button type="button" data-att="xustificada" class="draft-action ${state === 'xustificada' ? 'is-selected justified' : ''}">Xustificada</button></div><span class="row-status"></span></article>`;
-    }).join('') || '<p class="empty">Non hai persoas nesta selección.</p>';
-    updateDraftControls();
-  }
+  document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>{const p=b.getAttribute('data-panel');document.querySelectorAll('[data-panel]').forEach(x=>x.classList.toggle('is-active',x===b));['obras','asistencia','avisos'].forEach(n=>{const el=$(`#panel-${n}`);if(el instanceof HTMLElement)el.hidden=n!==p;});}));
+  document.querySelectorAll('[data-voice]').forEach(b=>b.addEventListener('click',()=>{selectedVoice=b.getAttribute('data-voice')||'Todos';document.querySelectorAll('[data-voice]').forEach(x=>x.classList.toggle('is-active',x===b));renderAttendance();}));
+  $('#work-search')?.addEventListener('input',updateWorkPicker);
+  $('#work-add')?.addEventListener('click',async()=>{const s=$('#work-select'),st=$('#works-status');if(!(s instanceof HTMLSelectElement)||!s.value||!selected||busy)return;try{const r=await api('gardarObra',{idEnsaio:selected.idEnsaio,idRepertorio:s.value});draft=r.draft;renderWorks();updateFinal('');if(st instanceof HTMLElement)st.textContent='Obra gardada no borrador R2.';}catch(err){if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err);}});
+  $('#works-list')?.addEventListener('click',async e=>{const b=e.target;if(!(b instanceof HTMLButtonElement)||!b.classList.contains('remove-work')||!selected)return;try{const r=await api('quitarObra',{idEnsaio:selected.idEnsaio,idRepertorio:b.dataset.work});draft=r.draft;renderWorks();updateFinal('');}catch(err){const st=$('#works-status');if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err);}});
+  $('#program-btn')?.addEventListener('click',async()=>{const s=$('#program-concert'),st=$('#works-status');if(!(s instanceof HTMLSelectElement)||!s.value||!selected)return;try{const r=await api('cargarPrograma',{idEnsaio:selected.idEnsaio,idConcerto:s.value});draft=r.draft;renderWorks();updateFinal('');if(st instanceof HTMLElement)st.textContent='Programa cargado no borrador R2.';}catch(err){if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err);}});
+  $('#attendance-list')?.addEventListener('click',async e=>{const b=e.target;if(!(b instanceof HTMLButtonElement)||!b.dataset.att||!selected)return;const pid=clean(b.dataset.person), map=new Map((draft?.asistencias||[]).map(r=>[idPersoa(r),r])), current=attState(map.get(pid)), clicked=clean(b.dataset.att), next=current===clicked?'':clicked;let motivo='';if(next==='xustificada')motivo=window.prompt('Motivo da xustificación (opcional):','')||'';try{const r=await api('gardarAsistencia',{idEnsaio:selected.idEnsaio,idPersoa:pid,estadoAsistencia:next===''?'':next==='asiste'?'Asiste':'Non asiste',xustificada:next==='xustificada',motivo,observacions:''});draft=r.draft;renderAttendance();updateFinal('');}catch(err){const st=$('#attendance-status');if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err);}});
+  $('#notice-list')?.addEventListener('click',async e=>{const b=e.target;if(!(b instanceof HTMLButtonElement)||!b.classList.contains('accept-notice')||!selected)return;const n=notices.find(x=>clean(x.persoa||x.idPersoa)===clean(b.dataset.person));if(!n)return;try{const r=await api('aceptarAviso',{idEnsaio:selected.idEnsaio,idPersoa:clean(n.persoa||n.idPersoa),xustificada:bool(n.xustificada),motivo:clean(n.motivo),observacions:clean(n.observacions)});draft=r.draft;n.aceptadoEnBorrador=true;renderAttendance();renderNotices();updateFinal('');}catch(err){const st=$('#notice-status');if(st instanceof HTMLElement)st.textContent=err instanceof Error?err.message:String(err);}});
+  $('#reload-sheet')?.addEventListener('click',async()=>{if(!selected||busy)return;if(draft?.dirty&&!window.confirm('Descartar os cambios pendentes de R2 e recargar desde Sheet?'))return;busy=true;updateFinal('Recargando desde Sheet…');try{const r=await api('descartar',{idEnsaio:selected.idEnsaio});payload=r.index;draft=r.draft;notices=r.avisos||[];ensaios=preparar(payload);draw();renderManage();updateFinal('Estado actualizado desde Sheet');}catch(err){updateFinal(err instanceof Error?err.message:String(err));}finally{busy=false;}});
+  $('#finalize')?.addEventListener('click',async()=>{if(!selected||!draft?.dirty||busy)return;busy=true;updateFinal('Sincronizando obras e asistencias coa Sheet nunha única operación…');try{const r=await api('finalizar',{idEnsaio:selected.idEnsaio});draft=r.draft||{...draft,dirty:false};if(r.index){payload=r.index;ensaios=preparar(payload);draw();}updateFinal(r.r2Pendente?'Sheet sincronizada. R2 rexenerarase automaticamente.':'Ensaio finalizado e sincronizado con Sheet');if(r.r2Pendente)window.alert(r.aviso||'A Sheet quedou sincronizada; R2 rexenerarase na seguinte carga.');}catch(err){updateFinal(err instanceof Error?err.message:String(err));}finally{busy=false;const btn=$('#finalize');if(btn instanceof HTMLButtonElement)btn.disabled=draft?.dirty!==true;}});
 
-  function renderAvisos() {
-    const box = $('#avisos-list');
-    const total = $('#avisos-count');
-    const badge = $('#avisos-badge');
-    if (!(box instanceof HTMLElement)) return;
-    if (total instanceof HTMLElement) total.textContent = String(avisos.length);
-    if (badge instanceof HTMLElement) badge.textContent = avisos.length ? ` (${avisos.length})` : '';
-    box.innerHTML = avisos.length ? avisos.map((aviso) => `<article class="aviso-row"><div><strong>${esc(aviso.nome || aviso.idPersoa)}</strong><small>${esc(aviso.voz || '')} · ${aviso.xustificada ? 'Non asiste con xustificación' : 'Non asiste'}${aviso.motivo ? ` · ${esc(aviso.motivo)}` : ''}</small></div><button type="button" class="accept-aviso primary draft-action" data-person="${esc(aviso.idPersoa)}" ${aviso.aceptadoEnBorrador ? 'disabled' : ''}>${aviso.aceptadoEnBorrador ? 'Aceptado no borrador' : 'Aceptar'}</button></article>`).join('') : '<p class="empty">Non hai avisos pendentes de coralistas para este ensaio.</p>';
-    updateDraftControls();
-  }
-
-  function setFinalStatus(text, tone = '') {
-    const node = $('#ensaios-final-status');
-    if (!(node instanceof HTMLElement)) return;
-    node.textContent = text;
-    node.dataset.tone = tone;
-  }
-  function updateDraftControls() {
-    const finalButton = $('#finalizar-ensaio');
-    const reloadButton = $('#descartar-ensaio');
-    if (finalButton instanceof HTMLButtonElement) finalButton.disabled = busy || conflito || draft?.dirty !== true;
-    if (reloadButton instanceof HTMLButtonElement) reloadButton.disabled = busy;
-    document.querySelectorAll('#manage-dialog .draft-action').forEach((node) => { if (node instanceof HTMLButtonElement) node.disabled = node.disabled || busy || conflito; });
-    if (conflito) setFinalStatus('A Sheet cambiou desde que se abriu este borrador · recarga antes de continuar', 'error');
-    else if (draft?.dirty === true) setFinalStatus('Cambios gardados en R2 · pendentes de finalizar');
-    else setFinalStatus('Sen cambios pendentes');
-  }
-  function renderManage() { renderWorks(); renderAttendance(); renderAvisos(); updateDraftControls(); }
-
-  async function refreshIndex(force = true) {
-    const result = await call('/api/ensaios-admin-xestion', 'listar', { forzar: force });
-    payload = result.index;
-    ensaios = prepararLista(payload);
-    fillConcerts();
-    draw();
-    return result;
-  }
-
-  async function load() {
-    if (loading instanceof HTMLElement) loading.hidden = false;
-    if (errorState instanceof HTMLElement) errorState.hidden = true;
-    if (app instanceof HTMLElement) app.hidden = true;
-    try {
-      const user = await waitForPortalUser();
-      if (!user?.email) throw new Error('Non hai unha sesión válida.');
-      const email = $('#user-email');
-      if (email instanceof HTMLElement) email.textContent = user.email;
-      const result = await refreshIndex(true);
-      const level = $('#user-level');
-      if (level instanceof HTMLElement) level.textContent = result.nivel || 'ensaios';
-      if (loading instanceof HTMLElement) loading.hidden = true;
-      if (app instanceof HTMLElement) app.hidden = false;
-    } catch (error) {
-      if (loading instanceof HTMLElement) loading.hidden = true;
-      if (errorState instanceof HTMLElement) errorState.hidden = false;
-      if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Produciuse un erro inesperado.';
-    }
-  }
-
-  async function openManage(item) {
-    selected = item;
-    selectedVoice = 'Todos';
-    draft = null;
-    avisos = [];
-    conflito = false;
-    document.querySelectorAll('[data-voice]').forEach((node) => node.classList.toggle('is-active', node.dataset.voice === 'Todos'));
-    const title = $('#manage-title');
-    const meta = $('#manage-meta');
-    if (title instanceof HTMLElement) title.textContent = item.tipoEnsaio || 'Ensaio';
-    if (meta instanceof HTMLElement) meta.textContent = [fmt(item.data), item.horaInicio, item.lugar].filter(Boolean).join(' · ');
-    const dialog = $('#manage-dialog');
-    if (dialog instanceof HTMLDialogElement) dialog.showModal();
-    setFinalStatus('Comprobando estado confirmado en Sheet…');
-    try {
-      const result = await xestionApi('obterXestion', { refrescarBase: true });
-      draft = result.draft;
-      avisos = Array.isArray(result.avisos) ? result.avisos : [];
-      conflito = result.conflito === true;
-      renderManage();
-    } catch (error) {
-      setFinalStatus(error instanceof Error ? error.message : String(error), 'error');
-    }
-  }
-
-  filter?.addEventListener('change', draw);
-  $('#retry')?.addEventListener('click', load);
-  $('#admin-ensaios-logout')?.addEventListener('click', async () => { await closePortalSession(); location.href = '/'; });
-  document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => { const dialog = document.getElementById(button.dataset.close || ''); if (dialog instanceof HTMLDialogElement) dialog.close(); }));
-
-  $('#new-rehearsal')?.addEventListener('click', () => {
-    const form = $('#new-form');
-    if (form instanceof HTMLFormElement) form.reset();
-    const status = $('#new-status');
-    if (status instanceof HTMLElement) status.textContent = '';
-    fillConcerts();
-    const dialog = $('#new-dialog');
-    if (dialog instanceof HTMLDialogElement) dialog.showModal();
-  });
-  $('#new-form')?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const status = $('#new-status');
-    if (!(form instanceof HTMLFormElement)) return;
-    const data = Object.fromEntries(new FormData(form).entries());
-    try {
-      if (status instanceof HTMLElement) status.textContent = 'Gardando…';
-      const result = await adminApi('crear', data);
-      payload = result.index;
-      ensaios = prepararLista(payload);
-      fillConcerts();
-      draw();
-      const dialog = $('#new-dialog');
-      if (dialog instanceof HTMLDialogElement) dialog.close();
-      const aviso = clean(result.resultado?.avisoPrograma);
-      if (aviso) window.alert(aviso);
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-
-  list?.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) return;
-    const item = ensaios.find((row) => row.idEnsaio === target.dataset.id);
-    if (!item) return;
-    if (target.classList.contains('manage')) { void openManage(item); return; }
-    if (target.classList.contains('change-date')) {
-      selected = item;
-      const dialog = $('#date-dialog'), input = $('#new-date'), name = $('#date-name');
-      if (name instanceof HTMLElement) name.textContent = `${item.tipoEnsaio || 'Ensaio'} · ${fmt(item.data)}`;
-      if (input instanceof HTMLInputElement) input.value = clean(item.data).slice(0, 10);
-      if (dialog instanceof HTMLDialogElement) dialog.showModal();
-      return;
-    }
-    if (target.classList.contains('cancel-rehearsal')) {
-      selected = item;
-      const dialog = $('#cancel-dialog'), name = $('#cancel-name');
-      if (name instanceof HTMLElement) name.textContent = `${item.tipoEnsaio || 'Ensaio'} · ${fmt(item.data)}`;
-      if (dialog instanceof HTMLDialogElement) dialog.showModal();
-      return;
-    }
-    if (target.classList.contains('delete-rehearsal')) {
-      selected = item;
-      const dialog = $('#delete-dialog'), name = $('#delete-name'), confirm = $('#delete-confirm'), submit = $('#delete-submit'), status = $('#delete-status');
-      if (name instanceof HTMLElement) name.textContent = `${item.tipoEnsaio || 'Ensaio'} · ${fmt(item.data)}`;
-      if (confirm instanceof HTMLInputElement) confirm.value = '';
-      if (submit instanceof HTMLButtonElement) submit.disabled = true;
-      if (status instanceof HTMLElement) status.textContent = '';
-      if (dialog instanceof HTMLDialogElement) dialog.showModal();
-    }
-  });
-
-  $('#date-form')?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const input = $('#new-date'), status = $('#date-status');
-    if (!selected || !(input instanceof HTMLInputElement) || !input.value) return;
-    try {
-      if (status instanceof HTMLElement) status.textContent = 'Gardando…';
-      const result = await adminApi('cambiarData', { idEnsaio: selected.idEnsaio, data: input.value });
-      payload = result.index; ensaios = prepararLista(payload); fillConcerts(); draw();
-      const dialog = $('#date-dialog'); if (dialog instanceof HTMLDialogElement) dialog.close();
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-  $('#cancel-form')?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const status = $('#cancel-status');
-    if (!selected) return;
-    try {
-      if (status instanceof HTMLElement) status.textContent = 'Gardando…';
-      const result = await adminApi('darBaixa', { idEnsaio: selected.idEnsaio });
-      payload = result.index; ensaios = prepararLista(payload); fillConcerts(); draw();
-      const dialog = $('#cancel-dialog'); if (dialog instanceof HTMLDialogElement) dialog.close();
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-  $('#delete-confirm')?.addEventListener('input', (event) => {
-    const target = event.target, submit = $('#delete-submit');
-    if (submit instanceof HTMLButtonElement) submit.disabled = !(target instanceof HTMLInputElement && target.value.trim().toUpperCase() === 'ELIMINAR');
-  });
-  $('#delete-form')?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const status = $('#delete-status'), confirm = $('#delete-confirm');
-    if (!selected || !(confirm instanceof HTMLInputElement) || confirm.value.trim().toUpperCase() !== 'ELIMINAR') return;
-    try {
-      if (status instanceof HTMLElement) status.textContent = 'Eliminando…';
-      const result = await adminApi('eliminar', { idEnsaio: selected.idEnsaio });
-      payload = result.index; ensaios = prepararLista(payload); selected = null; fillConcerts(); draw();
-      const dialog = $('#delete-dialog'); if (dialog instanceof HTMLDialogElement) dialog.close();
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-
-  document.querySelectorAll('[data-panel]').forEach((button) => button.addEventListener('click', () => {
-    const panel = button.dataset.panel;
-    document.querySelectorAll('[data-panel]').forEach((node) => node.classList.toggle('is-active', node === button));
-    $('#panel-repertorio').hidden = panel !== 'repertorio';
-    $('#panel-asistencia').hidden = panel !== 'asistencia';
-    $('#panel-avisos').hidden = panel !== 'avisos';
-  }));
-  document.querySelectorAll('[data-voice]').forEach((button) => button.addEventListener('click', () => {
-    selectedVoice = button.dataset.voice || 'Todos';
-    document.querySelectorAll('[data-voice]').forEach((node) => node.classList.toggle('is-active', node === button));
-    renderAttendance();
-  }));
-  $('#work-search')?.addEventListener('input', updateWorkPicker);
-
-  $('#add-work')?.addEventListener('click', async () => {
-    const select = $('#work-select'), status = $('#works-status');
-    if (!selected || !(select instanceof HTMLSelectElement) || !select.value || busy || conflito) return;
-    try {
-      if (status instanceof HTMLElement) status.textContent = 'Gardando en R2…';
-      const result = await xestionApi('gardarObra', { idRepertorio: select.value });
-      draft = result.draft; renderWorks(); updateDraftControls();
-      if (status instanceof HTMLElement) status.textContent = 'Obra gardada en R2.';
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-  $('#works-list')?.addEventListener('click', async (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement) || !target.classList.contains('remove-work') || !selected || busy || conflito) return;
-    const id = clean(target.dataset.workId), status = $('#works-status');
-    if (!id || !window.confirm('Eliminar esta obra do ensaio?')) return;
-    try {
-      if (status instanceof HTMLElement) status.textContent = 'Eliminando do borrador R2…';
-      const result = await xestionApi('eliminarObra', { idRepertorio: id });
-      draft = result.draft; renderWorks(); updateDraftControls();
-      if (status instanceof HTMLElement) status.textContent = 'Obra eliminada do borrador R2.';
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-  $('#include-program')?.addEventListener('click', async () => {
-    const select = $('#program-concert'), status = $('#works-status');
-    if (!selected || !(select instanceof HTMLSelectElement) || !select.value || busy || conflito) return;
-    try {
-      if (status instanceof HTMLElement) status.textContent = 'Cargando programa en R2…';
-      const result = await xestionApi('incluírProgramaConcerto', { idConcerto: select.value });
-      draft = result.draft; renderWorks(); updateDraftControls();
-      if (status instanceof HTMLElement) status.textContent = `Programa cargado en R2: ${Number(result.engadidas || 0)} obras.`;
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-
-  $('#attendance-list')?.addEventListener('click', async (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement) || !target.dataset.att || !selected || !draft || busy || conflito) return;
-    const row = target.closest('.person-row');
-    if (!(row instanceof HTMLElement)) return;
-    const pid = clean(row.dataset.person), status = row.querySelector('.row-status');
-    const current = attendanceState(attendanceRows().find((a) => idPersoa(a) === pid));
-    const clicked = clean(target.dataset.att);
-    const next = current === clicked ? '' : clicked;
-    try {
-      let result;
-      if (!next) result = await xestionApi('quitarAsistencia', { idPersoa: pid });
-      else {
-        const motivo = next === 'xustificada' ? window.prompt('Motivo da xustificación (opcional):', '') || '' : '';
-        result = await xestionApi('gardarAsistencia', { idPersoa: pid, estadoAsistencia: next === 'asiste' ? 'Asiste' : 'Non asiste', xustificada: next === 'xustificada', motivo, observacions: '' });
-      }
-      draft = result.draft; renderAttendance(); updateDraftControls();
-      if (status instanceof HTMLElement) status.textContent = 'Gardado en R2';
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-
-  $('#avisos-list')?.addEventListener('click', async (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement) || !target.classList.contains('accept-aviso') || busy || conflito) return;
-    const aviso = avisos.find((row) => clean(row.idPersoa) === clean(target.dataset.person));
-    if (!aviso) return;
-    const status = $('#avisos-status');
-    try {
-      const result = await xestionApi('gardarAsistencia', { idPersoa: aviso.idPersoa, estadoAsistencia: 'Non asiste', xustificada: aviso.xustificada === true, motivo: aviso.motivo || '', observacions: aviso.observacions || '' });
-      draft = result.draft;
-      aviso.aceptadoEnBorrador = true;
-      renderAttendance(); renderAvisos(); updateDraftControls();
-      if (status instanceof HTMLElement) status.textContent = 'Aviso aceptado no borrador R2. Finaliza o ensaio para confirmalo en Sheet.';
-    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
-  });
-
-  $('#descartar-ensaio')?.addEventListener('click', async () => {
-    if (!selected || busy) return;
-    if (draft?.dirty === true && !window.confirm('Descartar os cambios pendentes en R2 e recargar o estado actual da Sheet?')) return;
-    busy = true; updateDraftControls(); setFinalStatus('Recargando desde Sheet…');
-    try {
-      const result = await xestionApi('descartar');
-      draft = result.draft; avisos = Array.isArray(result.avisos) ? result.avisos : []; conflito = false;
-      payload = result.index || payload; ensaios = prepararLista(payload); fillConcerts(); draw(); renderManage();
-      setFinalStatus('Estado actualizado desde Sheet');
-    } catch (error) { setFinalStatus(error instanceof Error ? error.message : String(error), 'error'); }
-    finally { busy = false; updateDraftControls(); }
-  });
-
-  $('#finalizar-ensaio')?.addEventListener('click', async () => {
-    if (!selected || !draft || draft.dirty !== true || busy || conflito) return;
-    busy = true; updateDraftControls(); setFinalStatus('Sincronizando con Sheet…');
-    try {
-      const result = await xestionApi('finalizar');
-      draft = result.draft; avisos = Array.isArray(result.avisos) ? result.avisos : []; conflito = false;
-      payload = result.index || payload; ensaios = prepararLista(payload); fillConcerts(); draw(); renderManage();
-      setFinalStatus('Ensaio finalizado e sincronizado con Sheet');
-    } catch (error) {
-      if (error?.code === 'DRAFT_CONFLICT') conflito = true;
-      setFinalStatus(error instanceof Error ? error.message : String(error), 'error');
-    } finally { busy = false; updateDraftControls(); }
-  });
-
-  load();
+  const logout=$('#admin-ensaios-logout'); if(logout instanceof HTMLElement)logout.addEventListener('click',async e=>{e.preventDefault();await closePortalSession();window.location.href='/portal/';});
+  void load(false);
 </script>
 
 <style is:global>
-  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.admin-rehearsals-main{flex:1;min-width:0;padding:2.1rem clamp(1.25rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.8rem}.section-kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.private-page-header h1{margin:.2rem 0 .55rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.5rem)}.private-page-header p{max-width:760px;margin:0;color:#625c58}.account-card{display:grid;gap:.7rem;min-width:250px;padding:1rem 1.15rem;border:1px solid #ded8d3;background:#fff}.account-card span{display:grid;gap:.18rem}.account-card small{color:#77706b;font-size:.68rem;font-weight:700;text-transform:uppercase}.state-box,.toolbar,.rehearsal-card{border:1px solid #ded8d3;background:#fff}.state-box{padding:1.35rem}.error-box{color:#8b2d36}.toolbar{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;padding:1rem 1.15rem}.toolbar label{display:grid;gap:.4rem;width:min(360px,100%)}.toolbar select,.manage-dialog select,.manage-dialog input,dialog input,dialog textarea,dialog select{min-height:2.65rem;padding:.55rem .7rem;border:1px solid #d6cfca;background:#fff;font:inherit}.toolbar p{margin:0;color:#736c67}.rehearsal-list{display:grid;gap:.8rem}.rehearsal-card{display:grid;grid-template-columns:minmax(180px,1fr) minmax(250px,2fr) auto auto;align-items:center;gap:1rem;padding:1rem 1.15rem}.rehearsal-card.is-cancelled{opacity:.65}.rehearsal-date,.rehearsal-info{display:grid;gap:.25rem}.rehearsal-date small,.manage-shell small{color:#806f74;font-size:.7rem;font-weight:800;text-transform:uppercase}.rehearsal-info h2{margin:0;color:var(--color-principal);font-size:1rem}.rehearsal-info p{margin:0;color:#6f6561;font-size:.88rem}.meta{display:flex;gap:.75rem;flex-wrap:wrap;color:#806f74;font-size:.78rem}.rehearsal-state strong{display:inline-flex;padding:.32rem .55rem;border-radius:999px;background:#edf4ef;color:#3f6c50;font-size:.75rem}.is-cancelled .rehearsal-state strong{background:#f4eded;color:#843941}.actions{display:flex;gap:.4rem;flex-wrap:wrap}.admin-rehearsals-main button,dialog button{min-height:2.35rem;padding:.5rem .8rem;border-radius:4px;cursor:pointer;font-weight:800}.secondary{border:1px solid #cfc5c8;background:#fff;color:#4f333b}.primary{border:1px solid #5d142b;background:#5d142b;color:#fff}.danger{border:1px solid #8e3440;background:#fff7f7;color:#8e3440}.danger-solid{border:1px solid #8e3440;background:#8e3440;color:#fff}button:disabled,.danger-solid:disabled{opacity:.45;cursor:not-allowed}.wide-dialog{width:min(760px,calc(100vw - 2rem))}.manage-dialog{width:min(1050px,calc(100vw - 1.5rem));max-height:92vh;border:0;padding:0}.manage-shell{padding:1.2rem;max-height:88vh;overflow:auto}.manage-shell>header,.wide-dialog header,dialog form>header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding-bottom:1rem;border-bottom:1px solid #e7e0dd}.manage-shell h2,dialog h2{margin:.15rem 0}.manage-shell header p{margin:.25rem 0 0;color:#6f6561}.manage-tabs{display:flex;gap:.35rem;margin:1rem 0}.manage-tabs button{border:1px solid #d6cfca;background:#fff}.manage-tabs button.is-active{border-color:#5d142b;color:#5d142b}.manage-panel{display:grid;gap:1rem}.program-tools,.work-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.7rem;align-items:end}.program-tools label{display:grid;gap:.35rem}.work-tools{grid-template-columns:minmax(180px,.8fr) minmax(260px,1.2fr) auto}.section-heading{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ece6e2;padding-bottom:.5rem}.section-heading h3{margin:0}.works-list,.attendance-list{display:grid;gap:.55rem}.work-row,.person-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.75rem;border:1px solid #e1dbd7;background:#fff}.work-order{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:999px;background:#f3efed;font-weight:800}.work-row small,.person-row small{display:block;color:#77706b;margin-top:.15rem}.invalid-work{border-color:#ead5d8;background:#fffafa}.invalid-work strong{color:#843941}.attendance-actions{display:flex;gap:.3rem;flex-wrap:wrap}.attendance-actions button{border:1px solid #d2c9c6;background:#fff}.attendance-actions .is-selected{border-color:#4f725c;background:#edf4ef}.attendance-actions .negative{border-color:#8e3440;background:#fff5f6}.attendance-actions .justified{border-color:#927333;background:#fff9e9}.voice-tabs{display:flex;gap:.3rem;flex-wrap:wrap}.voice-tabs button{border:1px solid #d2c9c6;background:#fff}.voice-tabs button.is-active{border-color:#5d142b;color:#5d142b}.dialog-status{min-height:1.2rem;color:#7f343d}.empty{color:#7a716c}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:1rem 0}.form-grid label,dialog form>label{display:grid;gap:.35rem}.span-2{grid-column:1/-1}dialog{border:0;padding:0;box-shadow:0 18px 60px rgba(0,0,0,.22)}dialog::backdrop{background:rgba(35,27,29,.45)}dialog form{padding:1.25rem}dialog footer{display:flex;justify-content:flex-end;gap:.6rem;padding-top:1rem;border-top:1px solid #e7e0dd}.warning{padding:.8rem;border:1px solid #ead5d8;background:#fff8f8;color:#7f343d}.avisos-list{display:grid;gap:.55rem}.aviso-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.75rem;border:1px solid #e8d8db;background:#fff9f9;border-radius:4px}.aviso-row div{display:grid;gap:.2rem}.aviso-row small{color:#7a313d;font-size:.8rem}#avisos-badge{color:#7a313d;font-weight:800}.ensaios-final-bar{position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:1rem;padding:.85rem 1rem;border-top:1px solid #ded8d3;background:#fff;z-index:4}.ensaios-final-actions{display:flex;gap:.6rem}.ensaios-final-bar span{font-size:.85rem;color:#6f6561}.ensaios-final-bar span[data-tone="error"]{color:#8e3440}
-  @media(max-width:980px){.rehearsal-card{grid-template-columns:1fr 1fr}.actions{justify-content:flex-end}.work-tools{grid-template-columns:1fr}}
-  @media(max-width:900px){.private-layout{display:block}.private-page-header,.toolbar{display:grid}.account-card{min-width:0}.rehearsal-card{grid-template-columns:1fr}.program-tools{grid-template-columns:1fr}.actions{justify-content:flex-start}}
-  @media(max-width:620px){.admin-rehearsals-main{padding:1.05rem .7rem 2.5rem}.admin-rehearsals-main .admin-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem;margin-bottom:1rem}.admin-rehearsals-main .admin-nav-link{justify-content:center;min-width:0;min-height:2.15rem;padding:.42rem .3rem;font-size:.76rem;text-align:center}.private-page-header{gap:1rem;margin-bottom:1rem}.private-page-header h1{font-size:2rem}.account-card{padding:.8rem}.toolbar{padding:.8rem}.form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.manage-dialog{width:calc(100vw - .35rem);max-height:96vh}.manage-shell{padding:.72rem;max-height:94vh}.manage-tabs button{flex:1}.program-tools,.work-tools{grid-template-columns:1fr}.program-tools button,.work-tools button{width:100%}.work-row{grid-template-columns:2rem minmax(0,1fr) auto;gap:.5rem;padding:.6rem}.work-row .remove-work{min-height:2rem;padding:.38rem .5rem;font-size:.75rem}.person-row{grid-template-columns:1fr}.attendance-actions button{flex:1}.actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.actions button{width:100%}.ensaios-final-bar{flex-direction:column;align-items:stretch}.ensaios-final-actions{flex-direction:column}.ensaios-final-actions button{width:100%}}
+  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.admin-main{flex:1;min-width:0;padding:2rem clamp(1rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.page-head{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.6rem}.kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.page-head h1{margin:.2rem 0 .45rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.4rem)}.page-head p{margin:0;color:#625c58}.account{display:grid;gap:.3rem;min-width:230px;padding:1rem;border:1px solid #ddd5d0;background:white}.account small,.card small,.manage-shell small{color:#7b716d;font-size:.68rem;font-weight:800;text-transform:uppercase}.box,.toolbar,.card{border:1px solid #ddd5d0;background:#fff}.box{padding:1rem}.error{color:#7f343d}.toolbar{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin:1rem 0;padding:1rem}.toolbar label{display:grid;gap:.35rem}.toolbar select,input,select,textarea{font:inherit;border:1px solid #d5ccc7;background:#fff;padding:.55rem .65rem}.list{display:grid;gap:.75rem}.card{display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,2fr) auto auto;gap:1rem;align-items:center;padding:1rem}.card h2,.card p{margin:.1rem 0}.card span{font-size:.8rem;color:#7a706b}.card.cancelled{opacity:.65}.actions{display:flex;flex-wrap:wrap;gap:.35rem}button{font:inherit;font-weight:800;min-height:2.3rem;padding:.45rem .7rem;border-radius:4px;cursor:pointer}.primary{border:1px solid #5d142b;background:#5d142b;color:white}.secondary{border:1px solid #cfc5c8;background:white;color:#4f333b}.danger{border:1px solid #8e3440;background:#fff7f7;color:#8e3440}button:disabled{opacity:.45;cursor:not-allowed}dialog{border:0;padding:0;box-shadow:0 18px 60px rgba(0,0,0,.22)}dialog::backdrop{background:rgba(35,27,29,.45)}dialog form,.manage-shell{padding:1.2rem}.dialog-wide{width:min(760px,calc(100vw - 2rem))}.manage-dialog{width:min(1050px,calc(100vw - 1rem));max-height:94vh}.manage-shell{max-height:90vh;overflow:auto}.manage-shell>header,dialog form>header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding-bottom:.8rem;border-bottom:1px solid #e7e0dd}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:1rem 0}.grid label,dialog form>label{display:grid;gap:.3rem}.span2{grid-column:1/-1}dialog footer{display:flex;justify-content:flex-end;gap:.5rem;padding-top:1rem;border-top:1px solid #e7e0dd}.tabs,.voices{display:flex;gap:.35rem;flex-wrap:wrap;margin:1rem 0}.tabs button,.voices button,.att button{border:1px solid #d2c9c6;background:#fff}.tabs .is-active,.voices .is-active{border-color:#5d142b;color:#5d142b}.panel{display:grid;gap:.8rem}.row-tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:.6rem}.row-tools:first-child{grid-template-columns:minmax(0,1fr) auto}.section-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ece6e2}.rows{display:grid;gap:.5rem}.item,.person{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.7rem;align-items:center;padding:.7rem;border:1px solid #e1dbd7;background:#fff}.person{grid-template-columns:minmax(0,1fr) auto}.person small,.item small{display:block;color:#77706b}.num{display:grid;place-items:center;width:2rem;height:2rem;border-radius:99px;background:#f2eeeb;font-weight:800}.att{display:flex;gap:.3rem;flex-wrap:wrap}.att .chosen{background:#edf4ef;border-color:#4f725c}.att .negative{background:#fff5f6;border-color:#8e3440}.att .justified{background:#fff9e9;border-color:#927333}.status{min-height:1.15rem;color:#7f343d}.warning{padding:.75rem;border:1px solid #ead5d8;background:#fff8f8;color:#7f343d}.empty{color:#77706b}.finalbar{position:sticky;bottom:0;display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-top:1rem;padding:.85rem 0;border-top:1px solid #ded8d3;background:#fff}.finalbar>div{display:flex;gap:.5rem}
+  @media(max-width:950px){.card{grid-template-columns:1fr 1fr}.page-head{display:grid}}
+  @media(max-width:700px){.private-layout{display:block}.admin-main{padding:1rem .7rem 2.5rem}.card{grid-template-columns:1fr}.actions{display:grid;grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.span2{grid-column:auto}.row-tools,.row-tools:first-child{grid-template-columns:1fr}.person{grid-template-columns:1fr}.att button{flex:1}.finalbar{flex-direction:column;align-items:stretch}.finalbar>div{display:grid}.manage-dialog{width:calc(100vw - .3rem)}}
 </style>
