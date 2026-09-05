@@ -2,7 +2,7 @@ name: Aplicar mellora Castelao e a escena
 
 on:
   push:
-    branches: [main]
+    branches: [feature/castelao-escena]
     paths:
       - 'scripts/apply_castelao_scene.py'
   workflow_dispatch:
