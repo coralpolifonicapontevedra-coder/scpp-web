@@ -569,7 +569,10 @@ const legado = [
         </section>
 
         <section class="castelao-emblem-note" aria-labelledby="san-david-emblema-title">
-          <div class="castelao-emblem-mark">SCPP</div>
+          <div class="castelao-emblem-visuals">
+          <img class="castelao-emblem-main" src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F373c7089-3234-430a-b035-7eb3b86beb80.jpg" alt="Anagrama de San David deseñado por Castelao para a Sociedade Coral Polifónica de Pontevedra" loading="lazy" />
+          <figure class="castelao-emblem-history"><img src="/api/galeria-orixinal?ruta=fotos%2Forixinais%2F3ee29336-fc4d-4a1f-97a9-e1575291494c.jpg" alt="Versión histórica do anagrama de San David coa sinatura de Castelao" loading="lazy" /><figcaption>Versión histórica con sinatura · Arquivo SCPP</figcaption></figure>
+        </div>
           <div>
             <p class="section-kicker">Identidade visual</p>
             <h3 id="san-david-emblema-title">San David: do pano de boca ao emblema da Polifónica</h3>
@@ -1757,5 +1760,12 @@ const legado = [
   .castelao-emblem-note p { margin: 0; color: #4c4744; line-height: 1.7; }
   .castelao-emblem-note .castelao-emblem-source { margin-top: .8rem; color: var(--muted); font-size: .84rem; }
   @media (max-width:700px){ .castelao-emblem-note{grid-template-columns:1fr}.castelao-emblem-mark{min-height:64px} }
+
+
+  .castelao-emblem-visuals { display:grid; gap:.8rem; align-content:start; }
+  .castelao-emblem-main { width:100%; max-width:180px; margin:0 auto; display:block; object-fit:contain; background:#fff; border:1px solid rgba(107,29,47,.18); padding:.45rem; }
+  .castelao-emblem-history { margin:0; }
+  .castelao-emblem-history img { width:100%; max-width:180px; margin:0 auto; display:block; object-fit:contain; }
+  .castelao-emblem-history figcaption { margin-top:.35rem; color:var(--muted); font-size:.68rem; line-height:1.35; text-align:center; }
 
 </style>
