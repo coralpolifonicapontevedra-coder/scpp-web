@@ -1,6 +1,7 @@
 import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const ACCEPTANCE_PREFIX = 'persoas/aceptacions/';
+const REVISION_PREFIX = 'persoas/revisions/';
 
 const clean = (value) => String(value || '').trim();
 const safeId = (value) => clean(value).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
@@ -36,7 +37,7 @@ async function verificarAcceso(env, data) {
   let permiso = await obterPermisoPortalCacheado(env, user, 'persoas');
   if (!permiso) permiso = await obterPermisoPortal(env, user, 'persoas');
   if (!permiso?.podeLer) throw Object.assign(new Error('Non tes permiso de lectura no módulo Persoas.'), { status: 403 });
-  return user;
+  return { user, permiso };
 }
 
 function metaDesdeObxecto(idPersoa, object) {
@@ -87,19 +88,63 @@ async function localizarAceptacion(env, idPersoa) {
   return { meta, pdf, reparada: true };
 }
 
+async function diagnosticarRevision(env, idPersoa, revisionId) {
+  if (!env.R2_PRIVADO?.list || !env.R2_PRIVADO?.get) return { atopada: false, erro: 'R2 privado non permite listar revisións.' };
+  let cursor;
+  let revisadas = 0;
+  do {
+    const listado = await env.R2_PRIVADO.list({ prefix: REVISION_PREFIX, limit: 1000, cursor });
+    const objects = Array.isArray(listado?.objects) ? listado.objects : [];
+    for (const object of objects) {
+      revisadas += 1;
+      const stored = await env.R2_PRIVADO.get(object.key);
+      if (!stored) continue;
+      const revision = await stored.json().catch(() => null);
+      if (!revision || typeof revision !== 'object') continue;
+      const samePerson = idPersoa && safeId(revision.idPersoa) === idPersoa;
+      const sameRevision = revisionId && clean(revision.revisionId) === revisionId;
+      if ((revisionId && sameRevision) || (!revisionId && samePerson)) {
+        return {
+          atopada: true,
+          revisadas,
+          key: clean(object.key),
+          idPersoa: clean(revision.idPersoa),
+          revisionId: clean(revision.revisionId),
+          estado: clean(revision.estado),
+          completadaEn: clean(revision.completadaEn),
+          versionLegal: clean(revision.textoLegal?.version || revision.aceptacion?.versionLegal),
+          tenPersoaConfirmada: Boolean(revision.persoaConfirmada && typeof revision.persoaConfirmada === 'object'),
+          documento: clean(revision.aceptacion?.documento),
+          aceptacionRowId: clean(revision.aceptacion?.aceptacionRowId)
+        };
+      }
+    }
+    cursor = listado?.truncated ? clean(listado?.cursor) : '';
+  } while (cursor && revisadas < 10000);
+  return { atopada: false, revisadas };
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
   let data;
   try { data = await request.json(); }
   catch { return json(400, { ok: false, erro: 'Solicitude non válida.' }); }
 
-  try { await verificarAcceso(env, data); }
+  let acceso;
+  try { acceso = await verificarAcceso(env, data); }
   catch (error) { return json(error.status || 503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible comprobar o acceso.' }); }
 
   const accion = clean(data?.accion);
-  if (!['estadoAceptacion', 'obterAceptacion'].includes(accion)) return json(400, { ok: false, erro: 'Acción non permitida.' });
+  if (!['estadoAceptacion', 'obterAceptacion', 'diagnosticarRevision'].includes(accion)) return json(400, { ok: false, erro: 'Acción non permitida.' });
   const idPersoa = safeId(data?.idPersoa);
   if (!idPersoa) return json(400, { ok: false, erro: 'Falta a persoa.' });
+
+  if (accion === 'diagnosticarRevision') {
+    if (acceso?.permiso?.podeAdministrar !== true) return json(403, { ok: false, erro: 'Só Administración pode executar este diagnóstico.' });
+    const revisionId = clean(data?.revisionId);
+    const diagnostico = await diagnosticarRevision(env, idPersoa, revisionId);
+    return json(200, { ok: true, diagnostico });
+  }
 
   const aceptacion = await localizarAceptacion(env, idPersoa);
   if (accion === 'estadoAceptacion') {
