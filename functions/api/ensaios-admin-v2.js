@@ -1,13 +1,21 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
-const TIMEOUT_FIREBASE_MS = 8_000;
+const INDEX_MAIN = 'indices/ensaios-administracion-v3.json';
+const INDEX_PREVIEW = 'indices/preview/ensaios-administracion-v3.json';
+const DRAFT_PREFIX = 'ensaios/borradores-v3/';
+const CONCERT_MAIN = 'indices/concertos-privado-v1.json';
+const CONCERT_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
-const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
-const ENSAIOS_CACHE_PREFIX = 'ensaios/cache-v2/usuarios/';
-const LEGACY_ADMIN_PREFIX = 'ensaios/admin-v2/';
-const CONCERTOS_PRIVATE_INDEX_KEY = 'indices/concertos-privado-v1.json';
-const URL_PROD_ENSAIOS_ADMIN = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
-const URL_PREVIEW_ENSAIOS_ADMIN = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
+
+const clean = (value) => String(value ?? '').trim();
+const rama = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
+const indexKey = (env) => rama(env) === 'main' ? INDEX_MAIN : INDEX_PREVIEW;
+const concertKey = (env) => rama(env) === 'main' ? CONCERT_MAIN : CONCERT_PREVIEW;
+const draftKey = (env, id) => `${DRAFT_PREFIX}${rama(env)}/${encodeURIComponent(clean(id))}.json`;
+const idEnsaio = (row = {}) => clean(row.idEnsaio || row.Id_Ensaio || row.id);
+const refEnsaio = (row = {}) => clean(row.ensaio || row.idEnsaio || row.Id_Ensaio);
+const idObra = (row = {}) => clean(row.repertorio || row.idRepertorio || row.Id_Repertorio || row.id);
 
 const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   status,
@@ -19,66 +27,32 @@ const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   }
 });
 
-const clean = (value) => String(value || '').trim();
-const branch = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
-const urlAppsScriptEnsaiosAdmin = (env) => branch(env) === 'main' ? URL_PROD_ENSAIOS_ADMIN : URL_PREVIEW_ENSAIOS_ADMIN;
-
-async function fetchConLimite(url, options, timeoutMs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try { return await fetch(url, { ...options, redirect: 'follow', signal: controller.signal }); }
-  finally { clearTimeout(timer); }
-}
-
-const tokenCache = new Map();
-async function verificarFirebase(idToken, apiKey) {
+async function firebase(idToken, apiKey) {
   const token = clean(idToken);
-  if (!token) return null;
-  const cached = tokenCache.get(token);
-  if (cached?.expires > Date.now()) return cached.user;
-  let lastError;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await fetchConLimite(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: token })
-      }, TIMEOUT_FIREBASE_MS);
-      if (!response.ok) return null;
-      const data = (await response.json())?.users?.[0];
-      if (!data?.email || data.emailVerified !== true) return null;
-      const user = { uid: clean(data.localId), email: clean(data.email).toLowerCase() };
-      tokenCache.set(token, { user, expires: Date.now() + 5 * 60 * 1000 });
-      while (tokenCache.size > 100) tokenCache.delete(tokenCache.keys().next().value);
-      return user;
-    } catch (error) { lastError = error; }
-  }
-  throw lastError || new Error('Firebase non dispoñible');
+  if (!token || !apiKey) return null;
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: token })
+  });
+  if (!response.ok) return null;
+  const user = (await response.json())?.users?.[0];
+  if (!user?.email || user.emailVerified !== true) return null;
+  return { uid: clean(user.localId), email: clean(user.email).toLowerCase() };
 }
 
-async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean(email).toLowerCase()));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+async function permisoEnsaios(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'ensaios');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'ensaios');
+  return permiso;
 }
 
-async function verificarAdministracionR2(env, user) {
-  if (!env.R2_PRIVADO?.get) return false;
-  const object = await env.R2_PRIVADO.get(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
-  if (!object) return false;
-  const entry = await object.json().catch(() => null);
-  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
-}
-
-async function chamarAppsScript(env, user, accion, datos = {}) {
+async function apps(env, user, accion, datos = {}) {
   const { resultado } = await obterJsonAppsScript(env, {
     token: env.WEB_WRITE_TOKEN,
     accion,
     email: user.email,
     uidFirebase: user.uid,
     ...datos
-  }, {
-    timeoutMs: TIMEOUT_APPS_SCRIPT_MS,
-    attemptTimeoutMs: 8_000,
-    urlOverride: urlAppsScriptEnsaiosAdmin(env)
-  });
+  }, { timeoutMs: TIMEOUT_APPS_SCRIPT_MS, attemptTimeoutMs: 8_000 });
   if (!resultado?.ok) {
     const message = resultado?.erro || 'Apps Script non puido completar a operación.';
     const code = resultado?.codigo || (/non autorizado/i.test(message) ? 'FORBIDDEN' : 'APPS_SCRIPT_RESULT');
@@ -90,134 +64,147 @@ async function chamarAppsScript(env, user, accion, datos = {}) {
 async function readJson(bucket, key) {
   if (!bucket?.get) return null;
   const object = await bucket.get(key);
-  if (!object) return null;
-  return object.json().catch(() => null);
+  return object ? object.json().catch(() => null) : null;
 }
-
-async function writeJson(bucket, key, value, tipo = 'ensaios-cache-v2') {
-  if (!bucket?.put) return;
+async function writeJson(bucket, key, value, tipo) {
+  if (!bucket?.put) throw Object.assign(new Error('R2 privado non está dispoñible.'), { code: 'R2_NOT_CONFIGURED' });
   await bucket.put(key, JSON.stringify(value), {
     httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' },
-    customMetadata: { tipo, version: '2' }
+    customMetadata: { tipo, version: '3' }
   });
+  return value;
 }
 
-async function sharedKey(user) {
-  return `${ENSAIOS_CACHE_PREFIX}${await hashEmail(user.email)}.json`;
+function fingerprint(value) {
+  const text = JSON.stringify(value);
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${(hash >>> 0).toString(16)}-${text.length}`;
 }
 
-function payloadValido(payload) {
-  return payload?.ok === true && payload?.version === 2 && Array.isArray(payload.ensaios) && Array.isArray(payload.persoas);
+function revisionPorEnsaio(index) {
+  const ids = new Set((index.ensaios || []).map(idEnsaio).filter(Boolean));
+  const result = {};
+  for (const id of ids) {
+    result[id] = fingerprint({
+      ensaio: (index.ensaios || []).find((row) => idEnsaio(row) === id) || null,
+      asistencias: (index.asistencias || []).filter((row) => refEnsaio(row) === id),
+      repertorio: (index.ensaiosRepertorio || []).filter((row) => refEnsaio(row) === id)
+    });
+  }
+  return result;
 }
 
-async function lerSharedR2(env, user) {
-  const entry = await readJson(env.R2_PRIVADO, await sharedKey(user));
-  if (entry?.email !== user.email || !payloadValido(entry?.payload)) return null;
-  return entry.payload;
-}
-
-async function gardarSharedR2(env, user, payload) {
-  if (!payloadValido(payload)) return;
-  await writeJson(env.R2_PRIVADO, await sharedKey(user), { savedAt: Date.now(), email: user.email, payload });
-}
-
-async function lerConcertosPrivados(env) {
-  const previewKey = branch(env) === 'main' ? CONCERTOS_PRIVATE_INDEX_KEY : 'indices/preview/concertos-privado-v1.json';
-  let index = await readJson(env.R2_PRIVADO, previewKey);
-  if ((!index?.ok || !Array.isArray(index.concertos)) && previewKey !== CONCERTOS_PRIVATE_INDEX_KEY) {
-    index = await readJson(env.R2_PRIVADO, CONCERTOS_PRIVATE_INDEX_KEY);
+async function concertos(env) {
+  let index = await readJson(env.R2_PRIVADO, concertKey(env));
+  if ((!index?.ok || !Array.isArray(index.concertos)) && concertKey(env) !== CONCERT_MAIN) {
+    index = await readJson(env.R2_PRIVADO, CONCERT_MAIN);
   }
   return index?.ok && Array.isArray(index.concertos) ? index.concertos : [];
 }
 
-async function crearPayload(env, result) {
-  return {
+async function seedIndex(env, user) {
+  const result = await apps(env, user, 'listarEnsaiosPortal');
+  const now = Date.now();
+  const index = {
     ok: true,
-    version: 2,
-    perfil: result.perfil || {},
+    version: 3,
+    revision: now,
+    xeradoEn: new Date(now).toISOString(),
     ensaios: Array.isArray(result.ensaios) ? result.ensaios : [],
     persoas: Array.isArray(result.persoas) ? result.persoas : [],
     asistencias: Array.isArray(result.asistencias) ? result.asistencias : [],
     ensaiosRepertorio: Array.isArray(result.ensaiosRepertorio) ? result.ensaiosRepertorio : [],
     repertorio: Array.isArray(result.repertorio) ? result.repertorio : [],
-    concertos: await lerConcertosPrivados(env),
-    seguimento: result.seguimento || {},
-    xeradoEn: new Date().toISOString()
+    concertos: await concertos(env),
+    seguimento: result.seguimento || {}
   };
+  index.revisionPorEnsaio = revisionPorEnsaio(index);
+  await writeJson(env.R2_PRIVADO, indexKey(env), index, 'indice-ensaios-administracion');
+  return index;
 }
 
-async function refrescarSharedR2(env, user) {
-  const result = await chamarAppsScript(env, user, 'listarEnsaiosPortal');
-  const payload = await crearPayload(env, result);
-  await gardarSharedR2(env, user, payload);
-  return payload;
+function indexValid(index) {
+  return index?.ok === true && index?.version === 3 && Array.isArray(index.ensaios) &&
+    Array.isArray(index.persoas) && Array.isArray(index.asistencias) &&
+    Array.isArray(index.ensaiosRepertorio) && Array.isArray(index.repertorio);
 }
 
-function refEnsaio(item = {}) {
-  return clean(item.ensaio || item.Ensaio || item.idEnsaio || item.Id_Ensaio);
+async function getIndex(env, user, force = false) {
+  if (!force) {
+    const cached = await readJson(env.R2_PRIVADO, indexKey(env));
+    if (indexValid(cached)) return { index: cached, fonte: 'R2' };
+  }
+  return { index: await seedIndex(env, user), fonte: 'SHEET-SEED' };
 }
-function idEnsaio(item = {}) {
-  return clean(item.idEnsaio || item.Id_Ensaio || item.IdEnsaio || item.id);
-}
+
 function booleano(value) {
   return value === true || ['true', '1', 'si', 'sí', 'yes', 'x'].includes(clean(value).toLowerCase());
 }
-
-function prepararLista(result) {
-  const asistencias = Array.isArray(result.asistencias) ? result.asistencias : [];
-  const repertorio = Array.isArray(result.ensaiosRepertorio) ? result.ensaiosRepertorio : [];
-  const countAsistencias = new Map();
-  const countObras = new Map();
-  asistencias.forEach((row) => { const id = refEnsaio(row); if (id) countAsistencias.set(id, (countAsistencias.get(id) || 0) + 1); });
-  repertorio.forEach((row) => { const id = refEnsaio(row); if (id) countObras.set(id, (countObras.get(id) || 0) + 1); });
-  return (Array.isArray(result.ensaios) ? result.ensaios : []).map((item) => {
-    const id = idEnsaio(item);
+function prepararLista(index) {
+  const countA = new Map();
+  const countW = new Map();
+  for (const row of index.asistencias || []) {
+    const id = refEnsaio(row); if (id) countA.set(id, (countA.get(id) || 0) + 1);
+  }
+  for (const row of index.ensaiosRepertorio || []) {
+    const id = refEnsaio(row); if (id) countW.set(id, (countW.get(id) || 0) + 1);
+  }
+  return (index.ensaios || []).map((row) => {
+    const id = idEnsaio(row);
     return {
       idEnsaio: id,
-      data: clean(item.data || item.Data).slice(0, 10),
-      horaInicio: clean(item.horaInicio || item.HoraInicio),
-      horaFin: clean(item.horaFin || item.HoraFin),
-      lugar: clean(item.lugar || item.Lugar),
-      tipoEnsaio: clean(item.tipoEnsaio || item.TipoEnsaio) || 'Ensaio',
-      concerto: clean(item.concerto || item.Concerto),
-      concertoNome: clean(item.concertoNome || item.ConcertoNome),
-      descricion: clean(item.descricion || item.Descricion),
-      observacions: clean(item.observacions || item.Observacions),
-      cancelado: booleano(item.cancelado ?? item.Cancelado),
-      obras: countObras.get(id) || 0,
-      asistencias: countAsistencias.get(id) || 0
+      data: clean(row.data || row.Data).slice(0, 10),
+      horaInicio: clean(row.horaInicio || row.HoraInicio),
+      horaFin: clean(row.horaFin || row.HoraFin),
+      lugar: clean(row.lugar || row.Lugar),
+      tipoEnsaio: clean(row.tipoEnsaio || row.TipoEnsaio) || 'Ensaio',
+      concerto: clean(row.concerto || row.Concerto),
+      concertoNome: clean(row.concertoNome || row.ConcertoNome),
+      descricion: clean(row.descricion || row.Descricion),
+      observacions: clean(row.observacions || row.Observacions),
+      cancelado: booleano(row.cancelado ?? row.Cancelado),
+      obras: countW.get(id) || 0,
+      asistencias: countA.get(id) || 0
     };
-  }).filter((item) => item.idEnsaio).sort((a, b) => String(b.data).localeCompare(String(a.data)));
+  }).filter((row) => row.idEnsaio).sort((a, b) => String(b.data).localeCompare(String(a.data)));
 }
 
-async function lerLegacyList(env) {
-  const entry = await readJson(env.R2_PRIVADO, `${LEGACY_ADMIN_PREFIX}${branch(env)}/list.json`);
-  return entry?.payload?.ok === true && Array.isArray(entry.payload.ensaios) ? entry.payload : null;
+function resolveProgram(programa, repertorio) {
+  const valid = new Set((repertorio || []).map((row) => clean(row.idRepertorio || row.id)).filter(Boolean));
+  const norm = (value) => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const byTitle = new Map((repertorio || []).map((row) => [norm(row.nomeObra || row.nome), clean(row.idRepertorio || row.id)]).filter(([k, v]) => k && v));
+  return [...new Set((Array.isArray(programa) ? programa : []).map((item) => {
+    const direct = clean(item.idRepertorio || item.obraId || item.repertorio || item.id);
+    if (direct && valid.has(direct)) return direct;
+    return byTitle.get(norm(item.obra || item.titulo || item.nomeObra || item.nome)) || '';
+  }).filter(Boolean))];
 }
 
-async function respostaLista(env, user) {
-  const shared = await lerSharedR2(env, user);
-  if (shared) {
-    return { ok: true, nivel: 'Administración', ensaios: prepararLista(shared), fonte: 'R2-COMPARTIDO' };
+async function cargarProgramaConcerto(env, user, idConcerto, idNovoEnsaio, index) {
+  if (!idConcerto || !idNovoEnsaio) return { engadidas: 0, aviso: '' };
+  const concerto = (index.concertos || []).find((row) => clean(row.id || row.idConcerto) === idConcerto);
+  let ids = resolveProgram(concerto?.programa || concerto?.repertorio || [], index.repertorio);
+  if (!ids.length) {
+    try {
+      const xestion = await apps(env, user, 'obterXestionConcertoAdministracionPortal', { idConcerto });
+      ids = resolveProgram(xestion?.programa || [], index.repertorio);
+    } catch (error) {
+      console.warn('Non se puido obter o programa do concerto durante a alta do ensaio:', error);
+    }
   }
-
-  // Compatibilidade de transición: a antiga caché v2 nunca provoca un 502 por caducidade.
-  const legacy = await lerLegacyList(env);
-  if (legacy) {
-    refrescarSharedR2(env, user).catch((error) => console.warn('Non se puido rexenerar R2 compartido en segundo plano:', error));
-    return { ...legacy, nivel: 'Administración', fonte: 'R2-LEGACY-FALLBACK' };
+  if (!ids.length) return { engadidas: 0, aviso: 'O ensaio creouse, pero o concerto seleccionado non ten obras resolubles no programa.' };
+  let engadidas = 0;
+  for (const idRepertorio of ids.slice(0, 80)) {
+    await apps(env, user, 'gardarEnsaioRepertorioPortal', {
+      idEnsaio: idNovoEnsaio, idRepertorio, tipoTraballo: '', desde: '', ata: '', observacions: ''
+    });
+    engadidas += 1;
   }
-
-  const fresh = await refrescarSharedR2(env, user);
-  return { ok: true, nivel: 'Administración', ensaios: prepararLista(fresh), fonte: 'SHEET-SEED' };
-}
-
-async function escribirERexenerar(env, user, accion, datos) {
-  const result = await chamarAppsScript(env, user, accion, datos);
-  // Nunca se borra primeiro o último R2 útil. Se Apps Script falla ao rexenerar,
-  // mantense a copia anterior e a seguinte apertura segue funcionando.
-  await refrescarSharedR2(env, user).catch((error) => console.warn('Escritura completada; mantense R2 anterior porque non se puido rexenerar:', error));
-  return result;
+  return { engadidas, aviso: '' };
 }
 
 export async function onRequest({ request, env }) {
@@ -227,53 +214,78 @@ export async function onRequest({ request, env }) {
   if (!body) return json(400, { ok: false, erro: 'Solicitude non válida.' });
 
   let user;
-  try { user = await verificarFirebase(body.idToken, env.FIREBASE_API_KEY); }
+  try { user = await firebase(body.idToken, env.FIREBASE_API_KEY); }
   catch { return json(503, { ok: false, erro: 'Non foi posible validar a sesión.' }); }
   if (!user) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou.' });
-  if (!(await verificarAdministracionR2(env, user).catch(() => false))) return json(403, { ok: false, erro: 'Usuario non autorizado para Administración.' });
+
+  let permiso;
+  try { permiso = await permisoEnsaios(env, user); }
+  catch { return json(503, { ok: false, erro: 'Non foi posible comprobar o permiso de Ensaios.' }); }
 
   const accion = clean(body.accion || 'listar');
+  const escritura = new Set(['crear', 'cambiarData', 'darBaixa']);
+  if (accion === 'listar' && permiso?.podeLer !== true) return json(403, { ok: false, erro: 'Non tes permiso de lectura en Ensaios.' });
+  if (escritura.has(accion) && permiso?.podeEscribir !== true) return json(403, { ok: false, erro: 'Non tes permiso de escritura en Ensaios.' });
+  if (accion === 'eliminar' && permiso?.podeAdministrar !== true) return json(403, { ok: false, erro: 'Só a administración de Ensaios pode eliminar un ensaio.' });
+
   try {
     if (accion === 'listar') {
-      const payload = await respostaLista(env, user);
-      return json(200, payload, { 'X-SCPP-Storage': payload.fonte || 'R2' });
+      const { index, fonte } = await getIndex(env, user, body.forzar === true);
+      return json(200, { ok: true, nivel: permiso.nivel, ensaios: prepararLista(index), index, almacen: fonte }, { 'X-SCPP-Storage': fonte });
     }
 
     if (accion === 'crear') {
       const data = clean(body.data), horaInicio = clean(body.horaInicio), tipoEnsaio = clean(body.tipoEnsaio);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !horaInicio || !tipoEnsaio) return json(400, { ok: false, erro: 'Data, hora de inicio e tipo de ensaio son obrigatorios.' });
-      const result = await escribirERexenerar(env, user, 'gardarEnsaioPortal', {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !horaInicio || !tipoEnsaio) {
+        return json(400, { ok: false, erro: 'Data, hora de inicio e tipo de ensaio son obrigatorios.' });
+      }
+      const concerto = clean(body.concerto);
+      const base = (await getIndex(env, user, false)).index;
+      const result = await apps(env, user, 'gardarEnsaioPortal', {
         data, horaInicio, horaFin: clean(body.horaFin), lugar: clean(body.lugar), tipoEnsaio,
-        concerto: clean(body.concerto), descricion: clean(body.descricion), observacions: clean(body.observacions), cancelado: false
+        concerto, descricion: clean(body.descricion), observacions: clean(body.observacions), cancelado: false
       });
-      return json(200, { ok: true, resultado: result.resultado || result, almacen: 'SHEET+R2' });
+      const resultado = result.resultado || result;
+      const novoId = clean(resultado.idEnsaio || resultado.id);
+      let programa = { engadidas: 0, aviso: '' };
+      try { programa = await cargarProgramaConcerto(env, user, concerto, novoId, base); }
+      catch (error) {
+        console.error('O ensaio creouse, pero fallou a carga automática do programa:', error);
+        programa = { engadidas: 0, aviso: 'O ensaio creouse, pero non foi posible cargar automaticamente o programa do concerto.' };
+      }
+      const index = await seedIndex(env, user);
+      return json(200, { ok: true, resultado: { ...resultado, obrasPrograma: programa.engadidas, avisoPrograma: programa.aviso }, ensaios: prepararLista(index), index, almacen: 'SHEET+R2' });
     }
 
     if (accion === 'cambiarData') {
       const id = clean(body.idEnsaio), data = clean(body.data);
       if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return json(400, { ok: false, erro: 'Indica un ensaio e unha data válida.' });
-      const result = await escribirERexenerar(env, user, 'actualizarEnsaioAdministracionPortal', { idEnsaio: id, data, cancelado: false });
-      return json(200, { ok: true, resultado: result.resultado || result, almacen: 'SHEET+R2' });
+      await apps(env, user, 'actualizarEnsaioAdministracionPortal', { idEnsaio: id, data, cancelado: false });
+      const index = await seedIndex(env, user);
+      return json(200, { ok: true, ensaios: prepararLista(index), index, almacen: 'SHEET+R2' });
     }
 
     if (accion === 'darBaixa') {
       const id = clean(body.idEnsaio);
       if (!id) return json(400, { ok: false, erro: 'Falta identificar o ensaio.' });
-      const result = await escribirERexenerar(env, user, 'actualizarEnsaioAdministracionPortal', { idEnsaio: id, cancelado: true });
-      return json(200, { ok: true, resultado: result.resultado || result, almacen: 'SHEET+R2' });
+      await apps(env, user, 'actualizarEnsaioAdministracionPortal', { idEnsaio: id, cancelado: true });
+      const index = await seedIndex(env, user);
+      return json(200, { ok: true, ensaios: prepararLista(index), index, almacen: 'SHEET+R2' });
     }
 
     if (accion === 'eliminar') {
       const id = clean(body.idEnsaio);
       if (!id) return json(400, { ok: false, erro: 'Falta identificar o ensaio.' });
-      const result = await escribirERexenerar(env, user, 'eliminarEnsaioPortal', { idEnsaio: id });
-      return json(200, { ok: true, resultado: result.resultado || result, almacen: 'SHEET+R2' });
+      await apps(env, user, 'eliminarEnsaioPortal', { idEnsaio: id });
+      await env.R2_PRIVADO.delete(draftKey(env, id)).catch(() => {});
+      const index = await seedIndex(env, user);
+      return json(200, { ok: true, ensaios: prepararLista(index), index, almacen: 'SHEET+R2' });
     }
 
     return json(400, { ok: false, erro: 'Acción non permitida.' });
   } catch (error) {
     const code = error?.code || 'UPSTREAM';
-    const status = code === 'FORBIDDEN' ? 403 : code === 'NOT_FOUND' ? 404 : error?.name === 'AbortError' ? 504 : 502;
+    const status = code === 'FORBIDDEN' ? 403 : code === 'NOT_FOUND' ? 404 : 502;
     return json(status, { ok: false, codigo: code, erro: error?.message || 'Non foi posible completar a operación.' });
   }
 }
