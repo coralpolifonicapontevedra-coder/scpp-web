@@ -147,7 +147,7 @@ def derive_score_key(row):
     )
 
 
-def write_reports(findings: list[Finding], works: dict, active_by_work) -> None:
+def write_reports(findings: list[Finding], works: dict, active_by_work, completed: bool = True) -> None:
     REPORT_CSV.parent.mkdir(parents=True, exist_ok=True)
     with REPORT_CSV.open("w", newline="", encoding="utf-8-sig") as handle:
         writer = csv.writer(handle)
@@ -156,17 +156,28 @@ def write_reports(findings: list[Finding], works: dict, active_by_work) -> None:
             writer.writerow([item.severity, item.code, item.work_id, item.work_title, item.resource_type, item.record_id, item.detail])
 
     counts = Counter(item.severity for item in findings)
-    resource_works = sum(
-        1 for work_id in works
-        if active_by_work[work_id]["audios"] or active_by_work[work_id]["partituras"]
-    )
+    if completed:
+        resource_works = sum(
+            1 for work_id in works
+            if active_by_work[work_id]["audios"] or active_by_work[work_id]["partituras"]
+        )
+        works_count = str(len(works))
+        resource_works_count = str(resource_works)
+        audios_count = str(sum(v["audios"] for v in active_by_work.values()))
+        scores_count = str(sum(v["partituras"] for v in active_by_work.values()))
+    else:
+        works_count = "non dispoñible"
+        resource_works_count = "non dispoñible"
+        audios_count = "non dispoñible"
+        scores_count = "non dispoñible"
+
     lines = [
         "# Auditoría automática do repertorio",
         "",
-        f"- Obras: **{len(works)}**",
-        f"- Obras con recursos activos: **{resource_works}**",
-        f"- Audios activos: **{sum(v['audios'] for v in active_by_work.values())}**",
-        f"- Partituras activas: **{sum(v['partituras'] for v in active_by_work.values())}**",
+        f"- Obras: **{works_count}**",
+        f"- Obras con recursos activos: **{resource_works_count}**",
+        f"- Audios activos: **{audios_count}**",
+        f"- Partituras activas: **{scores_count}**",
         f"- Erros: **{counts['ERROR']}**",
         f"- Avisos: **{counts['WARNING']}**",
         f"- Información: **{counts['INFO']}**",
@@ -313,6 +324,7 @@ def main():
             [Finding("ERROR", "AUDIT_EXECUTION_FAILED", detail=detail)],
             {},
             defaultdict(lambda: {"audios": 0, "partituras": 0}),
+            completed=False,
         )
         return 2
 
