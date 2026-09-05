@@ -1,14 +1,22 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const CACHE_MEMORIA_MS = 10 * 60 * 1000;
 const CACHE_TOKEN_MS = 10 * 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_APPS_SCRIPT_MS = 20_000;
-const R2_PREFIX = 'ensaios/cache-v2/usuarios/';
+const R2_BASE = 'ensaios/cache-v3/';
 const CONCERTOS_PRIVATE_INDEX_KEY = 'indices/concertos-privado-v1.json';
+const CONCERTOS_PRIVATE_INDEX_PREVIEW_KEY = 'indices/preview/concertos-privado-v1.json';
 
 const cacheTokens = new Map();
 const cacheMemoria = new Map();
+
+const clean = (value) => String(value || '').trim();
+const rama = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
+const r2Prefix = (env) => `${R2_BASE}${rama(env)}/usuarios/`;
+const versionKey = (env) => `${R2_BASE}${rama(env)}/version.json`;
+const concertIndexKey = (env) => rama(env) === 'main' ? CONCERTOS_PRIVATE_INDEX_KEY : CONCERTOS_PRIVATE_INDEX_PREVIEW_KEY;
 
 const json = (status, body, extra = {}) => new Response(JSON.stringify(body), {
   status,
@@ -43,7 +51,7 @@ function limparMap(cache, maximo = 100) {
 }
 
 async function verificarFirebase(idToken, apiKey) {
-  const token = String(idToken || '').trim();
+  const token = clean(idToken);
   if (!token) return null;
   const cached = cacheTokens.get(token);
   if (cached?.expira > Date.now()) return cached.usuario;
@@ -60,10 +68,16 @@ async function verificarFirebase(idToken, apiKey) {
   if (!response.ok) return null;
   const user = (await response.json())?.users?.[0];
   if (!user?.email || user.emailVerified !== true) return null;
-  const usuario = { uid:String(user.localId || ''), email:String(user.email).trim().toLowerCase() };
+  const usuario = { uid:clean(user.localId), email:clean(user.email).toLowerCase() };
   cacheTokens.set(token, { usuario, expira:Date.now() + CACHE_TOKEN_MS });
   limparMap(cacheTokens);
   return usuario;
+}
+
+async function permisoEnsaios(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'ensaios');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'ensaios');
+  return permiso;
 }
 
 async function chamarAppsScript(env, user, accion, datos = {}) {
@@ -87,16 +101,44 @@ async function chamarAppsScript(env, user, accion, datos = {}) {
 }
 
 async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(email || '').trim().toLowerCase()));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean(email).toLowerCase()));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function r2Key(user) {
-  return `${R2_PREFIX}${await hashEmail(user.email)}.json`;
+async function r2Key(env, user) {
+  return `${r2Prefix(env)}${await hashEmail(user.email)}.json`;
 }
 
 function payloadValido(payload) {
   return payload?.ok === true && payload?.version === 2 && Array.isArray(payload.ensaios) && Array.isArray(payload.persoas);
+}
+
+async function lerVersion(env) {
+  if (!env.R2_PRIVADO?.get) return 1;
+  try {
+    const object = await env.R2_PRIVADO.get(versionKey(env));
+    if (!object) return 1;
+    const data = await object.json().catch(() => null);
+    const value = Number(data?.version || 1);
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  } catch (error) {
+    console.warn('Non se puido ler a versión global de Ensaios:', error);
+    return 1;
+  }
+}
+
+async function incrementarVersion(env) {
+  if (!env.R2_PRIVADO?.put) return Date.now();
+  const current = await lerVersion(env);
+  const next = Math.max(current + 1, Date.now());
+  await env.R2_PRIVADO.put(versionKey(env), JSON.stringify({
+    version:next,
+    updatedAt:new Date().toISOString()
+  }), {
+    httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' },
+    customMetadata:{ tipo:'ensaios-version-global', version:'1', contorno:rama(env) }
+  });
+  return next;
 }
 
 function normalizar(value = '') {
@@ -104,29 +146,30 @@ function normalizar(value = '') {
 }
 
 async function lerConcertosPrivados(env, repertorio = []) {
-  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return [];
+  if (!env.R2_PRIVADO?.get) return [];
   try {
-    const object = await env.R2_PRIVADO.get(CONCERTOS_PRIVATE_INDEX_KEY);
+    let object = await env.R2_PRIVADO.get(concertIndexKey(env));
+    if (!object && rama(env) !== 'main') object = await env.R2_PRIVADO.get(CONCERTOS_PRIVATE_INDEX_KEY);
     if (!object) return [];
     const index = await object.json();
     if (index?.ok !== true || !Array.isArray(index.concertos)) return [];
 
     const porTitulo = new Map();
     repertorio.forEach((obra) => {
-      const id = String(obra.idRepertorio || obra.id || '').trim();
+      const id = clean(obra.idRepertorio || obra.id);
       const titulo = normalizar(obra.nomeObra || obra.nome || '');
       if (id && titulo && !porTitulo.has(titulo)) porTitulo.set(titulo, id);
     });
 
     return index.concertos.map((concerto) => ({
-      id:String(concerto.id || '').trim(),
-      nome:String(concerto.nome || '').trim(),
-      data:String(concerto.data || '').trim(),
+      id:clean(concerto.id),
+      nome:clean(concerto.nome),
+      data:clean(concerto.data),
       programa:(Array.isArray(concerto.programa) ? concerto.programa : []).map((item) => ({
-        idRepertorio:String(item.idRepertorio || porTitulo.get(normalizar(item.obra)) || '').trim(),
+        idRepertorio:clean(item.idRepertorio || porTitulo.get(normalizar(item.obra))),
         orde:Number(item.orde || 999),
-        obra:String(item.obra || '').trim(),
-        autor:String(item.autor || '').trim()
+        obra:clean(item.obra),
+        autor:clean(item.autor)
       })).filter((item) => item.obra)
     })).filter((concerto) => concerto.id);
   } catch (error) {
@@ -139,7 +182,7 @@ function resolverIdsPrograma(programa, repertorio = []) {
   const validos = new Set();
   const porTitulo = new Map();
   for (const obra of repertorio) {
-    const id = String(obra?.idRepertorio || obra?.id || '').trim();
+    const id = clean(obra?.idRepertorio || obra?.id);
     if (!id) continue;
     validos.add(id);
     const titulo = normalizar(obra?.nomeObra || obra?.nome || obra?.obra || obra?.titulo || '');
@@ -148,7 +191,7 @@ function resolverIdsPrograma(programa, repertorio = []) {
 
   const ids = [];
   for (const item of Array.isArray(programa) ? programa : []) {
-    const directo = String(item?.idRepertorio || item?.obraId || item?.repertorio || item?.id || '').trim();
+    const directo = clean(item?.idRepertorio || item?.obraId || item?.repertorio || item?.id);
     if (directo && validos.has(directo)) {
       ids.push(directo);
       continue;
@@ -163,7 +206,7 @@ function resolverIdsPrograma(programa, repertorio = []) {
 async function idsProgramaConcerto(env, user, idConcerto, repertorio = []) {
   if (!idConcerto) return [];
   const concertos = await lerConcertosPrivados(env, repertorio);
-  const concerto = concertos.find((item) => String(item.id || '').trim() === idConcerto);
+  const concerto = concertos.find((item) => clean(item.id) === idConcerto);
   let ids = resolverIdsPrograma(concerto?.programa, repertorio);
   if (ids.length) return ids;
 
@@ -193,13 +236,13 @@ async function crearPayload(env, result) {
   };
 }
 
-async function lerR2(env, user) {
-  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
+async function lerR2(env, user, versionActual) {
+  if (!env.R2_PRIVADO?.get) return null;
   try {
-    const object = await env.R2_PRIVADO.get(await r2Key(user));
+    const object = await env.R2_PRIVADO.get(await r2Key(env, user));
     if (!object) return null;
     const entry = await object.json();
-    if (entry?.email !== user.email || !payloadValido(entry?.payload)) return null;
+    if (entry?.email !== user.email || Number(entry?.versionGlobal || 0) !== Number(versionActual) || !payloadValido(entry?.payload)) return null;
     return { ...entry, idade:Date.now() - Number(entry.savedAt || 0) };
   } catch (error) {
     console.warn('Non se puido ler o índice de Ensaios desde R2:', error);
@@ -207,40 +250,55 @@ async function lerR2(env, user) {
   }
 }
 
-async function gardarR2(env, user, payload) {
-  if (!payloadValido(payload) || !env.R2_PRIVADO || typeof env.R2_PRIVADO.put !== 'function') return;
+async function gardarR2(env, user, payload, versionGlobal) {
+  if (!payloadValido(payload) || !env.R2_PRIVADO?.put) return;
   const savedAt = Date.now();
-  await env.R2_PRIVADO.put(await r2Key(user), JSON.stringify({ savedAt, email:user.email, payload }), {
-    httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' }
+  await env.R2_PRIVADO.put(await r2Key(env, user), JSON.stringify({
+    savedAt,
+    versionGlobal,
+    email:user.email,
+    payload
+  }), {
+    httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' },
+    customMetadata:{ tipo:'ensaios-usuario', version:'3', contorno:rama(env) }
   });
 }
 
-function cacheKey(user) { return user.email; }
+function cacheKey(env, user) { return `${rama(env)}::${user.email}`; }
 
 async function lerCache(env, user) {
-  const key = cacheKey(user);
+  const versionActual = await lerVersion(env);
+  const key = cacheKey(env, user);
   const memory = cacheMemoria.get(key);
-  if (memory && memory.expira > Date.now()) {
+  if (memory && memory.expira > Date.now() && Number(memory.versionGlobal) === Number(versionActual)) {
     return { payload:memory.payload, fonte:'MEMORIA', idade:Date.now() - memory.savedAt };
   }
-  const r2 = await lerR2(env, user);
+  if (memory) cacheMemoria.delete(key);
+
+  const r2 = await lerR2(env, user, versionActual);
   if (!r2) return null;
   return { payload:r2.payload, fonte:'R2', idade:r2.idade };
 }
 
 async function gardarCache(env, user, payload) {
   const now = Date.now();
-  cacheMemoria.set(cacheKey(user), { savedAt:now, expira:now + CACHE_MEMORIA_MS, payload });
+  const versionGlobal = await lerVersion(env);
+  cacheMemoria.set(cacheKey(env, user), { savedAt:now, expira:now + CACHE_MEMORIA_MS, versionGlobal, payload });
   limparMap(cacheMemoria, 50);
-  await gardarR2(env, user, payload);
+  await gardarR2(env, user, payload, versionGlobal);
 }
 
-async function invalidarCache(env, user) {
-  cacheMemoria.delete(cacheKey(user));
-  if (env.R2_PRIVADO && typeof env.R2_PRIVADO.delete === 'function') {
-    try { await env.R2_PRIVADO.delete(await r2Key(user)); }
-    catch (error) { console.warn('Non se puido invalidar o índice de Ensaios en R2:', error); }
+async function invalidarCacheUsuario(env, user) {
+  cacheMemoria.delete(cacheKey(env, user));
+  if (env.R2_PRIVADO?.delete) {
+    try { await env.R2_PRIVADO.delete(await r2Key(env, user)); }
+    catch (error) { console.warn('Non se puido invalidar o índice de Ensaios do usuario en R2:', error); }
   }
+}
+
+async function invalidarCachesEnsaios(env, user) {
+  await incrementarVersion(env);
+  await invalidarCacheUsuario(env, user);
 }
 
 function conDiagnostico(payload, fonte) {
@@ -287,38 +345,42 @@ async function rexenerarCache(context, user) {
 async function escribir(context, user, accion, datos) {
   const inicio = Date.now();
   const result = await chamarAppsScript(context.env, user, accion, datos);
-  await invalidarCache(context.env, user);
+  await invalidarCachesEnsaios(context.env, user);
   try { await rexenerarCache(context, user); }
   catch (error) { console.warn('A escritura completouse, pero non se puido rexenerar o índice de Ensaios:', error); }
   return json(200, { ok:true, resultado:result.resultado || result, diagnostico:{ fonte:'SHEET-WRITE', duracionMs:Date.now() - inicio } }, {
-    'X-SCPP-Cache':'INVALIDATED',
+    'X-SCPP-Cache':'INVALIDATED-GLOBAL',
     'X-SCPP-Storage':'SHEET'
   });
 }
 
 async function gardarEnsaioConPrograma(context, user, body) {
   const inicio = Date.now();
-  const idConcerto = String(body.concerto || '').trim();
+  const idConcerto = clean(body.concerto);
   const result = await chamarAppsScript(context.env, user, 'gardarEnsaioPortal', {
-    data:String(body.data || '').trim(),
-    horaInicio:String(body.horaInicio || '').trim(),
-    horaFin:String(body.horaFin || '').trim(),
-    lugar:String(body.lugar || '').trim(),
-    tipoEnsaio:String(body.tipoEnsaio || '').trim(),
+    data:clean(body.data),
+    horaInicio:clean(body.horaInicio),
+    horaFin:clean(body.horaFin),
+    lugar:clean(body.lugar),
+    tipoEnsaio:clean(body.tipoEnsaio),
     concerto:idConcerto,
-    descricion:String(body.descricion || '').trim(),
-    observacions:String(body.observacions || '').trim(),
+    descricion:clean(body.descricion),
+    observacions:clean(body.observacions),
     cancelado:body.cancelado === true
   });
   const resultado = result.resultado || result;
-  const idEnsaio = String(resultado?.idEnsaio || '').trim();
+  const idEnsaio = clean(resultado?.idEnsaio);
   let obrasPrograma = 0;
   let avisoPrograma = '';
 
   if (idConcerto && idEnsaio) {
     try {
-      const fresh = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
-      const repertorio = Array.isArray(fresh?.repertorio) ? fresh.repertorio : [];
+      const cached = await lerCache(context.env, user);
+      let repertorio = Array.isArray(cached?.payload?.repertorio) ? cached.payload.repertorio : [];
+      if (!repertorio.length) {
+        const fresh = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
+        repertorio = Array.isArray(fresh?.repertorio) ? fresh.repertorio : [];
+      }
       const ids = await idsProgramaConcerto(context.env, user, idConcerto, repertorio);
       for (const idRepertorio of ids.slice(0, 80)) {
         await chamarAppsScript(context.env, user, 'gardarEnsaioRepertorioPortal', {
@@ -338,7 +400,7 @@ async function gardarEnsaioConPrograma(context, user, body) {
     }
   }
 
-  await invalidarCache(context.env, user);
+  await invalidarCachesEnsaios(context.env, user);
   try { await rexenerarCache(context, user); }
   catch (error) { console.warn('O ensaio creouse, pero non se puido rexenerar o índice de Ensaios:', error); }
 
@@ -347,14 +409,14 @@ async function gardarEnsaioConPrograma(context, user, body) {
     resultado:{ ...resultado, obrasPrograma, avisoPrograma },
     diagnostico:{ fonte:'SHEET-WRITE', duracionMs:Date.now() - inicio }
   }, {
-    'X-SCPP-Cache':'INVALIDATED',
+    'X-SCPP-Cache':'INVALIDATED-GLOBAL',
     'X-SCPP-Storage':'SHEET'
   });
 }
 
 async function incluirPrograma(context, user, body) {
-  const idEnsaio = String(body.idEnsaio || '').trim();
-  const ids = [...new Set((Array.isArray(body.idsRepertorio) ? body.idsRepertorio : []).map((id) => String(id || '').trim()).filter(Boolean))].slice(0, 40);
+  const idEnsaio = clean(body.idEnsaio);
+  const ids = [...new Set((Array.isArray(body.idsRepertorio) ? body.idsRepertorio : []).map(clean).filter(Boolean))].slice(0, 40);
   if (!idEnsaio || !ids.length) return erro(400, 'REQUEST', 'INVALID_DATA', 'Non hai obras do programa para incluír.');
 
   const inicio = Date.now();
@@ -370,12 +432,12 @@ async function incluirPrograma(context, user, body) {
     });
     engadidas += 1;
   }
-  await invalidarCache(context.env, user);
+  await invalidarCachesEnsaios(context.env, user);
   let payload = null;
   try { payload = await rexenerarCache(context, user); }
   catch (error) { console.warn('Programa incluído, pero non se puido rexenerar o índice:', error); }
   return json(200, { ok:true, engadidas, payload, diagnostico:{ fonte:'SHEET-WRITE', duracionMs:Date.now() - inicio } }, {
-    'X-SCPP-Cache':'INVALIDATED',
+    'X-SCPP-Cache':'INVALIDATED-GLOBAL',
     'X-SCPP-Storage':'SHEET'
   });
 }
@@ -397,40 +459,51 @@ export async function onRequest(context) {
   }
   if (!user) return erro(401, 'AUTH', 'INVALID_SESSION', 'A identificación non é válida ou caducou.');
 
-  const accion = String(body.accion || 'listarEnsaiosPortal').trim();
+  const accion = clean(body.accion || 'listarEnsaiosPortal');
   const permitidas = new Set(['listarEnsaiosPortal', 'gardarEnsaio', 'gardarAsistenciaEnsaio', 'gardarEnsaioRepertorio', 'incluírProgramaEnsaio', 'obterSeguimentoEnsaios']);
   if (!permitidas.has(accion)) return erro(400, 'REQUEST', 'ACTION_NOT_ALLOWED', 'Acción non permitida.');
+
+  let permiso;
+  try { permiso = await permisoEnsaios(env, user); }
+  catch (error) {
+    console.error('Erro ao resolver o permiso de Ensaios:', error);
+    return erro(503, 'PERMISOS', 'PERMISSION_UNAVAILABLE', 'Non foi posible comprobar o permiso de Ensaios.');
+  }
+
+  const lectura = accion === 'listarEnsaiosPortal' || accion === 'obterSeguimentoEnsaios';
+  if (lectura && !permiso?.podeLer) return erro(403, 'PERMISOS', 'FORBIDDEN', 'Non tes permiso de lectura no módulo Ensaios.');
+  if (!lectura && !permiso?.podeEscribir) return erro(403, 'PERMISOS', 'FORBIDDEN', 'Non tes permiso de escritura no módulo Ensaios.');
 
   try {
     if (accion === 'listarEnsaiosPortal') return await listar(context, user, body.forzar === true);
     if (accion === 'gardarEnsaio') return await gardarEnsaioConPrograma(context, user, body);
     if (accion === 'gardarAsistenciaEnsaio') {
       return await escribir(context, user, 'gardarAsistenciaEnsaioPortal', {
-        idEnsaio:String(body.idEnsaio || '').trim(),
-        idPersoa:String(body.idPersoa || '').trim(),
-        estadoAsistencia:String(body.estadoAsistencia || '').trim(),
+        idEnsaio:clean(body.idEnsaio),
+        idPersoa:clean(body.idPersoa),
+        estadoAsistencia:clean(body.estadoAsistencia),
         xustificada:body.xustificada === true,
-        motivo:String(body.motivo || '').trim(),
-        observacions:String(body.observacions || '').trim()
+        motivo:clean(body.motivo),
+        observacions:clean(body.observacions)
       });
     }
     if (accion === 'gardarEnsaioRepertorio') {
       return await escribir(context, user, 'gardarEnsaioRepertorioPortal', {
-        idEnsaio:String(body.idEnsaio || '').trim(),
-        idRepertorio:String(body.idRepertorio || '').trim(),
-        tipoTraballo:String(body.tipoTraballo || '').trim(),
-        desde:String(body.desde || '').trim(),
-        ata:String(body.ata || '').trim(),
-        observacions:String(body.observacions || '').trim()
+        idEnsaio:clean(body.idEnsaio),
+        idRepertorio:clean(body.idRepertorio),
+        tipoTraballo:clean(body.tipoTraballo),
+        desde:clean(body.desde),
+        ata:clean(body.ata),
+        observacions:clean(body.observacions)
       });
     }
     if (accion === 'incluírProgramaEnsaio') return await incluirPrograma(context, user, body);
 
     const result = await chamarAppsScript(env, user, 'obterSeguimentoEnsaiosPortal', {
-      desde:String(body.desde || '').trim(),
-      ata:String(body.ata || '').trim(),
-      concerto:String(body.concerto || '').trim(),
-      voz:String(body.voz || '').trim()
+      desde:clean(body.desde),
+      ata:clean(body.ata),
+      concerto:clean(body.concerto),
+      voz:clean(body.voz)
     });
     return json(200, { ok:true, seguimento:result.seguimento || {} }, { 'X-SCPP-Cache':'NO-STORE' });
   } catch (error) {
