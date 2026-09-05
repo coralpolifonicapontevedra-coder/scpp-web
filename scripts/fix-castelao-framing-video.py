@@ -50,7 +50,7 @@ STYLE = r'''
 
 
 def require_change(old: str, new: str, label: str) -> str:
-    if old not in new:
+    if old == new:
         raise RuntimeError(f'{label}: non se atopou o marcador esperado')
     return new
 
@@ -112,7 +112,6 @@ def apply(path: Path) -> None:
 
     text = move_video_to_end(text, spanish)
 
-    # Retirar unha versión anterior deste override se se executase de novo.
     text = re.sub(
         r'\n\s*/\* CASTELAO_FRAME_FINAL_BEGIN \*/.*?/\* CASTELAO_FRAME_FINAL_END \*/\s*',
         '\n',
