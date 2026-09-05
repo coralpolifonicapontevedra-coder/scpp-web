@@ -50,6 +50,17 @@ const ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS = new Set([
   'rexistrarDevolucionArquivoAdministracion'
 ]);
 
+const ACCIONS_ENSAIOS_PROTEXIDAS = new Set([
+  'listarEnsaiosPortal',
+  'gardarEnsaioPortal',
+  'gardarAsistenciaEnsaioPortal',
+  'eliminarAsistenciaEnsaioPortal',
+  'gardarEnsaioRepertorioPortal',
+  'actualizarEnsaioAdministracionPortal',
+  'eliminarEnsaioPortal',
+  'obterSeguimentoEnsaiosPortal'
+]);
+
 const ACCIONS_SO_PRINCIPAL = new Set([
   'subirFoto',
   'actualizarRevisionFoto',
@@ -119,7 +130,8 @@ function urlAppsScriptProtexida(env = {}, accion = '') {
     || ACCIONS_FOTOS_ADMIN_PROTEXIDAS.has(accion)
     || ACCIONS_PERMISOS_PROTEXIDAS.has(accion)
     || ACCIONS_ACEPTACION_PROTEXIDAS.has(accion)
-    || ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS.has(accion);
+    || ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS.has(accion)
+    || ACCIONS_ENSAIOS_PROTEXIDAS.has(accion);
   if (!protexida) return '';
   return ramaSCPP(env) === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
 }
