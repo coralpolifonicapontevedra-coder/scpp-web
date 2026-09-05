@@ -17,9 +17,9 @@ describe('Administración de Fotografías activa en Producción', () => {
     expect(route).not.toContain('gardarRutasFotoR2');
   });
 
-  it('usa unha única acción nova para gardar Sheet', () => {
+  it('usa unha única acción actual para gardar Sheet', () => {
     expect(worker).toContain("accion: 'gardarFotoAdministracionPortal'");
-    expect(worker).toContain("accion: 'comprobarFotosAdministracionPortal'");
+    expect(worker).not.toContain("accion: 'comprobarFotosAdministracionPortal'");
   });
 
   it('autoriza só co resolvedor central de permisos', () => {
