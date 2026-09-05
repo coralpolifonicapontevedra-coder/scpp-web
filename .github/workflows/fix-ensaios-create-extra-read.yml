@@ -1,0 +1,41 @@
+name: Optimizar alta de Ensaios
+
+on:
+  push:
+    branches: [feature/castelao-historia-fotos-final]
+    paths:
+      - 'scripts/fix-ensaios-create-extra-read.py'
+      - '.github/workflows/fix-ensaios-create-extra-read.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Eliminar lectura previa innecesaria
+        run: python scripts/fix-ensaios-create-extra-read.py
+
+      - name: Gardar cambio na rama
+        run: |
+          if git diff --quiet -- functions/api/ensaios-admin-v2.js; then
+            echo "Sen cambios pendentes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add functions/api/ensaios-admin-v2.js
+          git commit -m "Evitar lectura extra ao crear ensaio sen concerto"
+          git push origin HEAD:feature/castelao-historia-fotos-final
