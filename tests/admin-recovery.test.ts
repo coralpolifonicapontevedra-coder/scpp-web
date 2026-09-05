@@ -6,9 +6,13 @@ import { onRequestPost as estadoPost } from '../functions/api/estado-sistema.js'
 const PROD_URL = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
 const encoder = new TextEncoder();
 
-async function hashEmail(email: string) {
-  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(email));
+async function hashValue(value: string) {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashEmail(email: string) {
+  return hashValue(email.toLowerCase());
 }
 
 function firebasePayload(email = 'admin@example.com') {
@@ -75,7 +79,7 @@ describe('Apps Script transport recovery', () => {
 });
 
 describe('administration recovery', () => {
-  it('opens permissions from the R2 administration context and makes only one Apps Script operation', async () => {
+  it('opens permissions from the valid R2 administration context and makes only one Apps Script operation', async () => {
     const email = 'admin@example.com';
     const hash = await hashEmail(email);
     const fetchMock = vi.fn()
@@ -92,15 +96,20 @@ describe('administration recovery', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
 
+    const adminKey = `persoas/cache/administracion/${hash}.json`;
+    const listKey = 'permisos/xestion-cache-v1/main/listado.json';
     const get = vi.fn(async (key: string) => {
-      if (key !== `persoas/cache/administracion/${hash}.json`) return null;
-      return r2Object({
-        administrador: email,
-        payload: {
-          perfil: { nivel: 'Administración' },
-          persoas: [{ rowId: '1', nome: 'Admin', correo: email, activo: true }]
-        }
-      });
+      if (key === adminKey) {
+        return r2Object({
+          savedAt: Date.now(),
+          administrador: email,
+          payload: {
+            perfil: { nivel: 'Administración' },
+            persoas: [{ rowId: '1', nome: 'Admin', correo: email, activo: true }]
+          }
+        });
+      }
+      return null;
     });
 
     const response = await permisosPost({
@@ -124,12 +133,14 @@ describe('administration recovery', () => {
     expect(result.administrador).toBe(true);
     expect(result.usuarios).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledWith(adminKey);
+    expect(get).toHaveBeenCalledWith(listKey);
   });
 
-  it('authorizes Estado do sistema from R2 before running health checks', async () => {
+  it('authorizes Estado do sistema from the common R2 permission cache before health checks', async () => {
     const email = 'admin@example.com';
-    const hash = await hashEmail(email);
+    const permissionHash = await hashValue(`${email}::estado`);
+    const permissionKey = `permisos/cache-v2/main/${permissionHash}.json`;
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       const value = String(url);
       if (value.includes('identitytoolkit.googleapis.com')) return firebasePayload(email);
@@ -149,8 +160,20 @@ describe('administration recovery', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const get = vi.fn(async (key: string) => {
-      if (key === `persoas/cache/administracion/${hash}.json`) {
-        return r2Object({ administrador: email, payload: { perfil: { nivel: 'Administración' } } });
+      if (key === permissionKey) {
+        return r2Object({
+          savedAt: Date.now(),
+          email,
+          modulo: 'estado',
+          value: {
+            ok: true,
+            nivel: 'administracion',
+            configurado: true,
+            podeLer: true,
+            podeEscribir: true,
+            podeAdministrar: true
+          }
+        });
       }
       if (key === 'indices/revision-fotos-v1.json') return r2Object({ ok: true });
       return null;
@@ -164,6 +187,7 @@ describe('administration recovery', () => {
       }),
       env: {
         FIREBASE_API_KEY: 'firebase',
+        CF_PAGES_BRANCH: 'main',
         APPS_SCRIPT_WEBAPP_URL: PROD_URL,
         R2_PRIVADO: { get }
       }
@@ -175,6 +199,6 @@ describe('administration recovery', () => {
     expect(result.checks).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'apps-script', state: 'ok' })
     ]));
-    expect(get).toHaveBeenCalledWith(`persoas/cache/administracion/${hash}.json`);
+    expect(get).toHaveBeenCalledWith(permissionKey);
   });
 });
