@@ -254,16 +254,29 @@ export function initPersoasAdminV4() {
     }
   }
 
+  function setAcceptanceState(disponible, checking = false) {
+    if (!(nodes.openAcceptance instanceof HTMLButtonElement)) return;
+    nodes.openAcceptance.hidden = false;
+    nodes.openAcceptance.disabled = checking;
+    nodes.openAcceptance.classList.toggle('has-acceptance', disponible === true);
+    nodes.openAcceptance.dataset.available = disponible === true ? 'true' : 'false';
+    nodes.openAcceptance.title = checking
+      ? 'Comprobando aceptación electrónica…'
+      : disponible === true
+        ? 'Hai unha aceptación electrónica dispoñible'
+        : 'Non consta unha aceptación electrónica dispoñible';
+  }
+
   async function refreshAcceptance(item) {
     if (!(nodes.openAcceptance instanceof HTMLButtonElement)) return;
-    nodes.openAcceptance.hidden = true;
     const id = keyOf(item);
+    setAcceptanceState(false, Boolean(id));
     if (!id) return;
     try {
       const result = await requestReview('estadoAceptacion', { idPersoa: id });
-      if (selected && keyOf(selected) === id) nodes.openAcceptance.hidden = result?.disponible !== true;
+      if (selected && keyOf(selected) === id) setAcceptanceState(result?.disponible === true, false);
     } catch {
-      nodes.openAcceptance.hidden = true;
+      if (selected && keyOf(selected) === id) setAcceptanceState(false, false);
     }
   }
 
@@ -517,6 +530,10 @@ export function initPersoasAdminV4() {
   async function openAcceptance() {
     const id = keyOf(selected);
     if (!id) return;
+    if (!(nodes.openAcceptance instanceof HTMLButtonElement) || nodes.openAcceptance.dataset.available !== 'true') {
+      notify('Non consta unha aceptación electrónica dispoñible para abrir.', 'error');
+      return;
+    }
     const tab = window.open('', '_blank');
     if (!tab) { notify('O navegador bloqueou a nova lapela.', 'error'); return; }
     tab.opener = null;
@@ -527,6 +544,7 @@ export function initPersoasAdminV4() {
       tab.location.replace(acceptanceUrl);
     } catch (error) {
       tab.close();
+      setAcceptanceState(false, false);
       notify(error instanceof Error ? error.message : 'Non foi posible abrir a aceptación.', 'error');
     }
   }
