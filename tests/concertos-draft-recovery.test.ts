@@ -11,7 +11,8 @@ describe('recuperación de borradores de Concertos', () => {
 
   it('reconstrúe a xestión cando o borrador gardado non é válido', () => {
     expect(source).toContain('if (validDraft(saved, id)) return saved;');
+    expect(source).toContain('const desdeR2 = await managementFromR2(env, user, id);');
+    expect(source).toContain('if (desdeR2.persoas.length && desdeR2.obras.length) initial = desdeR2;');
     expect(source).toContain("await chamarAppsScript(env, user, 'obterXestionConcertoAdministracionPortal'");
-    expect(source).toContain('initial = await managementFromR2(env, user, id);');
   });
 });
