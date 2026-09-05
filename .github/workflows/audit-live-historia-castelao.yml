@@ -19,18 +19,22 @@ jobs:
           set -euo pipefail
           base=https://coralpolifonicapontevedra.org
           curl -L --fail --silent --show-error "$base/historia/" -o /tmp/gl.html
-          grep -q 'castelao-san-david-block' /tmp/gl.html
-          grep -q 'castelao-roseton-block' /tmp/gl.html
-          grep -q 'clip-path:circle(45.7%' /tmp/gl.html || grep -q 'clip-path: circle(45.7%' /tmp/gl.html
-          grep -q 'O logotipo da Polifónica, deseñado por Castelao' /tmp/gl.html
-          ! grep -E 'Fotografía publicada desde R2|Publicados desde R2' /tmp/gl.html
+          for marker in \
+            'castelao-san-david-block' \
+            'castelao-roseton-block' \
+            'O logotipo da Polifónica, deseñado por Castelao'; do
+            if grep -q "$marker" /tmp/gl.html; then echo "OK $marker"; else echo "FALTA $marker"; exit 1; fi
+          done
+          if grep -q '45.7%' /tmp/gl.html; then echo 'OK recorte circular 45.7%'; else echo 'FALTA recorte circular'; exit 1; fi
+          if grep -E 'Fotografía publicada desde R2|Publicados desde R2' /tmp/gl.html; then echo 'QUEDA TEXTO R2'; exit 1; else echo 'OK sen texto R2'; fi
           python - <<'PY'
           from pathlib import Path
           s=Path('/tmp/gl.html').read_text()
           video=s.index('As escenografías da Polifónica explicadas no Museo')
           quote=s.index('Con Castelao, a Polifónica non só cantaba')
-          assert video > quote, (video, quote)
-          print('GL OK: vídeo ao final; encadres e texto público correctos')
+          print('posición cita', quote, 'posición vídeo', video)
+          assert video > quote
+          print('GL OK: vídeo ao final')
           PY
 
       - name: Comprobar Historia castelá publicada
@@ -39,18 +43,22 @@ jobs:
           set -euo pipefail
           base=https://coralpolifonicapontevedra.org
           curl -L --fail --silent --show-error "$base/es/historia/" -o /tmp/es.html
-          grep -q 'castelao-san-david-block' /tmp/es.html
-          grep -q 'castelao-roseton-block' /tmp/es.html
-          grep -q 'clip-path:circle(45.7%' /tmp/es.html || grep -q 'clip-path: circle(45.7%' /tmp/es.html
-          grep -q 'El logotipo de la Polifónica, diseñado por Castelao' /tmp/es.html
-          ! grep -E 'conservada en R2|Panos castelao · R2|Publicados desde R2' /tmp/es.html
+          for marker in \
+            'castelao-san-david-block' \
+            'castelao-roseton-block' \
+            'El logotipo de la Polifónica, diseñado por Castelao'; do
+            if grep -q "$marker" /tmp/es.html; then echo "OK $marker"; else echo "FALTA $marker"; exit 1; fi
+          done
+          if grep -q '45.7%' /tmp/es.html; then echo 'OK recorte circular 45.7%'; else echo 'FALTA recorte circular'; exit 1; fi
+          if grep -E 'conservada en R2|Panos castelao · R2|Publicados desde R2' /tmp/es.html; then echo 'QUEDA TEXTO R2'; exit 1; else echo 'OK sen texto R2'; fi
           python - <<'PY'
           from pathlib import Path
           s=Path('/tmp/es.html').read_text()
           video=s.index('Las escenografías de la Polifónica explicadas en el Museo')
           conservation=s.index('Un legado que sigue identificando a la Polifónica')
-          assert video > conservation, (video, conservation)
-          print('ES OK: vídeo ao final; encadres e texto público correctos')
+          print('posición conservación', conservation, 'posición vídeo', video)
+          assert video > conservation
+          print('ES OK: vídeo ao final')
           PY
 
       - name: Comprobar imaxes servidas
