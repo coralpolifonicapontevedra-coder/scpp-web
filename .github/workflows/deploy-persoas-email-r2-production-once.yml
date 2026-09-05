@@ -9,6 +9,7 @@ on:
       - 'apps-script-production/xestion-permisos-dispatcher-integracion.js'
       - '.github/workflows/deploy-persoas-email-r2-production-once.yml'
 
+# Reexecución 2026-09-05: publicar consulta de estado de envíos para auditoría.
 permissions:
   contents: read
 
