@@ -26,6 +26,26 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
 <script>
   import { closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
 
+  type AuditEnvio = {
+    idPersoa?: string;
+    correo?: string;
+    revisionId?: string;
+    enviadoEn?: string;
+    nome?: string;
+  };
+
+  type AuditPersona = AuditEnvio & {
+    envios: AuditEnvio[];
+  };
+
+  type AuditResponse = {
+    ok?: boolean;
+    erro?: string;
+    envios?: AuditEnvio[];
+    cotaRestante?: number | string | null;
+    restablecementoEstimado?: string | null;
+  };
+
   const $ = (s: string) => document.querySelector(s);
   const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c));
   const fmt = (v: unknown) => {
@@ -56,7 +76,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     };
   };
 
-  async function requestAudit() {
+  async function requestAudit(): Promise<AuditResponse> {
     const user = await waitForPortalUser();
     if (!user) throw new Error('Non hai unha sesión válida.');
     const response = await fetch('/api/persoas-envios-auditoria', {
@@ -64,32 +84,36 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken: await user.getIdToken() })
     });
-    const data = await response.json();
+    const data = await response.json() as AuditResponse;
     if (!response.ok || !data?.ok) throw new Error(data?.erro || 'Non foi posible consultar a auditoría.');
     return data;
   }
 
-  function agruparPersoas(items: any[]) {
-    const mapa = new Map<string, any>();
+  function agruparPersoas(items: AuditEnvio[]): AuditPersona[] {
+    const mapa = new Map<string, AuditPersona>();
     for (const item of items) {
-      const key = String(item?.idPersoa || item?.correo || item?.revisionId || '').trim().toLowerCase();
+      const key = String(item.idPersoa || item.correo || item.revisionId || '').trim().toLowerCase();
       if (!key) continue;
-      if (!mapa.has(key)) mapa.set(key, { ...item, envios: [] });
-      mapa.get(key).envios.push(item);
+      const existing = mapa.get(key);
+      if (existing) {
+        existing.envios.push(item);
+      } else {
+        mapa.set(key, { ...item, envios: [item] });
+      }
     }
-    return [...mapa.values()].map((item: any) => {
-      item.envios.sort((a: any, b: any) => (Date.parse(String(a?.enviadoEn || '')) || 0) - (Date.parse(String(b?.enviadoEn || '')) || 0));
+    return [...mapa.values()].map((item) => {
+      item.envios.sort((a, b) => (Date.parse(String(a.enviadoEn || '')) || 0) - (Date.parse(String(b.enviadoEn || '')) || 0));
       item.enviadoEn = item.envios[item.envios.length - 1]?.enviadoEn || item.enviadoEn;
       return item;
-    }).sort((a: any, b: any) => String(a?.nome || '').localeCompare(String(b?.nome || ''), 'gl', { sensitivity:'base' }));
+    }).sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'gl', { sensitivity:'base' }));
   }
 
-  function dayHtml(all: any[], day: { key:string; label:string }, title: string, className: string) {
-    const raw = all.filter((x: any) => dateKeyMadrid(x?.enviadoEn) === day.key);
+  function dayHtml(all: AuditEnvio[], day: { key:string; label:string }, title: string, className: string) {
+    const raw = all.filter((x) => dateKeyMadrid(x.enviadoEn) === day.key);
     const people = agruparPersoas(raw);
     const body = people.length
-      ? `<div class="rows day-rows">${people.map((x: any) => {
-          const times = x.envios.map((e: any) => fmtTime(e.enviadoEn)).filter(Boolean);
+      ? `<div class="rows day-rows">${people.map((x) => {
+          const times = x.envios.map((e) => fmtTime(e.enviadoEn)).filter(Boolean);
           const detail = times.length > 1 ? `${times.length} envíos · ${times.join(', ')}` : (times[0] || fmt(x.enviadoEn));
           return `<article><div><strong>${esc(x.nome || x.idPersoa)}</strong><small>${esc(x.correo || 'Sen correo')}</small></div><div class="send-state sent">${esc(detail)}</div></article>`;
         }).join('')}</div>`
@@ -97,16 +121,16 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     return `<section class="day-block ${className}"><div class="day-head"><div><span>Envíos reais</span><h2>${esc(title)} · ${esc(day.label)}</h2></div><strong>${esc(people.length)} persoas · ${esc(raw.length)} correos</strong></div>${body}</section>`;
   }
 
-  function quotaHtml(data: any) {
-    const quota = Number(data?.cotaRestante);
+  function quotaHtml(data: AuditResponse) {
+    const quota = Number(data.cotaRestante);
     if (!Number.isFinite(quota)) return '';
-    const reset = data?.restablecementoEstimado ? fmt(data.restablecementoEstimado) : '';
+    const reset = data.restablecementoEstimado ? fmt(data.restablecementoEstimado) : '';
     return `<section class="quota"><div><span>Cota de correo</span><strong>${esc(quota)}</strong><small>destinatarios dispoñibles</small></div><p>${reset ? `Recuperación estimada arredor de ${esc(reset)}. Google non facilita a hora exacta do restablecemento.` : 'Google non facilita directamente a hora exacta do restablecemento da cota.'}</p></section>`;
   }
 
-  function draw(data: any) {
+  function draw(data: AuditResponse) {
     const root = $('#results') as HTMLElement;
-    const envios = Array.isArray(data?.envios) ? data.envios : [];
+    const envios: AuditEnvio[] = Array.isArray(data.envios) ? data.envios : [];
     const today = relativeDayMadrid(0);
     const yesterday = relativeDayMadrid(-1);
     root.innerHTML = `${quotaHtml(data)}${dayHtml(envios, today, 'Enviados hoxe', 'today')}${dayHtml(envios, yesterday, 'Enviados onte', 'yesterday')}`;
