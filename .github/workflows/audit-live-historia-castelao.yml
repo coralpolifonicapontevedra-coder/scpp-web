@@ -1,0 +1,49 @@
+name: Auditar Historia de Castelao en produción
+
+on:
+  push:
+    branches: [audit/live-historia-castelao]
+    paths:
+      - '.github/workflows/audit-live-historia-castelao.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar HTML publicado
+        shell: bash
+        run: |
+          set -euo pipefail
+          for base in https://scpp-web.pages.dev https://coralpolifonicapontevedra.org; do
+            echo "===== $base/historia/ ====="
+            curl -L --fail --silent --show-error -D /tmp/headers.txt "$base/historia/" -o /tmp/historia.html
+            sed -n '1,30p' /tmp/headers.txt
+            echo "--- marcadores ---"
+            grep -o "O logotipo da Polifónica, deseñado por Castelao" /tmp/historia.html | head -1 || true
+            grep -o "San David" /tmp/historia.html | head -3 || true
+            grep -o "373c7089-3234-430a-b035-7eb3b86beb80.jpg" /tmp/historia.html | head -1 || true
+            grep -o "c5875c20-7c55-536e-8419-32ad2404c70b.jpg" /tmp/historia.html | head -1 || true
+            grep -o "91630e1a-725d-42c9-9aa5-259e6655ef08.jpg" /tmp/historia.html | head -1 || true
+            echo "bytes=$(wc -c < /tmp/historia.html)"
+          done
+
+      - name: Comprobar imaxes servidas
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://coralpolifonicapontevedra.org
+          declare -A imgs=(
+            [san-david]='/api/galeria-orixinal?ruta=fotos%2Forixinais%2Fc5875c20-7c55-536e-8419-32ad2404c70b.jpg'
+            [logo]='/api/galeria-orixinal?ruta=fotos%2Forixinais%2F373c7089-3234-430a-b035-7eb3b86beb80.jpg'
+            [roseton]='/api/galeria-orixinal?ruta=fotos%2Forixinais%2F91630e1a-725d-42c9-9aa5-259e6655ef08.jpg'
+          )
+          for key in san-david logo roseton; do
+            echo "===== $key ====="
+            curl -L --fail --silent --show-error "$base${imgs[$key]}" -o "/tmp/$key.bin"
+            file "/tmp/$key.bin"
+            wc -c "/tmp/$key.bin"
+            sha256sum "/tmp/$key.bin"
+          done
