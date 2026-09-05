@@ -66,10 +66,19 @@ describe('Administración → Ensaios transport', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const get = vi.fn(async (key: string) => {
-      if (key.startsWith('persoas/cache/administracion/')) {
+      if (key.startsWith('permisos/cache-v2/main/')) {
         return jsonObject({
-          administrador: 'admin@example.com',
-          payload: { perfil: { nivel: 'Administración' } }
+          savedAt: Date.now(),
+          email: 'admin@example.com',
+          modulo: 'ensaios',
+          value: {
+            ok: true,
+            nivel: 'administracion',
+            configurado: true,
+            podeLer: true,
+            podeEscribir: true,
+            podeAdministrar: true
+          }
         });
       }
       if (key === 'indices/concertos-privado-v1.json') {
