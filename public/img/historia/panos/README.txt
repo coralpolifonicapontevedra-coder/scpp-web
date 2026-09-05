@@ -1,0 +1,1 @@
+Imaxes da sección Castelao e a escena.
