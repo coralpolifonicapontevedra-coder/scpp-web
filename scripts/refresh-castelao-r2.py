@@ -25,6 +25,30 @@ FILES = [
         "expected_size": 2132968,
         "expected_sha256": "dcc2cbd905142811e6f74affcdd972b6600dc2e2a1d274a86036996aeadce8f7",
     },
+    {
+        "name": "Logo de San David",
+        "drive_id": "1bgjmpZvhG-mlN0-V5apXBrIYsqqs0d1d",
+        "r2_key": "fotos/orixinais/373c7089-3234-430a-b035-7eb3b86beb80.jpg",
+        "content_type": "image/jpeg",
+        "expected_size": 116952,
+        "expected_sha256": "83d00388dd4c06914a59126cc46459d10e4ae1e21a8296bf54d71356dc251419",
+    },
+    {
+        "name": "Logo de San David · variante 2",
+        "drive_id": "1Jd9G52WPZ93XvFcYZhyaYofC0ARGOrzV",
+        "r2_key": "fotos/orixinais/37ea56e6-5894-4693-83d6-c3465b4f7be0.jpg",
+        "content_type": "image/jpeg",
+        "expected_size": 94089,
+        "expected_sha256": "e8b6998f5783c1d77ede76138bbff8396abe5c10a035a5b6f2f43d80832931a2",
+    },
+    {
+        "name": "Logo de San David · versión histórica asinada",
+        "drive_id": "1jDD3iandTgYTx9uksXmavAZxi7iu-HNW",
+        "r2_key": "fotos/orixinais/3ee29336-fc4d-4a1f-97a9-e1575291494c.png",
+        "content_type": "image/png",
+        "expected_size": 732087,
+        "expected_sha256": "fdfb5b7b6799bee8b50e31554386cdd3207559879da994f74af979658e2c56b4",
+    },
 ]
 
 
