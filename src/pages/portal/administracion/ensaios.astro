@@ -67,12 +67,12 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       <section id="panel-repertorio" class="manage-panel">
         <div class="program-tools">
           <label><span>Cargar programa dun concerto</span><select id="program-concert"><option value="">Escolle un concerto…</option></select></label>
-          <button id="include-program" type="button" class="secondary">Cargar programa</button>
+          <button id="include-program" type="button" class="secondary draft-action">Cargar programa</button>
         </div>
         <div class="work-tools">
           <input id="work-search" type="search" placeholder="Buscar obra ou compositor…" />
           <select id="work-select"><option value="">Escolle unha obra…</option></select>
-          <button id="add-work" type="button" class="primary">Engadir obra</button>
+          <button id="add-work" type="button" class="primary draft-action">Engadir obra</button>
         </div>
         <div class="section-heading"><h3>Obras a traballar</h3><strong id="works-count">0</strong></div>
         <p id="works-status" class="dialog-status"></p>
@@ -91,6 +91,14 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
         <p id="avisos-status" class="dialog-status"></p>
         <div id="avisos-list" class="avisos-list"></div>
       </section>
+
+      <div class="ensaios-final-bar">
+        <span id="ensaios-final-status">Cargando estado confirmado…</span>
+        <div class="ensaios-final-actions">
+          <button type="button" id="descartar-ensaio" class="secondary">Recargar desde Sheet</button>
+          <button type="button" id="finalizar-ensaio" class="primary" disabled>Finalizar ensaio</button>
+        </div>
+      </div>
     </section>
   </dialog>
 
@@ -104,174 +112,459 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
 <script>
   import { auth, closePortalSession, waitForPortalUser } from '../../../lib/portal-session.js';
 
-  const $ = (s) => document.querySelector(s);
-  const esc = (v='') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-  const norm = (v='') => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-  const clean = (v='') => String(v ?? '').trim();
-  const idEnsaio = (r) => clean(r?.idEnsaio || r?.id || r?.Id_Ensaio);
-  const idPersoa = (p) => clean(p?.idPersoa || p?.id || p?.RowID);
-  const idObra = (w) => clean(w?.idRepertorio || w?.id);
-  const nomePersoa = (p) => clean(p?.nomeCompleto) || [p?.nome,p?.primeiroApelido,p?.segundoApelido].filter(Boolean).join(' ');
-  const getVoiceRank = (v) => { const n=norm(v); return n==='soprano'?1:n==='contralto'?2:n==='tenor'?3:n==='baixo'?4:5; };
-  const nomeOrden = (p) => [clean(p?.primeiroApelido), clean(p?.segundoApelido), clean(p?.nome)].filter(Boolean).join(' ') || clean(p?.nomeCompleto);
-  const fmt = (v) => { if(!v) return 'Sen data'; const d=new Date(`${String(v).slice(0,10)}T12:00:00`); return Number.isNaN(d.getTime())?String(v):new Intl.DateTimeFormat('gl-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d); };
+  const $ = (selector) => document.querySelector(selector);
+  const clean = (value = '') => String(value ?? '').trim();
+  const norm = (value = '') => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const esc = (value = '') => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+  const idEnsaio = (row = {}) => clean(row.idEnsaio || row.id || row.Id_Ensaio);
+  const refEnsaio = (row = {}) => clean(row.ensaio || row.idEnsaio || row.Id_Ensaio);
+  const idPersoa = (row = {}) => clean(row.persoa || row.idPersoa || row.id || row.RowID);
+  const idObra = (row = {}) => clean(row.repertorio || row.idRepertorio || row.id);
+  const nomePersoa = (p = {}) => clean(p.nomeCompleto) || [p.nome, p.primeiroApelido, p.segundoApelido].map(clean).filter(Boolean).join(' ');
+  const nomeOrden = (p = {}) => [p.primeiroApelido, p.segundoApelido, p.nome].map(clean).filter(Boolean).join(' ') || nomePersoa(p);
+  const getVoiceRank = (value) => { const v = norm(value); return v === 'soprano' ? 1 : v === 'contralto' ? 2 : v === 'tenor' ? 3 : v === 'baixo' ? 4 : 5; };
+  const fmt = (value) => { if (!value) return 'Sen data'; const d = new Date(`${String(value).slice(0, 10)}T12:00:00`); return Number.isNaN(d.getTime()) ? String(value) : new Intl.DateTimeFormat('gl-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d); };
+  const truthy = (value) => value === true || ['true', '1', 'si', 'sí', 'yes', 'x'].includes(clean(value).toLowerCase());
 
-  let ensaios = [], payload = null, selected = null, selectedVoice = 'Todos', rehearsalDraft = null;
-  const loading=$('#loading'), errorState=$('#error-state'), errorMessage=$('#error-message'), app=$('#app'), list=$('#list'), filter=$('#filter'), count=$('#count');
+  let payload = null;
+  let ensaios = [];
+  let selected = null;
+  let selectedVoice = 'Todos';
+  let draft = null;
+  let avisos = [];
+  let conflito = false;
+  let busy = false;
 
-  async function call(endpoint, accion, extra={}) {
-    const user=auth.currentUser;
-    if(!user?.email) throw new Error('A sesión non está activa.');
-    const idToken=await user.getIdToken();
-    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,accion,...extra})});
-    const result=await response.json().catch(()=>null);
-    if(!response.ok||!result?.ok) throw new Error(result?.erro||`Erro HTTP ${response.status}`);
+  const loading = $('#loading');
+  const errorState = $('#error-state');
+  const errorMessage = $('#error-message');
+  const app = $('#app');
+  const list = $('#list');
+  const filter = $('#filter');
+  const count = $('#count');
+
+  async function call(endpoint, accion, extra = {}) {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('A sesión non está activa.');
+    const idToken = await user.getIdToken();
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accion, ...extra })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      const error = new Error(result?.erro || `Erro HTTP ${response.status}`);
+      error.code = result?.codigo || '';
+      throw error;
+    }
     return result;
   }
-  const adminApi=(accion,extra={})=>call('/api/ensaios-admin',accion,extra);
-  const adminV2Api=(accion,extra={})=>call('/api/ensaios-admin-v2',accion,extra);
-  const ensaiosApi=(accion,extra={})=>call('/api/ensaios',accion,extra);
-  const draftApi=(accion,extra={})=>call('/api/ensaios-borrador',accion,{idEnsaio:idEnsaio(selected),...extra});
+  const adminApi = (accion, extra = {}) => call('/api/ensaios-admin-v2', accion, extra);
+  const xestionApi = (accion, extra = {}) => call('/api/ensaios-admin-xestion', accion, { idEnsaio: idEnsaio(selected), ...extra });
 
-  function fullRehearsal(id){return (payload?.ensaios||[]).find(r=>idEnsaio(r)===clean(id))||null;}
-  function attendanceRows(){const id=idEnsaio(selected);return (payload?.asistencias||[]).filter(a=>clean(a.ensaio||a.idEnsaio)===id);}
-  function workRows(){const id=idEnsaio(selected);return (payload?.ensaiosRepertorio||[]).filter(r=>clean(r.ensaio||r.idEnsaio)===id).sort((a,b)=>Number(a.orde||999)-Number(b.orde||999));}
-  function workById(id){return (payload?.repertorio||[]).find(w=>idObra(w)===clean(id))||null;}
-  function isValidWork(w){const title=clean(w?.nomeObra||w?.nome);return !!idObra(w)&&!!title&&!/^\d+$/.test(title);}
-
-  function visible(){const mode=filter instanceof HTMLSelectElement?filter.value:'activos';return ensaios.filter(i=>mode==='todos'||(mode==='baixa'?i.cancelado:!i.cancelado));}
-  function draw(){
-    if(!(list instanceof HTMLElement)) return;
-    const rows=visible();
-    if(count instanceof HTMLElement) count.textContent=`${rows.length} ensaio${rows.length===1?'':'s'}`;
-    list.innerHTML=rows.length?rows.map(i=>`<article class="rehearsal-card ${i.cancelado?'is-cancelled':''}"><div class="rehearsal-date"><small>Data</small><strong>${esc(fmt(i.data))}</strong></div><div class="rehearsal-info"><h2>${esc(i.tipoEnsaio||'Ensaio')}</h2><p>${esc([i.horaInicio,i.lugar].filter(Boolean).join(' · ')||'Sen máis datos')}</p><div class="meta"><span>${Number(i.obras||0)} obras</span><span>${Number(i.asistencias||0)} asistencias</span></div></div><div class="rehearsal-state"><strong>${i.cancelado?'Baixa':'Activo'}</strong></div><div class="actions">${i.cancelado?'':`<button class="primary manage" data-id="${esc(i.idEnsaio)}">Xestionar</button><button class="secondary change-date" data-id="${esc(i.idEnsaio)}">Cambiar data</button><button class="danger cancel-rehearsal" data-id="${esc(i.idEnsaio)}">Dar de baixa</button>`}<button class="danger delete-rehearsal" data-id="${esc(i.idEnsaio)}">Eliminar</button></div></article>`).join(''):'<section class="state-box">Non hai ensaios para este filtro.</section>';
+  function prepararLista(index) {
+    const countA = new Map();
+    const countW = new Map();
+    for (const row of index?.asistencias || []) { const id = refEnsaio(row); if (id) countA.set(id, (countA.get(id) || 0) + 1); }
+    for (const row of index?.ensaiosRepertorio || []) { const id = refEnsaio(row); if (id) countW.set(id, (countW.get(id) || 0) + 1); }
+    return (index?.ensaios || []).map((row) => {
+      const id = idEnsaio(row);
+      return {
+        idEnsaio: id,
+        data: clean(row.data || row.Data).slice(0, 10),
+        horaInicio: clean(row.horaInicio || row.HoraInicio),
+        horaFin: clean(row.horaFin || row.HoraFin),
+        lugar: clean(row.lugar || row.Lugar),
+        tipoEnsaio: clean(row.tipoEnsaio || row.TipoEnsaio) || 'Ensaio',
+        concerto: clean(row.concerto || row.Concerto),
+        descricion: clean(row.descricion || row.Descricion),
+        observacions: clean(row.observacions || row.Observacions),
+        cancelado: truthy(row.cancelado ?? row.Cancelado),
+        obras: countW.get(id) || 0,
+        asistencias: countA.get(id) || 0
+      };
+    }).filter((row) => row.idEnsaio).sort((a, b) => String(b.data).localeCompare(String(a.data)));
   }
 
-  function fillConcerts(){
-    const concerts=[...(payload?.concertos||[])].sort((a,b)=>clean(a.data).localeCompare(clean(b.data)));
-    const opts=concerts.map(c=>`<option value="${esc(c.id)}">${esc([c.data,c.nome].filter(Boolean).join(' · '))}</option>`).join('');
-    const a=$('#new-concert'), b=$('#program-concert');
-    if(a instanceof HTMLSelectElement)a.innerHTML='<option value="">Sen concerto asociado</option>'+opts;
-    if(b instanceof HTMLSelectElement)b.innerHTML='<option value="">Escolle un concerto…</option>'+opts;
+  function visible() {
+    const mode = filter instanceof HTMLSelectElement ? filter.value : 'activos';
+    return ensaios.filter((row) => mode === 'todos' || (mode === 'baixa' ? row.cancelado : !row.cancelado));
+  }
+  function draw() {
+    if (!(list instanceof HTMLElement)) return;
+    const rows = visible();
+    if (count instanceof HTMLElement) count.textContent = `${rows.length} ensaio${rows.length === 1 ? '' : 's'}`;
+    list.innerHTML = rows.length ? rows.map((row) => `<article class="rehearsal-card ${row.cancelado ? 'is-cancelled' : ''}"><div class="rehearsal-date"><small>Data</small><strong>${esc(fmt(row.data))}</strong></div><div class="rehearsal-info"><h2>${esc(row.tipoEnsaio || 'Ensaio')}</h2><p>${esc([row.horaInicio, row.lugar].filter(Boolean).join(' · ') || 'Sen máis datos')}</p><div class="meta"><span>${Number(row.obras || 0)} obras</span><span>${Number(row.asistencias || 0)} asistencias</span></div></div><div class="rehearsal-state"><strong>${row.cancelado ? 'Baixa' : 'Activo'}</strong></div><div class="actions">${row.cancelado ? '' : `<button class="primary manage" data-id="${esc(row.idEnsaio)}">Xestionar</button><button class="secondary change-date" data-id="${esc(row.idEnsaio)}">Cambiar data</button><button class="danger cancel-rehearsal" data-id="${esc(row.idEnsaio)}">Dar de baixa</button>`}<button class="danger delete-rehearsal" data-id="${esc(row.idEnsaio)}">Eliminar</button></div></article>`).join('') : '<section class="state-box">Non hai ensaios para este filtro.</section>';
   }
 
-  function updateWorkPicker(){
-    const select=$('#work-select'), search=$('#work-search'); if(!(select instanceof HTMLSelectElement))return;
-    const q=norm(search instanceof HTMLInputElement?search.value:'');
-    const used=new Set(workRows().map(r=>clean(r.repertorio||r.idRepertorio)));
-    const works=(payload?.repertorio||[]).filter(w=>{
-      const id=idObra(w), title=clean(w.nomeObra||w.nome), composer=clean(w.compositor);
-      if(!isValidWork(w)||used.has(id))return false;
-      return !q||norm(`${title} ${composer}`).includes(q);
-    }).sort((a,b)=>clean(a.nomeObra||a.nome).localeCompare(clean(b.nomeObra||b.nome),'gl',{sensitivity:'base'})).slice(0,120);
-    select.innerHTML='<option value="">Escolle unha obra…</option>'+works.map(w=>`<option value="${esc(idObra(w))}">${esc([w.nomeObra||w.nome,w.compositor].filter(Boolean).join(' — '))}</option>`).join('');
+  function fillConcerts() {
+    const concerts = [...(payload?.concertos || [])].sort((a, b) => clean(a.data).localeCompare(clean(b.data)));
+    const options = concerts.map((c) => `<option value="${esc(clean(c.id || c.idConcerto))}">${esc([c.data, c.nome || c.titulo].filter(Boolean).join(' · '))}</option>`).join('');
+    const newConcert = $('#new-concert');
+    const programConcert = $('#program-concert');
+    if (newConcert instanceof HTMLSelectElement) newConcert.innerHTML = '<option value="">Sen concerto asociado</option>' + options;
+    if (programConcert instanceof HTMLSelectElement) programConcert.innerHTML = '<option value="">Escolle un concerto…</option>' + options;
   }
 
-  function renderWorks(){
-    const rows=workRows(), box=$('#works-list'), n=$('#works-count'), status=$('#works-status');
-    const valid=[], invalid=[];
-    rows.forEach((r)=>{const id=clean(r.repertorio||r.idRepertorio),w=workById(id);(isValidWork(w)?valid:invalid).push({r,id,w});});
-    if(n instanceof HTMLElement)n.textContent=`${valid.length} obra${valid.length===1?'':'s'}`;
-    if(status instanceof HTMLElement)status.textContent=invalid.length?`Hai ${invalid.length} rexistro${invalid.length===1?'':'s'} de obra incorrecto${invalid.length===1?'':'s'} herdado${invalid.length===1?'':'s'}. Podes eliminalo${invalid.length===1?'':'s'} desde esta lista.`:'';
-    if(box instanceof HTMLElement){
-      const validHtml=valid.map(({id,w},index)=>`<article class="work-row"><span class="work-order">${index+1}</span><div><strong>${esc(w.nomeObra||w.nome)}</strong>${w.compositor?`<small>${esc(w.compositor)}</small>`:''}</div><button type="button" class="remove-work danger" data-work-id="${esc(id)}">Eliminar</button></article>`).join('');
-      const invalidHtml=invalid.map(({id,w})=>`<article class="work-row invalid-work"><span class="work-order">!</span><div><strong>Rexistro de obra incorrecto</strong><small>Referencia: ${esc(clean(w?.nomeObra||w?.nome)||id)}</small></div><button type="button" class="remove-work danger" data-work-id="${esc(id)}">Eliminar</button></article>`).join('');
-      box.innerHTML=(validHtml+invalidHtml)||'<p class="empty">Aínda non hai obras asignadas a este ensaio.</p>';
-    }
+  function workById(id) { return (payload?.repertorio || []).find((row) => clean(row.idRepertorio || row.id) === clean(id)) || null; }
+  function isValidWork(work) { const title = clean(work?.nomeObra || work?.nome); return !!clean(work?.idRepertorio || work?.id) && !!title && !/^\d+$/.test(title); }
+  function workRows() { return [...(draft?.repertorio || [])].sort((a, b) => Number(a.orde || 999) - Number(b.orde || 999)); }
+  function attendanceRows() { return draft?.asistencias || []; }
+
+  function updateWorkPicker() {
+    const select = $('#work-select');
+    const search = $('#work-search');
+    if (!(select instanceof HTMLSelectElement)) return;
+    const q = norm(search instanceof HTMLInputElement ? search.value : '');
+    const used = new Set(workRows().map((row) => idObra(row)));
+    const works = (payload?.repertorio || []).filter((work) => {
+      const id = clean(work.idRepertorio || work.id);
+      const title = clean(work.nomeObra || work.nome);
+      if (!isValidWork(work) || used.has(id)) return false;
+      return !q || norm(`${title} ${work.compositor || ''}`).includes(q);
+    }).sort((a, b) => clean(a.nomeObra || a.nome).localeCompare(clean(b.nomeObra || b.nome), 'gl', { sensitivity: 'base' })).slice(0, 120);
+    select.innerHTML = '<option value="">Escolle unha obra…</option>' + works.map((work) => `<option value="${esc(clean(work.idRepertorio || work.id))}">${esc([work.nomeObra || work.nome, work.compositor].filter(Boolean).join(' — '))}</option>`).join('');
+  }
+
+  function renderWorks() {
+    const box = $('#works-list');
+    const total = $('#works-count');
+    if (!(box instanceof HTMLElement)) return;
+    const rows = workRows().map((row) => ({ row, id: idObra(row), work: workById(idObra(row)) }));
+    if (total instanceof HTMLElement) total.textContent = `${rows.length} obra${rows.length === 1 ? '' : 's'}`;
+    box.innerHTML = rows.length ? rows.map(({ id, work }, index) => `<article class="work-row ${isValidWork(work) ? '' : 'invalid-work'}"><span class="work-order">${isValidWork(work) ? index + 1 : '!'}</span><div><strong>${esc(isValidWork(work) ? work.nomeObra || work.nome : 'Rexistro de obra incorrecto')}</strong><small>${esc(isValidWork(work) ? work.compositor || '' : `Referencia: ${id}`)}</small></div><button type="button" class="remove-work danger draft-action" data-work-id="${esc(id)}">Eliminar</button></article>`).join('') : '<p class="empty">Aínda non hai obras asignadas a este ensaio.</p>';
     updateWorkPicker();
   }
 
-  function renderAttendance(){
-    const box=$('#attendance-list'), n=$('#attendance-count'); if(!(box instanceof HTMLElement))return;
-    const map=new Map(attendanceRows().map(a=>[clean(a.persoa||a.idPersoa),a]));
-    const people=(payload?.persoas||[]).filter(p=>idPersoa(p)&&clean(p.voz)&& (selectedVoice==='Todos'||norm(p.voz)===norm(selectedVoice))).sort((a,b)=>{const vDiff=getVoiceRank(a.voz)-getVoiceRank(b.voz); if(vDiff!==0) return vDiff; return nomeOrden(a).localeCompare(nomeOrden(b),'gl',{sensitivity:'base'});});
-    const present=people.filter(p=>norm(map.get(idPersoa(p))?.estadoAsistencia)==='asiste').length;
-    if(n instanceof HTMLElement)n.textContent=`${present}/${people.length}`;
-    box.innerHTML=people.map(p=>{const a=map.get(idPersoa(p))||{}, state=norm(a.estadoAsistencia), justified=a.xustificada===true||String(a.xustificada).toLowerCase()==='true';return `<article class="person-row" data-person="${esc(idPersoa(p))}"><div><strong>${esc(nomePersoa(p))}</strong><small>${esc(p.voz||'')}</small></div><div class="attendance-actions"><button data-att="asiste" class="${state==='asiste'?'is-selected':''}">Asiste</button><button data-att="non" class="${state==='non asiste'&&!justified?'is-selected negative':''}">Non asiste</button><button data-att="xustificada" class="${state==='non asiste'&&justified?'is-selected justified':''}">Xustificada</button></div><span class="row-status"></span></article>`}).join('')||'<p class="empty">Non hai persoas nesta selección.</p>';
+  function attendanceState(row) {
+    if (!row) return '';
+    if (norm(row.estadoAsistencia) === 'asiste') return 'asiste';
+    if (norm(row.estadoAsistencia) === 'non asiste') return truthy(row.xustificada) ? 'xustificada' : 'non';
+    return '';
+  }
+  function renderAttendance() {
+    const box = $('#attendance-list');
+    const total = $('#attendance-count');
+    if (!(box instanceof HTMLElement)) return;
+    const map = new Map(attendanceRows().map((row) => [idPersoa(row), row]));
+    const people = (payload?.persoas || []).filter((p) => idPersoa(p) && clean(p.voz) && (selectedVoice === 'Todos' || norm(p.voz) === norm(selectedVoice))).sort((a, b) => {
+      const diff = getVoiceRank(a.voz) - getVoiceRank(b.voz);
+      return diff !== 0 ? diff : nomeOrden(a).localeCompare(nomeOrden(b), 'gl', { sensitivity: 'base' });
+    });
+    const present = people.filter((p) => attendanceState(map.get(idPersoa(p))) === 'asiste').length;
+    if (total instanceof HTMLElement) total.textContent = `${present}/${people.length}`;
+    box.innerHTML = people.map((p) => {
+      const state = attendanceState(map.get(idPersoa(p)));
+      return `<article class="person-row" data-person="${esc(idPersoa(p))}"><div><strong>${esc(nomePersoa(p))}</strong><small>${esc(p.voz || '')}</small></div><div class="attendance-actions"><button type="button" data-att="asiste" class="draft-action ${state === 'asiste' ? 'is-selected' : ''}">Asiste</button><button type="button" data-att="non" class="draft-action ${state === 'non' ? 'is-selected negative' : ''}">Non asiste</button><button type="button" data-att="xustificada" class="draft-action ${state === 'xustificada' ? 'is-selected justified' : ''}">Xustificada</button></div><span class="row-status"></span></article>`;
+    }).join('') || '<p class="empty">Non hai persoas nesta selección.</p>';
+    updateDraftControls();
   }
 
-  function renderAvisos(){
-    const box=$('#avisos-list'),n=$('#avisos-count'),badge=$('#avisos-badge'),status=$('#avisos-status');
-    if(!(box instanceof HTMLElement))return;
-    if(!rehearsalDraft){box.innerHTML='<p class="empty">Cargando avisos…</p>';if(n)n.textContent='0';if(badge)badge.textContent='';return;}
-    const confirmed=new Map(attendanceRows().map(a=>[clean(a.persoa||a.idPersoa),a]));
-    const pending=(rehearsalDraft.asistencias||[]).filter(a=>{const pid=clean(a.persoa||a.idPersoa);if(!pid)return false;if(norm(a.estadoAsistencia)!=='non asiste')return false;const conf=confirmed.get(pid);return !conf||norm(conf.estadoAsistencia)!=='non asiste';});
-    const rows=pending.map(a=>{const pid=clean(a.persoa||a.idPersoa);const p=(payload?.persoas||[]).find(x=>idPersoa(x)===pid)||null;return{pid,a,p};}).filter(x=>x.p);
-    if(n)n.textContent=String(rows.length);if(badge)badge.textContent=rows.length?` (${rows.length})`:'';if(status)status.textContent='';
-    if(!rows.length){box.innerHTML='<p class="empty">Non hai avisos pendentes de coralistas para este ensaio.</p>';return;}
-    box.innerHTML=rows.map(({pid,a,p})=>{const xust=a.xustificada===true||String(a.xustificada).toLowerCase()==='true';return `<article class="aviso-row"><div><strong>${esc(nomePersoa(p))}</strong><small>${esc(p.voz||'')}${xust?' · Non asiste con xustificación':' · Non asiste'}${a.motivo?` · ${esc(a.motivo)}`:''}</small></div><button type="button" class="accept-aviso primary" data-person="${esc(pid)}" data-xust="${xust}" data-motivo="${esc(a.motivo||'')}">Aceptar</button></article>`;}).join('');
+  function renderAvisos() {
+    const box = $('#avisos-list');
+    const total = $('#avisos-count');
+    const badge = $('#avisos-badge');
+    if (!(box instanceof HTMLElement)) return;
+    if (total instanceof HTMLElement) total.textContent = String(avisos.length);
+    if (badge instanceof HTMLElement) badge.textContent = avisos.length ? ` (${avisos.length})` : '';
+    box.innerHTML = avisos.length ? avisos.map((aviso) => `<article class="aviso-row"><div><strong>${esc(aviso.nome || aviso.idPersoa)}</strong><small>${esc(aviso.voz || '')} · ${aviso.xustificada ? 'Non asiste con xustificación' : 'Non asiste'}${aviso.motivo ? ` · ${esc(aviso.motivo)}` : ''}</small></div><button type="button" class="accept-aviso primary draft-action" data-person="${esc(aviso.idPersoa)}" ${aviso.aceptadoEnBorrador ? 'disabled' : ''}>${aviso.aceptadoEnBorrador ? 'Aceptado no borrador' : 'Aceptar'}</button></article>`).join('') : '<p class="empty">Non hai avisos pendentes de coralistas para este ensaio.</p>';
+    updateDraftControls();
   }
 
-  function openManage(item){
-    selected=fullRehearsal(item.idEnsaio)||item; rehearsalDraft=null;
-    const dialog=$('#manage-dialog'); if(!(dialog instanceof HTMLDialogElement))return;
-    const title=$('#manage-title'), meta=$('#manage-meta');
-    if(title)title.textContent=selected.tipoEnsaio||'Ensaio';
-    if(meta)meta.textContent=[fmt(selected.data),selected.horaInicio,selected.lugar].filter(Boolean).join(' · ');
-    selectedVoice='Todos'; document.querySelectorAll('[data-voice]').forEach(b=>b.classList.toggle('is-active',b.dataset.voice==='Todos'));
-    fillConcerts(); renderWorks(); renderAttendance(); renderAvisos(); dialog.showModal();
-    draftApi('obter').then(r=>{rehearsalDraft=r.draft||null;renderAvisos();}).catch(()=>{});
+  function setFinalStatus(text, tone = '') {
+    const node = $('#ensaios-final-status');
+    if (!(node instanceof HTMLElement)) return;
+    node.textContent = text;
+    node.dataset.tone = tone;
+  }
+  function updateDraftControls() {
+    const finalButton = $('#finalizar-ensaio');
+    const reloadButton = $('#descartar-ensaio');
+    if (finalButton instanceof HTMLButtonElement) finalButton.disabled = busy || conflito || draft?.dirty !== true;
+    if (reloadButton instanceof HTMLButtonElement) reloadButton.disabled = busy;
+    document.querySelectorAll('#manage-dialog .draft-action').forEach((node) => { if (node instanceof HTMLButtonElement) node.disabled = node.disabled || busy || conflito; });
+    if (conflito) setFinalStatus('A Sheet cambiou desde que se abriu este borrador · recarga antes de continuar', 'error');
+    else if (draft?.dirty === true) setFinalStatus('Cambios gardados en R2 · pendentes de finalizar');
+    else setFinalStatus('Sen cambios pendentes');
+  }
+  function renderManage() { renderWorks(); renderAttendance(); renderAvisos(); updateDraftControls(); }
+
+  async function refreshIndex(force = true) {
+    const result = await call('/api/ensaios-admin-xestion', 'listar', { forzar: force });
+    payload = result.index;
+    ensaios = prepararLista(payload);
+    fillConcerts();
+    draw();
+    return result;
   }
 
-  async function refreshFull(forzar=false){payload=await ensaiosApi('listarEnsaiosPortal',{forzar});fillConcerts();}
-  async function load(){
-    if(loading instanceof HTMLElement)loading.hidden=false;if(errorState instanceof HTMLElement)errorState.hidden=true;if(app instanceof HTMLElement)app.hidden=true;
-    try{
-      const user=await waitForPortalUser(); if(!user?.email)throw new Error('Non hai unha sesión válida.');
-      const email=$('#user-email'); if(email)email.textContent=user.email;
-      const admin=await adminApi('listar'); ensaios=Array.isArray(admin.ensaios)?admin.ensaios:[];
-      const level=$('#user-level'); if(level)level.textContent=admin.nivel||'Administración';
-      await refreshFull(false);
-      if(loading instanceof HTMLElement)loading.hidden=true;if(app instanceof HTMLElement)app.hidden=false;draw();
-    }catch(error){if(loading instanceof HTMLElement)loading.hidden=true;if(errorState instanceof HTMLElement)errorState.hidden=false;if(errorMessage instanceof HTMLElement)errorMessage.textContent=error instanceof Error?error.message:'Produciuse un erro inesperado.';}
+  async function load() {
+    if (loading instanceof HTMLElement) loading.hidden = false;
+    if (errorState instanceof HTMLElement) errorState.hidden = true;
+    if (app instanceof HTMLElement) app.hidden = true;
+    try {
+      const user = await waitForPortalUser();
+      if (!user?.email) throw new Error('Non hai unha sesión válida.');
+      const email = $('#user-email');
+      if (email instanceof HTMLElement) email.textContent = user.email;
+      const result = await refreshIndex(true);
+      const level = $('#user-level');
+      if (level instanceof HTMLElement) level.textContent = result.nivel || 'ensaios';
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (app instanceof HTMLElement) app.hidden = false;
+    } catch (error) {
+      if (loading instanceof HTMLElement) loading.hidden = true;
+      if (errorState instanceof HTMLElement) errorState.hidden = false;
+      if (errorMessage instanceof HTMLElement) errorMessage.textContent = error instanceof Error ? error.message : 'Produciuse un erro inesperado.';
+    }
   }
 
-  filter?.addEventListener('change',draw); $('#retry')?.addEventListener('click',load); $('#admin-ensaios-logout')?.addEventListener('click',async()=>{await closePortalSession();location.href='/';});
-  document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>{const d=document.getElementById(button.dataset.close||'');if(d instanceof HTMLDialogElement)d.close();}));
+  async function openManage(item) {
+    selected = item;
+    selectedVoice = 'Todos';
+    draft = null;
+    avisos = [];
+    conflito = false;
+    document.querySelectorAll('[data-voice]').forEach((node) => node.classList.toggle('is-active', node.dataset.voice === 'Todos'));
+    const title = $('#manage-title');
+    const meta = $('#manage-meta');
+    if (title instanceof HTMLElement) title.textContent = item.tipoEnsaio || 'Ensaio';
+    if (meta instanceof HTMLElement) meta.textContent = [fmt(item.data), item.horaInicio, item.lugar].filter(Boolean).join(' · ');
+    const dialog = $('#manage-dialog');
+    if (dialog instanceof HTMLDialogElement) dialog.showModal();
+    setFinalStatus('Comprobando estado confirmado en Sheet…');
+    try {
+      const result = await xestionApi('obterXestion', { refrescarBase: true });
+      draft = result.draft;
+      avisos = Array.isArray(result.avisos) ? result.avisos : [];
+      conflito = result.conflito === true;
+      renderManage();
+    } catch (error) {
+      setFinalStatus(error instanceof Error ? error.message : String(error), 'error');
+    }
+  }
 
-  $('#new-rehearsal')?.addEventListener('click',()=>{const form=$('#new-form');if(form instanceof HTMLFormElement)form.reset();fillConcerts();const d=$('#new-dialog');if(d instanceof HTMLDialogElement)d.showModal();});
-  $('#new-form')?.addEventListener('submit',async(event)=>{event.preventDefault();const form=event.currentTarget,status=$('#new-status');if(!(form instanceof HTMLFormElement))return;const data=Object.fromEntries(new FormData(form).entries());try{if(status)status.textContent='Gardando…';await ensaiosApi('gardarEnsaio',{...data,cancelado:false});await refreshFull(true);await load();const d=$('#new-dialog');if(d instanceof HTMLDialogElement)d.close();}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);}});
+  filter?.addEventListener('change', draw);
+  $('#retry')?.addEventListener('click', load);
+  $('#admin-ensaios-logout')?.addEventListener('click', async () => { await closePortalSession(); location.href = '/'; });
+  document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => { const dialog = document.getElementById(button.dataset.close || ''); if (dialog instanceof HTMLDialogElement) dialog.close(); }));
 
-  list?.addEventListener('click',(event)=>{
-    const target=event.target;if(!(target instanceof HTMLButtonElement))return;
-    const item=ensaios.find(i=>i.idEnsaio===target.dataset.id);if(!item)return;
-    if(target.classList.contains('manage'))openManage(item);
-    if(target.classList.contains('change-date')){selected=item;const d=$('#date-dialog'),input=$('#new-date'),name=$('#date-name');if(name)name.textContent=`${item.tipoEnsaio||'Ensaio'} · ${fmt(item.data)}`;if(input instanceof HTMLInputElement)input.value=clean(item.data).slice(0,10);if(d instanceof HTMLDialogElement)d.showModal();}
-    if(target.classList.contains('cancel-rehearsal')){selected=item;const d=$('#cancel-dialog'),name=$('#cancel-name');if(name)name.textContent=`${item.tipoEnsaio||'Ensaio'} · ${fmt(item.data)}`;if(d instanceof HTMLDialogElement)d.showModal();}
-    if(target.classList.contains('delete-rehearsal')){selected=item;const d=$('#delete-dialog'),name=$('#delete-name'),confirm=$('#delete-confirm'),submit=$('#delete-submit'),status=$('#delete-status');if(name)name.textContent=`${item.tipoEnsaio||'Ensaio'} · ${fmt(item.data)}`;if(confirm instanceof HTMLInputElement)confirm.value='';if(submit instanceof HTMLButtonElement)submit.disabled=true;if(status)status.textContent='';if(d instanceof HTMLDialogElement)d.showModal();}
+  $('#new-rehearsal')?.addEventListener('click', () => {
+    const form = $('#new-form');
+    if (form instanceof HTMLFormElement) form.reset();
+    const status = $('#new-status');
+    if (status instanceof HTMLElement) status.textContent = '';
+    fillConcerts();
+    const dialog = $('#new-dialog');
+    if (dialog instanceof HTMLDialogElement) dialog.showModal();
+  });
+  $('#new-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const status = $('#new-status');
+    if (!(form instanceof HTMLFormElement)) return;
+    const data = Object.fromEntries(new FormData(form).entries());
+    try {
+      if (status instanceof HTMLElement) status.textContent = 'Gardando…';
+      const result = await adminApi('crear', data);
+      payload = result.index;
+      ensaios = prepararLista(payload);
+      fillConcerts();
+      draw();
+      const dialog = $('#new-dialog');
+      if (dialog instanceof HTMLDialogElement) dialog.close();
+      const aviso = clean(result.resultado?.avisoPrograma);
+      if (aviso) window.alert(aviso);
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
   });
 
-  $('#date-form')?.addEventListener('submit',async(event)=>{event.preventDefault();const input=$('#new-date'),status=$('#date-status');if(!selected||!(input instanceof HTMLInputElement)||!input.value)return;try{if(status)status.textContent='Gardando…';await adminApi('cambiarData',{idEnsaio:selected.idEnsaio,data:input.value});const d=$('#date-dialog');if(d instanceof HTMLDialogElement)d.close();await load();}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);}});
-  $('#cancel-form')?.addEventListener('submit',async(event)=>{event.preventDefault();const status=$('#cancel-status');if(!selected)return;try{if(status)status.textContent='Gardando…';await adminApi('darBaixa',{idEnsaio:selected.idEnsaio});const d=$('#cancel-dialog');if(d instanceof HTMLDialogElement)d.close();await load();}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);}});
-  $('#delete-confirm')?.addEventListener('input',(event)=>{const target=event.target,submit=$('#delete-submit');if(submit instanceof HTMLButtonElement)submit.disabled=!(target instanceof HTMLInputElement&&target.value.trim().toUpperCase()==='ELIMINAR');});
-  $('#delete-form')?.addEventListener('submit',async(event)=>{event.preventDefault();const status=$('#delete-status'),confirm=$('#delete-confirm');if(!selected||!(confirm instanceof HTMLInputElement)||confirm.value.trim().toUpperCase()!=='ELIMINAR')return;try{if(status)status.textContent='Eliminando…';await adminV2Api('eliminar',{idEnsaio:selected.idEnsaio});const d=$('#delete-dialog');if(d instanceof HTMLDialogElement)d.close();selected=null;await load();}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);}});
+  list?.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) return;
+    const item = ensaios.find((row) => row.idEnsaio === target.dataset.id);
+    if (!item) return;
+    if (target.classList.contains('manage')) { void openManage(item); return; }
+    if (target.classList.contains('change-date')) {
+      selected = item;
+      const dialog = $('#date-dialog'), input = $('#new-date'), name = $('#date-name');
+      if (name instanceof HTMLElement) name.textContent = `${item.tipoEnsaio || 'Ensaio'} · ${fmt(item.data)}`;
+      if (input instanceof HTMLInputElement) input.value = clean(item.data).slice(0, 10);
+      if (dialog instanceof HTMLDialogElement) dialog.showModal();
+      return;
+    }
+    if (target.classList.contains('cancel-rehearsal')) {
+      selected = item;
+      const dialog = $('#cancel-dialog'), name = $('#cancel-name');
+      if (name instanceof HTMLElement) name.textContent = `${item.tipoEnsaio || 'Ensaio'} · ${fmt(item.data)}`;
+      if (dialog instanceof HTMLDialogElement) dialog.showModal();
+      return;
+    }
+    if (target.classList.contains('delete-rehearsal')) {
+      selected = item;
+      const dialog = $('#delete-dialog'), name = $('#delete-name'), confirm = $('#delete-confirm'), submit = $('#delete-submit'), status = $('#delete-status');
+      if (name instanceof HTMLElement) name.textContent = `${item.tipoEnsaio || 'Ensaio'} · ${fmt(item.data)}`;
+      if (confirm instanceof HTMLInputElement) confirm.value = '';
+      if (submit instanceof HTMLButtonElement) submit.disabled = true;
+      if (status instanceof HTMLElement) status.textContent = '';
+      if (dialog instanceof HTMLDialogElement) dialog.showModal();
+    }
+  });
 
-  document.querySelectorAll('[data-panel]').forEach(button=>button.addEventListener('click',()=>{const panel=button.dataset.panel;document.querySelectorAll('[data-panel]').forEach(b=>b.classList.toggle('is-active',b===button));$('#panel-repertorio').hidden=panel!=='repertorio';$('#panel-asistencia').hidden=panel!=='asistencia';$('#panel-avisos').hidden=panel!=='avisos';}));
-  document.querySelectorAll('[data-voice]').forEach(button=>button.addEventListener('click',()=>{selectedVoice=button.dataset.voice||'Todos';document.querySelectorAll('[data-voice]').forEach(b=>b.classList.toggle('is-active',b===button));renderAttendance();}));
-  $('#work-search')?.addEventListener('input',updateWorkPicker);
-  $('#add-work')?.addEventListener('click',async()=>{const select=$('#work-select'),status=$('#works-status');if(!selected||!(select instanceof HTMLSelectElement)||!select.value)return;try{if(status)status.textContent='Gardando…';await draftApi('reiniciar');await draftApi('gardarObra',{idRepertorio:select.value});await draftApi('finalizar');await refreshFull(true);selected=fullRehearsal(idEnsaio(selected))||selected;renderWorks();if(status)status.textContent='Obra engadida.';}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);}});
-  $('#works-list')?.addEventListener('click',async(event)=>{const target=event.target;if(!(target instanceof HTMLButtonElement)||!target.classList.contains('remove-work')||!selected)return;const id=clean(target.dataset.workId),status=$('#works-status');if(!id)return;if(!window.confirm('Eliminar esta obra do ensaio?'))return;try{target.disabled=true;if(status)status.textContent='Eliminando obra…';await draftApi('reiniciar');await draftApi('eliminarObra',{idRepertorio:id});await draftApi('finalizar');await refreshFull(true);selected=fullRehearsal(idEnsaio(selected))||selected;renderWorks();if(status)status.textContent='Obra eliminada.';}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);target.disabled=false;}});
-  $('#include-program')?.addEventListener('click',async()=>{const select=$('#program-concert'),status=$('#works-status');if(!selected||!(select instanceof HTMLSelectElement)||!select.value)return;try{if(status)status.textContent='Incluíndo programa…';await draftApi('reiniciar');const r=await draftApi('incluírProgramaConcerto',{idConcerto:select.value});await draftApi('finalizar');await refreshFull(true);selected=fullRehearsal(idEnsaio(selected))||selected;renderWorks();if(status)status.textContent=`Programa cargado: ${r.engadidas||0} obras.`;}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);}});
-  $('#attendance-list')?.addEventListener('click',async(event)=>{const target=event.target;if(!(target instanceof HTMLButtonElement)||!target.dataset.att||!selected)return;const row=target.closest('.person-row');if(!(row instanceof HTMLElement))return;const pid=clean(row.dataset.person);let estado='Non asiste',xustificada=false,motivo='';if(target.dataset.att==='asiste')estado='Asiste';if(target.dataset.att==='xustificada'){xustificada=true;motivo=window.prompt('Motivo da xustificación (opcional):','')||'';}const status=row.querySelector('.row-status');try{if(status)status.textContent='Gardando…';await ensaiosApi('gardarAsistenciaEnsaio',{idEnsaio:idEnsaio(selected),idPersoa:pid,estadoAsistencia:estado,xustificada,motivo,observacions:''});await refreshFull(true);selected=fullRehearsal(idEnsaio(selected))||selected;renderAttendance();}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);}});
+  $('#date-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const input = $('#new-date'), status = $('#date-status');
+    if (!selected || !(input instanceof HTMLInputElement) || !input.value) return;
+    try {
+      if (status instanceof HTMLElement) status.textContent = 'Gardando…';
+      const result = await adminApi('cambiarData', { idEnsaio: selected.idEnsaio, data: input.value });
+      payload = result.index; ensaios = prepararLista(payload); fillConcerts(); draw();
+      const dialog = $('#date-dialog'); if (dialog instanceof HTMLDialogElement) dialog.close();
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
+  });
+  $('#cancel-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const status = $('#cancel-status');
+    if (!selected) return;
+    try {
+      if (status instanceof HTMLElement) status.textContent = 'Gardando…';
+      const result = await adminApi('darBaixa', { idEnsaio: selected.idEnsaio });
+      payload = result.index; ensaios = prepararLista(payload); fillConcerts(); draw();
+      const dialog = $('#cancel-dialog'); if (dialog instanceof HTMLDialogElement) dialog.close();
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
+  });
+  $('#delete-confirm')?.addEventListener('input', (event) => {
+    const target = event.target, submit = $('#delete-submit');
+    if (submit instanceof HTMLButtonElement) submit.disabled = !(target instanceof HTMLInputElement && target.value.trim().toUpperCase() === 'ELIMINAR');
+  });
+  $('#delete-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const status = $('#delete-status'), confirm = $('#delete-confirm');
+    if (!selected || !(confirm instanceof HTMLInputElement) || confirm.value.trim().toUpperCase() !== 'ELIMINAR') return;
+    try {
+      if (status instanceof HTMLElement) status.textContent = 'Eliminando…';
+      const result = await adminApi('eliminar', { idEnsaio: selected.idEnsaio });
+      payload = result.index; ensaios = prepararLista(payload); selected = null; fillConcerts(); draw();
+      const dialog = $('#delete-dialog'); if (dialog instanceof HTMLDialogElement) dialog.close();
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
+  });
 
-  $('#avisos-list')?.addEventListener('click',async(event)=>{const target=event.target;if(!(target instanceof HTMLButtonElement)||!target.classList.contains('accept-aviso')||!selected)return;const pid=clean(target.dataset.person),xust=target.dataset.xust==='true',motivo=clean(target.dataset.motivo),status=$('#avisos-status');if(!pid)return;try{target.disabled=true;if(status)status.textContent='Aceptando aviso…';await ensaiosApi('gardarAsistenciaEnsaio',{idEnsaio:idEnsaio(selected),idPersoa:pid,estadoAsistencia:'Non asiste',xustificada:xust,motivo,observacions:''});await refreshFull(true);selected=fullRehearsal(idEnsaio(selected))||selected;renderAvisos();renderAttendance();if(status)status.textContent='Aviso aceptado.';}catch(e){if(status)status.textContent=e instanceof Error?e.message:String(e);target.disabled=false;}});
+  document.querySelectorAll('[data-panel]').forEach((button) => button.addEventListener('click', () => {
+    const panel = button.dataset.panel;
+    document.querySelectorAll('[data-panel]').forEach((node) => node.classList.toggle('is-active', node === button));
+    $('#panel-repertorio').hidden = panel !== 'repertorio';
+    $('#panel-asistencia').hidden = panel !== 'asistencia';
+    $('#panel-avisos').hidden = panel !== 'avisos';
+  }));
+  document.querySelectorAll('[data-voice]').forEach((button) => button.addEventListener('click', () => {
+    selectedVoice = button.dataset.voice || 'Todos';
+    document.querySelectorAll('[data-voice]').forEach((node) => node.classList.toggle('is-active', node === button));
+    renderAttendance();
+  }));
+  $('#work-search')?.addEventListener('input', updateWorkPicker);
+
+  $('#add-work')?.addEventListener('click', async () => {
+    const select = $('#work-select'), status = $('#works-status');
+    if (!selected || !(select instanceof HTMLSelectElement) || !select.value || busy || conflito) return;
+    try {
+      if (status instanceof HTMLElement) status.textContent = 'Gardando en R2…';
+      const result = await xestionApi('gardarObra', { idRepertorio: select.value });
+      draft = result.draft; renderWorks(); updateDraftControls();
+      if (status instanceof HTMLElement) status.textContent = 'Obra gardada en R2.';
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
+  });
+  $('#works-list')?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement) || !target.classList.contains('remove-work') || !selected || busy || conflito) return;
+    const id = clean(target.dataset.workId), status = $('#works-status');
+    if (!id || !window.confirm('Eliminar esta obra do ensaio?')) return;
+    try {
+      if (status instanceof HTMLElement) status.textContent = 'Eliminando do borrador R2…';
+      const result = await xestionApi('eliminarObra', { idRepertorio: id });
+      draft = result.draft; renderWorks(); updateDraftControls();
+      if (status instanceof HTMLElement) status.textContent = 'Obra eliminada do borrador R2.';
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
+  });
+  $('#include-program')?.addEventListener('click', async () => {
+    const select = $('#program-concert'), status = $('#works-status');
+    if (!selected || !(select instanceof HTMLSelectElement) || !select.value || busy || conflito) return;
+    try {
+      if (status instanceof HTMLElement) status.textContent = 'Cargando programa en R2…';
+      const result = await xestionApi('incluírProgramaConcerto', { idConcerto: select.value });
+      draft = result.draft; renderWorks(); updateDraftControls();
+      if (status instanceof HTMLElement) status.textContent = `Programa cargado en R2: ${Number(result.engadidas || 0)} obras.`;
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
+  });
+
+  $('#attendance-list')?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement) || !target.dataset.att || !selected || !draft || busy || conflito) return;
+    const row = target.closest('.person-row');
+    if (!(row instanceof HTMLElement)) return;
+    const pid = clean(row.dataset.person), status = row.querySelector('.row-status');
+    const current = attendanceState(attendanceRows().find((a) => idPersoa(a) === pid));
+    const clicked = clean(target.dataset.att);
+    const next = current === clicked ? '' : clicked;
+    try {
+      let result;
+      if (!next) result = await xestionApi('quitarAsistencia', { idPersoa: pid });
+      else {
+        const motivo = next === 'xustificada' ? window.prompt('Motivo da xustificación (opcional):', '') || '' : '';
+        result = await xestionApi('gardarAsistencia', { idPersoa: pid, estadoAsistencia: next === 'asiste' ? 'Asiste' : 'Non asiste', xustificada: next === 'xustificada', motivo, observacions: '' });
+      }
+      draft = result.draft; renderAttendance(); updateDraftControls();
+      if (status instanceof HTMLElement) status.textContent = 'Gardado en R2';
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
+  });
+
+  $('#avisos-list')?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement) || !target.classList.contains('accept-aviso') || busy || conflito) return;
+    const aviso = avisos.find((row) => clean(row.idPersoa) === clean(target.dataset.person));
+    if (!aviso) return;
+    const status = $('#avisos-status');
+    try {
+      const result = await xestionApi('gardarAsistencia', { idPersoa: aviso.idPersoa, estadoAsistencia: 'Non asiste', xustificada: aviso.xustificada === true, motivo: aviso.motivo || '', observacions: aviso.observacions || '' });
+      draft = result.draft;
+      aviso.aceptadoEnBorrador = true;
+      renderAttendance(); renderAvisos(); updateDraftControls();
+      if (status instanceof HTMLElement) status.textContent = 'Aviso aceptado no borrador R2. Finaliza o ensaio para confirmalo en Sheet.';
+    } catch (error) { if (status instanceof HTMLElement) status.textContent = error instanceof Error ? error.message : String(error); }
+  });
+
+  $('#descartar-ensaio')?.addEventListener('click', async () => {
+    if (!selected || busy) return;
+    if (draft?.dirty === true && !window.confirm('Descartar os cambios pendentes en R2 e recargar o estado actual da Sheet?')) return;
+    busy = true; updateDraftControls(); setFinalStatus('Recargando desde Sheet…');
+    try {
+      const result = await xestionApi('descartar');
+      draft = result.draft; avisos = Array.isArray(result.avisos) ? result.avisos : []; conflito = false;
+      payload = result.index || payload; ensaios = prepararLista(payload); fillConcerts(); draw(); renderManage();
+      setFinalStatus('Estado actualizado desde Sheet');
+    } catch (error) { setFinalStatus(error instanceof Error ? error.message : String(error), 'error'); }
+    finally { busy = false; updateDraftControls(); }
+  });
+
+  $('#finalizar-ensaio')?.addEventListener('click', async () => {
+    if (!selected || !draft || draft.dirty !== true || busy || conflito) return;
+    busy = true; updateDraftControls(); setFinalStatus('Sincronizando con Sheet…');
+    try {
+      const result = await xestionApi('finalizar');
+      draft = result.draft; avisos = Array.isArray(result.avisos) ? result.avisos : []; conflito = false;
+      payload = result.index || payload; ensaios = prepararLista(payload); fillConcerts(); draw(); renderManage();
+      setFinalStatus('Ensaio finalizado e sincronizado con Sheet');
+    } catch (error) {
+      if (error?.code === 'DRAFT_CONFLICT') conflito = true;
+      setFinalStatus(error instanceof Error ? error.message : String(error), 'error');
+    } finally { busy = false; updateDraftControls(); }
+  });
 
   load();
 </script>
 
 <style is:global>
-  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.admin-rehearsals-main{flex:1;min-width:0;padding:2.1rem clamp(1.25rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.8rem}.section-kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.private-page-header h1{margin:.2rem 0 .55rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.5rem)}.private-page-header p{max-width:760px;margin:0;color:#625c58}.account-card{display:grid;gap:.7rem;min-width:250px;padding:1rem 1.15rem;border:1px solid #ded8d3;background:#fff}.account-card span{display:grid;gap:.18rem}.account-card small{color:#77706b;font-size:.68rem;font-weight:700;text-transform:uppercase}.state-box,.toolbar,.rehearsal-card{border:1px solid #ded8d3;background:#fff}.state-box{padding:1.35rem}.error-box{color:#8b2d36}.toolbar{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;padding:1rem 1.15rem}.toolbar label{display:grid;gap:.4rem;width:min(360px,100%)}.toolbar select,.manage-dialog select,.manage-dialog input,dialog input,dialog textarea,dialog select{min-height:2.65rem;padding:.55rem .7rem;border:1px solid #d6cfca;background:#fff;font:inherit}.toolbar p{margin:0;color:#736c67}.rehearsal-list{display:grid;gap:.8rem}.rehearsal-card{display:grid;grid-template-columns:minmax(180px,1fr) minmax(250px,2fr) auto auto;align-items:center;gap:1rem;padding:1rem 1.15rem}.rehearsal-card.is-cancelled{opacity:.65}.rehearsal-date,.rehearsal-info{display:grid;gap:.25rem}.rehearsal-date small,.manage-shell small{color:#806f74;font-size:.7rem;font-weight:800;text-transform:uppercase}.rehearsal-info h2{margin:0;color:var(--color-principal);font-size:1rem}.rehearsal-info p{margin:0;color:#6f6561;font-size:.88rem}.meta{display:flex;gap:.75rem;flex-wrap:wrap;color:#806f74;font-size:.78rem}.rehearsal-state strong{display:inline-flex;padding:.32rem .55rem;border-radius:999px;background:#edf4ef;color:#3f6c50;font-size:.75rem}.is-cancelled .rehearsal-state strong{background:#f4eded;color:#843941}.actions{display:flex;gap:.4rem;flex-wrap:wrap}.admin-rehearsals-main button,dialog button{min-height:2.35rem;padding:.5rem .8rem;border-radius:4px;cursor:pointer;font-weight:800}.secondary{border:1px solid #cfc5c8;background:#fff;color:#4f333b}.primary{border:1px solid #5d142b;background:#5d142b;color:#fff}.danger{border:1px solid #8e3440;background:#fff7f7;color:#8e3440}.danger-solid{border:1px solid #8e3440;background:#8e3440;color:#fff}.danger-solid:disabled{opacity:.45;cursor:not-allowed}.wide-dialog{width:min(760px,calc(100vw - 2rem))}.manage-dialog{width:min(1050px,calc(100vw - 1.5rem));max-height:92vh;border:0;padding:0}.manage-shell{padding:1.2rem;max-height:88vh;overflow:auto}.manage-shell>header,.wide-dialog header,dialog form>header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding-bottom:1rem;border-bottom:1px solid #e7e0dd}.manage-shell h2,dialog h2{margin:.15rem 0}.manage-shell header p{margin:.25rem 0 0;color:#6f6561}.manage-tabs{display:flex;gap:.35rem;margin:1rem 0}.manage-tabs button{border:1px solid #d6cfca;background:#fff}.manage-tabs button.is-active{border-color:#5d142b;color:#5d142b}.manage-panel{display:grid;gap:1rem}.program-tools,.work-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.7rem;align-items:end}.program-tools label{display:grid;gap:.35rem}.work-tools{grid-template-columns:minmax(180px,.8fr) minmax(260px,1.2fr) auto}.section-heading{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ece6e2;padding-bottom:.5rem}.section-heading h3{margin:0}.works-list,.attendance-list{display:grid;gap:.55rem}.work-row,.person-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.75rem;border:1px solid #e1dbd7;background:#fff}.work-order{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:999px;background:#f3efed;font-weight:800}.work-row small,.person-row small{display:block;color:#77706b;margin-top:.15rem}.invalid-work{border-color:#ead5d8;background:#fffafa}.invalid-work strong{color:#843941}.attendance-actions{display:flex;gap:.3rem;flex-wrap:wrap}.attendance-actions button{border:1px solid #d2c9c6;background:#fff}.attendance-actions .is-selected{border-color:#4f725c;background:#edf4ef}.attendance-actions .negative{border-color:#8e3440;background:#fff5f6}.attendance-actions .justified{border-color:#927333;background:#fff9e9}.voice-tabs{display:flex;gap:.3rem;flex-wrap:wrap}.voice-tabs button{border:1px solid #d2c9c6;background:#fff}.voice-tabs button.is-active{border-color:#5d142b;color:#5d142b}.dialog-status{min-height:1.2rem;color:#7f343d}.empty{color:#7a716c}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:1rem 0}.form-grid label,dialog form>label{display:grid;gap:.35rem}.span-2{grid-column:1/-1}dialog{border:0;padding:0;box-shadow:0 18px 60px rgba(0,0,0,.22)}dialog::backdrop{background:rgba(35,27,29,.45)}dialog form{padding:1.25rem}dialog footer{display:flex;justify-content:flex-end;gap:.6rem;padding-top:1rem;border-top:1px solid #e7e0dd}.warning{padding:.8rem;border:1px solid #ead5d8;background:#fff8f8;color:#7f343d}
-  .avisos-list{display:grid;gap:.55rem}.aviso-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.75rem;border:1px solid #e8d8db;background:#fff9f9;border-radius:4px}.aviso-row div{display:grid;gap:.2rem}.aviso-row small{color:#7a313d;font-size:.8rem}#avisos-badge{color:#7a313d;font-weight:800}
+  body{background:#f5f3f1}.private-layout{display:flex;min-height:100vh}.admin-rehearsals-main{flex:1;min-width:0;padding:2.1rem clamp(1.25rem,3vw,3.5rem) 4rem;font-family:var(--fuente-minimalista)}.private-page-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;margin-bottom:1.8rem}.section-kicker{color:var(--color-acento);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.private-page-header h1{margin:.2rem 0 .55rem;color:var(--color-principal);font-size:clamp(2rem,4vw,3.5rem)}.private-page-header p{max-width:760px;margin:0;color:#625c58}.account-card{display:grid;gap:.7rem;min-width:250px;padding:1rem 1.15rem;border:1px solid #ded8d3;background:#fff}.account-card span{display:grid;gap:.18rem}.account-card small{color:#77706b;font-size:.68rem;font-weight:700;text-transform:uppercase}.state-box,.toolbar,.rehearsal-card{border:1px solid #ded8d3;background:#fff}.state-box{padding:1.35rem}.error-box{color:#8b2d36}.toolbar{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;padding:1rem 1.15rem}.toolbar label{display:grid;gap:.4rem;width:min(360px,100%)}.toolbar select,.manage-dialog select,.manage-dialog input,dialog input,dialog textarea,dialog select{min-height:2.65rem;padding:.55rem .7rem;border:1px solid #d6cfca;background:#fff;font:inherit}.toolbar p{margin:0;color:#736c67}.rehearsal-list{display:grid;gap:.8rem}.rehearsal-card{display:grid;grid-template-columns:minmax(180px,1fr) minmax(250px,2fr) auto auto;align-items:center;gap:1rem;padding:1rem 1.15rem}.rehearsal-card.is-cancelled{opacity:.65}.rehearsal-date,.rehearsal-info{display:grid;gap:.25rem}.rehearsal-date small,.manage-shell small{color:#806f74;font-size:.7rem;font-weight:800;text-transform:uppercase}.rehearsal-info h2{margin:0;color:var(--color-principal);font-size:1rem}.rehearsal-info p{margin:0;color:#6f6561;font-size:.88rem}.meta{display:flex;gap:.75rem;flex-wrap:wrap;color:#806f74;font-size:.78rem}.rehearsal-state strong{display:inline-flex;padding:.32rem .55rem;border-radius:999px;background:#edf4ef;color:#3f6c50;font-size:.75rem}.is-cancelled .rehearsal-state strong{background:#f4eded;color:#843941}.actions{display:flex;gap:.4rem;flex-wrap:wrap}.admin-rehearsals-main button,dialog button{min-height:2.35rem;padding:.5rem .8rem;border-radius:4px;cursor:pointer;font-weight:800}.secondary{border:1px solid #cfc5c8;background:#fff;color:#4f333b}.primary{border:1px solid #5d142b;background:#5d142b;color:#fff}.danger{border:1px solid #8e3440;background:#fff7f7;color:#8e3440}.danger-solid{border:1px solid #8e3440;background:#8e3440;color:#fff}button:disabled,.danger-solid:disabled{opacity:.45;cursor:not-allowed}.wide-dialog{width:min(760px,calc(100vw - 2rem))}.manage-dialog{width:min(1050px,calc(100vw - 1.5rem));max-height:92vh;border:0;padding:0}.manage-shell{padding:1.2rem;max-height:88vh;overflow:auto}.manage-shell>header,.wide-dialog header,dialog form>header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding-bottom:1rem;border-bottom:1px solid #e7e0dd}.manage-shell h2,dialog h2{margin:.15rem 0}.manage-shell header p{margin:.25rem 0 0;color:#6f6561}.manage-tabs{display:flex;gap:.35rem;margin:1rem 0}.manage-tabs button{border:1px solid #d6cfca;background:#fff}.manage-tabs button.is-active{border-color:#5d142b;color:#5d142b}.manage-panel{display:grid;gap:1rem}.program-tools,.work-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.7rem;align-items:end}.program-tools label{display:grid;gap:.35rem}.work-tools{grid-template-columns:minmax(180px,.8fr) minmax(260px,1.2fr) auto}.section-heading{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ece6e2;padding-bottom:.5rem}.section-heading h3{margin:0}.works-list,.attendance-list{display:grid;gap:.55rem}.work-row,.person-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.75rem;border:1px solid #e1dbd7;background:#fff}.work-order{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:999px;background:#f3efed;font-weight:800}.work-row small,.person-row small{display:block;color:#77706b;margin-top:.15rem}.invalid-work{border-color:#ead5d8;background:#fffafa}.invalid-work strong{color:#843941}.attendance-actions{display:flex;gap:.3rem;flex-wrap:wrap}.attendance-actions button{border:1px solid #d2c9c6;background:#fff}.attendance-actions .is-selected{border-color:#4f725c;background:#edf4ef}.attendance-actions .negative{border-color:#8e3440;background:#fff5f6}.attendance-actions .justified{border-color:#927333;background:#fff9e9}.voice-tabs{display:flex;gap:.3rem;flex-wrap:wrap}.voice-tabs button{border:1px solid #d2c9c6;background:#fff}.voice-tabs button.is-active{border-color:#5d142b;color:#5d142b}.dialog-status{min-height:1.2rem;color:#7f343d}.empty{color:#7a716c}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:1rem 0}.form-grid label,dialog form>label{display:grid;gap:.35rem}.span-2{grid-column:1/-1}dialog{border:0;padding:0;box-shadow:0 18px 60px rgba(0,0,0,.22)}dialog::backdrop{background:rgba(35,27,29,.45)}dialog form{padding:1.25rem}dialog footer{display:flex;justify-content:flex-end;gap:.6rem;padding-top:1rem;border-top:1px solid #e7e0dd}.warning{padding:.8rem;border:1px solid #ead5d8;background:#fff8f8;color:#7f343d}.avisos-list{display:grid;gap:.55rem}.aviso-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.75rem;border:1px solid #e8d8db;background:#fff9f9;border-radius:4px}.aviso-row div{display:grid;gap:.2rem}.aviso-row small{color:#7a313d;font-size:.8rem}#avisos-badge{color:#7a313d;font-weight:800}.ensaios-final-bar{position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:1rem;padding:.85rem 1rem;border-top:1px solid #ded8d3;background:#fff;z-index:4}.ensaios-final-actions{display:flex;gap:.6rem}.ensaios-final-bar span{font-size:.85rem;color:#6f6561}.ensaios-final-bar span[data-tone="error"]{color:#8e3440}
   @media(max-width:980px){.rehearsal-card{grid-template-columns:1fr 1fr}.actions{justify-content:flex-end}.work-tools{grid-template-columns:1fr}}
   @media(max-width:900px){.private-layout{display:block}.private-page-header,.toolbar{display:grid}.account-card{min-width:0}.rehearsal-card{grid-template-columns:1fr}.program-tools{grid-template-columns:1fr}.actions{justify-content:flex-start}}
-  @media(max-width:620px){
-    .admin-rehearsals-main{padding:1.05rem .7rem 2.5rem}
-    .admin-rehearsals-main .admin-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem;margin-bottom:1rem}
-    .admin-rehearsals-main .admin-nav-link{justify-content:center;min-width:0;min-height:2.15rem;padding:.42rem .3rem;font-size:.76rem;text-align:center}
-    .private-page-header{gap:1rem;margin-bottom:1rem}.private-page-header h1{font-size:2rem}.account-card{padding:.8rem}
-    .toolbar{padding:.8rem}.form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.manage-dialog{width:calc(100vw - .35rem);max-height:96vh}.manage-shell{padding:.72rem;max-height:94vh}
-    .manage-tabs button{flex:1}.program-tools,.work-tools{grid-template-columns:1fr}.program-tools button,.work-tools button{width:100%}
-    .work-row{grid-template-columns:2rem minmax(0,1fr) auto;gap:.5rem;padding:.6rem}.work-row .remove-work{min-height:2rem;padding:.38rem .5rem;font-size:.75rem}.person-row{grid-template-columns:1fr}.attendance-actions button{flex:1}
-    .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.actions button{width:100%}
-  }
+  @media(max-width:620px){.admin-rehearsals-main{padding:1.05rem .7rem 2.5rem}.admin-rehearsals-main .admin-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem;margin-bottom:1rem}.admin-rehearsals-main .admin-nav-link{justify-content:center;min-width:0;min-height:2.15rem;padding:.42rem .3rem;font-size:.76rem;text-align:center}.private-page-header{gap:1rem;margin-bottom:1rem}.private-page-header h1{font-size:2rem}.account-card{padding:.8rem}.toolbar{padding:.8rem}.form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.manage-dialog{width:calc(100vw - .35rem);max-height:96vh}.manage-shell{padding:.72rem;max-height:94vh}.manage-tabs button{flex:1}.program-tools,.work-tools{grid-template-columns:1fr}.program-tools button,.work-tools button{width:100%}.work-row{grid-template-columns:2rem minmax(0,1fr) auto;gap:.5rem;padding:.6rem}.work-row .remove-work{min-height:2rem;padding:.38rem .5rem;font-size:.75rem}.person-row{grid-template-columns:1fr}.attendance-actions button{flex:1}.actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.actions button{width:100%}.ensaios-final-bar{flex-direction:column;align-items:stretch}.ensaios-final-actions{flex-direction:column}.ensaios-final-actions button{width:100%}}
 </style>
