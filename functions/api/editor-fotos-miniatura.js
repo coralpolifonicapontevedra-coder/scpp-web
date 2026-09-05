@@ -1,11 +1,15 @@
+import { obterJsonAppsScript } from '../_lib/apps-script.js';
+
 const INDEX_REVISION = 'indices/revision-fotos-v1.json';
 const INDEX_PUBLICO = 'indices/galeria-publica-v1.json';
 const INDEX_PRIVADO = 'indices/galeria-privada.json';
 const CATALOGO = 'indices/catalogo-fotos.json';
 const PHOTO_AUTH_PREFIX = 'cache/autorizacion-fotos/';
 const ADMIN_AUTH_PREFIX = 'persoas/cache/administracion/';
+const REVISION_CACHE_PREFIX = 'fotos/revision-cache/';
 const AUTH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const AUTH_CACHE_VERSION = 2;
+const MAX_DRIVE_BYTES = 8 * 1024 * 1024;
 
 const texto = (valor) => String(valor ?? '').trim();
 const idFoto = (foto) => texto(
@@ -62,9 +66,7 @@ async function administracionCacheada(env, usuario) {
       datos?.administrador === true &&
       Number.isFinite(verificadaEn) &&
       Date.now() - verificadaEn < AUTH_TTL_MS
-    ) {
-      return true;
-    }
+    ) return true;
   }
 
   if (adminAuth) {
@@ -76,20 +78,21 @@ async function administracionCacheada(env, usuario) {
       datos?.payload?.perfil?.nivel === 'Administración' &&
       Number.isFinite(gardadoEn) &&
       Date.now() - gardadoEn < AUTH_TTL_MS
-    ) {
-      return true;
-    }
+    ) return true;
   }
 
   return false;
 }
 
 async function lerIndice(bucket, clave) {
-  if (!bucket) return [];
+  if (!bucket) return { fotos: [], raw: null };
   const obxecto = await bucket.get(clave);
-  if (!obxecto) return [];
+  if (!obxecto) return { fotos: [], raw: null };
   const indice = await obxecto.json().catch(() => null);
-  return Array.isArray(indice?.fotos) ? indice.fotos : [];
+  return {
+    fotos: Array.isArray(indice?.fotos) ? indice.fotos : [],
+    raw: indice
+  };
 }
 
 function localizarFoto(id, lista) {
@@ -141,6 +144,86 @@ async function obterPrimeiro(bucket, rutas) {
   return null;
 }
 
+function bytesDesdeBase64(valor) {
+  const raw = texto(valor);
+  if (!raw) return null;
+  const binario = atob(raw);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
+  return bytes;
+}
+
+function extensionMime(mimeType) {
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/webp') return 'webp';
+  return 'jpg';
+}
+
+async function gardarRutaRevision(env, id, ruta) {
+  const actual = await lerIndice(env.R2_PRIVADO, INDEX_REVISION);
+  const indice = actual.fotos.findIndex((foto) => idFoto(foto) === id);
+  if (indice === -1) return;
+
+  const fotos = [...actual.fotos];
+  fotos[indice] = {
+    ...fotos[indice],
+    rutaR2Traballo: ruta,
+    rutaR2Revision: ruta
+  };
+  const agora = new Date();
+  await env.R2_PRIVADO.put(INDEX_REVISION, JSON.stringify({
+    ...(actual.raw || {}),
+    ok: true,
+    fotos,
+    total: fotos.length,
+    xeradoEn: agora.toISOString(),
+    xeradoEnMs: agora.getTime(),
+    actualizadoDesde: 'DRIVE-FALLBACK-REVISION'
+  }), {
+    httpMetadata: {
+      contentType: 'application/json; charset=utf-8',
+      cacheControl: 'private, max-age=0, no-cache, must-revalidate'
+    }
+  });
+}
+
+async function recuperarDeDrive(env, usuario, id) {
+  if (!env.WEB_WRITE_TOKEN) return null;
+
+  const { resultado } = await obterJsonAppsScript(env, {
+    token: env.WEB_WRITE_TOKEN,
+    accion: 'obterFotoParaR2',
+    email: usuario.email,
+    uidFirebase: usuario.uid,
+    idFoto: id,
+    rowId: id,
+    publicarPrivada: true,
+    publicarPublica: false
+  }, { timeoutMs: 75_000, attemptTimeoutMs: 25_000 });
+
+  if (!resultado?.ok) return null;
+  const mimeType = texto(resultado.mimeType || 'image/jpeg').toLowerCase();
+  const bytes = bytesDesdeBase64(resultado.base64);
+  if (!bytes?.byteLength || bytes.byteLength > MAX_DRIVE_BYTES) return null;
+
+  const ruta = `${REVISION_CACHE_PREFIX}${id}.${extensionMime(mimeType)}`;
+  await env.R2_PRIVADO.put(ruta, bytes, {
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: 'private, max-age=86400'
+    },
+    customMetadata: {
+      idFoto: id,
+      orixe: 'drive-fallback-revision',
+      gardadoEn: new Date().toISOString()
+    }
+  });
+  await gardarRutaRevision(env, id, ruta);
+
+  const obxecto = await env.R2_PRIVADO.get(ruta);
+  return obxecto ? { obxecto, ruta } : null;
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') return json(405, { ok: false, erro: 'Método non permitido' });
   if (!env.R2_PRIVADO || !env.R2_PUBLICO || !env.FIREBASE_API_KEY) {
@@ -165,11 +248,12 @@ export async function onRequest({ request, env }) {
     lerIndice(env.R2_PUBLICO, INDEX_PUBLICO)
   ]);
 
+  const rexistroRevision = localizarFoto(identificador, revision.fotos);
   const rexistros = [
-    localizarFoto(identificador, revision),
-    localizarFoto(identificador, catalogo),
-    localizarFoto(identificador, privada),
-    localizarFoto(identificador, publica)
+    rexistroRevision,
+    localizarFoto(identificador, catalogo.fotos),
+    localizarFoto(identificador, privada.fotos),
+    localizarFoto(identificador, publica.fotos)
   ].filter(Boolean);
 
   if (!rexistros.length) {
@@ -193,7 +277,16 @@ export async function onRequest({ request, env }) {
     atopada = await obterPrimeiro(env.R2_PUBLICO, privadas);
     fonte = atopada ? 'R2-PUBLICO-COPIA-PRIVADA' : '';
   }
-  if (!atopada) return json(404, { ok: false, erro: 'A miniatura ou fotografía non está dispoñible en R2.' });
+
+  if (!atopada && rexistroRevision) {
+    atopada = await recuperarDeDrive(env, usuario, identificador).catch((erro) => {
+      console.warn(`Non se puido recuperar ${identificador} desde Drive:`, erro);
+      return null;
+    });
+    fonte = atopada ? 'DRIVE→R2-PRIVADO' : '';
+  }
+
+  if (!atopada) return json(404, { ok: false, erro: 'A miniatura ou fotografía non está dispoñible.' });
 
   const headers = new Headers();
   atopada.obxecto.writeHttpMetadata(headers);
