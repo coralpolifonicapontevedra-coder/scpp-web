@@ -45,14 +45,14 @@ describe('Fallback de fotografías aprobadas e miniaturas incompletas', () => {
 
   it('o fallback de miniatura acepta a caché central de Administración', () => {
     expect(miniatura).toContain("const ADMIN_AUTH_PREFIX = 'persoas/cache/administracion/'");
-    expect(miniatura).toContain('datos?.payload?.perfil?.nivel === \'Administración\'');
+    expect(miniatura).toContain("datos?.payload?.perfil?.nivel === 'Administración'");
     expect(miniatura).toContain('30 * 24 * 60 * 60 * 1000');
   });
 
   it('non perde rutas por campos baleiros dun índice máis novo ou antigo', () => {
     expect(miniatura).toContain('rutasCandidatasRexistros(rexistros');
-    expect(miniatura).toContain('localizarFoto(identificador, catalogo)');
-    expect(miniatura).toContain('localizarFoto(identificador, publica)');
+    expect(miniatura).toContain('localizarFoto(identificador, catalogo.fotos)');
+    expect(miniatura).toContain('localizarFoto(identificador, publica.fotos)');
     expect(miniatura).toContain("'R2-PRIVADO-COPIA-PUBLICA'");
     expect(miniatura).toContain("'R2-PUBLICO-COPIA-PRIVADA'");
   });
