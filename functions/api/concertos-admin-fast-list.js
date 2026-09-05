@@ -1,4 +1,5 @@
-const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
+
 const CONCERT_INDEX_KEY = 'indices/concertos-privado-v1.json';
 const ATTENDANCE_INDEX_KEY = 'indices/asistencias-concertos.json';
 
@@ -23,20 +24,13 @@ async function verificarFirebase(idToken, apiKey) {
   if (!response.ok) return null;
   const data = (await response.json())?.users?.[0];
   if (!data?.email || data.emailVerified !== true) return null;
-  return { email: clean(data.email).toLowerCase() };
+  return { uid: clean(data.localId), email: clean(data.email).toLowerCase() };
 }
 
-async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean(email).toLowerCase()));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function verificarAdministracionR2(env, user) {
-  if (!env.R2_PRIVADO?.get) return false;
-  const object = await env.R2_PRIVADO.get(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
-  if (!object) return false;
-  const entry = await object.json().catch(() => null);
-  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
+async function permisoConcertos(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'concertos');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'concertos');
+  return permiso;
 }
 
 async function readJson(bucket, key) {
@@ -63,7 +57,9 @@ export async function onRequest({ request, env }) {
   const body = await request.json().catch(() => null);
   const user = await verificarFirebase(body?.idToken, env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok:false, erro:'A identificación non é válida ou caducou.' });
-  if (!(await verificarAdministracionR2(env, user))) return json(403, { ok:false, erro:'Usuario non autorizado para Administración.' });
+
+  const permiso = await permisoConcertos(env, user).catch(() => null);
+  if (!permiso?.podeLer) return json(403, { ok:false, erro:'Non tes permiso de lectura no módulo Concertos.' });
 
   const [index, attendance] = await Promise.all([
     readJson(env.R2_PRIVADO, CONCERT_INDEX_KEY),
@@ -100,7 +96,8 @@ export async function onRequest({ request, env }) {
 
   return json(200, {
     ok:true,
-    nivel:'Administración',
+    nivel:permiso.nivel,
+    permiso,
     concertos,
     almacen:'R2-PRODUCION',
     fonte:CONCERT_INDEX_KEY,
