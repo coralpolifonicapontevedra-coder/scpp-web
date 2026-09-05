@@ -1,4 +1,5 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const CACHE_PERMISOS_MS = 5 * 60 * 1000;
 const cachePermisos = new Map();
@@ -67,6 +68,17 @@ async function comprobarAdministracion(env, user) {
   return administracion;
 }
 
+async function comprobarPermisoEnsaiosAdministracion(env, user) {
+  try {
+    let permiso = await obterPermisoPortalCacheado(env, user, 'ensaios');
+    if (!permiso) permiso = await obterPermisoPortal(env, user, 'ensaios');
+    return permiso?.podeAdministrar === true;
+  } catch (error) {
+    console.error('Erro ao comprobar o permiso central de Ensaios:', error);
+    return false;
+  }
+}
+
 async function comprobarXunta(env, user) {
   const cacheada = cachePermisos.get(user.email);
   if (cacheada?.expira > Date.now() && typeof cacheada.xunta === 'boolean') {
@@ -124,6 +136,13 @@ function requireXunta(pathname, accion) {
   return pathname === '/api/ensaios-borrador' && accion === 'gardarAsistencia';
 }
 
+function eRutaEnsaios(pathname) {
+  return pathname === '/api/ensaios'
+    || pathname === '/api/ensaios-eliminar'
+    || pathname === '/api/ensaios-eliminar-ensaio'
+    || pathname === '/api/ensaios-borrador';
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') return context.next();
@@ -162,7 +181,9 @@ export async function onRequest(context) {
   if (!user) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou.' });
 
   if (precisaAdministracion) {
-    const permitido = await comprobarAdministracion(env, user);
+    const permitido = eRutaEnsaios(pathname)
+      ? await comprobarPermisoEnsaiosAdministracion(env, user)
+      : await comprobarAdministracion(env, user);
     if (!permitido) {
       return json(403, {
         ok: false,
@@ -175,7 +196,9 @@ export async function onRequest(context) {
   }
 
   if (precisaXunta) {
-    const permitido = await comprobarAdministracion(env, user) || await comprobarXunta(env, user);
+    const permitido = await comprobarPermisoEnsaiosAdministracion(env, user)
+      || await comprobarAdministracion(env, user)
+      || await comprobarXunta(env, user);
     if (!permitido) {
       return json(403, {
         ok: false,
