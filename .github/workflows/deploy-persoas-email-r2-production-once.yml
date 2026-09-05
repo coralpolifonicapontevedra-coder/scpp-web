@@ -188,10 +188,21 @@ jobs:
             --versionNumber "$NEW_VERSION" \
             --description 'Persoas · auditoría directa de envíos'
 
-          npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-after.txt
-          LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-after.txt | head -n 1 || true)"
-          if ! printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
-            echo 'A verificación fallou. Tentando rollback inmediato.'
+          OK=''
+          LINE=''
+          for INTENTO in 1 2 3 4 5 6; do
+            sleep 3
+            npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-after.txt
+            LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-after.txt | head -n 1 || true)"
+            if printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
+              OK='1'
+              break
+            fi
+            echo "Aínda non propagou a versión $NEW_VERSION (intento $INTENTO/6): $LINE"
+          done
+
+          if [ -z "$OK" ]; then
+            echo 'A verificación fallou despois dos reintentos. Tentando rollback inmediato.'
             npx --yes @google/clasp@3 create-deployment \
               --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
               --versionNumber "$OLD_VERSION" \
