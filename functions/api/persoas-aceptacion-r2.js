@@ -97,10 +97,26 @@ async function localizarAceptacion(env, idPersoa) {
   return { meta, pdf, reparada: true };
 }
 
+function resumoRevision(object, revision) {
+  return {
+    key: clean(object?.key),
+    idPersoa: clean(revision?.idPersoa),
+    revisionId: clean(revision?.revisionId),
+    estado: clean(revision?.estado),
+    completadaEn: clean(revision?.completadaEn),
+    creadaEn: clean(revision?.creadaEn),
+    versionLegal: clean(revision?.textoLegal?.version || revision?.aceptacion?.versionLegal),
+    tenPersoaConfirmada: Boolean(revision?.persoaConfirmada && typeof revision.persoaConfirmada === 'object'),
+    documento: clean(revision?.aceptacion?.documento),
+    aceptacionRowId: clean(revision?.aceptacion?.aceptacionRowId)
+  };
+}
+
 async function diagnosticarRevision(env, idPersoa, revisionId) {
-  if (!env.R2_PRIVADO?.list || !env.R2_PRIVADO?.get) return { atopada: false, erro: 'R2 privado non permite listar revisións.' };
+  if (!env.R2_PRIVADO?.list || !env.R2_PRIVADO?.get) return { atopada: false, coincidencias: [], erro: 'R2 privado non permite listar revisións.' };
   let cursor;
   let revisadas = 0;
+  const coincidencias = [];
   do {
     const listado = await env.R2_PRIVADO.list({ prefix: REVISION_PREFIX, limit: 1000, cursor });
     const objects = Array.isArray(listado?.objects) ? listado.objects : [];
@@ -112,25 +128,27 @@ async function diagnosticarRevision(env, idPersoa, revisionId) {
       if (!revision || typeof revision !== 'object') continue;
       const samePerson = idPersoa && safeId(revision.idPersoa) === idPersoa;
       const sameRevision = revisionId && clean(revision.revisionId) === revisionId;
-      if ((revisionId && sameRevision) || (!revisionId && samePerson)) {
-        return {
-          atopada: true,
-          revisadas,
-          key: clean(object.key),
-          idPersoa: clean(revision.idPersoa),
-          revisionId: clean(revision.revisionId),
-          estado: clean(revision.estado),
-          completadaEn: clean(revision.completadaEn),
-          versionLegal: clean(revision.textoLegal?.version || revision.aceptacion?.versionLegal),
-          tenPersoaConfirmada: Boolean(revision.persoaConfirmada && typeof revision.persoaConfirmada === 'object'),
-          documento: clean(revision.aceptacion?.documento),
-          aceptacionRowId: clean(revision.aceptacion?.aceptacionRowId)
-        };
+      if (revisionId ? sameRevision : samePerson) {
+        coincidencias.push(resumoRevision(object, revision));
+        if (revisionId) {
+          return { atopada: true, revisadas, coincidencias, diagnostico: coincidencias[0] };
+        }
       }
     }
     cursor = listado?.truncated ? clean(listado?.cursor) : '';
   } while (cursor && revisadas < 10000);
-  return { atopada: false, revisadas };
+
+  coincidencias.sort((a, b) => {
+    const ta = Date.parse(a.completadaEn || a.creadaEn || '') || 0;
+    const tb = Date.parse(b.completadaEn || b.creadaEn || '') || 0;
+    return tb - ta;
+  });
+  return {
+    atopada: coincidencias.length > 0,
+    revisadas,
+    coincidencias,
+    diagnostico: coincidencias.find((item) => item.estado === 'COMPLETADA' && item.tenPersoaConfirmada) || coincidencias[0] || null
+  };
 }
 
 function mensaxeDiagnostico(idPersoa, diagnostico) {
@@ -138,31 +156,36 @@ function mensaxeDiagnostico(idPersoa, diagnostico) {
     'DIAGNÓSTICO DE ACEPTACIÓN SCPP',
     '',
     `Persoa: ${idPersoa}`,
-    'PDF en R2: NON ATOPADO'
+    'PDF en R2: NON ATOPADO',
+    `Revisións examinadas: ${diagnostico?.revisadas ?? 0}`
   ];
-  if (diagnostico?.atopada) {
-    lines.push(
-      'Revisión en R2: ATOPADA',
-      `RevisionId: ${diagnostico.revisionId || '—'}`,
-      `Estado: ${diagnostico.estado || '—'}`,
-      `Completada: ${diagnostico.completadaEn || '—'}`,
-      `Versión legal: ${diagnostico.versionLegal || '—'}`,
-      `Datos confirmados conservados: ${diagnostico.tenPersoaConfirmada ? 'SI' : 'NON'}`,
-      `Documento rexistrado: ${diagnostico.documento || '—'}`,
-      `Fila de aceptación: ${diagnostico.aceptacionRowId || '—'}`,
-      '',
-      diagnostico.tenPersoaConfirmada
-        ? 'A revisión conserva a evidencia necesaria para reconstruír o PDF sen pedir unha nova aceptación.'
-        : 'A revisión existe, pero non conserva os datos confirmados completos.'
-    );
-  } else {
-    lines.push(
-      'Revisión en R2: NON ATOPADA',
-      `Revisións examinadas: ${diagnostico?.revisadas ?? 0}`,
-      '',
-      'Non se atopou unha revisión recuperable para esta persoa.'
-    );
+
+  const coincidencias = Array.isArray(diagnostico?.coincidencias) ? diagnostico.coincidencias : [];
+  if (!coincidencias.length) {
+    lines.push('', 'Revisións desta persoa en R2: NON ATOPADAS', '', 'Non se atopou unha revisión recuperable para esta persoa.');
+    return lines.join('\n');
   }
+
+  lines.push('', `Revisións desta persoa en R2: ${coincidencias.length}`);
+  coincidencias.forEach((item, index) => {
+    lines.push(
+      '',
+      `--- REVISIÓN ${index + 1} ---`,
+      `RevisionId: ${item.revisionId || '—'}`,
+      `Estado: ${item.estado || '—'}`,
+      `Creada: ${item.creadaEn || '—'}`,
+      `Completada: ${item.completadaEn || '—'}`,
+      `Versión legal: ${item.versionLegal || '—'}`,
+      `Datos confirmados conservados: ${item.tenPersoaConfirmada ? 'SI' : 'NON'}`,
+      `Documento rexistrado: ${item.documento || '—'}`,
+      `Fila de aceptación: ${item.aceptacionRowId || '—'}`
+    );
+  });
+
+  const recuperable = coincidencias.find((item) => item.estado === 'COMPLETADA' && item.tenPersoaConfirmada);
+  lines.push('', recuperable
+    ? `HAI UNHA REVISIÓN RECUPERABLE: ${recuperable.revisionId}. Conserva os datos necesarios para reconstruír o PDF sen pedir unha nova aceptación.`
+    : 'Non aparece ningunha revisión COMPLETADA con datos confirmados conservados.');
   return lines.join('\n');
 }
 
@@ -200,7 +223,7 @@ export async function onRequest({ request, env }) {
   if (!aceptacion) {
     const diagnostico = acceso?.permiso?.podeAdministrar === true
       ? await diagnosticarRevision(env, idPersoa, '')
-      : { atopada: false };
+      : { atopada: false, coincidencias: [] };
     return texto(200, mensaxeDiagnostico(idPersoa, diagnostico));
   }
 
