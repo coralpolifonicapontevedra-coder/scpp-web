@@ -11,6 +11,11 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 
 const clean = (value) => String(value || '').trim();
 
+function eOperacionTPV(item) {
+  const formaPago = clean(item?.formaPago).toLowerCase();
+  return formaPago === 'tpv ceca' || Boolean(clean(item?.numOperacionTPV)) || Boolean(clean(item?.referenciaTPV));
+}
+
 async function verificarFirebase(idToken, apiKey) {
   const token = clean(idToken);
   if (!token || !apiKey) return null;
@@ -65,8 +70,7 @@ export async function onRequest({ request, env }) {
     const accion = clean(body?.accion);
     const permitidas = new Set([
       'listarDoazonsAdministracion',
-      'actualizarEstadoDoazonAdministracion',
-      'eliminarDoazonAdministracion'
+      'actualizarEstadoDoazonAdministracion'
     ]);
 
     if (!permitidas.has(accion)) {
@@ -92,6 +96,13 @@ export async function onRequest({ request, env }) {
       if (!resultado?.ok) {
         const status = resultado?.codigo === 'ADMIN_REQUIRED' ? 403 : 400;
         return json(status, resultado || { ok: false, erro: 'Non foi posible completar a operación.' });
+      }
+
+      if (accion === 'listarDoazonsAdministracion') {
+        return json(200, {
+          ...resultado,
+          doazons: (Array.isArray(resultado.doazons) ? resultado.doazons : []).filter(eOperacionTPV)
+        });
       }
 
       return json(200, resultado);
