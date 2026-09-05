@@ -4,7 +4,6 @@
 
   const fetchOriginal = window.fetch.bind(window);
   const clean = (value) => String(value ?? '').trim();
-  const norm = (value) => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
   let idToken = '';
   let activeRehearsalId = '';
@@ -16,6 +15,7 @@
   let pendingChanges = false;
   const initialAttendance = new Map();
   const pendingAttendance = new Map();
+  const attendanceTimers = new Map();
 
   function parseRequest(input, init) {
     try {
@@ -29,17 +29,6 @@
     }
   }
 
-  function responseJson(body, headers = {}) {
-    return new Response(JSON.stringify(body), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'private, no-store',
-        ...headers
-      }
-    });
-  }
-
   function rememberToken(body) {
     const token = clean(body?.idToken);
     if (token) idToken = token;
@@ -50,12 +39,12 @@
   }
 
   function attendanceStateFromRow(row) {
-    const buttons = Array.from(row.querySelectorAll('button[data-att]'));
-    const selected = buttons.find((button) => button.classList.contains('is-selected'));
+    const selected = Array.from(row.querySelectorAll('button[data-att]'))
+      .find((button) => button.classList.contains('is-selected'));
     return clean(selected?.dataset.att);
   }
 
-  function applyAttendanceState(row, state) {
+  function applyAttendanceState(row, state, message = '') {
     row.querySelectorAll('button[data-att]').forEach((button) => {
       const selected = clean(button.dataset.att) === clean(state) && clean(state) !== '';
       button.classList.toggle('is-selected', selected);
@@ -64,18 +53,14 @@
     });
     const status = row.querySelector('.row-status');
     if (status instanceof HTMLElement) {
-      status.textContent = state ? 'Pendiente de sincronizar…' : '';
-      status.dataset.rapidoPending = state ? '1' : '';
+      status.textContent = message;
+      status.dataset.rapidoPending = message ? '1' : '';
     }
-  }
-
-  function currentActiveRehearsal() {
-    return activeRehearsalId;
   }
 
   function draftCall(accion, extra = {}, options = {}) {
     if (!idToken) return Promise.reject(new Error('A sesión aínda non está preparada.'));
-    const idEnsaio = clean(options.idEnsaio || currentActiveRehearsal());
+    const idEnsaio = clean(options.idEnsaio || activeRehearsalId);
     if (!idEnsaio) return Promise.reject(new Error('Falta identificar o ensaio.'));
     return fetchOriginal('/api/ensaios-borrador', {
       method: 'POST',
@@ -102,12 +87,10 @@
     return mutationChain;
   }
 
-  function scheduleFinalize(delay = 1800) {
+  function scheduleFinalize(delay = 2200) {
     pendingChanges = true;
     window.clearTimeout(finalizeTimer);
-    finalizeTimer = window.setTimeout(() => {
-      void finalizePending();
-    }, delay);
+    finalizeTimer = window.setTimeout(() => void finalizePending(), delay);
   }
 
   async function refreshServerCacheQuietly() {
@@ -122,12 +105,16 @@
   }
 
   async function finalizePending(options = {}) {
-    if (!pendingChanges || finalizing || !currentActiveRehearsal()) return;
+    const idEnsaio = clean(activeRehearsalId);
+    if (!pendingChanges || finalizing || !idEnsaio) return;
     finalizing = true;
     window.clearTimeout(finalizeTimer);
     try {
       await mutationChain;
-      const result = await draftCall('finalizar', {}, { keepalive: options.keepalive === true });
+      const result = await draftCall('finalizar', {}, {
+        idEnsaio,
+        keepalive: options.keepalive === true
+      });
       pendingChanges = false;
       if (result?.draft) patchCachedPayloadFromDraft(result.draft);
       document.querySelectorAll('[data-rapido-pending="1"]').forEach((node) => {
@@ -143,7 +130,7 @@
       });
     } finally {
       finalizing = false;
-      if (pendingChanges) scheduleFinalize(1200);
+      if (pendingChanges && activeRehearsalId) scheduleFinalize(1400);
     }
   }
 
@@ -189,17 +176,25 @@
     return workCatalog().find((work) => clean(work?.idRepertorio || work?.id) === target) || null;
   }
 
+  function escapeHtml(value) {
+    return clean(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
   function renderWorksFromDraft(draft) {
     const box = document.querySelector('#works-list');
     const count = document.querySelector('#works-count');
     if (!(box instanceof HTMLElement)) return;
     const rows = Array.isArray(draft?.repertorio) ? draft.repertorio : [];
-    const valid = rows.map((row, index) => {
+    const valid = rows.map((row) => {
       const id = clean(row?.repertorio || row?.idRepertorio);
       const work = workById(id);
       const title = clean(work?.nomeObra || work?.nome);
-      if (!id || !title || /^\d+$/.test(title)) return null;
-      return { id, work, index };
+      return id && title && !/^\d+$/.test(title) ? { id, work } : null;
     }).filter(Boolean);
     if (count instanceof HTMLElement) count.textContent = `${valid.length} obra${valid.length === 1 ? '' : 's'}`;
     box.innerHTML = valid.length
@@ -207,23 +202,19 @@
       : '<p class="empty">Aínda non hai obras asignadas a este ensaio.</p>';
   }
 
-  function escapeHtml(value) {
-    return clean(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
-  }
-
   function syncAttendanceDomFromPending() {
-    const id = currentActiveRehearsal();
+    const id = clean(activeRehearsalId);
     if (!id) return;
     document.querySelectorAll('.person-row[data-person]').forEach((row) => {
       if (!(row instanceof HTMLElement)) return;
       const key = attendanceKey(id, row.dataset.person);
       if (!pendingAttendance.has(key)) return;
-      applyAttendanceState(row, pendingAttendance.get(key) || '');
+      applyAttendanceState(row, pendingAttendance.get(key) || '', pendingAttendance.get(key) ? 'Pendiente de sincronizar…' : '');
     });
   }
 
   function rememberInitialAttendance() {
-    const id = currentActiveRehearsal();
+    const id = clean(activeRehearsalId);
     if (!id) return;
     document.querySelectorAll('.person-row[data-person]').forEach((row) => {
       if (!(row instanceof HTMLElement)) return;
@@ -232,10 +223,36 @@
     });
   }
 
-  async function handleAttendanceClick(event, button) {
+  function clearAttendanceTimer(key) {
+    const timer = attendanceTimers.get(key);
+    if (timer) window.clearTimeout(timer);
+    attendanceTimers.delete(key);
+  }
+
+  function scheduleAttendanceMutation({ key, idEnsaio, idPersoa, next, motivo }) {
+    clearAttendanceTimer(key);
+    const timer = window.setTimeout(() => {
+      attendanceTimers.delete(key);
+      enqueueMutation(async () => {
+        await ensureDraft(idEnsaio);
+        const result = await draftCall('gardarAsistencia', {
+          idPersoa,
+          estadoAsistencia: next === 'asiste' ? 'Asiste' : 'Non asiste',
+          xustificada: next === 'xustificada',
+          motivo,
+          observacions: ''
+        }, { idEnsaio });
+        if (result?.draft) patchCachedPayloadFromDraft(result.draft);
+      });
+      scheduleFinalize(2200);
+    }, 900);
+    attendanceTimers.set(key, timer);
+  }
+
+  function handleAttendanceClick(event, button) {
     const row = button.closest('.person-row');
     if (!(row instanceof HTMLElement)) return;
-    const idEnsaio = currentActiveRehearsal();
+    const idEnsaio = clean(activeRehearsalId);
     const idPersoa = clean(row.dataset.person);
     if (!idEnsaio || !idPersoa || !idToken) return;
 
@@ -247,52 +264,33 @@
     const initial = initialAttendance.get(key) || '';
     const current = pendingAttendance.has(key) ? (pendingAttendance.get(key) || '') : attendanceStateFromRow(row);
     const clicked = clean(button.dataset.att);
-    let next = current === clicked ? '' : clicked;
+    const next = current === clicked ? '' : clicked;
 
-    // Un estado que xa existía antes de abrir a xestión non se elimina da Sheet
-    // desde esta capa web porque a acción viva de Apps Script non dispón aínda de borrado.
-    // Evitamos crear un estado falso: só permitimos volver a neutro se ese estado naceu nesta edición.
-    if (!next && initial && !pendingAttendance.has(key)) {
-      const status = row.querySelector('.row-status');
-      if (status instanceof HTMLElement) status.textContent = 'Este estado xa estaba gardado; non se borrou.';
+    // O Apps Script vivo permite alta/modificación, pero non dispón dunha acción segura
+    // para borrar unha asistencia xa persistida. Non falsificamos a Sheet: só desfai
+    // instantaneamente un estado creado nesta mesma edición e aínda non sincronizado.
+    if (!next && initial) {
+      applyAttendanceState(row, current, 'Este estado xa estaba gardado; non se borrou.');
       return;
     }
 
-    if (!next && initial && pendingAttendance.has(key) && initial === current) {
-      const status = row.querySelector('.row-status');
-      if (status instanceof HTMLElement) status.textContent = 'Este estado xa estaba gardado; non se borrou.';
-      return;
-    }
-
-    pendingAttendance.set(key, next);
-    applyAttendanceState(row, next);
-
-    // Se partía de neutro e se volve a neutro antes de sincronizar, non se crea rexistro ningún.
     if (!next && !initial) {
+      clearAttendanceTimer(key);
       pendingAttendance.delete(key);
-      applyAttendanceState(row, '');
+      applyAttendanceState(row, '', '');
       return;
     }
 
     const motivo = next === 'xustificada' ? (window.prompt('Motivo da xustificación (opcional):', '') || '') : '';
-    enqueueMutation(async () => {
-      await ensureDraft(idEnsaio);
-      const result = await draftCall('gardarAsistencia', {
-        idPersoa,
-        estadoAsistencia: next === 'asiste' ? 'Asiste' : 'Non asiste',
-        xustificada: next === 'xustificada',
-        motivo,
-        observacions: ''
-      }, { idEnsaio });
-      if (result?.draft) patchCachedPayloadFromDraft(result.draft);
-    });
-    scheduleFinalize();
+    pendingAttendance.set(key, next);
+    applyAttendanceState(row, next, 'Pendiente de sincronizar…');
+    scheduleAttendanceMutation({ key, idEnsaio, idPersoa, next, motivo });
   }
 
-  async function handleAddWork(event) {
+  function handleAddWork(event) {
     const select = document.querySelector('#work-select');
     const status = document.querySelector('#works-status');
-    const idEnsaio = currentActiveRehearsal();
+    const idEnsaio = clean(activeRehearsalId);
     if (!(select instanceof HTMLSelectElement) || !select.value || !idEnsaio || !idToken) return;
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -307,11 +305,11 @@
       }
       if (status instanceof HTMLElement) status.textContent = 'Obra engadida. Sincronizando…';
     });
-    scheduleFinalize();
+    scheduleFinalize(1600);
   }
 
-  async function handleRemoveWork(event, button) {
-    const idEnsaio = currentActiveRehearsal();
+  function handleRemoveWork(event, button) {
+    const idEnsaio = clean(activeRehearsalId);
     const idRepertorio = clean(button.dataset.workId);
     const status = document.querySelector('#works-status');
     if (!idEnsaio || !idRepertorio || !idToken) return;
@@ -329,11 +327,11 @@
       }
       if (status instanceof HTMLElement) status.textContent = 'Obra eliminada. Sincronizando…';
     });
-    scheduleFinalize();
+    scheduleFinalize(1600);
   }
 
-  async function handleIncludeProgram(event) {
-    const idEnsaio = currentActiveRehearsal();
+  function handleIncludeProgram(event) {
+    const idEnsaio = clean(activeRehearsalId);
     const select = document.querySelector('#program-concert');
     const status = document.querySelector('#works-status');
     if (!(select instanceof HTMLSelectElement) || !select.value || !idEnsaio || !idToken) return;
@@ -349,7 +347,7 @@
       }
       if (status instanceof HTMLElement) status.textContent = `Programa cargado: ${Number(result?.engadidas || 0)} obras. Sincronizando…`;
     });
-    scheduleFinalize();
+    scheduleFinalize(1800);
   }
 
   window.fetch = async (input, init) => {
@@ -364,8 +362,7 @@
     if (url?.pathname === '/api/ensaios' && body?.accion === 'listarEnsaiosPortal') {
       const response = await fetchOriginal(input, init);
       try {
-        const clone = response.clone();
-        const data = await clone.json();
+        const data = await response.clone().json();
         if (data?.ok && Array.isArray(data.ensaios)) cachedPayload = data;
       } catch {}
       return response;
@@ -380,25 +377,25 @@
 
     const attendanceButton = target.closest('#attendance-list button[data-att]');
     if (attendanceButton instanceof HTMLButtonElement) {
-      void handleAttendanceClick(event, attendanceButton);
+      handleAttendanceClick(event, attendanceButton);
       return;
     }
 
     const addWork = target.closest('#add-work');
     if (addWork instanceof HTMLButtonElement) {
-      void handleAddWork(event);
+      handleAddWork(event);
       return;
     }
 
     const removeWork = target.closest('#works-list .remove-work');
     if (removeWork instanceof HTMLButtonElement) {
-      void handleRemoveWork(event, removeWork);
+      handleRemoveWork(event, removeWork);
       return;
     }
 
     const includeProgram = target.closest('#include-program');
     if (includeProgram instanceof HTMLButtonElement) {
-      void handleIncludeProgram(event);
+      handleIncludeProgram(event);
       return;
     }
 
@@ -417,15 +414,20 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     const dialog = document.querySelector('#manage-dialog');
-    if (dialog instanceof HTMLDialogElement) {
-      dialog.addEventListener('close', () => {
-        if (pendingChanges) void finalizePending();
+    if (!(dialog instanceof HTMLDialogElement)) return;
+    dialog.addEventListener('close', () => {
+      const oldId = activeRehearsalId;
+      if (pendingChanges && oldId) void finalizePending();
+      window.setTimeout(() => {
+        if (finalizing) return;
         activeRehearsalId = '';
         draftReadyFor = '';
         initialAttendance.clear();
         pendingAttendance.clear();
-      });
-    }
+        attendanceTimers.forEach((timer) => window.clearTimeout(timer));
+        attendanceTimers.clear();
+      }, 50);
+    });
   });
 
   document.addEventListener('visibilitychange', () => {
