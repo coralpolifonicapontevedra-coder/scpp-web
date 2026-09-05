@@ -4,14 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const worker = readFileSync(resolve(root, 'functions/_lib/fotos-administracion-v2.js'), 'utf8');
+const worker = readFileSync(resolve(root, 'functions/_lib/fotos-administracion-v3.js'), 'utf8');
 const route = readFileSync(resolve(root, 'functions/api/xestion-publicacion-foto.js'), 'utf8');
 const middleware = readFileSync(resolve(root, 'functions/portal/_middleware.js'), 'utf8');
 const labelsCss = readFileSync(resolve(root, 'public/css/admin-fotografias-etiquetas.css'), 'utf8');
 
 describe('Gardado validado de Fotografías', () => {
-  it('usa o backend v2 validado en Preview', () => {
-    expect(route).toContain('onRequestFotosAdministracionV2');
+  it('usa o backend v3 activo', () => {
+    expect(route).toContain('onRequestFotosAdministracionV3');
     expect(route).not.toContain('onRequestFotosAdministracionV2Fast');
     expect(worker).toContain("accion: 'comprobarFotosAdministracionPortal'");
     expect(worker).toContain("accion: 'gardarFotoAdministracionPortal'");
@@ -25,7 +25,7 @@ describe('Gardado validado de Fotografías', () => {
 });
 
 describe('Separación etiqueta + valor', () => {
-  it('carga a versión visual aprobada en Preview sen retirar o fallback de Producción', () => {
+  it('carga a versión visual aprobada sen retirar o fallback', () => {
     expect(middleware).toContain('admin-fotografias-etiquetas.css?v=20260827-2');
     expect(middleware).toContain('/js/admin-fotografias-fallback.js?v=20260827-1');
   });
