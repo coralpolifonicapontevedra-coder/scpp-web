@@ -1,4 +1,5 @@
-const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
+
 const CONCERT_INDEX_MAIN = 'indices/concertos-privado-v1.json';
 const CONCERT_INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 const ATTENDANCE_INDEX_MAIN = 'indices/asistencias-concertos.json';
@@ -31,15 +32,10 @@ async function verificarFirebase(idToken, apiKey) {
   if (!data?.email || data.emailVerified !== true) return null;
   return { uid:clean(data.localId), email:clean(data.email).toLowerCase() };
 }
-async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean(email).toLowerCase()));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-}
-async function verificarAdministracionR2(env, user) {
-  const object = await env.R2_PRIVADO?.get?.(`${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
-  if (!object) return false;
-  const entry = await object.json().catch(() => null);
-  return entry?.administrador === user.email && entry?.payload?.perfil?.nivel === 'Administración';
+async function permisoConcertos(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'concertos');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'concertos');
+  return permiso;
 }
 async function lerJson(bucket, key) {
   const object = await bucket?.get?.(key);
@@ -152,14 +148,16 @@ export async function onRequest({ request, env }) {
   const body = await request.json().catch(() => null);
   const user = await verificarFirebase(body?.idToken, env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok:false, erro:'A identificación non é válida ou caducou.' });
-  if (!(await verificarAdministracionR2(env, user))) return json(403, { ok:false, erro:'Usuario non autorizado para Administración.' });
 
   const accion = clean(body?.accion || 'obter');
+  const permiso = await permisoConcertos(env, user).catch(() => null);
   if (accion === 'obter') {
+    if (!permiso?.podeLer) return json(403, { ok:false, erro:'Non tes permiso de lectura no módulo Concertos.' });
     const actual = await lerJson(env.R2_PRIVADO, reportKey(env));
     return actual?.ok ? json(200, actual) : json(404, { ok:false, erro:'O informe aínda non foi xerado.' });
   }
   if (accion !== 'xerar') return json(400, { ok:false, erro:'Acción non válida.' });
+  if (!permiso?.podeEscribir) return json(403, { ok:false, erro:'Non tes permiso de escritura no módulo Concertos.' });
 
   const inicio = clean(body?.inicio);
   const fin = clean(body?.fin);
