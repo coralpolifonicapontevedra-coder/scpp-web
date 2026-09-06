@@ -24,11 +24,7 @@ async function verificarFirebase(idToken, apiKey) {
   if (!token || !apiKey) return null;
   const response = await fetchWithTimeout(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: token })
-    },
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: token }) },
     8000
   );
   if (!response.ok) return null;
@@ -53,26 +49,58 @@ function workflowState(run) {
   return { state: 'error', labelState: 'Con incidencias' };
 }
 
-async function latestWorkflowRun(file, label, githubToken) {
+function workflowCheck(file, label, run) {
+  return {
+    id: file.replace(/\.yml$/, ''),
+    label,
+    ...workflowState(run),
+    updatedAt: run?.updated_at || run?.run_started_at || run?.created_at || null,
+    url: run?.html_url || null,
+    runNumber: run?.run_number || null
+  };
+}
+
+function githubHeaders(token) {
   const headers = {
     Accept: 'application/vnd.github+json',
     'User-Agent': 'scpp-system-status',
     'X-GitHub-Api-Version': '2022-11-28'
   };
-  if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+async function recentWorkflowRuns(token) {
+  try {
+    const response = await fetchWithTimeout(
+      'https://api.github.com/repos/coralpolifonicapontevedra-coder/scpp-web/actions/runs?branch=main&per_page=100',
+      { headers: githubHeaders(token) },
+      10000
+    );
+    if (!response.ok) throw new Error(`GitHub HTTP ${response.status}`);
+    const runs = (await response.json())?.workflow_runs;
+    return Array.isArray(runs) ? runs : [];
+  } catch (error) {
+    console.error('Estado: non foi posible obter a lista recente de workflows:', error);
+    return [];
+  }
+}
+
+function findRecentRun(runs, file) {
+  const path = `.github/workflows/${file}`;
+  return runs.find((run) => run?.path === path && run?.head_branch === 'main') || null;
+}
+
+async function latestWorkflowRunFallback(file, label, token) {
   try {
     const response = await fetchWithTimeout(
       `https://api.github.com/repos/coralpolifonicapontevedra-coder/scpp-web/actions/workflows/${file}/runs?branch=main&per_page=1`,
-      { headers },
+      { headers: githubHeaders(token) },
       8000
     );
     if (!response.ok) throw new Error(`GitHub HTTP ${response.status}`);
     const run = (await response.json())?.workflow_runs?.[0] || null;
-    return {
-      id: file.replace(/\.yml$/, ''), label, ...workflowState(run),
-      updatedAt: run?.updated_at || run?.created_at || null,
-      url: run?.html_url || null, runNumber: run?.run_number || null
-    };
+    return workflowCheck(file, label, run);
   } catch (error) {
     return {
       id: file.replace(/\.yml$/, ''), label, state: 'unknown', labelState: 'Sen datos',
@@ -81,18 +109,17 @@ async function latestWorkflowRun(file, label, githubToken) {
   }
 }
 
-async function backupStatus(githubToken) {
-  const check = await latestWorkflowRun('backup-sheets-r2.yml', 'Copias de seguridade', githubToken);
-  if (!check.updatedAt || check.state === 'unknown' || check.state === 'error' || check.state === 'running') return check;
+async function workflowCheckActual(file, label, token, runs) {
+  const recent = findRecentRun(runs, file);
+  return recent ? workflowCheck(file, label, recent) : latestWorkflowRunFallback(file, label, token);
+}
+
+async function backupStatus(token, runs) {
+  const check = await workflowCheckActual('backup-sheets-r2.yml', 'Copias de seguridade', token, runs);
+  if (!check.updatedAt || ['unknown', 'error', 'running'].includes(check.state)) return check;
   const ageMs = Date.now() - new Date(check.updatedAt).getTime();
-  const maxAgeMs = 36 * 60 * 60 * 1000;
-  if (!Number.isFinite(ageMs) || ageMs > maxAgeMs) {
-    return {
-      ...check,
-      state: 'error',
-      labelState: 'Copia atrasada',
-      error: 'A última copia de seguridade ten máis de 36 horas.'
-    };
+  if (!Number.isFinite(ageMs) || ageMs > 36 * 60 * 60 * 1000) {
+    return { ...check, state: 'error', labelState: 'Copia atrasada', error: 'A última copia de seguridade ten máis de 36 horas.' };
   }
   return { ...check, labelState: 'Última copia correcta' };
 }
@@ -101,10 +128,7 @@ async function tpvStatus() {
   const url = 'https://coralpolifonicapontevedra.org/api/tpv/iniciar';
   const started = Date.now();
   try {
-    const response = await fetchWithTimeout(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json', 'User-Agent': 'scpp-system-status' }
-    }, 8000);
+    const response = await fetchWithTimeout(url, { method: 'GET', headers: { Accept: 'application/json', 'User-Agent': 'scpp-system-status' } }, 8000);
     const durationMs = Date.now() - started;
     const contentType = String(response.headers.get('content-type') || '');
     const body = contentType.includes('application/json') ? await response.json().catch(() => null) : null;
@@ -118,11 +142,7 @@ async function tpvStatus() {
         : body?.erro || `HTTP ${response.status}`)
     };
   } catch (error) {
-    return {
-      id: 'tpv-ceca', label: 'Pasarela TPV de Colabora', state: 'error', labelState: 'Non dispoñible',
-      updatedAt: new Date().toISOString(), durationMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error), url: 'https://coralpolifonicapontevedra.org/donar/'
-    };
+    return { id: 'tpv-ceca', label: 'Pasarela TPV de Colabora', state: 'error', labelState: 'Non dispoñible', updatedAt: new Date().toISOString(), durationMs: Date.now() - started, error: error instanceof Error ? error.message : String(error), url: 'https://coralpolifonicapontevedra.org/donar/' };
   }
 }
 
@@ -133,127 +153,80 @@ async function publicWebStatus() {
     const response = await fetchWithTimeout(url, { method: 'GET', headers: { 'User-Agent': 'scpp-system-status' } }, 8000);
     const durationMs = Date.now() - started;
     const ok = response.ok && String(response.headers.get('content-type') || '').includes('text/html');
-    return {
-      id: 'web-publica', label: 'Web pública', state: ok ? 'ok' : 'error',
-      labelState: ok ? 'Dispoñible' : `HTTP ${response.status}`,
-      updatedAt: new Date().toISOString(), durationMs, url
-    };
+    return { id: 'web-publica', label: 'Web pública', state: ok ? 'ok' : 'error', labelState: ok ? 'Dispoñible' : `HTTP ${response.status}`, updatedAt: new Date().toISOString(), durationMs, url };
   } catch (error) {
-    return {
-      id: 'web-publica', label: 'Web pública', state: 'error', labelState: 'Non dispoñible',
-      updatedAt: new Date().toISOString(), durationMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error), url
-    };
+    return { id: 'web-publica', label: 'Web pública', state: 'error', labelState: 'Non dispoñible', updatedAt: new Date().toISOString(), durationMs: Date.now() - started, error: error instanceof Error ? error.message : String(error), url };
   }
 }
 
 async function appsScriptStatus(env) {
   const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
   const started = Date.now();
-  if (!url) return {
-    id: 'apps-script', label: 'Apps Script', state: 'unknown', labelState: 'Non configurado',
-    updatedAt: new Date().toISOString(), durationMs: 0, url
-  };
+  if (!url) return { id: 'apps-script', label: 'Apps Script', state: 'unknown', labelState: 'Non configurado', updatedAt: new Date().toISOString(), durationMs: 0, url };
   try {
-    const response = await fetchWithTimeout(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json,text/plain,*/*', 'User-Agent': 'scpp-system-status' }
-    }, 25000);
+    const response = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow', headers: { Accept: 'application/json,text/plain,*/*', 'User-Agent': 'scpp-system-status' } }, 25000);
     const durationMs = Date.now() - started;
     const contentType = String(response.headers.get('content-type') || '');
     const bodyText = await response.text().catch(() => '');
-    const looksHealthy = response.ok && (
-      contentType.includes('application/json')
-      || bodyText.includes('"ok":true')
-      || bodyText.includes('UsuarioWeb')
-    );
-    const slow = looksHealthy && durationMs > 8000;
+    const healthy = response.ok && (contentType.includes('application/json') || bodyText.includes('"ok":true') || bodyText.includes('UsuarioWeb'));
+    const slow = healthy && durationMs > 8000;
     return {
-      id: 'apps-script', label: 'Apps Script',
-      state: looksHealthy ? (slow ? 'warning' : 'ok') : 'error',
-      labelState: looksHealthy ? (slow ? 'Dispoñible, resposta lenta' : 'Dispoñible') : `HTTP ${response.status}`,
+      id: 'apps-script', label: 'Apps Script', state: healthy ? (slow ? 'warning' : 'ok') : 'error',
+      labelState: healthy ? (slow ? 'Dispoñible, resposta lenta' : 'Dispoñible') : `HTTP ${response.status}`,
       updatedAt: new Date().toISOString(), durationMs, url,
       error: slow ? 'Apps Script respondeu correctamente, pero tardou máis de 8 segundos.' : null
     };
   } catch (error) {
-    return {
-      id: 'apps-script', label: 'Apps Script', state: 'error', labelState: 'Non dispoñible',
-      updatedAt: new Date().toISOString(), durationMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error), url
-    };
+    return { id: 'apps-script', label: 'Apps Script', state: 'error', labelState: 'Non dispoñible', updatedAt: new Date().toISOString(), durationMs: Date.now() - started, error: error instanceof Error ? error.message : String(error), url };
   }
 }
 
 async function r2Status(env) {
   const key = 'indices/revision-fotos-v1.json';
   const started = Date.now();
-  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') {
-    return {
-      id: 'r2', label: 'R2 Privado', state: 'unknown', labelState: 'Binding non configurado',
-      updatedAt: new Date().toISOString(), durationMs: 0
-    };
-  }
+  if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return { id: 'r2', label: 'R2 Privado', state: 'unknown', labelState: 'Binding non configurado', updatedAt: new Date().toISOString(), durationMs: 0 };
   try {
     const object = await env.R2_PRIVADO.get(key);
     const durationMs = Date.now() - started;
-    if (!object) return {
-      id: 'r2', label: 'R2 Privado', state: 'warning', labelState: 'Obxecto non atopado',
-      updatedAt: new Date().toISOString(), durationMs, url: key
-    };
-    return {
-      id: 'r2', label: 'R2 Privado', state: 'ok', labelState: 'Accesible',
-      updatedAt: new Date().toISOString(), durationMs, url: key
-    };
+    return object
+      ? { id: 'r2', label: 'R2 Privado', state: 'ok', labelState: 'Accesible', updatedAt: new Date().toISOString(), durationMs, url: key }
+      : { id: 'r2', label: 'R2 Privado', state: 'warning', labelState: 'Obxecto non atopado', updatedAt: new Date().toISOString(), durationMs, url: key };
   } catch (error) {
-    return {
-      id: 'r2', label: 'R2 Privado', state: 'error', labelState: 'Erro lendo R2',
-      updatedAt: new Date().toISOString(), durationMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error)
-    };
+    return { id: 'r2', label: 'R2 Privado', state: 'error', labelState: 'Erro lendo R2', updatedAt: new Date().toISOString(), durationMs: Date.now() - started, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
 async function firebaseStatus(env) {
   const started = Date.now();
   const key = String(env.FIREBASE_API_KEY || '').trim();
-  if (!key) return {
-    id: 'firebase', label: 'Firebase Identity', state: 'unknown', labelState: 'Non configurado',
-    updatedAt: new Date().toISOString(), durationMs: 0
-  };
+  if (!key) return { id: 'firebase', label: 'Firebase Identity', state: 'unknown', labelState: 'Non configurado', updatedAt: new Date().toISOString(), durationMs: 0 };
   const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(key)}`;
   try {
-    const response = await fetchWithTimeout(url, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: 'invalid-token-for-healthcheck' })
-    }, 8000);
+    const response = await fetchWithTimeout(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: 'invalid-token-for-healthcheck' }) }, 8000);
     const durationMs = Date.now() - started;
-    const status = response.status || 0;
-    const state = status >= 500 ? 'error' : 'ok';
-    return {
-      id: 'firebase', label: 'Firebase Identity', state,
-      labelState: state === 'ok' ? 'Dispoñible' : `HTTP ${status}`,
-      updatedAt: new Date().toISOString(), durationMs, url
-    };
+    const state = (response.status || 0) >= 500 ? 'error' : 'ok';
+    return { id: 'firebase', label: 'Firebase Identity', state, labelState: state === 'ok' ? 'Dispoñible' : `HTTP ${response.status}`, updatedAt: new Date().toISOString(), durationMs, url };
   } catch (error) {
-    return {
-      id: 'firebase', label: 'Firebase Identity', state: 'error', labelState: 'Non dispoñible',
-      updatedAt: new Date().toISOString(), durationMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error), url
-    };
+    return { id: 'firebase', label: 'Firebase Identity', state: 'error', labelState: 'Non dispoñible', updatedAt: new Date().toISOString(), durationMs: Date.now() - started, error: error instanceof Error ? error.message : String(error), url };
   }
 }
 
 async function buildStatus(env) {
   const token = String(env.GITHUB_TOKEN || env.GH_TOKEN || '').trim();
+  const runs = await recentWorkflowRuns(token);
+  const workflowSpecs = [
+    ['quality.yml', 'Calidade do proxecto'],
+    ['check-public-links.yml', 'Enlaces públicos'],
+    ['audit-file-systems.yml', 'Arquivos e documentación'],
+    ['audit-concert-media.yml', 'Medios de concertos'],
+    ['audit-repertorio.yml', 'Repertorio'],
+    ['audit-fotos-r2.yml', 'Fotografías en R2']
+  ];
+  const workflowChecks = await Promise.all(workflowSpecs.map(([file, label]) => workflowCheckActual(file, label, token, runs)));
   const checks = await Promise.all([
-    appsScriptStatus(env), r2Status(env), firebaseStatus(env), publicWebStatus(), tpvStatus(), backupStatus(token),
-    latestWorkflowRun('quality.yml', 'Calidade do proxecto', token),
-    latestWorkflowRun('check-public-links.yml', 'Enlaces públicos', token),
-    latestWorkflowRun('audit-file-systems.yml', 'Arquivos e documentación', token),
-    latestWorkflowRun('audit-concert-media.yml', 'Medios de concertos', token),
-    latestWorkflowRun('audit-repertorio.yml', 'Repertorio', token),
-    latestWorkflowRun('audit-fotos-r2.yml', 'Fotografías en R2', token)
+    appsScriptStatus(env), r2Status(env), firebaseStatus(env), publicWebStatus(), tpvStatus(), backupStatus(token, runs)
   ]);
+  checks.push(...workflowChecks);
   const counts = checks.reduce((acc, item) => {
     acc[item.state] = (acc[item.state] || 0) + 1;
     return acc;
@@ -266,9 +239,8 @@ async function buildStatus(env) {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-  if (!env.FIREBASE_API_KEY) {
-    return json(500, { ok: false, erro: 'O servizo de Estado do sistema non está configurado.' });
-  }
+  if (!env.FIREBASE_API_KEY) return json(500, { ok: false, erro: 'O servizo de Estado do sistema non está configurado.' });
+
   let body;
   try { body = await request.json(); }
   catch { return json(400, { ok: false, erro: 'Solicitude non válida.' }); }
@@ -287,9 +259,7 @@ export async function onRequestPost(context) {
     console.error('Erro ao comprobar o permiso de Estado do sistema:', error);
     return json(503, { ok: false, codigo: 'PERMISSION_UNAVAILABLE', erro: 'Non foi posible comprobar o permiso neste momento.' });
   }
-  if (!permiso?.podeLer) {
-    return json(403, { ok: false, codigo: 'ESTADO_REQUIRED', erro: 'Non tes permiso para consultar o estado do sistema.' });
-  }
+  if (!permiso?.podeLer) return json(403, { ok: false, codigo: 'ESTADO_REQUIRED', erro: 'Non tes permiso para consultar o estado do sistema.' });
 
   if (statusCache?.expiresAt > Date.now()) return json(200, { ...statusCache.payload, cached: true });
 
