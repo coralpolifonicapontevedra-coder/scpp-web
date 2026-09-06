@@ -5,7 +5,7 @@ const source = readFileSync('public/js/portal-fast-load.js', 'utf8');
 
 describe('portal-fast-load e aceptación legal', () => {
   it('non intercepta nin falsea a comprobación de aceptación', () => {
-    expect(source).not.toContain("/api/aceptacion");
+    expect(source).not.toContain('/api/aceptacion');
     expect(source).not.toContain('X-SCPP-Acceptance-Cache');
     expect(source).not.toContain('acceptanceKey');
     expect(source).not.toContain('readAcceptance');
@@ -13,10 +13,11 @@ describe('portal-fast-load e aceptación legal', () => {
     expect(source).not.toContain('aceptacionVixente: true');
   });
 
-  it('mantén a optimización específica do repertorio', () => {
-    expect(source).toContain("/api/repertorio");
+  it('usa exclusivamente a caché R2 sincronizada para a carga rápida de Repertorio', () => {
+    expect(source).toContain('/api/repertorio-cache-v2');
     expect(source).toContain("body?.accion === 'listarRepertorioPortal'");
-    expect(source).toContain('buildFastWorks');
-    expect(source).toContain('backgroundFullRequest');
+    expect(source).toContain('localStorage');
+    expect(source).not.toContain('buildFastWorks');
+    expect(source).not.toContain('docs.google.com/spreadsheets');
   });
 });
