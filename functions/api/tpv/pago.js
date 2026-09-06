@@ -9,6 +9,18 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   }
 });
 
+function tpvConfigStatus(env) {
+  const merchantId = clean(env.CECA_MERCHANT_ID);
+  const acquirerBin = clean(env.CECA_ACQUIRER_BIN);
+  const terminalId = clean(env.CECA_TERMINAL_ID);
+  const secretKey = clean(env.CECA_SECRET_KEY || env.CECA_ENCRYPTION_KEY);
+  const urlTpv = clean(env.CECA_URL || 'https://pgw.ceca.es/tpvweb/tpv/compra.action');
+  const appsScript = clean(env.APPS_SCRIPT_WEBAPP_URL);
+  const writeToken = clean(env.WEB_WRITE_TOKEN);
+  const configured = Boolean(merchantId && acquirerBin && terminalId && secretKey && urlTpv);
+  return { configured, registroConfigurado: Boolean(appsScript && writeToken), urlTpv };
+}
+
 async function registrarOperacion(env, datos) {
   const endpoint = clean(env.APPS_SCRIPT_WEBAPP_URL);
   const token = clean(env.WEB_WRITE_TOKEN);
@@ -37,6 +49,16 @@ async function registrarOperacion(env, datos) {
     const rama = clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
     await env.R2_PRIVADO.delete(`doazons/cache-v1/${rama}/listado.json`).catch(() => {});
   }
+}
+
+export function onRequestGet({ env }) {
+  const status = tpvConfigStatus(env);
+  return json(status.configured ? 200 : 503, {
+    ok: status.configured,
+    servizo: 'tpv-ceca',
+    pasarelaConfigurada: status.configured,
+    rexistroDoazonsConfigurado: status.registroConfigurado
+  });
 }
 
 export async function onRequestPost(context) {
@@ -80,8 +102,6 @@ export async function onRequestPost(context) {
     const urlOk = 'https://coralpolifonicapontevedra.org/donar/?resultado=ok';
     const urlNok = 'https://coralpolifonicapontevedra.org/donar/?resultado=error';
 
-    // Mantemos a sinatura do fluxo CECA que xa funcionaba en produción.
-    // O rexistro interno faise en segundo plano e nunca bloquea o paso ao banco.
     const cadenaFirma = `${secretKey}${merchantId}${acquirerBin}${terminalId}${numPedido}${importeCentimos}${numMoneda}${exponente}${cifrado}${urlOk}${urlNok}`;
     const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cadenaFirma));
     const firma = Array.from(new Uint8Array(hashBuffer))
