@@ -74,6 +74,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
   const emailNode = q('#user-email');
   const levelNode = q('#user-level');
   const logout = q('#estado-sistema-logout');
+  let currentIdToken = '';
 
   const labels = {
     ok: 'Correcto',
@@ -101,6 +102,28 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       errorMessage.textContent = error instanceof Error
         ? error.message
         : 'Produciuse un erro inesperado.';
+    }
+  }
+
+  async function executarRepertorio(button) {
+    if (!currentIdToken) throw new Error('Non hai unha sesión válida para iniciar a auditoría.');
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Iniciando…';
+    try {
+      const response = await fetch('/api/estado-sistema-executar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: currentIdToken, accion: 'repertorio' })
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro HTTP ${response.status}`);
+      button.textContent = 'Auditoría iniciada';
+      window.setTimeout(() => loadStatus().catch(showError), 2500);
+    } catch (error) {
+      button.textContent = original;
+      button.disabled = false;
+      window.alert(error instanceof Error ? error.message : 'Non foi posible iniciar a auditoría.');
     }
   }
 
@@ -146,15 +169,29 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       article.append(detail);
     }
 
+    const actions = document.createElement('div');
+    actions.className = 'check-actions';
+
     if (check.url) {
       const link = document.createElement('a');
       link.href = check.url;
       link.target = '_blank';
       link.rel = 'noreferrer';
       link.textContent = check.id === 'web-publica' ? 'Abrir web' : 'Ver comprobación';
-      article.append(link);
+      actions.append(link);
     }
 
+    if (check.id === 'audit-repertorio') {
+      const runButton = document.createElement('button');
+      runButton.type = 'button';
+      runButton.className = 'run-check-button';
+      runButton.textContent = check.state === 'running' ? 'En execución' : 'Executar agora';
+      runButton.disabled = check.state === 'running';
+      runButton.addEventListener('click', () => executarRepertorio(runButton));
+      actions.append(runButton);
+    }
+
+    if (actions.childNodes.length) article.append(actions);
     return article;
   }
 
@@ -191,12 +228,12 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     }
 
     if (emailNode instanceof HTMLElement) emailNode.textContent = user.email;
-    const idToken = await user.getIdToken();
+    currentIdToken = await user.getIdToken();
 
     const response = await fetch('/api/estado-sistema', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
+      body: JSON.stringify({ idToken: currentIdToken })
     });
     const result = await response.json().catch(() => null);
 
@@ -235,16 +272,12 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     box-shadow: 0 12px 32px rgba(44, 27, 32, .05);
   }
 
-  .state-box {
-    padding: 1.2rem;
-  }
-
-  .error-box {
-    border-color: rgba(145, 35, 35, .3);
-  }
+  .state-box { padding: 1.2rem; }
+  .error-box { border-color: rgba(145, 35, 35, .3); }
 
   .error-box button,
-  .status-toolbar button {
+  .status-toolbar button,
+  .run-check-button {
     border: 0;
     border-radius: 999px;
     padding: .65rem 1rem;
@@ -253,6 +286,11 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     font: inherit;
     font-weight: 700;
     cursor: pointer;
+  }
+
+  .run-check-button:disabled {
+    cursor: default;
+    opacity: .6;
   }
 
   .overview-card {
@@ -286,25 +324,11 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
   .overview-state.is-error { color: #8b2d36; }
   .overview-state.is-unknown { color: #666; }
 
-  .overview-card p {
-    margin: .5rem 0 0;
-    color: #68575d;
-  }
-
-  .overview-meta {
-    min-width: 12rem;
-    text-align: right;
-  }
-
+  .overview-card p { margin: .5rem 0 0; color: #68575d; }
+  .overview-meta { min-width: 12rem; text-align: right; }
   .overview-meta strong,
-  .overview-meta small {
-    display: block;
-  }
-
-  .overview-meta small {
-    margin-top: .3rem;
-    color: #806f74;
-  }
+  .overview-meta small { display: block; }
+  .overview-meta small { margin-top: .3rem; color: #806f74; }
 
   .status-toolbar {
     display: flex;
@@ -314,11 +338,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     margin: 1.1rem 0;
   }
 
-  .status-toolbar p {
-    margin: 0;
-    color: #6b5b60;
-    font-size: .92rem;
-  }
+  .status-toolbar p { margin: 0; color: #6b5b60; font-size: .92rem; }
 
   .checks-grid {
     display: grid;
@@ -352,10 +372,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     gap: .75rem;
   }
 
-  .check-head h2 {
-    margin: 0;
-    font-size: 1rem;
-  }
+  .check-head h2 { margin: 0; font-size: 1rem; }
 
   .check-badge {
     flex: 0 0 auto;
@@ -367,9 +384,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     font-weight: 800;
   }
 
-  .check-card dl {
-    margin: 1rem 0 .8rem;
-  }
+  .check-card dl { margin: 1rem 0 .8rem; }
 
   .check-card dl div {
     display: flex;
@@ -379,14 +394,15 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     border-bottom: 1px solid #eee8ea;
   }
 
-  .check-card dt {
-    color: #7a686e;
-  }
+  .check-card dt { color: #7a686e; }
+  .check-card dd { margin: 0; font-weight: 700; text-align: right; }
 
-  .check-card dd {
-    margin: 0;
-    font-weight: 700;
-    text-align: right;
+  .check-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+    margin-top: .8rem;
   }
 
   .check-card a {
@@ -408,10 +424,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       flex-direction: column;
     }
 
-    .overview-meta {
-      min-width: 0;
-      text-align: left;
-    }
+    .overview-meta { min-width: 0; text-align: left; }
 
     .check-card dl div {
       flex-direction: column;
@@ -420,8 +433,6 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       padding: .55rem 0;
     }
 
-    .check-card dd {
-      text-align: left;
-    }
+    .check-card dd { text-align: left; }
   }
 </style>
