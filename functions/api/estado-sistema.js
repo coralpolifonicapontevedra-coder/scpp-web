@@ -110,12 +110,8 @@ async function tpvStatus() {
     const body = contentType.includes('application/json') ? await response.json().catch(() => null) : null;
     const ok = response.ok && body?.ok === true && body?.servizo === 'tpv-ceca';
     return {
-      id: 'tpv-ceca',
-      label: 'Pasarela TPV de Colabora',
-      state: ok ? 'ok' : 'error',
-      labelState: ok ? 'Operativa' : 'Con incidencias',
-      updatedAt: new Date().toISOString(),
-      durationMs,
+      id: 'tpv-ceca', label: 'Pasarela TPV de Colabora', state: ok ? 'ok' : 'error',
+      labelState: ok ? 'Operativa' : 'Con incidencias', updatedAt: new Date().toISOString(), durationMs,
       url: 'https://coralpolifonicapontevedra.org/donar/',
       error: ok ? null : (!contentType.includes('application/json')
         ? `O endpoint TPV devolveu ${contentType || 'un formato non identificado'} en lugar de JSON.`
@@ -134,9 +130,7 @@ async function publicWebStatus() {
   const url = 'https://coralpolifonicapontevedra.org/';
   const started = Date.now();
   try {
-    const response = await fetchWithTimeout(url, {
-      method: 'GET', headers: { 'User-Agent': 'scpp-system-status' }
-    }, 8000);
+    const response = await fetchWithTimeout(url, { method: 'GET', headers: { 'User-Agent': 'scpp-system-status' } }, 8000);
     const durationMs = Date.now() - started;
     const ok = response.ok && String(response.headers.get('content-type') || '').includes('text/html');
     return {
@@ -161,13 +155,25 @@ async function appsScriptStatus(env) {
     updatedAt: new Date().toISOString(), durationMs: 0, url
   };
   try {
-    const response = await fetchWithTimeout(url, { method: 'GET' }, 8000);
+    const response = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json,text/plain,*/*', 'User-Agent': 'scpp-system-status' }
+    }, 25000);
     const durationMs = Date.now() - started;
-    const ok = response.ok;
+    const contentType = String(response.headers.get('content-type') || '');
+    const bodyText = await response.text().catch(() => '');
+    const looksHealthy = response.ok && (
+      contentType.includes('application/json')
+      || bodyText.includes('"ok":true')
+      || bodyText.includes('UsuarioWeb')
+    );
+    const slow = looksHealthy && durationMs > 8000;
     return {
-      id: 'apps-script', label: 'Apps Script', state: ok ? 'ok' : 'error',
-      labelState: ok ? 'Dispoñible' : `HTTP ${response.status}`,
-      updatedAt: new Date().toISOString(), durationMs, url
+      id: 'apps-script', label: 'Apps Script',
+      state: looksHealthy ? (slow ? 'warning' : 'ok') : 'error',
+      labelState: looksHealthy ? (slow ? 'Dispoñible, resposta lenta' : 'Dispoñible') : `HTTP ${response.status}`,
+      updatedAt: new Date().toISOString(), durationMs, url,
+      error: slow ? 'Apps Script respondeu correctamente, pero tardou máis de 8 segundos.' : null
     };
   } catch (error) {
     return {
