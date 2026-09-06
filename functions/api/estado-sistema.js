@@ -81,10 +81,60 @@ async function latestWorkflowRun(file, label, githubToken) {
   }
 }
 
-async function publicWebStatus() {
+async function backupStatus(githubToken) {
+  const check = await latestWorkflowRun('backup-sheets-r2.yml', 'Copias de seguridade', githubToken);
+  if (!check.updatedAt || check.state === 'unknown' || check.state === 'error' || check.state === 'running') return check;
+  const ageMs = Date.now() - new Date(check.updatedAt).getTime();
+  const maxAgeMs = 36 * 60 * 60 * 1000;
+  if (!Number.isFinite(ageMs) || ageMs > maxAgeMs) {
+    return {
+      ...check,
+      state: 'error',
+      labelState: 'Copia atrasada',
+      error: 'A última copia de seguridade ten máis de 36 horas.'
+    };
+  }
+  return { ...check, labelState: 'Última copia correcta' };
+}
+
+async function tpvStatus() {
+  const url = 'https://coralpolifonicapontevedra.org/api/tpv/iniciar';
   const started = Date.now();
   try {
-    const response = await fetchWithTimeout('https://scpp-web.pages.dev/', {
+    const response = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json', 'User-Agent': 'scpp-system-status' }
+    }, 8000);
+    const durationMs = Date.now() - started;
+    const contentType = String(response.headers.get('content-type') || '');
+    const body = contentType.includes('application/json') ? await response.json().catch(() => null) : null;
+    const ok = response.ok && body?.ok === true && body?.servizo === 'tpv-ceca';
+    return {
+      id: 'tpv-ceca',
+      label: 'Pasarela TPV de Colabora',
+      state: ok ? 'ok' : 'error',
+      labelState: ok ? 'Operativa' : 'Con incidencias',
+      updatedAt: new Date().toISOString(),
+      durationMs,
+      url: 'https://coralpolifonicapontevedra.org/donar/',
+      error: ok ? null : (!contentType.includes('application/json')
+        ? `O endpoint TPV devolveu ${contentType || 'un formato non identificado'} en lugar de JSON.`
+        : body?.erro || `HTTP ${response.status}`)
+    };
+  } catch (error) {
+    return {
+      id: 'tpv-ceca', label: 'Pasarela TPV de Colabora', state: 'error', labelState: 'Non dispoñible',
+      updatedAt: new Date().toISOString(), durationMs: Date.now() - started,
+      error: error instanceof Error ? error.message : String(error), url: 'https://coralpolifonicapontevedra.org/donar/'
+    };
+  }
+}
+
+async function publicWebStatus() {
+  const url = 'https://coralpolifonicapontevedra.org/';
+  const started = Date.now();
+  try {
+    const response = await fetchWithTimeout(url, {
       method: 'GET', headers: { 'User-Agent': 'scpp-system-status' }
     }, 8000);
     const durationMs = Date.now() - started;
@@ -92,13 +142,13 @@ async function publicWebStatus() {
     return {
       id: 'web-publica', label: 'Web pública', state: ok ? 'ok' : 'error',
       labelState: ok ? 'Dispoñible' : `HTTP ${response.status}`,
-      updatedAt: new Date().toISOString(), durationMs, url: 'https://scpp-web.pages.dev/'
+      updatedAt: new Date().toISOString(), durationMs, url
     };
   } catch (error) {
     return {
       id: 'web-publica', label: 'Web pública', state: 'error', labelState: 'Non dispoñible',
       updatedAt: new Date().toISOString(), durationMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error), url: 'https://scpp-web.pages.dev/'
+      error: error instanceof Error ? error.message : String(error), url
     };
   }
 }
@@ -190,7 +240,7 @@ async function firebaseStatus(env) {
 async function buildStatus(env) {
   const token = String(env.GITHUB_TOKEN || env.GH_TOKEN || '').trim();
   const checks = await Promise.all([
-    appsScriptStatus(env), r2Status(env), firebaseStatus(env), publicWebStatus(),
+    appsScriptStatus(env), r2Status(env), firebaseStatus(env), publicWebStatus(), tpvStatus(), backupStatus(token),
     latestWorkflowRun('quality.yml', 'Calidade do proxecto', token),
     latestWorkflowRun('check-public-links.yml', 'Enlaces públicos', token),
     latestWorkflowRun('audit-file-systems.yml', 'Arquivos e documentación', token),
