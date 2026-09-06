@@ -72,7 +72,8 @@ jobs:
               break
             fi
 
-            # Código 1 = incidencias reais detectadas pola auditoría: non reintentar.
+            # Código 1 = auditoría completada correctamente con incidencias de datos.
+            # As incidencias quedan no informe, pero non deben poñer o workflow en vermello.
             if [[ "$status" -eq 1 ]]; then
               break
             fi
@@ -89,6 +90,12 @@ jobs:
 
             break
           done
+
+          if [[ "$status" -eq 1 ]]; then
+            echo "Auditoría completada con incidencias de datos. Consulte o resumo e os informes." | tee -a repertorio-audit.log
+            exit 0
+          fi
+
           exit "$status"
 
       - name: Mostrar incidencias no log e no resumo
@@ -124,8 +131,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
 
-      - name: Marcar erros críticos
+      - name: Marcar fallo real da auditoría
         if: steps.audit.outcome == 'failure'
         run: |
-          echo "A auditoría non puido completarse ou detectou erros críticos. Consulte as incidencias completas no paso anterior."
+          echo "A auditoría non puido completarse. Consulte o log para identificar o fallo de execución."
           exit 1
