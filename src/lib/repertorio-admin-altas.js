@@ -67,6 +67,7 @@ function inxectarInterface() {
         <header><div><span class="scpp-kicker">Alta</span><h2>Nova obra</h2></div><button class="scpp-close" type="button" data-scpp-close aria-label="Pechar">×</button></header>
         <div class="scpp-rep-create-fields">
           <label><span>Nome da obra *</span><input name="NomeObra" required></label>
+          <label><span>Estado da obra *</span><select name="EstadoObra" required><option selected>Activa</option><option>Histórica</option></select></label>
           <label><span>Compositor</span><input name="Compositor"></label>
           <label><span>Autor da letra</span><input name="AutorLetra"></label>
           <label><span>Nacemento / falecemento</span><input name="Nac/fall"></label>
@@ -78,7 +79,7 @@ function inxectarInterface() {
           <label><span>Ligazón ao vídeo</span><input name="Enlace a vídeo" type="url"></label>
           <label class="wide"><span>Comentarios</span><textarea name="Comentarios" rows="4"></textarea></label>
         </div>
-        <p class="scpp-note">O identificador e o Row ID créanse automaticamente na folla Repertorio.</p>
+        <p class="scpp-note">Toda partitura debe pertencer a unha obra. Unha obra histórica pode crearse como «Histórica» e cambiarse a «Activa» se volve empregarse no repertorio.</p>
         <p id="new-obra-admin-status" class="scpp-status"></p>
         <footer><button type="button" data-scpp-close>Cancelar</button><button class="primary" type="submit">Gardar obra</button></footer>
       </form>
@@ -125,6 +126,8 @@ async function abrirObra() {
   const form = document.querySelector('#new-obra-admin-form');
   const status = document.querySelector('#new-obra-admin-status');
   form?.reset();
+  const estado = form?.elements?.namedItem?.('EstadoObra');
+  if (estado) estado.value = 'Activa';
   if (status) status.textContent = '';
   document.querySelector('#new-obra-admin-dialog')?.showModal();
 }
@@ -179,6 +182,10 @@ async function gardarObra(event) {
   const obra = Object.fromEntries([...fd.entries()].map(([key, value]) => [key, clean(value)]));
   if (!obra.NomeObra) {
     if (status) status.textContent = '⚠ Indica o nome da obra.';
+    return;
+  }
+  if (!['Activa', 'Histórica'].includes(clean(obra.EstadoObra))) {
+    if (status) status.textContent = '⚠ Selecciona o estado da obra.';
     return;
   }
 
@@ -245,6 +252,80 @@ async function gardarAudio(event) {
   }
 }
 
+function aplicarRegraPartituraDialog() {
+  const select = document.querySelector('#new-partitura-form [name="Id_Repertorio"]');
+  if (select) {
+    select.required = true;
+    const baleira = [...select.options].find((option) => !clean(option.value));
+    if (baleira) baleira.textContent = 'Selecciona unha obra…';
+  }
+  const note = document.querySelector('#new-partitura-dialog .note');
+  if (note) note.textContent = 'Toda partitura debe estar vinculada a unha obra. Se é material histórico, crea primeiro a obra como Histórica; ese estado poderá cambiarse a Activa se se reutiliza.';
+}
+
+async function prepararEdicionAdministracion() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const tab = tabActiva();
+  const fields = document.querySelector('#edit-fields');
+  if (!fields) return;
+
+  if (tab === 'partituras') {
+    const select = fields.querySelector('[name="Id_Repertorio"]');
+    if (select) {
+      select.required = true;
+      const baleira = [...select.options].find((option) => !clean(option.value));
+      if (baleira) baleira.textContent = 'Selecciona unha obra…';
+    }
+    return;
+  }
+
+  if (tab !== 'obras' || fields.querySelector('[name="EstadoObra"]')) return;
+  const selected = clean(document.querySelector('#record-select')?.value);
+  if (!selected) return;
+
+  try {
+    const catalogo = await catalogoAdministracion();
+    const obra = (Array.isArray(catalogo.obras) ? catalogo.obras : []).find((item) => clean(item?.Id) === selected);
+    if (!obra) return;
+    const actual = clean(obra.EstadoObra) || 'Activa';
+    const label = document.createElement('label');
+    label.innerHTML = `<span>Estado da obra</span><select name="EstadoObra" required><option ${actual === 'Activa' ? 'selected' : ''}>Activa</option><option ${actual === 'Histórica' ? 'selected' : ''}>Histórica</option></select>`;
+    fields.prepend(label);
+  } catch (error) {
+    console.error('Non foi posible cargar o estado da obra:', error);
+  }
+}
+
+async function actualizarEstadoObraDetalle() {
+  if (tabActiva() !== 'obras') return;
+  const selected = clean(document.querySelector('#record-select')?.value);
+  const badge = document.querySelector('#detail-state');
+  if (!selected || !badge) return;
+  try {
+    const catalogo = await catalogoAdministracion();
+    const obra = (Array.isArray(catalogo.obras) ? catalogo.obras : []).find((item) => clean(item?.Id) === selected);
+    if (!obra) return;
+    const estado = clean(obra.EstadoObra) || 'Activa';
+    badge.textContent = estado;
+    badge.classList.toggle('on', estado === 'Activa');
+    badge.classList.toggle('off', estado === 'Histórica');
+  } catch {}
+}
+
+function validarAsociacionPartitura(event) {
+  const form = event.target instanceof HTMLFormElement ? event.target : null;
+  if (!form) return;
+  const eNova = form.id === 'new-partitura-form';
+  const eEdicionPartitura = form.id === 'edit-form' && tabActiva() === 'partituras';
+  if (!eNova && !eEdicionPartitura) return;
+  const select = form.elements.namedItem('Id_Repertorio');
+  if (select && clean(select.value)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const status = document.querySelector(eNova ? '#new-partitura-status' : '#edit-status');
+  if (status) status.textContent = '⚠ Toda partitura debe estar vinculada a unha obra. Crea primeiro a obra se aínda non existe.';
+}
+
 async function restaurarAlta() {
   let pending = null;
   try {
@@ -272,17 +353,29 @@ async function restaurarAlta() {
 function iniciar() {
   if (!eRutaRepertorio()) return;
   inxectarInterface();
+  aplicarRegraPartituraDialog();
+
+  document.addEventListener('submit', validarAsociacionPartitura, true);
 
   document.addEventListener('click', (event) => {
+    const edit = event.target instanceof Element ? event.target.closest('#edit') : null;
+    if (edit) prepararEdicionAdministracion();
+
     const target = event.target instanceof Element ? event.target.closest('#new') : null;
     if (!target) return;
     const tab = tabActiva();
-    if (tab === 'partituras') return;
+    if (tab === 'partituras') {
+      setTimeout(aplicarRegraPartituraDialog, 0);
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
     if (tab === 'obras') abrirObra();
     if (tab === 'audios') abrirAudio();
   }, true);
+
+  document.querySelector('#record-select')?.addEventListener('change', () => setTimeout(actualizarEstadoObraDetalle, 0));
+  document.querySelectorAll('[data-tab]').forEach((button) => button.addEventListener('click', () => setTimeout(actualizarEstadoObraDetalle, 0)));
 
   restaurarAlta();
 }
