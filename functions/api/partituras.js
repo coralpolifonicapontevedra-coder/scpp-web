@@ -1,7 +1,7 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
-const CACHE_MS = 10 * 60 * 1000;
+const CACHE_MS = 60 * 1000;
 const CACHE_TOKEN_MS = 5 * 60 * 1000;
 const CACHE_PERMISOS_MS = 60 * 1000;
 const TIMEOUT_FIREBASE_MS = 8_000;
@@ -106,10 +106,22 @@ function podeEscribirPartituras(nivel) {
   return ['escritura', 'administracion'].includes(nivel);
 }
 
+function truthy(valor) {
+  if (valor === true) return true;
+  return ['Y', 'SI', 'SÍ', 'TRUE', '1', 'YES'].includes(String(valor ?? '').trim().toUpperCase());
+}
+
 function claveValida(valor) {
   const clave = String(valor || '').trim().replace(/^\/+/, '');
   if (!clave || clave.includes('..') || clave.includes('\\')) return '';
   return clave.startsWith(PREFIXO) ? clave : '';
+}
+
+function claveDesdeFila(fila) {
+  const directa = claveValida(fila?.R2Key);
+  if (directa) return directa;
+  const pdf = String(fila?.PDF || '').replace(/\\/g, '/').split('/').pop()?.trim() || '';
+  return pdf ? claveValida(`${PREFIXO}${pdf}`) : '';
 }
 
 function nomeSeguro(valor) {
@@ -127,10 +139,7 @@ function bytesDesdeBase64(base64) {
   return bytes;
 }
 
-function catalogoActivo() {
-  const cacheado = lerCache(cacheCatalogo, 'catalogo');
-  if (cacheado) return cacheado;
-
+function catalogoIndiceR2() {
   const porClave = new Map();
   for (const [idRepertorio, recursos] of Object.entries(REPERTORIO_R2 || {})) {
     for (const score of recursos?.partituras || []) {
@@ -143,6 +152,9 @@ function catalogoActivo() {
         voz: String(score?.voz || 'General').trim(),
         tipo: String(score?.tipo || '').trim(),
         principal: score?.principal === true,
+        activa: true,
+        publica: false,
+        estadoMaterial: '',
         r2Key: clave,
         tamano: Number(score?.tamano || 0)
       };
@@ -150,12 +162,58 @@ function catalogoActivo() {
       if (!actual || (!actual.principal && candidato.principal)) porClave.set(clave, candidato);
     }
   }
-
   const partituras = [...porClave.values()]
     .sort((a, b) => a.nome.localeCompare(b.nome, 'gl', { sensitivity: 'base' }));
-  const resultado = { ok: true, partituras, total: partituras.length, orixe: 'R2-INDEX' };
-  gardarCache(cacheCatalogo, 'catalogo', resultado, CACHE_MS);
-  return resultado;
+  return { ok: true, partituras, total: partituras.length, orixe: 'R2-INDEX-FALLBACK' };
+}
+
+async function catalogoPartiturasSheet(env, usuario) {
+  const cacheado = lerCache(cacheCatalogo, 'catalogo');
+  if (cacheado) return cacheado;
+  if (!env.WEB_WRITE_TOKEN) throw new Error('O servizo de consulta non está configurado.');
+
+  try {
+    const { resultado } = await obterJsonAppsScript(env, {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'listarRepertorioAdministracion',
+      email: usuario.email,
+      usuarioEmail: usuario.email,
+      uidFirebase: String(usuario.uid || '')
+    }, { timeoutMs: 20000, attemptTimeoutMs: 10000 });
+
+    if (!resultado?.ok || !Array.isArray(resultado.partituras)) {
+      throw new Error(resultado?.erro || 'Partituras_App non devolveu un catálogo válido.');
+    }
+
+    const partituras = resultado.partituras
+      .map((fila) => {
+        const r2Key = claveDesdeFila(fila);
+        return {
+          id: String(fila?.Id_Partitura || fila?.['Row ID'] || r2Key || '').trim(),
+          idRepertorio: String(fila?.Id_Repertorio || '').trim(),
+          nome: String(fila?.Nomepartitura || 'Partitura').trim(),
+          voz: String(fila?.Voz || 'General').trim(),
+          tipo: String(fila?.TipoPartitura || '').trim(),
+          principal: truthy(fila?.Principal),
+          activa: truthy(fila?.Activa),
+          publica: truthy(fila?.['Pública']),
+          estadoMaterial: String(fila?.EstadoMaterial || '').trim(),
+          r2Key,
+          tamano: Number(fila?.TamanoR2 || 0)
+        };
+      })
+      .filter((partitura) => partitura.id && partitura.nome && partitura.r2Key)
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'gl', { sensitivity: 'base' }));
+
+    const resposta = { ok: true, partituras, total: partituras.length, orixe: 'PARTITURAS_APP' };
+    gardarCache(cacheCatalogo, 'catalogo', resposta, CACHE_MS);
+    return resposta;
+  } catch (erro) {
+    console.error('Non foi posible ler Partituras_App; úsase o índice R2 como respaldo:', erro);
+    const respaldo = catalogoIndiceR2();
+    gardarCache(cacheCatalogo, 'catalogo', respaldo, CACHE_MS);
+    return respaldo;
+  }
 }
 
 async function obterFicheiro(env, clave) {
@@ -288,10 +346,13 @@ export async function onRequest({ request, env }) {
 
   if (accion === 'listarPartiturasPortal') {
     try {
-      const resultado = catalogoActivo();
-      return json(200, resultado, { 'X-SCPP-Storage': 'R2-INDEX', 'Server-Timing': 'r2-index;dur=1' });
+      const resultado = await catalogoPartiturasSheet(env, usuario);
+      return json(200, resultado, {
+        'X-SCPP-Storage': resultado.orixe || 'PARTITURAS_APP',
+        'Server-Timing': 'partituras;dur=1'
+      });
     } catch (erro) {
-      console.error('Erro ao listar Partituras desde o índice R2:', erro);
+      console.error('Erro ao listar Partituras:', erro);
       return json(503, { ok: false, erro: 'Non foi posible cargar o arquivo de partituras.' });
     }
   }
