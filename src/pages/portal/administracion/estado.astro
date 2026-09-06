@@ -117,7 +117,18 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
         body: JSON.stringify({ idToken: currentIdToken, accion: 'repertorio' })
       });
       const result = await response.json().catch(() => null);
-      if (!response.ok || !result?.ok) throw new Error(result?.erro || `Erro HTTP ${response.status}`);
+      if (!response.ok || !result?.ok) {
+        if (result?.manualUrl) {
+          window.open(result.manualUrl, '_blank', 'noopener,noreferrer');
+          button.textContent = 'Abrindo GitHub…';
+          window.setTimeout(() => {
+            button.textContent = original;
+            button.disabled = false;
+          }, 1800);
+          return;
+        }
+        throw new Error(result?.erro || `Erro HTTP ${response.status}`);
+      }
       button.textContent = 'Auditoría iniciada';
       window.setTimeout(() => loadStatus().catch(showError), 2500);
     } catch (error) {
@@ -401,8 +412,10 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: .75rem;
-    margin-top: .8rem;
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+    padding-top: .9rem;
+    border-top: 1px solid #eee8ea;
   }
 
   .check-card a {
@@ -434,5 +447,11 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     }
 
     .check-card dd { text-align: left; }
+
+    .check-actions {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 1rem;
+    }
   }
 </style>
