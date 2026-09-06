@@ -1,0 +1,75 @@
+name: Reparar Canto de Taboadela en R2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-taboadela-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    environment: r2-migration
+    steps:
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: python -m pip install boto3==1.40.1 google-api-python-client==2.177.0 google-auth==2.40.3
+
+      - name: Repor e verificar PDF
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          python - <<'PY'
+          import io, json, os
+          import boto3
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaIoBaseDownload
+
+          DRIVE_FILE_ID = '1SFGkIq_lTEyRax0Qyrz9tmJEv0rcKMz3'
+          KEY = 'partituras/1788453705731-23f9a55f-cf92-4d09-99f1-1a6214405edc-Canto de Taboadela_Obdulia Prieto.pdf'
+          EXPECTED_SIZE = 4064838
+
+          creds = service_account.Credentials.from_service_account_info(
+              json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT_JSON']),
+              scopes=['https://www.googleapis.com/auth/drive.readonly'],
+          )
+          drive = build('drive', 'v3', credentials=creds, cache_discovery=False)
+          request = drive.files().get_media(fileId=DRIVE_FILE_ID, supportsAllDrives=True)
+          buffer = io.BytesIO()
+          downloader = MediaIoBaseDownload(buffer, request)
+          done = False
+          while not done:
+              _, done = downloader.next_chunk()
+          data = buffer.getvalue()
+          if len(data) != EXPECTED_SIZE:
+              raise RuntimeError(f'Tamaño Drive inesperado: {len(data)} != {EXPECTED_SIZE}')
+          if not data.startswith(b'%PDF-'):
+              raise RuntimeError('O ficheiro de Drive non parece un PDF válido')
+
+          r2 = boto3.client(
+              's3',
+              endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
+              aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
+              aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
+              region_name='auto',
+          )
+          bucket = os.environ['R2_BUCKET']
+          r2.put_object(Bucket=bucket, Key=KEY, Body=data, ContentType='application/pdf', CacheControl='private, max-age=3600')
+          head = r2.head_object(Bucket=bucket, Key=KEY)
+          size = int(head.get('ContentLength', -1))
+          if size != EXPECTED_SIZE:
+              raise RuntimeError(f'Tamaño R2 incorrecto tras repoñer: {size} != {EXPECTED_SIZE}')
+          print(f'OK: {KEY} reposto e verificado en R2 ({size} bytes)')
+          PY
