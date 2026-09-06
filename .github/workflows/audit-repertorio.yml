@@ -63,8 +63,8 @@ jobs:
           set +e
           : > repertorio-audit.log
           status=2
-          for intento in 1 2 3; do
-            echo "===== INTENTO ${intento}/3 =====" | tee -a repertorio-audit.log
+          for intento in 1 2 3 4 5; do
+            echo "===== INTENTO ${intento}/5 =====" | tee -a repertorio-audit.log
             python scripts/audit-repertorio.py 2>&1 | tee -a repertorio-audit.log
             status=${PIPESTATUS[0]}
 
@@ -77,9 +77,11 @@ jobs:
               break
             fi
 
-            # Código 2 = a auditoría non puido completarse (por exemplo 429/5xx de Google).
-            if [[ "$status" -eq 2 && "$intento" -lt 3 ]]; then
-              espera=$((intento * 15))
+            # Código 2 = non se puido completar a auditoría (429/5xx de Google, etc.).
+            # Reinténtase con espera progresiva para non converter unha indispoñibilidade
+            # temporal de Google Sheets nun falso erro do Repertorio.
+            if [[ "$status" -eq 2 && "$intento" -lt 5 ]]; then
+              espera=$((intento * 30))
               echo "Fallo temporal de execución; novo intento en ${espera}s..." | tee -a repertorio-audit.log
               sleep "$espera"
               continue
@@ -125,5 +127,5 @@ jobs:
       - name: Marcar erros críticos
         if: steps.audit.outcome == 'failure'
         run: |
-          echo "A auditoría detectou erros críticos. As incidencias completas aparecen no paso anterior."
+          echo "A auditoría non puido completarse ou detectou erros críticos. Consulte as incidencias completas no paso anterior."
           exit 1
