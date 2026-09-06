@@ -1,1 +1,1 @@
-export { onRequestPost, onRequest } from './pago.js';
+export { onRequestGet, onRequestPost, onRequest } from './pago.js';
