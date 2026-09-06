@@ -116,6 +116,105 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
         moveCentenaryButton();
       }
     }
+
+    /*
+     * Historia · Presidencias.
+     * Priorízanse fotografías xa autorizadas da SCPP/R2. Para os casos nos que
+     * non existe unha imaxe propia identificada empréganse fontes abertas e
+     * acreditadas de Wikimedia Commons, mantendo a atribución e a licenza.
+     */
+    if (menu.dataset.currentPath === '/historia') {
+      const fotosPresidencias: Record<string, {
+        src: string;
+        alt: string;
+        credito: string;
+        fonte?: string;
+      }> = {
+        'Antón Losada Diéguez': {
+          src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2F288c578f-7316-565a-b573-160a866fc0eb.jpg',
+          alt: 'Retrato de Antón Losada Diéguez, primeiro presidente da Sociedade Coral Polifónica de Pontevedra',
+          credito: 'Museo de Pontevedra · Arquivo da SCPP'
+        },
+        'Alfonso Daniel Rodríguez Castelao': {
+          src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Castelao%20Vida%20Gallega%20442.png',
+          alt: 'Retrato de Alfonso Daniel Rodríguez Castelao publicado en Vida Gallega en 1930',
+          credito: 'Vida Gallega · Galiciana / Wikimedia Commons · dominio público',
+          fonte: 'https://commons.wikimedia.org/wiki/File:Castelao_Vida_Gallega_442.png'
+        },
+        'José Blein Llinás': {
+          src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2F991becc5-ce34-514b-b2d3-1bc1fe090377.jpg',
+          alt: 'Retrato de José Blein Llinás na década de 1930',
+          credito: 'Museo de Pontevedra · Arquivo da SCPP'
+        },
+        'Vicente Riestra Calderón': {
+          src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Riestra%20Calder%C3%B3n%2C%20Enrique%20Peinador%2C%20Valle-Incl%C3%A1n%2C%20Ram%C3%B3n%20Cabanillas%20e%20Victoriano%20Garc%C3%ADa%20Mart%C3%AD.jpg',
+          alt: 'Vicente Riestra Calderón nunha fotografía de grupo no Balneario de Mondariz, primeiro pola esquerda',
+          credito: 'Wikimedia Commons · dominio público',
+          fonte: 'https://commons.wikimedia.org/wiki/File:Riestra_Calder%C3%B3n,_Enrique_Peinador,_Valle-Incl%C3%A1n,_Ram%C3%B3n_Cabanillas_e_Victoriano_Garc%C3%ADa_Mart%C3%AD.jpg'
+        },
+        'Augusto García Sánchez': {
+          src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2Fea4d64bf-dd2f-4f10-8fde-b855a8c2b04d.jpg',
+          alt: 'A Sociedade Coral Polifónica de Pontevedra dirixida por Agustín Bertomeu en 1975, durante a presidencia de Augusto García Sánchez',
+          credito: 'Arquivo SCPP · A Polifónica en 1975'
+        },
+        'José Fernando Filgueira Valverde': {
+          src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Xos%C3%A9%20Filgueira%20Valverde%2C%201931.jpg',
+          alt: 'Retrato de Xosé Filgueira Valverde en 1931',
+          credito: 'Fundación Filgueira / Wikimedia Commons · dominio público',
+          fonte: 'https://commons.wikimedia.org/wiki/File:Xos%C3%A9_Filgueira_Valverde,_1931.jpg'
+        },
+        'Xosé Carlos Valle Pérez': {
+          src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Milagros%20Bar%C3%A1%20e%20Xos%C3%A9%20Carlos%20Valle%20P%C3%A9rez.jpg',
+          alt: 'Milagros Bará e Xosé Carlos Valle Pérez nunha charla no Museo de Pontevedra en 2011',
+          credito: 'Estevoaei / Wikimedia Commons · CC BY-SA 4.0',
+          fonte: 'https://commons.wikimedia.org/wiki/File:Milagros_Bar%C3%A1_e_Xos%C3%A9_Carlos_Valle_P%C3%A9rez.jpg'
+        },
+        'José Raposeiras Correa': {
+          src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2F1.jpg',
+          alt: 'José Raposeiras Correa nunha recepción da Xunta Directiva da SCPP na Deputación de Pontevedra en 2026',
+          credito: 'Prensa Deputación · Deputación Provincial de Pontevedra'
+        }
+      };
+
+      const inserirFotosPresidencias = () => {
+        document.querySelectorAll<HTMLElement>('.presidency-card').forEach((card) => {
+          if (card.querySelector('.presidency-photo')) return;
+          const titulo = card.querySelector('h3')?.textContent?.trim() || '';
+          const foto = fotosPresidencias[titulo];
+          if (!foto) return;
+
+          const figure = document.createElement('figure');
+          figure.className = 'presidency-photo';
+
+          const image = document.createElement('img');
+          image.src = foto.src;
+          image.alt = foto.alt;
+          image.loading = 'lazy';
+          image.decoding = 'async';
+          figure.append(image);
+
+          const caption = document.createElement('figcaption');
+          if (foto.fonte) {
+            const link = document.createElement('a');
+            link.href = foto.fonte;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = foto.credito;
+            caption.append(link);
+          } else {
+            caption.textContent = foto.credito;
+          }
+          figure.append(caption);
+          card.prepend(figure);
+        });
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inserirFotosPresidencias, { once: true });
+      } else {
+        inserirFotosPresidencias();
+      }
+    }
   }
 </script>
 
@@ -207,6 +306,42 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
   .menu-arrow {
     color: var(--color-acento);
     font-size: .92rem;
+  }
+
+  :global(.public-site-main .historia-page .presidency-card .presidency-photo) {
+    margin: -.1rem -.1rem 1rem;
+    overflow: hidden;
+    border: 1px solid rgba(106, 27, 41, .1);
+    border-radius: 4px;
+    background: #f4f0e6;
+  }
+
+  :global(.public-site-main .historia-page .presidency-card .presidency-photo img) {
+    display: block;
+    width: 100%;
+    height: clamp(190px, 20vw, 250px);
+    object-fit: contain;
+    object-position: center;
+    background: #eee9df;
+  }
+
+  :global(.public-site-main .historia-page .presidency-card .presidency-photo figcaption) {
+    margin: 0;
+    padding: .48rem .58rem .52rem;
+    border-top: 1px solid rgba(106, 27, 41, .08);
+    color: #746b65;
+    font-size: .64rem;
+    line-height: 1.35;
+  }
+
+  :global(.public-site-main .historia-page .presidency-card .presidency-photo figcaption a) {
+    color: #746b65;
+    text-decoration: none;
+  }
+
+  :global(.public-site-main .historia-page .presidency-card .presidency-photo figcaption a:hover) {
+    color: var(--color-principal);
+    text-decoration: underline !important;
   }
 
   :global(.public-site-main .centenario-page .centenario-intro h2),
@@ -302,6 +437,10 @@ const eActiva = (rutas = []) => rutas.some((ruta) =>
   @media (max-width: 720px) {
     .public-coral-nav ul {
       grid-template-columns: 1fr;
+    }
+
+    :global(.public-site-main .historia-page .presidency-card .presidency-photo img) {
+      height: min(72vw, 280px);
     }
   }
 </style>
