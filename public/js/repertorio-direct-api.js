@@ -57,7 +57,6 @@
       } else if (headers && typeof headers === 'object') {
         Object.entries(headers).forEach(([key, value]) => xhr.setRequestHeader(key, String(value)));
       }
-      if (!xhr.getResponseHeader) {}
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) gardarCache(xhr.responseText);
