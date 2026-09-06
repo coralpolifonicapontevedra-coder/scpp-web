@@ -9,7 +9,9 @@
   for (const key of [
     'scpp:repertorio:completo:v2',
     'scpp:repertorio:completo:v3',
-    'scpp:repertorio:completo:v4'
+    'scpp:repertorio:completo:v4',
+    'scpp:repertorio:completo:v5',
+    'scpp:repertorio:rapido:v2'
   ]) localStorage.removeItem(key);
 
   function canonId(valor) {
@@ -154,9 +156,7 @@
         letter-spacing: .02em;
         color: var(--color-primary, #7b2436);
       }
-      .audios-list.is-organized {
-        display: block !important;
-      }
+      .audios-list.is-organized { display: block !important; }
       .audio-group-list {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -168,33 +168,13 @@
         gap: .65rem;
         align-items: start;
       }
-      .audios-list[data-audio-organization="leucoina"] .audio-voice-group {
-        min-width: 0;
-        margin: 0;
-      }
-      .audios-list[data-audio-organization="leucoina"] .audio-group-list {
-        grid-template-columns: 1fr;
-        gap: .5rem;
-      }
-      .audios-list[data-audio-organization="leucoina"] .audio-card {
-        min-height: 104px !important;
-        padding: .65rem !important;
-        gap: .5rem !important;
-      }
-      .audios-list[data-audio-organization="leucoina"] .audio-heading strong {
-        font-size: .78rem !important;
-        line-height: 1.25;
-        overflow-wrap: anywhere;
-      }
-      .audios-list[data-audio-organization="leucoina"] .audio-play {
-        min-height: 2rem !important;
-        padding: .38rem .55rem !important;
-        font-size: .68rem !important;
-      }
+      .audios-list[data-audio-organization="leucoina"] .audio-voice-group { min-width: 0; margin: 0; }
+      .audios-list[data-audio-organization="leucoina"] .audio-group-list { grid-template-columns: 1fr; gap: .5rem; }
+      .audios-list[data-audio-organization="leucoina"] .audio-card { min-height: 104px !important; padding: .65rem !important; gap: .5rem !important; }
+      .audios-list[data-audio-organization="leucoina"] .audio-heading strong { font-size: .78rem !important; line-height: 1.25; overflow-wrap: anywhere; }
+      .audios-list[data-audio-organization="leucoina"] .audio-play { min-height: 2rem !important; padding: .38rem .55rem !important; font-size: .68rem !important; }
       @media (max-width: 680px) {
-        .audios-list[data-audio-organization="leucoina"] .audio-scene-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+        .audios-list[data-audio-organization="leucoina"] .audio-scene-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
     `;
     document.head.append(style);
@@ -280,7 +260,6 @@
 
     const audios = Array.isArray(obra.audios) ? obra.audios : [];
     if (!audios.length) return;
-
     const tarxetas = Array.from(lista.children).filter((elemento) => elemento.classList.contains('audio-card'));
     if (tarxetas.length !== audios.length) return;
 
@@ -318,11 +297,8 @@
     if (!location.pathname.startsWith('/portal/repertorio') || !url.includes('/api/repertorio') || !response.ok) return response;
 
     let body;
-    try {
-      body = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
-    } catch {
-      body = null;
-    }
+    try { body = typeof init?.body === 'string' ? JSON.parse(init.body) : null; }
+    catch { body = null; }
     if (body?.accion !== 'listarRepertorioPortal') return response;
 
     const resultado = filtrarSerieRetirada(await response.clone().json().catch(() => null));
