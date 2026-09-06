@@ -113,15 +113,21 @@ import BaseLayout from '../layouts/Layout.astro';
         if (btnPay) btnPay.disabled = true;
         if (status) {
           status.hidden = false;
-          status.textContent = 'Rexistrando a operación e conectando coa pasarela segura CECA…';
+          status.textContent = 'Conectando coa pasarela segura CECA…';
         }
 
-        const res = await fetch('/api/tpv/pago', {
+        const res = await fetch('/api/tpv/iniciar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ importe: importeNum, anonimo, nome, correo })
         });
-        const data = await res.json();
+        const raw = await res.text();
+        let data;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          throw new Error('Non foi posible iniciar a conexión co TPV. Téntao de novo nuns instantes.');
+        }
 
         if (res.ok && data.ok && data.url && data.params) {
           const formCeca = document.createElement('form');
