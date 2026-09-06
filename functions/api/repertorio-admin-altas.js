@@ -164,6 +164,7 @@ async function altaObra(env, user, body) {
     Compositor: clean(obra.Compositor),
     AutorLetra: clean(obra.AutorLetra),
     'Nac/fall': clean(obra['Nac/fall']),
+    EstadoObra: clean(obra.EstadoObra) || 'Activa',
     Categoria: clean(obra.Categoria),
     Coleccion: clean(obra.Coleccion),
     OrdeColeccion: clean(obra.OrdeColeccion),
