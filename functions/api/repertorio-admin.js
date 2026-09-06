@@ -176,6 +176,18 @@ async function chamar(env, user, accion, body) {
   return resultado;
 }
 
+async function obraRelacionadaExiste(env, user, idRepertorio) {
+  const id = clean(idRepertorio);
+  if (!id) return false;
+
+  let listado = (await lerCacheListado(env, true))?.payload || null;
+  if (!listado?.ok || !Array.isArray(listado.obras)) {
+    listado = await chamar(env, user, 'listarRepertorioAdministracion', {});
+    if (listado?.ok) await gardarCacheListado(env, listado).catch(() => {});
+  }
+  return Array.isArray(listado?.obras) && listado.obras.some((obra) => clean(obra?.Id) === id);
+}
+
 async function verificarPartituraGardada(env, user, body) {
   const id = clean(body?.id);
   const datos = body?.datos;
@@ -220,8 +232,15 @@ async function altaPartituraAdministracion(env, user, body) {
   const partitura = body?.partitura || {};
   const ficheiro = body?.ficheiro || {};
   const nome = clean(partitura.Nomepartitura || partitura.nomepartitura);
+  const idRepertorio = clean(partitura.Id_Repertorio || partitura.idRepertorio);
   const mimeType = clean(ficheiro.mimeType).toLowerCase();
   if (!nome) return { ok: false, codigo: 'VALIDATION', erro: 'Indica o nome da partitura.' };
+  if (!idRepertorio) {
+    return { ok: false, codigo: 'WORK_REQUIRED', erro: 'Toda partitura debe estar vinculada a unha obra. Crea primeiro a obra se aínda non existe.' };
+  }
+  if (!(await obraRelacionadaExiste(env, user, idRepertorio))) {
+    return { ok: false, codigo: 'WORK_NOT_FOUND', erro: 'A obra seleccionada non existe no repertorio. Non se gardou a partitura.' };
+  }
   if (!clean(ficheiro.base64)) return { ok: false, codigo: 'VALIDATION', erro: 'Selecciona un ficheiro PDF.' };
   if (mimeType && mimeType !== 'application/pdf') {
     return { ok: false, codigo: 'VALIDATION', erro: 'O ficheiro debe ser PDF.' };
@@ -246,7 +265,7 @@ async function altaPartituraAdministracion(env, user, body) {
 
   try {
     const resultado = await chamar(env, user, 'altaPartituraPortal', {
-      Id_Repertorio: clean(partitura.Id_Repertorio || partitura.idRepertorio),
+      Id_Repertorio: idRepertorio,
       Nomepartitura: nome,
       Voz: clean(partitura.Voz || partitura.voz) || 'General',
       'Versión': clean(partitura['Versión'] || partitura.version) || '1.0',
@@ -314,6 +333,24 @@ export async function onRequest({ request, env }) {
       const resultadoAlta = await altaPartituraAdministracion(env, user, body);
       if (resultadoAlta?.ok) await invalidarCacheListado(env).catch(() => {});
       return json(resultadoAlta?.ok ? 200 : 400, resultadoAlta);
+    }
+
+    if (accion === 'actualizarPartituraRepertorioAdministracion') {
+      const idRepertorio = clean(body?.datos?.Id_Repertorio);
+      if (!idRepertorio) {
+        return json(400, { ok: false, codigo: 'WORK_REQUIRED', erro: 'Toda partitura debe estar vinculada a unha obra.' });
+      }
+      if (!(await obraRelacionadaExiste(env, user, idRepertorio))) {
+        return json(400, { ok: false, codigo: 'WORK_NOT_FOUND', erro: 'A obra seleccionada non existe. Revise a asociación antes de gardar.' });
+      }
+    }
+
+    if (accion === 'actualizarObraRepertorioAdministracion' && Object.prototype.hasOwnProperty.call(body?.datos || {}, 'EstadoObra')) {
+      const estado = clean(body.datos.EstadoObra);
+      if (!['Activa', 'Histórica'].includes(estado)) {
+        return json(400, { ok: false, codigo: 'INVALID_WORK_STATE', erro: 'O estado da obra debe ser Activa ou Histórica.' });
+      }
+      body.datos.EstadoObra = estado;
     }
 
     const resultado = await chamar(env, user, accion, body);
