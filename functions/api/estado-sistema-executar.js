@@ -1,5 +1,7 @@
 import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
+const WORKFLOW_URL = 'https://github.com/coralpolifonicapontevedra-coder/scpp-web/actions/workflows/audit-repertorio.yml';
+
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -63,8 +65,15 @@ export async function onRequestPost(context) {
   const accion = String(body?.accion || '').trim();
   if (accion !== 'repertorio') return json(400, { ok: false, erro: 'Comprobación non permitida.' });
 
-  const githubToken = String(env.GITHUB_TOKEN || env.GH_TOKEN || '').trim();
-  if (!githubToken) return json(503, { ok: false, erro: 'Non hai credenciais de GitHub configuradas para iniciar a auditoría.' });
+  const githubToken = String(env.GITHUB_TOKEN || env.GH_TOKEN || env.GITHUB_PAT || env.GH_PAT || '').trim();
+  if (!githubToken) {
+    return json(503, {
+      ok: false,
+      codigo: 'GITHUB_CREDENTIALS_MISSING',
+      erro: 'Non hai credenciais de GitHub configuradas para iniciar a auditoría automaticamente.',
+      manualUrl: WORKFLOW_URL
+    });
+  }
 
   const response = await fetchWithTimeout(
     'https://api.github.com/repos/coralpolifonicapontevedra-coder/scpp-web/actions/workflows/audit-repertorio.yml/dispatches',
@@ -87,9 +96,11 @@ export async function onRequestPost(context) {
     console.error('Non foi posible iniciar audit-repertorio:', response.status, detalle);
     return json(502, {
       ok: false,
+      codigo: response.status === 403 ? 'GITHUB_FORBIDDEN' : 'GITHUB_DISPATCH_ERROR',
       erro: response.status === 403
         ? 'GitHub non permite iniciar a auditoría coas credenciais actuais.'
-        : `Non foi posible iniciar a auditoría en GitHub (HTTP ${response.status}).`
+        : `Non foi posible iniciar a auditoría en GitHub (HTTP ${response.status}).`,
+      manualUrl: WORKFLOW_URL
     });
   }
 
