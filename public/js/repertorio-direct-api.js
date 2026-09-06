@@ -2,19 +2,16 @@
   'use strict';
 
   const fetchAnterior = window.fetch.bind(window);
-  const CACHE_KEY = 'scpp:repertorio:completo:v5';
-  const CACHE_FRESH_MS = 15 * 60 * 1000;
+  const CACHE_KEY = 'scpp:repertorio:completo:v6';
+  const CACHE_FRESH_MS = 60 * 1000;
   const CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
+  const LIST_ENDPOINT = '/api/repertorio-cache-v2';
 
   function lerCache(permitirAntiga = false) {
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
       const idade = Date.now() - Number(cached?.gardadoEn || 0);
-      if (
-        !cached?.body ||
-        idade < 0 ||
-        idade > (permitirAntiga ? CACHE_STALE_MS : CACHE_FRESH_MS)
-      ) return null;
+      if (!cached?.body || idade < 0 || idade > (permitirAntiga ? CACHE_STALE_MS : CACHE_FRESH_MS)) return null;
       const parsed = JSON.parse(cached.body);
       return parsed?.ok === true && Array.isArray(parsed?.obras) ? cached : null;
     } catch {
@@ -26,13 +23,8 @@
     try {
       const parsed = JSON.parse(body);
       if (parsed?.ok !== true || !Array.isArray(parsed?.obras)) return;
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        gardadoEn: Date.now(),
-        body
-      }));
-    } catch {
-      // A navegación continúa aínda que o almacenamento local non estea dispoñible.
-    }
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ gardadoEn: Date.now(), body }));
+    } catch {}
   }
 
   function respostaCache(cached, estado) {
@@ -48,17 +40,13 @@
 
   function parseBody(init) {
     if (!init || typeof init.body !== 'string') return null;
-    try {
-      return JSON.parse(init.body);
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(init.body); } catch { return null; }
   }
 
-  function solicitarApiDirecta(url, init) {
+  function solicitarCatalogo(init) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open(String(init?.method || 'POST'), url, true);
+      xhr.open('POST', LIST_ENDPOINT, true);
       xhr.responseType = 'text';
 
       const headers = init?.headers;
@@ -69,6 +57,7 @@
       } else if (headers && typeof headers === 'object') {
         Object.entries(headers).forEach(([key, value]) => xhr.setRequestHeader(key, String(value)));
       }
+      if (!xhr.getResponseHeader) {}
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) gardarCache(xhr.responseText);
@@ -78,31 +67,28 @@
           const index = line.indexOf(':');
           if (index > 0) responseHeaders.append(line.slice(0, index).trim(), line.slice(index + 1).trim());
         });
-        responseHeaders.set('X-SCPP-Repertorio', 'DIRECT-API');
+        responseHeaders.set('X-SCPP-Repertorio', 'R2-SYNC-DIRECT');
         resolve(new Response(xhr.responseText, {
           status: xhr.status,
           statusText: xhr.statusText,
           headers: responseHeaders
         }));
       };
-      const recuperarOuRexeitar = (mensaxe) => {
+
+      const recuperar = (mensaxe) => {
         const cached = lerCache(true);
         if (cached) resolve(respostaCache(cached, 'STALE-LOCAL-CACHE'));
         else reject(new TypeError(mensaxe));
       };
-      xhr.onerror = () => recuperarOuRexeitar('Non foi posible conectar co servizo de repertorio.');
-      xhr.ontimeout = () => recuperarOuRexeitar('O servizo de repertorio tardou demasiado en responder.');
-      xhr.timeout = 65000;
+      xhr.onerror = () => recuperar('Non foi posible conectar coa caché de Repertorio.');
+      xhr.ontimeout = () => recuperar('A sincronización de Repertorio tardou demasiado.');
+      xhr.timeout = 35000;
       xhr.send(typeof init?.body === 'string' ? init.body : null);
     });
   }
 
   window.fetch = (input, init) => {
-    const url = typeof input === 'string'
-      ? input
-      : input instanceof Request
-        ? input.url
-        : String(input);
+    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
     const body = parseBody(init);
 
     if (
@@ -112,10 +98,10 @@
     ) {
       const cached = lerCache(false);
       if (cached) {
-        solicitarApiDirecta(url, init).catch(() => {});
-        return Promise.resolve(respostaCache(cached, 'LOCAL-CACHE'));
+        solicitarCatalogo(init).catch(() => {});
+        return Promise.resolve(respostaCache(cached, 'LOCAL-R2-CACHE'));
       }
-      return solicitarApiDirecta(url, init);
+      return solicitarCatalogo(init);
     }
 
     return fetchAnterior(input, init);
