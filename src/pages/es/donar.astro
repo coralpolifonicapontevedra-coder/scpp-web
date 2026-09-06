@@ -28,11 +28,11 @@ import BaseLayout from '../../layouts/Layout.astro';
         </div>
 
         <label class="anonymous-option">
-          <input id="donar-anonimo" type="checkbox" checked />
+          <input id="donar-anonimo" type="checkbox" />
           <span>Quiero hacer la donación de forma anónima</span>
         </label>
 
-        <div id="donor-fields" class="donor-fields" hidden>
+        <div id="donor-fields" class="donor-fields">
           <label>
             <span>Nombre y apellidos</span>
             <input id="donar-nome" type="text" autocomplete="name" maxlength="120" placeholder="Nombre y apellidos" />
@@ -65,7 +65,7 @@ import BaseLayout from '../../layouts/Layout.astro';
     const btnPay = document.querySelector('#btn-pago') as HTMLButtonElement;
 
     function syncDonorFields() {
-      const anonimo = inputAnonimo?.checked !== false;
+      const anonimo = inputAnonimo?.checked === true;
       if (donorFields) donorFields.hidden = anonimo;
       if (inputNome) inputNome.required = !anonimo;
       if (inputNome) inputNome.disabled = anonimo;
@@ -100,7 +100,7 @@ import BaseLayout from '../../layouts/Layout.astro';
         return;
       }
 
-      const anonimo = inputAnonimo?.checked !== false;
+      const anonimo = inputAnonimo?.checked === true;
       const nome = anonimo ? '' : String(inputNome?.value || '').trim();
       const correo = anonimo ? '' : String(inputCorreo?.value || '').trim();
       if (!anonimo && !nome) {
