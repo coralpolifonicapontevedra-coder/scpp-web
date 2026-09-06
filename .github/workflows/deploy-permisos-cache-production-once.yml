@@ -7,6 +7,7 @@ on:
     paths:
       - 'apps-script-production/xestion-permisos-cache-sync-v1.js'
       - 'apps-script-production/xestion-permisos-dispatcher-integracion.js'
+      - 'apps-script-production/doazons-administracion.js'
       - '.github/workflows/deploy-permisos-cache-production-once.yml'
 
 permissions:
@@ -64,19 +65,12 @@ jobs:
           mkdir -p /tmp/scpp-head /tmp/scpp-live /tmp/scpp-before
           printf '{"scriptId":"%s","rootDir":"."}\n' "$PRODUCTION_SCRIPT_ID" > /tmp/scpp-head/.clasp.json
           cp /tmp/scpp-head/.clasp.json /tmp/scpp-live/.clasp.json
-
           cd /tmp/scpp-live
           npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-before.txt
           LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-before.txt | head -n 1 || true)"
-          if [ -z "$LINE" ]; then
-            echo 'Non se atopou o deployment de Producción esperado. Abortado.'
-            exit 1
-          fi
+          if [ -z "$LINE" ]; then echo 'Non se atopou o deployment de Producción esperado. Abortado.'; exit 1; fi
           OLD_VERSION="$(printf '%s\n' "$LINE" | sed -n 's/.*@\([0-9][0-9]*\).*/\1/p')"
-          if [ -z "$OLD_VERSION" ]; then
-            echo "Non foi posible obter a versión despregada desde: $LINE"
-            exit 1
-          fi
+          if [ -z "$OLD_VERSION" ]; then echo "Non foi posible obter a versión despregada desde: $LINE"; exit 1; fi
           echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
           echo "Deployment de Producción: $PRODUCTION_DEPLOYMENT_ID @ $OLD_VERSION"
 
@@ -94,76 +88,49 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           python - <<'PY'
           from pathlib import Path
           import hashlib
-
           def files(root):
-              root = Path(root)
-              out = {}
+              root = Path(root); out = {}
               for p in root.rglob('*'):
-                  if not p.is_file() or p.name == '.clasp.json':
-                      continue
-                  out[p.relative_to(root).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
+                  if p.is_file() and p.name != '.clasp.json':
+                      out[p.relative_to(root).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
               return out
-
-          head = files('/tmp/scpp-head')
-          live = files('/tmp/scpp-live')
+          head = files('/tmp/scpp-head'); live = files('/tmp/scpp-live')
           changed = sorted(k for k in set(head) | set(live) if head.get(k) != live.get(k))
           if changed:
               print('HEAD de Apps Script difire da versión realmente despregada:')
-              for name in changed:
-                  print(' -', name)
-              print('Por seguridade non se sobreescribe Producción cando hai cambios HEAD non despregados.')
+              for name in changed: print(' -', name)
               raise SystemExit(2)
           print('HEAD e deployment vivo coinciden: base segura confirmada.')
           PY
-
           cd /tmp/scpp-live
-          for SYMBOL in \
-            'var XESTION_PERMISOS_CONFIG_' \
-            'function xestionTexto_' \
-            'function xestionIndices_' \
-            'function xestionPropiedadeObrigatoria_' \
-            'function despacharXestionPermisosPortal_'; do
-            if ! grep -R -F -q --include='*.js' --include='*.gs' "$SYMBOL" .; then
-              echo "Falta dependencia imprescindible no Apps Script vivo: $SYMBOL"
-              exit 4
-            fi
+          for SYMBOL in 'function despacharXestionPermisosPortal_' 'function listarDoazonsAdministracion_'; do
+            if ! grep -R -F -q --include='*.js' --include='*.gs' "$SYMBOL" .; then echo "Falta dependencia imprescindible: $SYMBOL"; exit 4; fi
           done
-          echo 'Dependencias de Permisos comprobadas.'
 
-      - name: Aplicar exclusivamente o parche de caché de Permisos
+      - name: Aplicar parche Permisos e Doazóns TPV
         shell: bash
         run: |
           set -euo pipefail
           cp "$GITHUB_WORKSPACE/apps-script-production/xestion-permisos-cache-sync-v1.js" /tmp/scpp-live/xestion-permisos-cache-sync-v1.js
           cp "$GITHUB_WORKSPACE/apps-script-production/xestion-permisos-dispatcher-integracion.js" /tmp/scpp-live/xestion-permisos-dispatcher-integracion.js
-
+          cp "$GITHUB_WORKSPACE/apps-script-production/doazons-administracion.js" /tmp/scpp-live/doazons-administracion.js
           python - <<'PY'
           from pathlib import Path
-
-          before = Path('/tmp/scpp-before')
-          after = Path('/tmp/scpp-live')
-
           def snapshot(root):
               result = {}
-              for p in root.rglob('*'):
-                  if not p.is_file() or p.name == '.clasp.json':
-                      continue
-                  result[p.relative_to(root).as_posix()] = p.read_bytes()
+              for p in Path(root).rglob('*'):
+                  if p.is_file() and p.name != '.clasp.json': result[p.relative_to(root).as_posix()] = p.read_bytes()
               return result
-
-          a = snapshot(before)
-          b = snapshot(after)
+          a = snapshot('/tmp/scpp-before'); b = snapshot('/tmp/scpp-live')
           changed = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
           print('Diff efectivo:', changed)
-          expected = ['xestion-permisos-cache-sync-v1.js', 'xestion-permisos-dispatcher-integracion.js']
-          if changed != expected:
-              raise SystemExit('O diff non é exclusivamente o parche de caché de Permisos. Abortado.')
+          allowed = {'xestion-permisos-cache-sync-v1.js','xestion-permisos-dispatcher-integracion.js','doazons-administracion.js'}
+          if not set(changed).issubset(allowed) or not {'xestion-permisos-dispatcher-integracion.js','doazons-administracion.js'}.issubset(set(changed)):
+              raise SystemExit('O diff non é exclusivamente o parche esperado. Abortado.')
           PY
-
           cd /tmp/scpp-live
           npx --yes @google/clasp@3 show-file-status
 
@@ -174,13 +141,10 @@ jobs:
           set -euo pipefail
           cd /tmp/scpp-live
           npx --yes @google/clasp@3 push --force
-          OUT="$(npx --yes @google/clasp@3 create-version 'Permisos: R2 con invalidación inmediata desde Sheet')"
+          OUT="$(npx --yes @google/clasp@3 create-version 'Doazóns TPV: rexistro Pendente e confirmación segura')"
           echo "$OUT"
           NEW_VERSION="$(printf '%s\n' "$OUT" | grep -oE '[0-9]+' | tail -n 1)"
-          if [ -z "$NEW_VERSION" ]; then
-            echo 'Non foi posible obter a nova versión. O deployment segue apuntando á versión anterior.'
-            exit 1
-          fi
+          if [ -z "$NEW_VERSION" ]; then exit 1; fi
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Actualizar só o deployment de Producción
@@ -190,37 +154,11 @@ jobs:
           cd /tmp/scpp-live
           OLD_VERSION='${{ steps.live.outputs.old_version }}'
           NEW_VERSION='${{ steps.version.outputs.new_version }}'
-
-          npx --yes @google/clasp@3 create-deployment \
-            --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
-            --versionNumber "$NEW_VERSION" \
-            --description 'Permisos · R2 invalidación inmediata'
-
+          npx --yes @google/clasp@3 create-deployment --deploymentId "$PRODUCTION_DEPLOYMENT_ID" --versionNumber "$NEW_VERSION" --description 'Doazóns TPV · rexistro e confirmación'
           npx --yes @google/clasp@3 list-deployments | tee /tmp/deployments-after.txt
           LINE="$(grep -F "$PRODUCTION_DEPLOYMENT_ID" /tmp/deployments-after.txt | head -n 1 || true)"
           if ! printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
-            echo 'A verificación do deployment fallou. Tentando rollback inmediato.'
-            npx --yes @google/clasp@3 create-deployment \
-              --deploymentId "$PRODUCTION_DEPLOYMENT_ID" \
-              --versionNumber "$OLD_VERSION" \
-              --description 'Rollback automático Permisos cache' || true
+            npx --yes @google/clasp@3 create-deployment --deploymentId "$PRODUCTION_DEPLOYMENT_ID" --versionNumber "$OLD_VERSION" --description 'Rollback automático Doazóns TPV' || true
             exit 1
           fi
-
-          echo "Producción actualizada: $PRODUCTION_DEPLOYMENT_ID · $OLD_VERSION → $NEW_VERSION"
-          echo "Rollback dispoñible: redeploy do mesmo ID á versión $OLD_VERSION"
-
-      - name: Tentar instalar os triggers agora
-        shell: bash
-        run: |
-          set +e
-          cd /tmp/scpp-live
-          OUT="$(npx --yes @google/clasp@3 run xestionPermisosInstalarTriggers_ 2>&1)"
-          STATUS=$?
-          set -e
-          printf '%s\n' "$OUT"
-          if [ "$STATUS" -ne 0 ]; then
-            echo 'Aviso: clasp run non está habilitado neste proxecto. Os triggers instalaranse automaticamente na seguinte lectura de Xestión de permisos que chegue a Apps Script.'
-          else
-            echo 'Instalación inmediata de triggers solicitada correctamente.'
-          fi
+          echo "Producción actualizada: $OLD_VERSION → $NEW_VERSION"
