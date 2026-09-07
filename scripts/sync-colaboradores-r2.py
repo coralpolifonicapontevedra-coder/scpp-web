@@ -18,6 +18,8 @@ SOURCE_DIR = Path("public/img/colaboradores")
 R2_PREFIX = "colaboradores/v1/"
 PUBLIC_BUCKET = os.getenv("R2_PUBLIC_BUCKET", "scpp-publico").strip()
 
+# Un cambio neste ficheiro tamén serve para volver lanzar a sincronización en GitHub Actions.
+
 
 def required_env(name: str) -> str:
     value = os.getenv(name, "").strip()
