@@ -1,0 +1,146 @@
+/* Paridad visual de /es/historia con la versión gallega. */
+
+.public-site-main .historia-page .archive-tab {
+  min-height: 142px !important;
+  padding: 1.15rem 1.2rem !important;
+}
+
+.public-site-main .historia-page .tab-number {
+  margin-bottom: .75rem !important;
+  font-size: .68rem !important;
+}
+
+.public-site-main .historia-page .tab-meta {
+  margin-bottom: .3rem !important;
+  font-size: .62rem !important;
+}
+
+.public-site-main .historia-page .archive-tab strong {
+  font-size: 1rem !important;
+  line-height: 1.22 !important;
+}
+
+.public-site-main .historia-page .archive-tab small {
+  display: block !important;
+  margin-top: .55rem !important;
+  color: var(--muted) !important;
+  font-size: .76rem !important;
+  line-height: 1.42 !important;
+}
+
+.public-site-main .historia-page .archive-tab.active small,
+.public-site-main .historia-page .archive-tab:hover small {
+  color: rgba(255, 255, 255, .75) !important;
+}
+
+.public-site-main .historia-page .people-list {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.public-site-main .historia-page .person-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: 2rem;
+  border: 0;
+  background: var(--paper, #f7f5f0);
+}
+
+.public-site-main .historia-page .person-index {
+  padding-top: .25rem;
+  color: var(--gold, #b79043);
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.public-site-main .historia-page .person-main {
+  min-width: 0;
+}
+
+.public-site-main .historia-page .person-period {
+  display: block;
+  margin: 0 0 .8rem;
+  color: var(--gold, #b79043);
+  font-size: .73rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.public-site-main .historia-page .person-card h3 {
+  margin: 0;
+  color: var(--wine, #6a1b29);
+  font-size: 1.35rem;
+  line-height: 1.3;
+}
+
+.public-site-main .historia-page .director-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.public-site-main .historia-page .director-link:hover,
+.public-site-main .historia-page .director-link:focus-visible {
+  border-bottom-color: var(--gold, #b79043);
+}
+
+.public-site-main .historia-page .person-summary {
+  margin: .6rem 0 0;
+  color: var(--ink, #292525) !important;
+  font-weight: 700;
+}
+
+.public-site-main .historia-page .person-card p {
+  color: #4c4744;
+  line-height: 1.8;
+}
+
+.public-site-main .historia-page .person-work {
+  margin-bottom: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line, #ded8ce);
+  font-size: .92rem;
+}
+
+.public-site-main .historia-page .closing-statement {
+  margin-top: 4rem;
+  padding: 3.5rem 2rem;
+  background: var(--paper, #f7f5f0);
+  text-align: center;
+}
+
+.public-site-main .historia-page .closing-statement h2 {
+  margin: 0;
+  color: var(--wine, #6a1b29);
+  font-size: clamp(2rem, 4vw, 3rem) !important;
+  line-height: 1.08;
+}
+
+.public-site-main .historia-page .closing-statement > p:last-child {
+  max-width: 740px;
+  margin: 1.3rem auto 0;
+  color: var(--muted, #68615d);
+  line-height: 1.8;
+}
+
+@media (max-width: 720px) {
+  .public-site-main .historia-page .archive-tab {
+    min-height: 116px !important;
+    padding: .95rem 1rem !important;
+  }
+
+  .public-site-main .historia-page .person-card {
+    grid-template-columns: 1fr;
+    gap: .5rem;
+    padding: 1.45rem;
+  }
+}
+
+@media (max-width: 460px) {
+  .public-site-main .historia-page .archive-tab {
+    min-height: auto !important;
+  }
+}
