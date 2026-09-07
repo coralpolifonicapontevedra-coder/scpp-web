@@ -56,7 +56,8 @@ const equivalenciasGl = Object.fromEntries(
 );
 const canonical = new URL(ruta, Astro.site ?? Astro.url.origin).toString();
 const rutaGl = lang === 'es' ? equivalenciasGl[rutaNormalizada] : rutaNormalizada;
-const rutaEs = lang === 'es' ? rutaNormalizada : normalizarRutaSeo(equivalenciasEs[rutaNormalizada] || '');
+const rutaEsBase = lang === 'es' ? rutaNormalizada : equivalenciasEs[rutaNormalizada];
+const rutaEs = rutaEsBase ? normalizarRutaSeo(rutaEsBase) : null;
 const alternaGl = rutaGl
   ? new URL(rutaGl === '/' ? '/' : `${rutaGl}/`, Astro.site ?? Astro.url.origin).toString()
   : null;
