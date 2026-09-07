@@ -2,7 +2,7 @@
   if (!document.querySelector('link[data-history-parity-es]')) {
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
-    stylesheet.href = '/css/historia-paridad-es.css?v=20260907-1';
+    stylesheet.href = '/css/historia-paridad-es.css?v=20260907-2';
     stylesheet.dataset.historyParityEs = 'true';
     document.head.append(stylesheet);
   }
@@ -144,6 +144,135 @@
       main.append(period, title, summary, text, work);
       article.append(personIndex, main);
       peopleList.append(article);
+    });
+  }
+
+  const presidents = [
+    {
+      nombre: 'Antón Losada Diéguez',
+      periodo: '1925 — 1929',
+      texto: 'Primer presidente y una de las personas decisivas en el impulso cultural e institucional de la Sociedad. Formó parte también de la cuerda de barítonos.',
+      foto: {
+        src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2F288c578f-7316-565a-b573-160a866fc0eb.jpg',
+        alt: 'Retrato de Antón Losada Diéguez, primer presidente de la Sociedad Coral Polifónica de Pontevedra',
+        credito: 'Museo de Pontevedra · Archivo de la SCPP'
+      }
+    },
+    {
+      nombre: 'Alfonso Daniel Rodríguez Castelao',
+      periodo: '1929 — 1932',
+      texto: 'Presidente, cantor bajo, escenógrafo y creador de la identidad visual de la Coral. Su huella artística continúa formando parte de la imagen de la entidad.',
+      foto: {
+        src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Castelao%20Vida%20Gallega%20442.png',
+        alt: 'Retrato de Alfonso Daniel Rodríguez Castelao publicado en Vida Gallega en 1930',
+        credito: 'Vida Gallega · Galiciana / Wikimedia Commons · dominio público',
+        fuente: 'https://commons.wikimedia.org/wiki/File:Castelao_Vida_Gallega_442.png'
+      }
+    },
+    {
+      nombre: 'José Blein Llinás',
+      periodo: '1932 — 1947',
+      texto: 'Asumió la presidencia en un periodo complejo de la historia de Galicia y dio continuidad a la estructura institucional de la Sociedad.',
+      foto: {
+        src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2F991becc5-ce34-514b-b2d3-1bc1fe090377.jpg',
+        alt: 'Retrato de José Blein Llinás en la década de 1930',
+        credito: 'Museo de Pontevedra · Archivo de la SCPP'
+      }
+    },
+    {
+      nombre: 'Vicente Riestra Calderón',
+      periodo: '1947 — 1967',
+      texto: 'Presidió la Sociedad durante dos décadas, sosteniendo su continuidad organizativa y la actividad pública de la agrupación.',
+      foto: {
+        src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Riestra%20Calder%C3%B3n%2C%20Enrique%20Peinador%2C%20Valle-Incl%C3%A1n%2C%20Ram%C3%B3n%20Cabanillas%20e%20Victoriano%20Garc%C3%ADa%20Mart%C3%AD.jpg',
+        alt: 'Vicente Riestra Calderón en una fotografía de grupo en el Balneario de Mondariz, primero por la izquierda',
+        credito: 'Wikimedia Commons · dominio público',
+        fuente: 'https://commons.wikimedia.org/wiki/File:Riestra_Calder%C3%B3n,_Enrique_Peinador,_Valle-Incl%C3%A1n,_Ram%C3%B3n_Cabanillas_e_Victoriano_Garc%C3%ADa_Mart%C3%AD.jpg'
+      }
+    },
+    {
+      nombre: 'Augusto García Sánchez',
+      periodo: '1967 — 1978',
+      texto: 'Dio continuidad a la vida institucional de la Coral en una etapa de transformación social y renovación de la actividad musical.',
+      foto: {
+        src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2Fpresidencia-augusto-garcia-sanchez.jpg',
+        alt: 'Fotografía de Augusto García Sánchez, presidente de la Sociedad Coral Polifónica de Pontevedra',
+        credito: 'Archivo de la SCPP · Presidencias'
+      }
+    },
+    {
+      nombre: 'José Fernando Filgueira Valverde',
+      periodo: '1978 — 1996',
+      texto: 'Intelectual, investigador y director del Museo de Pontevedra, mantuvo estrechamente unidas ambas instituciones y reforzó la dimensión cultural y patrimonial de la Coral.',
+      foto: {
+        src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Xos%C3%A9%20Filgueira%20Valverde%2C%201931.jpg',
+        alt: 'Retrato de Xosé Filgueira Valverde en 1931',
+        credito: 'Fundación Filgueira / Wikimedia Commons · dominio público',
+        fuente: 'https://commons.wikimedia.org/wiki/File:Xos%C3%A9_Filgueira_Valverde,_1931.jpg'
+      }
+    },
+    {
+      nombre: 'Xosé Carlos Valle Pérez',
+      periodo: '1996 — 2026',
+      texto: 'Presidió la Sociedad durante casi treinta años. Su etapa abarcó el 75 aniversario, una intensa actividad institucional y la preparación y celebración del centenario.',
+      foto: {
+        src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2Fpresidencia-xose-carlos-valle-perez.jpg',
+        alt: 'Fotografía de Xosé Carlos Valle Pérez, presidente de la Sociedad Coral Polifónica de Pontevedra',
+        credito: 'Archivo de la SCPP · Presidencias'
+      }
+    },
+    {
+      nombre: 'José Raposeiras Correa',
+      periodo: '2026 — actualidad',
+      texto: 'Presidente de la nueva etapa posterior al centenario, orientada a la continuidad artística, a la conservación de la memoria y a la apertura de nuevos proyectos.',
+      foto: {
+        src: '/api/galeria-orixinal?ruta=fotos%2Forixinais%2Fpresidencia-jose-raposeiras-correa.jpg',
+        alt: 'Fotografía de José Raposeiras Correa, presidente de la Sociedad Coral Polifónica de Pontevedra',
+        credito: 'Archivo de la SCPP · Presidencias'
+      }
+    }
+  ];
+
+  const presidencyPanel = page.querySelector('#panel-presidencias');
+  const presidencyGrid = presidencyPanel?.querySelector('.presidency-grid');
+  if (presidencyGrid instanceof HTMLElement) {
+    presidencyGrid.replaceChildren();
+    presidents.forEach((president) => {
+      const article = document.createElement('article');
+      article.className = 'presidency-card';
+
+      const figure = document.createElement('figure');
+      figure.className = 'presidency-photo';
+
+      const image = document.createElement('img');
+      image.src = president.foto.src;
+      image.alt = president.foto.alt;
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      figure.append(image);
+
+      const caption = document.createElement('figcaption');
+      if (president.foto.fuente) {
+        const link = document.createElement('a');
+        link.href = president.foto.fuente;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = president.foto.credito;
+        caption.append(link);
+      } else {
+        caption.textContent = president.foto.credito;
+      }
+      figure.append(caption);
+
+      const period = document.createElement('span');
+      period.textContent = president.periodo;
+      const title = document.createElement('h3');
+      title.textContent = president.nombre;
+      const text = document.createElement('p');
+      text.textContent = president.texto;
+
+      article.append(figure, period, title, text);
+      presidencyGrid.append(article);
     });
   }
 

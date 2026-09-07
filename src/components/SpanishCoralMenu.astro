@@ -65,6 +65,14 @@ const esActiva = (url) => rutaActual === url || rutaActual.startsWith(`${url}/`)
     }
 
     if (menu.dataset.currentPath === '/es/historia') {
+      if (!document.querySelector('script[data-historia-paridad-es]')) {
+        const parityScript = document.createElement('script');
+        parityScript.src = '/js/historia-paridad-es.js?v=20260907-2';
+        parityScript.dataset.historiaParidadEs = 'true';
+        parityScript.async = false;
+        document.body.appendChild(parityScript);
+      }
+
       const cargarHistoricoIntegrado = () => {
         const panelHistorico = document.querySelector<HTMLElement>('#panel-historico');
         if (!panelHistorico) return;
