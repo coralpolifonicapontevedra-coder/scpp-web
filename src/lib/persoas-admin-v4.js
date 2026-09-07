@@ -104,11 +104,27 @@ export function initPersoasAdminV4() {
   if (window.__scppPersoasAdminV4) return;
   window.__scppPersoasAdminV4 = true;
 
+  const refreshButton = (() => {
+    const actions = q('.people-summary-actions');
+    if (!(actions instanceof HTMLElement)) return null;
+    const existing = q('#refresh-people-button');
+    if (existing instanceof HTMLButtonElement) return existing;
+    const button = document.createElement('button');
+    button.id = 'refresh-people-button';
+    button.type = 'button';
+    button.className = 'secondary-action';
+    button.textContent = '↻ Actualizar';
+    button.title = 'Forzar a lectura da folla Persoas de produción e actualizar a copia operativa';
+    button.setAttribute('aria-label', 'Actualizar Persoas desde a folla de produción');
+    actions.prepend(button);
+    return button;
+  })();
+
   const nodes = {
     loading: q('#loading'), error: q('#error-state'), errorMessage: q('#error-message'), retry: q('#retry-button'), app: q('#people-app'), feedback: q('#feedback'),
     email: q('#user-email'), level: q('#user-level'), logout: q('#persoas-v4-logout'),
     total: q('#metric-total'), active: q('#metric-active'), inactive: q('#metric-inactive'), singers: q('#metric-singers'), director: q('#metric-director'), collaborators: q('#metric-collaborators'),
-    search: q('#people-search'), status: q('#status-filter'), relation: q('#relation-filter'), voice: q('#voice-filter'), select: q('#person-select'), count: q('#people-count'),
+    search: q('#people-search'), status: q('#status-filter'), relation: q('#relation-filter'), voice: q('#voice-filter'), select: q('#person-select'), count: q('#people-count'), refresh: refreshButton,
     empty: q('#empty-selection'), card: q('#person-card'), name: q('#person-name'), summary: q('#person-summary'), statusBadge: q('#person-status'), relationBadge: q('#person-relation'), sections: q('#person-sections'),
     photo: q('#person-photo'), photoEmpty: q('#person-photo-empty'), changePhoto: q('#change-photo'),
     edit: q('#edit-person'), review: q('#review-person'), toggle: q('#toggle-person'), openFile: q('#open-file'), openAcceptance: q('#open-acceptance'), remove: q('#delete-person'), create: q('#new-person-button'),
@@ -465,8 +481,26 @@ export function initPersoasAdminV4() {
       }
       if (nodes.loading instanceof HTMLElement) nodes.loading.hidden = true;
       if (nodes.app instanceof HTMLElement) nodes.app.hidden = false;
+      return true;
     } catch (error) {
       showError(error);
+      return false;
+    }
+  }
+
+  async function refreshPeople() {
+    const preserveId = nodes.select instanceof HTMLSelectElement ? nodes.select.value : keyOf(selected);
+    const button = nodes.refresh;
+    const old = button instanceof HTMLButtonElement ? button.textContent : '';
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = true;
+      button.textContent = 'Actualizando…';
+    }
+    const ok = await loadPeople(preserveId, true);
+    if (ok) notify('Persoas actualizadas desde a folla de produción.');
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = false;
+      button.textContent = old || '↻ Actualizar';
     }
   }
 
@@ -623,6 +657,7 @@ export function initPersoasAdminV4() {
   nodes.remove?.addEventListener('click', openDelete);
   nodes.deleteForm?.addEventListener('submit', confirmDelete);
   nodes.copyReview?.addEventListener('click', copyReviewLink);
+  nodes.refresh?.addEventListener('click', refreshPeople);
   nodes.retry?.addEventListener('click', () => loadPeople('', true));
   nodes.logout?.addEventListener('click', () => closePortalSession());
 
