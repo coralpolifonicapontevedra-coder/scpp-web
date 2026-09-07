@@ -1,18 +1,207 @@
 ---
 import SpanishPublicLayout from '../../layouts/SpanishPublicLayout.astro';
-const entidades=[
-{nombre:'Concello de Pontevedra',tipo:'Institución colaboradora',logo:'/arquivos/publico/colaboradores/v1/concello-pontevedra.png',url:'https://www.pontevedra.gal/'},
-{nombre:'Deputación de Pontevedra',tipo:'Institución colaboradora',logo:'/arquivos/publico/colaboradores/v1/deputacion-pontevedra.png',url:'https://www.depo.gal/'},
-{nombre:'Museo de Pontevedra',tipo:'Entidad colaboradora',logo:'/arquivos/publico/colaboradores/v1/museo-pontevedra.png',url:'https://museo.depo.gal/'},
-{nombre:'Supermercados Froiz',tipo:'Empresa colaboradora',logo:'/arquivos/publico/colaboradores/v1/supermercados-froiz.png',url:'https://froiz.es/'}];
 ---
-<SpanishPublicLayout title="Entidades colaboradoras" description="Instituciones, entidades y empresas colaboradoras de la Sociedad Coral Polifónica de Pontevedra.">
-<div class="container colaboradores-page">
-<section class="colaboradores-intro" aria-labelledby="colaboradores-intro-title"><p class="sobrelinea">Un apoyo que hace posible la música</p><h2 id="colaboradores-intro-title">Compromiso con la cultura y con la ciudad</h2><p>La continuidad de un proyecto cultural centenario también se construye con la colaboración de las instituciones, entidades y empresas que comparten su compromiso con la música, el patrimonio y la vida cultural de Pontevedra.</p></section>
-<section class="entidades-grid" aria-label="Relación de entidades colaboradoras">{entidades.map((entidad,index)=><a class="entidade-card" href={entidad.url} target="_blank" rel="noopener noreferrer" aria-label={`${entidad.nombre} (abre en una nueva ventana)`}><span class="entidade-numero" aria-hidden="true">{String(index+1).padStart(2,'0')}</span><span class="entidade-logo"><img src={entidad.logo} alt={`Logotipo de ${entidad.nombre}`} loading="lazy" decoding="async" /></span><span class="entidade-info"><span><strong>{entidad.nombre}</strong><small>{entidad.tipo}</small></span><span class="entidade-link" aria-hidden="true">Visitar web <span>↗</span></span></span></a>)}</section>
-<aside class="colaboradores-peche"><div><p class="sobrelinea">Suma tu apoyo</p><h2>Colabora con la Sociedad</h2></div><div><p>Si representas a una empresa o entidad y quieres apoyar un proyecto cultural centenario, estaremos encantados de conocer tu propuesta.</p><a href="/es/colabora/#form-colabora" class="btn-volver">Ver formas de colaboración <span aria-hidden="true">→</span></a></div></aside>
-</div>
+
+<SpanishPublicLayout
+  title="Entidades colaboradoras"
+  description="Instituciones, entidades y empresas colaboradoras de la Sociedad Coral Polifónica de Pontevedra."
+>
+  <div class="container colaboradores-page">
+    <section class="colaboradores-intro" aria-labelledby="colaboradores-intro-title">
+      <p class="sobrelinea">Un apoyo que hace posible la música</p>
+      <h2 id="colaboradores-intro-title">Compromiso con la cultura y con la ciudad</h2>
+      <p>
+        La continuidad de un proyecto cultural centenario también se construye con
+        la colaboración de las instituciones, entidades y empresas que comparten su
+        compromiso con la música, el patrimonio y la vida cultural de Pontevedra.
+      </p>
+    </section>
+
+    <section class="colaboradores-listado" aria-label="Relación de entidades colaboradoras">
+      <div id="colaboradores-status" class="status" role="status" aria-live="polite">
+        Cargando las entidades colaboradoras…
+      </div>
+      <div id="entidades-grid" class="entidades-grid" hidden></div>
+      <div id="colaboradores-error-actions" class="error-actions" hidden>
+        <button id="colaboradores-retry" type="button" class="retry-button">Intentar de nuevo</button>
+      </div>
+    </section>
+
+    <aside class="colaboradores-peche">
+      <div>
+        <p class="sobrelinea">Suma tu apoyo</p>
+        <h2>Colabora con la Sociedad</h2>
+      </div>
+      <div>
+        <p>
+          Si representas a una empresa o entidad y quieres apoyar un proyecto
+          cultural centenario, estaremos encantados de conocer tu propuesta.
+        </p>
+        <a href="/es/colabora/#form-colabora" class="btn-volver">
+          Ver formas de colaboración <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </aside>
+  </div>
 </SpanishPublicLayout>
+
+<script is:inline>
+  (() => {
+    const API_URL = '/api/colaboradores';
+    const status = document.getElementById('colaboradores-status');
+    const grid = document.getElementById('entidades-grid');
+    const errorActions = document.getElementById('colaboradores-error-actions');
+    const retry = document.getElementById('colaboradores-retry');
+
+    const clean = (value) => String(value ?? '').trim();
+    const safeWeb = (value) => {
+      try {
+        const url = new URL(clean(value));
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+      } catch {
+        return '';
+      }
+    };
+    const safeLogo = (value) => {
+      const logo = clean(value);
+      return logo.startsWith('/arquivos/publico/') || logo.startsWith('/img/colaboradores/') ? logo : '';
+    };
+
+    function setStatus(message, isError = false) {
+      status.hidden = false;
+      status.textContent = message;
+      status.classList.toggle('status-error', isError);
+    }
+
+    function createCard(entidad, index) {
+      const nombre = clean(entidad?.nome);
+      const web = safeWeb(entidad?.web);
+      const logo = safeLogo(entidad?.logo);
+      const fallback = safeLogo(entidad?.logoFallback);
+      const tipo = clean(entidad?.tipoEs) || 'Entidad colaboradora';
+
+      const card = document.createElement(web ? 'a' : 'article');
+      card.className = 'entidade-card';
+      if (web) {
+        card.href = web;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        card.setAttribute('aria-label', `${nombre} (abre en una nueva ventana)`);
+      }
+
+      const numero = document.createElement('span');
+      numero.className = 'entidade-numero';
+      numero.setAttribute('aria-hidden', 'true');
+      numero.textContent = String(index + 1).padStart(2, '0');
+
+      const logoWrap = document.createElement('span');
+      logoWrap.className = 'entidade-logo';
+      const img = document.createElement('img');
+      img.src = logo || fallback;
+      img.alt = `Logotipo de ${nombre}`;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      if (fallback) {
+        img.addEventListener('error', () => {
+          if (!img.dataset.fallbackApplied) {
+            img.dataset.fallbackApplied = '1';
+            img.src = fallback;
+          }
+        });
+      }
+      logoWrap.appendChild(img);
+
+      const info = document.createElement('span');
+      info.className = 'entidade-info';
+      const textWrap = document.createElement('span');
+      const strong = document.createElement('strong');
+      strong.textContent = nombre;
+      const small = document.createElement('small');
+      small.textContent = tipo;
+      textWrap.append(strong, small);
+      info.appendChild(textWrap);
+
+      if (web) {
+        const link = document.createElement('span');
+        link.className = 'entidade-link';
+        link.setAttribute('aria-hidden', 'true');
+        link.innerHTML = 'Visitar web <span>↗</span>';
+        info.appendChild(link);
+      }
+
+      card.append(numero, logoWrap, info);
+      return card;
+    }
+
+    function render(entidades) {
+      const visibles = Array.isArray(entidades)
+        ? entidades.filter((item) => clean(item?.nome) && (safeLogo(item?.logo) || safeLogo(item?.logoFallback)))
+        : [];
+
+      if (!visibles.length) {
+        throw new Error('No hay entidades colaboradoras disponibles en este momento.');
+      }
+
+      grid.replaceChildren(...visibles.map(createCard));
+      grid.hidden = false;
+      status.hidden = true;
+      errorActions.hidden = true;
+    }
+
+    async function load() {
+      grid.hidden = true;
+      errorActions.hidden = true;
+      setStatus('Cargando las entidades colaboradoras…');
+
+      try {
+        const response = await fetch(API_URL, {
+          headers: { Accept: 'application/json' }
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.ok !== true || !Array.isArray(data?.entidades)) {
+          throw new Error(clean(data?.erro) || 'No ha sido posible cargar las entidades colaboradoras.');
+        }
+        render(data.entidades);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : 'No ha sido posible cargar las entidades colaboradoras.', true);
+        errorActions.hidden = false;
+      }
+    }
+
+    retry?.addEventListener('click', load);
+    load();
+  })();
+</script>
+
 <style>
-.colaboradores-page{padding-bottom:6rem}.sobrelinea{margin:0 0 .75rem;color:var(--color-principal);font-size:.76rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase}.colaboradores-intro{max-width:760px;margin-bottom:clamp(2rem,5vw,3.25rem)}.colaboradores-intro h2,.colaboradores-peche h2{margin:0;color:var(--color-texto);font-size:clamp(1.55rem,3vw,2.15rem);line-height:1.2}.colaboradores-intro>p:last-child,.colaboradores-peche p{color:#4b4745;font-size:1rem;line-height:1.75}.entidades-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.25rem}.entidade-card{position:relative;display:grid;grid-template-rows:minmax(155px,1fr) auto;min-height:250px;overflow:hidden;border:1px solid rgba(106,27,41,.14);border-radius:4px;background:#fff;color:var(--color-texto);text-decoration:none;transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease}.entidade-card:hover,.entidade-card:focus-visible{border-color:rgba(106,27,41,.36);box-shadow:0 12px 28px rgba(51,34,37,.08);transform:translateY(-3px)}.entidade-numero{position:absolute;top:.85rem;left:1rem;color:var(--color-acento);font-size:.66rem;font-weight:800;letter-spacing:.12em}.entidade-logo{display:flex;align-items:center;justify-content:center;padding:clamp(2rem,5vw,3.25rem)}.entidade-logo img{display:block;width:auto;height:auto;max-width:min(100%,330px);max-height:92px;object-fit:contain}.entidade-info{display:flex;justify-content:space-between;gap:1rem;align-items:flex-end;padding:1.15rem 1.25rem;border-top:1px solid rgba(106,27,41,.1);background:var(--color-gris)}.entidade-info strong,.entidade-info small{display:block}.entidade-info strong{font-size:1rem;line-height:1.3}.entidade-info small{margin-top:.28rem;color:#625d5a;font-size:.78rem}.entidade-link{flex:0 0 auto;color:var(--color-principal);font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}.colaboradores-peche{display:grid;grid-template-columns:minmax(220px,.75fr) minmax(0,1.25fr);gap:clamp(2rem,6vw,5rem);margin-top:clamp(3.5rem,8vw,5.5rem);padding:clamp(1.75rem,4vw,2.5rem);border-left:3px solid var(--color-acento);background:var(--color-gris)}.btn-volver{display:inline-flex;align-items:center;gap:.65rem;border-radius:4px;background:var(--color-principal);color:#fff;font-size:.78rem;font-weight:700;letter-spacing:.06em;padding:.85rem 1.2rem;text-decoration:none;text-transform:uppercase}.btn-volver:hover,.btn-volver:focus-visible{background:var(--color-acento)}@media(max-width:720px){.entidades-grid,.colaboradores-peche{grid-template-columns:1fr}.entidade-card{min-height:225px}.entidade-info{align-items:flex-start}.btn-volver{justify-content:center;width:100%}}
+  .colaboradores-page { padding-bottom: 6rem; }
+  .sobrelinea { margin: 0 0 .75rem; color: var(--color-principal); font-size: .76rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  .colaboradores-intro { max-width: 760px; margin-bottom: clamp(2rem, 5vw, 3.25rem); }
+  .colaboradores-intro h2, .colaboradores-peche h2 { margin: 0; color: var(--color-texto); font-size: clamp(1.55rem, 3vw, 2.15rem); line-height: 1.2; }
+  .colaboradores-intro > p:last-child, .colaboradores-peche p { color: #4b4745; font-size: 1rem; line-height: 1.75; }
+  .colaboradores-listado { min-height: 250px; }
+  .status { padding: 1rem 1.1rem; border: 1px solid rgba(106, 27, 41, .12); border-radius: 4px; background: #fff; color: #625d5a; font-size: .92rem; }
+  .status-error { border-color: rgba(106, 27, 41, .25); color: var(--color-principal); }
+  .error-actions { margin-top: 1rem; }
+  .retry-button { border: 1px solid var(--color-principal); border-radius: 4px; background: #fff; color: var(--color-principal); cursor: pointer; font: inherit; font-size: .78rem; font-weight: 700; letter-spacing: .05em; padding: .75rem 1rem; text-transform: uppercase; }
+  .retry-button:hover, .retry-button:focus-visible { background: var(--color-principal); color: #fff; }
+  .entidades-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+  .entidade-card { position: relative; display: grid; grid-template-rows: minmax(155px, 1fr) auto; min-height: 250px; overflow: hidden; border: 1px solid rgba(106, 27, 41, .14); border-radius: 4px; background: #fff; color: var(--color-texto); text-decoration: none; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+  a.entidade-card:hover, a.entidade-card:focus-visible { border-color: rgba(106, 27, 41, .36); box-shadow: 0 12px 28px rgba(51, 34, 37, .08); transform: translateY(-3px); }
+  a.entidade-card:focus-visible { outline: 3px solid rgba(106, 27, 41, .18); outline-offset: 3px; }
+  .entidade-numero { position: absolute; top: .85rem; left: 1rem; color: var(--color-acento); font-size: .66rem; font-weight: 800; letter-spacing: .12em; }
+  .entidade-logo { display: flex; align-items: center; justify-content: center; padding: clamp(2rem, 5vw, 3.25rem); }
+  .entidade-logo img { display: block; width: auto; height: auto; max-width: min(100%, 330px); max-height: 92px; object-fit: contain; }
+  .entidade-info { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-end; padding: 1.15rem 1.25rem; border-top: 1px solid rgba(106, 27, 41, .1); background: var(--color-gris); }
+  .entidade-info strong, .entidade-info small { display: block; }
+  .entidade-info strong { font-size: 1rem; line-height: 1.3; }
+  .entidade-info small { margin-top: .28rem; color: #625d5a; font-size: .78rem; }
+  .entidade-link { flex: 0 0 auto; color: var(--color-principal); font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .entidade-link span { display: inline-block; margin-left: .15rem; transition: transform .2s ease; }
+  a.entidade-card:hover .entidade-link span { transform: translate(2px, -2px); }
+  .colaboradores-peche { display: grid; grid-template-columns: minmax(220px, .75fr) minmax(0, 1.25fr); gap: clamp(2rem, 6vw, 5rem); margin-top: clamp(3.5rem, 8vw, 5.5rem); padding: clamp(1.75rem, 4vw, 2.5rem); border-left: 3px solid var(--color-acento); background: var(--color-gris); }
+  .colaboradores-peche p { margin-top: 0; }
+  .btn-volver { display: inline-flex; align-items: center; gap: .65rem; border-radius: 4px; background: var(--color-principal); color: #fff; font-size: .78rem; font-weight: 700; letter-spacing: .06em; padding: .85rem 1.2rem; text-decoration: none; text-transform: uppercase; transition: background-color .2s ease; }
+  .btn-volver:hover, .btn-volver:focus-visible { background: var(--color-acento); }
+  @media (max-width: 720px) { .entidades-grid, .colaboradores-peche { grid-template-columns: 1fr; } .entidade-card { min-height: 225px; } .entidade-info { align-items: flex-start; } .btn-volver { justify-content: center; width: 100%; } }
 </style>
