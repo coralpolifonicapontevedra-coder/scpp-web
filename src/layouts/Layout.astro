@@ -32,6 +32,12 @@ const eInicioPortal = ruta === '/portal/' || ruta === '/portal';
 const eRepertorio = ruta === '/portal/repertorio' || ruta === '/portal/repertorio/';
 const eAxenda = ruta === '/axenda' || ruta === '/axenda/';
 const ePortada = rutaNormalizada === '/' || rutaNormalizada === '/es';
+const nomeSitio = lang === 'es'
+  ? 'Sociedad Coral Polifónica de Pontevedra'
+  : 'Sociedade Coral Polifónica de Pontevedra';
+const tituloSeo = ePortada
+  ? `${nomeSitio} | Web oficial`
+  : `${title} | ${nomeSitio}`;
 const equivalenciasEs = {
   '/': '/es/', '/acoral': '/es/la-coral/', '/historia': '/es/historia/',
   '/centenario': '/es/centenario/', '/directora': '/es/directora/',
@@ -44,10 +50,51 @@ const equivalenciasEs = {
   '/privacidade': '/es/privacidad/', '/aviso-legal': '/es/aviso-legal/',
   '/cookies': '/es/cookies/'
 };
+const normalizarRutaSeo = (valor) => valor.replace(/\/$/, '') || '/';
+const equivalenciasGl = Object.fromEntries(
+  Object.entries(equivalenciasEs).map(([rutaGl, rutaCastelan]) => [normalizarRutaSeo(rutaCastelan), rutaGl])
+);
 const canonical = new URL(ruta, Astro.site ?? Astro.url.origin).toString();
-const rutaEs = equivalenciasEs[rutaNormalizada];
-const alternaGl = new URL(rutaNormalizada === '/' ? '/' : `${rutaNormalizada}/`, Astro.site ?? Astro.url.origin).toString();
-const alternaEs = rutaEs ? new URL(rutaEs, Astro.site ?? Astro.url.origin).toString() : null;
+const rutaGl = lang === 'es' ? equivalenciasGl[rutaNormalizada] : rutaNormalizada;
+const rutaEsBase = lang === 'es' ? rutaNormalizada : equivalenciasEs[rutaNormalizada];
+const rutaEs = rutaEsBase ? normalizarRutaSeo(rutaEsBase) : null;
+const alternaGl = rutaGl
+  ? new URL(rutaGl === '/' ? '/' : `${rutaGl}/`, Astro.site ?? Astro.url.origin).toString()
+  : null;
+const alternaEs = rutaEs
+  ? new URL(rutaEs === '/es' ? '/es/' : `${rutaEs}/`, Astro.site ?? Astro.url.origin).toString()
+  : null;
+const urlSitio = new URL('/', Astro.site ?? Astro.url.origin).toString();
+const datosEstructurados = ePortada && !eZonaPortal ? {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${urlSitio}#website`,
+      url: urlSitio,
+      name: nomeSitio,
+      alternateName: 'SCPP',
+      inLanguage: lang,
+      publisher: { '@id': `${urlSitio}#organization` }
+    },
+    {
+      '@type': ['Organization', 'MusicGroup'],
+      '@id': `${urlSitio}#organization`,
+      url: urlSitio,
+      name: nomeSitio,
+      alternateName: [
+        'SCPP',
+        lang === 'es' ? 'Sociedade Coral Polifónica de Pontevedra' : 'Sociedad Coral Polifónica de Pontevedra'
+      ],
+      foundingDate: '1925',
+      description,
+      areaServed: {
+        '@type': 'AdministrativeArea',
+        name: 'Galicia'
+      }
+    }
+  ]
+} : null;
 ---
 
 <!DOCTYPE html>
@@ -55,12 +102,19 @@ const alternaEs = rutaEs ? new URL(rutaEs, Astro.site ?? Astro.url.origin).toStr
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{title} | SCPP</title>
+    <title>{tituloSeo}</title>
     <meta name="description" content={description} />
+    {!eZonaPortal && <meta property="og:type" content="website" />}
+    {!eZonaPortal && <meta property="og:site_name" content={nomeSitio} />}
+    {!eZonaPortal && <meta property="og:title" content={tituloSeo} />}
+    {!eZonaPortal && <meta property="og:description" content={description} />}
+    {!eZonaPortal && <meta property="og:url" content={canonical} />}
+    {!eZonaPortal && <meta name="twitter:card" content="summary" />}
     {(eZonaPortal || noindex) ? <meta name="robots" content="noindex,nofollow" /> : <link rel="canonical" href={canonical} />}
-    {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="gl" href={alternaGl} />}
-    {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="es" href={alternaEs} />}
-    {!eZonaPortal && alternaEs && <link rel="alternate" hreflang="x-default" href={alternaGl} />}
+    {!eZonaPortal && alternaGl && alternaEs && <link rel="alternate" hreflang="gl" href={alternaGl} />}
+    {!eZonaPortal && alternaGl && alternaEs && <link rel="alternate" hreflang="es" href={alternaEs} />}
+    {!eZonaPortal && alternaGl && alternaEs && <link rel="alternate" hreflang="x-default" href={alternaGl} />}
+    {datosEstructurados && <script type="application/ld+json" set:html={JSON.stringify(datosEstructurados)} />}
   </head>
   <body class:list={[eZonaPortal && 'portal-private-body']}>
     {!eZonaPortal && (lang === 'es' ? <SpanishHeader currentPath={ruta} galicianPath="/" /> : <Header lang={lang} />)}
