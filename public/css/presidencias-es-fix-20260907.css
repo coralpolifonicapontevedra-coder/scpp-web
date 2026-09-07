@@ -1,0 +1,61 @@
+/* Presidencias en español: mismas medidas y composición que la versión gallega. */
+.public-site-main .historia-page .presidency-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 1.3rem !important;
+}
+
+.public-site-main .historia-page .presidency-card {
+  min-width: 0;
+  padding: 2rem !important;
+  border: 1px solid var(--line, #ded8ce) !important;
+  background: #fff !important;
+}
+
+.public-site-main .historia-page .presidency-card > span {
+  display: block;
+  margin-bottom: .8rem;
+  color: var(--gold, #b79043);
+  font-size: .73rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.public-site-main .historia-page .presidency-card .presidency-photo {
+  margin: -.1rem -.1rem 1rem !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(106, 27, 41, .1) !important;
+  border-radius: 4px !important;
+  background: #f4f0e6 !important;
+}
+
+.public-site-main .historia-page .presidency-card .presidency-photo img {
+  display: block !important;
+  width: 100% !important;
+  height: clamp(190px, 20vw, 250px) !important;
+  max-height: 250px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  background: #eee9df !important;
+}
+
+.public-site-main .historia-page .presidency-card .presidency-photo figcaption {
+  margin: 0 !important;
+  padding: .48rem .58rem .52rem !important;
+  border-top: 1px solid rgba(106, 27, 41, .08) !important;
+  color: #746b65 !important;
+  font-size: .64rem !important;
+  line-height: 1.35 !important;
+}
+
+.public-site-main .historia-page .presidency-card .presidency-photo figcaption a {
+  color: #746b65 !important;
+  text-decoration: none !important;
+}
+
+@media (max-width: 720px) {
+  .public-site-main .historia-page .presidency-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
