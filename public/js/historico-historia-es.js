@@ -203,3 +203,7 @@
 
   cargar();
 })();
+
+import('/js/historia-paridad-es.js?v=20260907-1').catch((error) => {
+  console.error('No se pudo cargar la paridad de Historia en español:', error);
+});
