@@ -20,6 +20,11 @@ const esAgenda = rutaNormalizada === '/es/agenda';
 const esActualidad = rutaNormalizada === '/es/actualidad';
 const esHistoria = rutaNormalizada === '/es/historia';
 const esHistorico = rutaNormalizada === '/es/historico-conciertos';
+const nombreSitio = 'Sociedad Coral Polifónica de Pontevedra';
+const tituloYaIncluyeNombre = /Sociedad Coral Polifónica de Pontevedra/i.test(String(title));
+const tituloSeo = esPortada
+  ? `${nombreSitio} | Web oficial`
+  : tituloYaIncluyeNombre ? title : `${title} | ${nombreSitio}`;
 
 const equivalencias = {
   '/es': '/',
@@ -55,8 +60,14 @@ const alternaEs = new URL(ruta, baseUrl).toString();
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{title} | SCPP</title>
+    <title>{tituloSeo}</title>
     <meta name="description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={nombreSitio} />
+    <meta property="og:title" content={tituloSeo} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={alternaEs} />
+    <meta name="twitter:card" content="summary" />
     <link rel="canonical" href={alternaEs} />
     <link rel="alternate" hreflang="gl" href={alternaGl} />
     <link rel="alternate" hreflang="es" href={alternaEs} />
