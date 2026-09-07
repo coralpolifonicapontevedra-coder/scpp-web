@@ -10,6 +10,7 @@ import PortalAcceptanceGate from '../components/PortalAcceptanceGate.astro';
 import PortalReviewStyles from '../components/PortalReviewStyles.astro';
 import PortalContextHelp from '../components/PortalContextHelp.astro';
 import WhatsAppButton from '../components/WhatsAppButton.astro';
+import escudoImg from '../assets/escudo-raw.svg';
 import '../styles/global.css';
 
 const {
@@ -35,9 +36,10 @@ const ePortada = rutaNormalizada === '/' || rutaNormalizada === '/es';
 const nomeSitio = lang === 'es'
   ? 'Sociedad Coral Polifónica de Pontevedra'
   : 'Sociedade Coral Polifónica de Pontevedra';
+const tituloXaInclueNome = /(?:Sociedade|Sociedad) Coral Polifónica de Pontevedra/i.test(String(title));
 const tituloSeo = ePortada
   ? `${nomeSitio} | Web oficial`
-  : `${title} | ${nomeSitio}`;
+  : tituloXaInclueNome ? title : `${title} | ${nomeSitio}`;
 const equivalenciasEs = {
   '/': '/es/', '/acoral': '/es/la-coral/', '/historia': '/es/historia/',
   '/centenario': '/es/centenario/', '/directora': '/es/directora/',
@@ -54,17 +56,19 @@ const normalizarRutaSeo = (valor) => valor.replace(/\/$/, '') || '/';
 const equivalenciasGl = Object.fromEntries(
   Object.entries(equivalenciasEs).map(([rutaGl, rutaCastelan]) => [normalizarRutaSeo(rutaCastelan), rutaGl])
 );
-const canonical = new URL(ruta, Astro.site ?? Astro.url.origin).toString();
+const baseUrl = Astro.site ?? Astro.url.origin;
+const canonical = new URL(ruta, baseUrl).toString();
 const rutaGl = lang === 'es' ? equivalenciasGl[rutaNormalizada] : rutaNormalizada;
 const rutaEsBase = lang === 'es' ? rutaNormalizada : equivalenciasEs[rutaNormalizada];
 const rutaEs = rutaEsBase ? normalizarRutaSeo(rutaEsBase) : null;
 const alternaGl = rutaGl
-  ? new URL(rutaGl === '/' ? '/' : `${rutaGl}/`, Astro.site ?? Astro.url.origin).toString()
+  ? new URL(rutaGl === '/' ? '/' : `${rutaGl}/`, baseUrl).toString()
   : null;
 const alternaEs = rutaEs
-  ? new URL(rutaEs === '/es' ? '/es/' : `${rutaEs}/`, Astro.site ?? Astro.url.origin).toString()
+  ? new URL(rutaEs === '/es' ? '/es/' : `${rutaEs}/`, baseUrl).toString()
   : null;
-const urlSitio = new URL('/', Astro.site ?? Astro.url.origin).toString();
+const urlSitio = new URL('/', baseUrl).toString();
+const logoSitio = new URL(escudoImg.src, baseUrl).toString();
 const datosEstructurados = ePortada && !eZonaPortal ? {
   '@context': 'https://schema.org',
   '@graph': [
@@ -88,6 +92,10 @@ const datosEstructurados = ePortada && !eZonaPortal ? {
       ],
       foundingDate: '1925',
       description,
+      logo: {
+        '@type': 'ImageObject',
+        url: logoSitio
+      },
       areaServed: {
         '@type': 'AdministrativeArea',
         name: 'Galicia'
