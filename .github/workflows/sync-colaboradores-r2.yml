@@ -1,7 +1,9 @@
-name: Sincronizar logos de colaboradores con R2
+name: Sincronizar colaboradores con R2
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
   push:
     branches:
       - main
@@ -32,19 +34,29 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Instalar dependencia R2
-        run: python -m pip install --disable-pip-version-check boto3==1.40.1
+      - name: Instalar dependencias
+        run: python -m pip install --disable-pip-version-check boto3==1.40.1 google-auth==2.40.3 requests==2.32.4
 
-      - name: Publicar logos en R2
+      - name: Publicar entidades e logos en R2
         env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          COLABORADORES_SPREADSHEET_ID: '1mqlMESC6ZkE4t1zfA0q1dK3PRFHtKLO71ifdbT2CtHw'
+          COLABORADORES_SHEET_NAME: 'Colaboracións'
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_PUBLIC_BUCKET: scpp-publico
-        run: python scripts/sync-colaboradores-r2.py
+          SYNC_TIMEOUT_SECONDS: '90'
+        run: |
+          set -o pipefail
+          python scripts/sync-colaboradores-r2.py | tee colaboradores-r2.log
 
-      - name: Resumen
+      - name: Resumo
         if: always()
         run: |
-          echo "## Logos de colaboradores" >> "$GITHUB_STEP_SUMMARY"
-          echo "Destino: scpp-publico/colaboradores/v1/" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Entidades colaboradoras" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Índice: scpp-publico/indices/colaboradores-v1.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Logos: scpp-publico/colaboradores/v1/" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Fonte: Sheet de produción Colaboracións." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Sincronización automática: cada hora e tras cambios no código ou logos." >> "$GITHUB_STEP_SUMMARY"
+          tail -n 20 colaboradores-r2.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
