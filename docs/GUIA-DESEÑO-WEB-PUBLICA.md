@@ -15,6 +15,23 @@ Estas regras non se aplican ao portal privado (`/portal/`).
 5. O menú lateral de **A Coral** é permanente en escritorio e despregable en tablet e móbil.
 6. A portada é a única páxina pública sen menú lateral e conserva unha composición propia.
 
+## Paridade galego–español
+
+A web pública en galego e a web pública en español son dúas versións lingüísticas da mesma presenza institucional, non dous produtos independentes.
+
+Regras obrigatorias de mantemento:
+
+1. Todo cambio público de **contido, estrutura, navegación, imaxes, xerarquía visual ou comportamento** realizado nunha versión debe revisarse na súa ruta equivalente do outro idioma.
+2. Se o cambio é aplicable aos dous idiomas, debe incorporarse ás dúas versións dentro do mesmo traballo ou PR. Non se considera rematada unha modificación pública se queda unha versión atrasada sen unha razón documentada.
+3. As diferenzas entre idiomas deben limitarse á tradución, á adaptación lingüística ou a casos nos que exista unha razón funcional explícita.
+4. Sempre que sexa razoable, debe preferirse unha **fonte de datos, estrutura ou compoñente compartido** con textos localizados fronte a manter dúas implementacións independentes.
+5. Se aínda existen compoñentes paralelos, calquera cambio estrutural debe comprobar os dous membros da parella:
+   - `src/layouts/Layout.astro` ↔ `src/layouts/SpanishPublicLayout.astro`
+   - `src/components/PublicCoralMenu.astro` ↔ `src/components/SpanishCoralMenu.astro`
+   - `src/components/PublicPageHero.astro` ↔ `src/components/SpanishPageHero.astro`
+6. As rutas públicas equivalentes deben conservar os mesmos bloques funcionais e a mesma importancia relativa do contido, aínda que a redacción non sexa literalmente idéntica.
+7. Esta regra de paridade non afecta ao portal privado (`/portal/`), que continúa coa súa arquitectura propia.
+
 ## Estrutura común
 
 O layout xeral está en:
@@ -26,7 +43,9 @@ Os dous compoñentes públicos compartidos son:
 - `src/components/PublicCoralMenu.astro`
 - `src/components/PublicPageHero.astro`
 
-Non se deben crear novos menús laterais nin novos heroes de páxina dentro dos ficheiros individuais. Se unha nova páxina necesita título, debe engadirse a súa información ao mapa `paxinas` de `PublicPageHero.astro`.
+A versión española mantén actualmente compoñentes equivalentes específicos. Mentres esa duplicidade exista, deben evolucionar en paralelo segundo a regra de paridade anterior.
+
+Non se deben crear novos menús laterais nin novos heroes de páxina dentro dos ficheiros individuais. Se unha nova páxina necesita título, debe engadirse a súa información ao mapa `paxinas` de `PublicPageHero.astro` e á equivalencia española correspondente.
 
 ## Anchos de referencia
 
@@ -48,7 +67,7 @@ O marco pode ser máis estreito ca zona de contido. Non debe ampliarse ata enche
 
 ## Cabeceira común das páxinas
 
-A cabeceira común está en `PublicPageHero.astro`.
+A cabeceira común está en `PublicPageHero.astro` e ten a súa equivalencia na versión española.
 
 Medidas de referencia:
 
@@ -64,7 +83,7 @@ Os antigos encabezados incluídos nas páxinas individuais permanecen ocultos de
 
 ## Páxina Historia
 
-Os seis accesos ao arquivo histórico deben cumprir:
+Os sete accesos ao arquivo histórico deben cumprir:
 
 - Nunca usar marxe superior negativa.
 - Nunca montar ou solapar a cabeceira.
@@ -74,13 +93,16 @@ Os seis accesos ao arquivo histórico deben cumprir:
 - Mostrar só número, período e título.
 - Non incluír descricións longas dentro dos botóns.
 
+O contido interior de cada apartado —incluída Dirección musical— debe manter a mesma profundidade informativa e xerarquía visual en galego e español.
+
 ## Páxina A Coral
 
-`/acoral` utiliza:
+`/acoral` e `/es/la-coral` utilizan:
 
-- O menú lateral público común.
-- A cabeceira pública común co título **A Coral**.
+- O menú lateral público común ou a súa equivalencia lingüística.
+- A cabeceira pública común co título correspondente.
 - O contido propio da páxina sen o antigo menú interno duplicado.
+- Os mesmos apartados institucionais, adaptados lingüisticamente.
 
 ## Comportamento adaptable
 
@@ -98,26 +120,27 @@ En móbil non se deben recuperar alturas grandes para compensar a redución de a
 
 Antes de modificar o deseño público:
 
-1. Revisar `Layout.astro`, `PublicCoralMenu.astro` e `PublicPageHero.astro`.
-2. Non corrixir problemas xerais desde unha páxina individual.
-3. Non usar `width: 100vw` nos contidos públicos.
-4. Non introducir máximos superiores a `1400px` no layout público.
-5. Non usar marxes negativas para montar tarxetas sobre unha cabeceira.
-6. Non duplicar títulos ou menús.
-7. Manter o portal privado fóra dos selectores públicos.
+1. Revisar `Layout.astro`, `PublicCoralMenu.astro` e `PublicPageHero.astro`, así como as súas equivalencias españolas cando o cambio poida afectalas.
+2. Identificar a ruta equivalente no outro idioma antes de dar o cambio por rematado.
+3. Non corrixir problemas xerais desde unha páxina individual.
+4. Non usar `width: 100vw` nos contidos públicos.
+5. Non introducir máximos superiores a `1400px` no layout público.
+6. Non usar marxes negativas para montar tarxetas sobre unha cabeceira.
+7. Non duplicar títulos ou menús.
+8. Manter o portal privado fóra dos selectores públicos.
 
 ## Comprobación mínima despois de cada cambio
 
-Revisar estas páxinas en escritorio e móbil:
+Revisar estas páxinas en escritorio e móbil, incluíndo sempre a súa equivalencia española cando exista:
 
-- `/`
-- `/acoral`
-- `/historia`
-- `/axenda`
-- `/actualidade`
-- `/distincions`
-- `/contacto`
-- `/portal/`
+- `/` ↔ `/es/`
+- `/acoral` ↔ `/es/la-coral`
+- `/historia` ↔ `/es/historia`
+- `/axenda` ↔ `/es/agenda`
+- `/actualidade` ↔ `/es/actualidad`
+- `/distincions` ↔ `/es/distinciones`
+- `/contacto` ↔ `/es/contacto`
+- `/portal/` (só para comprobar que os estilos públicos non o afectan)
 
 Comprobar especialmente:
 
@@ -125,8 +148,11 @@ Comprobar especialmente:
 - que Historia non presente solapamentos;
 - que todas as páxinas públicas teñan unha única cabeceira;
 - que o menú lateral non apareza no portal privado;
-- que ningún marco supere desproporcionadamente o ancho do encabezado.
+- que ningún marco supere desproporcionadamente o ancho do encabezado;
+- que unha mellora ou novo bloque público non exista só nun idioma sen xustificación.
 
 ## Decisión de arquitectura
 
 A escala visual pública queda controlada polos compoñentes compartidos. Os estilos individuais de cada páxina deben limitarse ao seu contido específico e non redefinir a estrutura xeral, o menú lateral nin a cabeceira institucional.
+
+Como obxectivo de evolución, a web pública debe reducir progresivamente as implementacións paralelas entre galego e español e mover estrutura e datos comúns a fontes compartidas con textos localizados. Isto diminúe o risco de que unha versión quede atrasada respecto da outra.
