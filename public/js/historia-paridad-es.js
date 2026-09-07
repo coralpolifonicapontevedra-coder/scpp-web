@@ -1,4 +1,12 @@
 (() => {
+  if (!document.querySelector('link[data-history-parity-es]')) {
+    const stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = '/css/historia-paridad-es.css?v=20260907-1';
+    stylesheet.dataset.historyParityEs = 'true';
+    document.head.append(stylesheet);
+  }
+
   const page = document.querySelector('.historia-page');
   if (!(page instanceof HTMLElement)) return;
 
