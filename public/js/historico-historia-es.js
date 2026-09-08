@@ -9,7 +9,7 @@
       <p>Consulta por décadas los conciertos documentados desde 1925, con una lectura directa y sin pasos intermedios.</p>
       <div id="history-summary" class="history-summary-badge" aria-live="polite">Cargando el archivo…</div>
       <div class="history-actions-row">
-        <button id="show-all-history" type="button" class="btn-history">Ver todo el histórico</button>
+        <a id="show-all-history" href="/arquivos/publico/documentos/concertos_scpp_1925_2026.pdf" target="_blank" rel="noopener noreferrer" class="btn-history">Ver todo el histórico</a>
         <a href="/arquivos/publico/documentos/concertos_scpp_1925_2026.pdf" download="concertos_scpp_1925_2026.pdf" class="btn-history">Descargar histórico (.pdf)</a>
       </div>
     </header>
