@@ -1,8 +1,8 @@
 # Configuración operativa real do sistema
 
-> Estado: documento vivo. Última revisión: 2026-08-03.
+> Estado: documento vivo. Última revisión: 2026-08-19.
 >
-> Este ficheiro describe o que está confirmado no código do repositorio. Os nomes e valores secretos non se publican. A configuración que só existe no panel de Cloudflare ou en Google Apps Script queda marcada como **pendente de verificación externa**.
+> Este ficheiro describe o que está confirmado no código do repositorio e nas comprobacións operativas realizadas. Os nomes e valores secretos non se publican. A configuración que só existe no panel de Cloudflare ou nas Propiedades de Google Apps Script queda marcada como externa ao repositorio.
 
 ## 1. Despregamento principal
 
@@ -92,6 +92,32 @@ Regras:
 
 ## 6. Apps Script
 
+### Implementacións verificadas
+
+En 2026-08-19 realizouse unha auditoría fresca con `clasp clone` sobre os dous proxectos reais:
+
+- Preview: `SCPP Script - Pruebas`, 20 ficheiros seguidos por clasp e 2 deployments observados.
+- Producción: proxecto principal, 19 ficheiros seguidos por clasp e 12 deployments observados.
+
+Preview e Producción **non son copias idénticas**. Preview inclúe `configuracion-entorno.js` e existen diferenzas de contido en múltiples módulos. Polo tanto, non se debe copiar un proxecto completo sobre o outro.
+
+A documentación operativa específica do fluxo GitHub ↔ Apps Script está en:
+
+`docs/framework-scpp/APPS-SCRIPT-SYNC.md`
+
+### Fonte de verdade
+
+A partir da auditoría do 2026-08-19, o fluxo obxectivo é:
+
+```text
+GitHub
+  → Apps Script Preview
+  → proba
+  → Apps Script Producción
+```
+
+`apps-script/canonical-2026-08-03/` conserva unha fotografía histórica e segue sendo útil para auditoría, pero non debe considerarse un espello actualizado do proxecto publicado.
+
 ### Implementación principal
 
 Os Workers novos deben utilizar exclusivamente `APPS_SCRIPT_WEBAPP_URL`.
@@ -106,15 +132,7 @@ A implementación debe:
 
 ### Despachador `doPost`
 
-O `doPost` real non está completamente versionado nun único ficheiro do repositorio. Os módulos documentan as accións que deben engadirse ao despachador, pero a correspondencia completa entre accións e ficheiros queda pendente dunha auditoría específica do proxecto Apps Script.
-
-Accións confirmadas polo código actual:
-
-- `listarPersoasAdministracion`
-- `obterFichaPersoaAdministracion`
-- `listarDocumentacionPortal`
-- `obterFicheiroDocumentacion`
-- accións de fotografías, perfil, repertorio, concertos, aceptación e solicitudes usadas polos endpoints correspondentes.
+A auditoría con `clasp` confirma que `Código.js` forma parte dos proxectos reais e contén o despachador principal. A reconciliación completa entre a versión actual de Preview, a de Producción e a fotografía canónica do 03/08 segue pendente antes de automatizar despregamentos.
 
 Lista de comprobación do despachador:
 

@@ -1,0 +1,71 @@
+name: Patch Preview Concertos dispatcher
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/apps-script-sync-architecture
+    paths:
+      - .github/workflows/patch-preview-concertos-dispatcher.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/apps-script-sync-architecture
+      - name: Add Concertos admin actions to Preview Código.js
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('apps-script/snapshot-2026-08-19/preview/Código.js')
+          s = p.read_text(encoding='utf-8')
+          if "accion === 'listarConcertosAdministracionPortal'" in s:
+              print('Concertos admin dispatcher already present')
+              raise SystemExit(0)
+          needle = "    if (accion === 'listarEnsaiosPortal') {"
+          if needle not in s:
+              raise SystemExit('Insertion point not found')
+          block = """    if (accion === 'listarConcertosAdministracionPortal') {
+              return respostaJSON(
+                listarConcertosAdministracionPortal_(datos)
+              );
+            }
+
+            if (accion === 'actualizarConcertoAdministracionPortal') {
+              bloqueo.waitLock(10000);
+              return respostaJSON(
+                actualizarConcertoAdministracionPortal_(datos)
+              );
+            }
+
+            if (accion === 'crearConcertoAdministracionPortal') {
+              bloqueo.waitLock(10000);
+              return respostaJSON(
+                crearConcertoAdministracionPortal_(datos)
+              );
+            }
+
+            if (accion === 'eliminarConcertoAdministracionPortal') {
+              bloqueo.waitLock(10000);
+              return respostaJSON(
+                eliminarConcertoAdministracionPortal_(datos)
+              );
+            }
+
+          """
+          s = s.replace(needle, block + needle, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patched dispatcher
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps-script/snapshot-2026-08-19/preview/Código.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: add Concertos admin actions to Preview dispatcher"
+          git push origin HEAD:agent/apps-script-sync-architecture
