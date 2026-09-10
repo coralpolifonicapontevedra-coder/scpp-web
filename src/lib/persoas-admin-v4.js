@@ -563,18 +563,16 @@ export function initPersoasAdminV4() {
 
   async function openAcceptance() {
     const id = keyOf(selected);
-    if (!id) return;
-    if (!(nodes.openAcceptance instanceof HTMLButtonElement) || nodes.openAcceptance.dataset.available !== 'true') {
-      notify('Non consta unha aceptación electrónica dispoñible para abrir.', 'error');
-      return;
-    }
+    if (!id || !(nodes.openAcceptance instanceof HTMLButtonElement)) return;
     const tab = window.open('', '_blank');
     if (!tab) { notify('O navegador bloqueou a nova lapela.', 'error'); return; }
     tab.opener = null;
+    setAcceptanceState(true, true);
     try {
       const blob = await requestReview('obterAceptacion', { idPersoa: id }, true);
       if (acceptanceUrl) URL.revokeObjectURL(acceptanceUrl);
       acceptanceUrl = URL.createObjectURL(blob);
+      setAcceptanceState(true, false);
       tab.location.replace(acceptanceUrl);
     } catch (error) {
       tab.close();
