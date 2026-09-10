@@ -1,4 +1,4 @@
-name: Reparación temporal aceptación R2
+name: Parche temporal aceptacións
 
 on:
   push:
@@ -11,191 +11,14 @@ permissions:
   contents: write
 
 jobs:
-  repair:
+  patch:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: r2-migration
+    timeout-minutes: 10
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
-      - name: Preparar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Instalar dependencias
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install boto3==1.40.1 google-api-python-client==2.177.0 google-auth==2.40.3 reportlab==4.4.3
-
-      - name: Reconstruír justificante desde as follas de produción
-        env:
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          python - <<'PY'
-          import os, json, re, html, tempfile
-          from datetime import datetime, timezone
-          from zoneinfo import ZoneInfo
-          import boto3
-          from google.oauth2 import service_account
-          from googleapiclient.discovery import build
-          from reportlab.lib.pagesizes import A4
-          from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-          from reportlab.lib.enums import TA_CENTER
-          from reportlab.lib.units import mm
-          from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
-
-          PERSOAS_ID = '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ'
-          ACEPTACION_ID = '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
-          ID_PERSOA = '50'
-          DOCUMENTO = 'persoas/aceptacions/50/aceptacion-8bc81563-0062-4110-98b4-0c3efbeb0f9b.pdf'
-          REVISION_ID = re.search(r'aceptacion-(.+)\.pdf$', DOCUMENTO).group(1)
-          BUCKET = 'scpp-privado'
-
-          info = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT_JSON'])
-          creds = service_account.Credentials.from_service_account_info(
-              info, scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'])
-          sheets = build('sheets', 'v4', credentials=creds, cache_discovery=False)
-
-          def values(spreadsheet_id, range_a1):
-              return sheets.spreadsheets().values().get(
-                  spreadsheetId=spreadsheet_id, range=range_a1,
-                  valueRenderOption='FORMATTED_VALUE').execute().get('values', [])
-
-          def records(rows):
-              if not rows:
-                  return []
-              headers = [str(x).strip() for x in rows[0]]
-              out = []
-              for row in rows[1:]:
-                  padded = list(row) + [''] * max(0, len(headers) - len(row))
-                  out.append({headers[i]: padded[i] for i in range(len(headers))})
-              return out
-
-          persoas = records(values(PERSOAS_ID, 'Persoas!A1:AL994'))
-          aceptacions = records(values(ACEPTACION_ID, "'Aceptación'!A1:Z997"))
-          legais = records(values(ACEPTACION_ID, 'TextosLegais!A1:I999'))
-
-          persoa = next((r for r in persoas if str(r.get('Id','')).strip() == ID_PERSOA), None)
-          aceptacion = next((r for r in aceptacions if str(r.get('Documento','')).strip() == DOCUMENTO), None)
-          if not persoa or not aceptacion:
-              raise SystemExit('Non se atoparon en produción a persoa e a aceptación necesarias para a reparación.')
-
-          version = str(aceptacion.get('Versión','')).strip()
-          legal = next((r for r in legais if str(r.get('Version','')).strip() == version), {})
-          titulo_legal = str(legal.get('Titulo','')).strip() or 'Tratamento de datos persoais para os fins da SCPP'
-          texto_legal = str(aceptacion.get('Texto_Legal','')).strip()
-          if not texto_legal:
-              raise SystemExit('A aceptación non conserva o texto legal aceptado.')
-
-          fecha = str(aceptacion.get('Fecha_Hora','')).strip()
-          dt_local = None
-          for fmt in ('%d/%m/%Y %H:%M:%S', '%d/%m/%Y %H:%M'):
-              try:
-                  dt_local = datetime.strptime(fecha, fmt).replace(tzinfo=ZoneInfo('Europe/Madrid'))
-                  break
-              except ValueError:
-                  pass
-          if dt_local is None:
-              raise SystemExit('Non se puido interpretar a data da aceptación de produción.')
-          completada_en = dt_local.astimezone(timezone.utc).isoformat().replace('+00:00','Z')
-
-          def txt(v):
-              s = str(v if v is not None else '').strip()
-              return s if s else 'Sen indicar'
-
-          styles = getSampleStyleSheet()
-          title = ParagraphStyle('title', parent=styles['Title'], fontName='Helvetica-Bold', fontSize=16, leading=20, alignment=TA_CENTER, spaceAfter=12)
-          brand = ParagraphStyle('brand', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, leading=13, alignment=TA_CENTER, spaceAfter=8)
-          heading = ParagraphStyle('heading', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=11.5, leading=14, spaceBefore=9, spaceAfter=6)
-          body = ParagraphStyle('body', parent=styles['BodyText'], fontName='Helvetica', fontSize=9.2, leading=12.4, spaceAfter=4)
-          small = ParagraphStyle('small', parent=body, fontSize=8.4, leading=11)
-
-          def P(text, style=body):
-              return Paragraph(html.escape(str(text)).replace('\n','<br/>'), style)
-
-          story = [
-              P('SOCIEDADE CORAL POLIFÓNICA DE PONTEVEDRA', brand),
-              P('Documento individual de aceptación e confirmación de datos', title),
-              P(f'<b>Identificador da persoa:</b> {txt(ID_PERSOA)}'),
-              P(f'<b>Identificador da revisión:</b> {txt(REVISION_ID)}'),
-              P(f'<b>Data e hora da aceptación:</b> {txt(fecha)} (Europe/Madrid)'),
-              P(f'<b>Versión do texto legal:</b> {txt(version)}'),
-              P(f'<b>Documento R2:</b> {txt(DOCUMENTO)}', small),
-              Spacer(1, 5*mm),
-              P('DATOS CONFIRMADOS POLA PERSOA', heading),
-          ]
-
-          campos = [
-              ('Nome', 'Nome'), ('Primeiro apelido', 'Primeiro apelido'), ('Segundo apelido', 'Segundo apelido'),
-              ('NIF', 'NIF'), ('Data de nacemento', 'DataNacemento'), ('Teléfono', 'Teléfono'),
-              ('Correo electrónico', 'Correo electrónico'), ('Enderezo', 'Enderezo'), ('Cidade', 'Cidade'),
-              ('Código postal', 'CP'), ('Contacto de emerxencia', 'ContactoEmerxencia'),
-              ('Teléfono de emerxencia', 'TelefonoEmerxencia'), ('Preferencia de comunicación', 'PreferenciaComunicacion'),
-              ('Consentimento de fotografía', 'ConsentimentoFoto'), ('Mostrar aniversario', 'MostrarAniversario'),
-              ('Voz', 'Voz'), ('Tipo de socio', 'Tipo de socio'), ('Cargo', 'Cargo'),
-              ('Data de incorporación', 'DataIncorporacionSCPP')
-          ]
-          for label, key in campos:
-              value = persoa.get(key, '')
-              if key == 'MostrarAniversario':
-                  value = 'Si' if str(value).strip().lower() in ('y','yes','si','sí','true','1') else 'Non'
-              story.append(P(f'<b>{label}:</b> {txt(value)}'))
-
-          story += [
-              Spacer(1, 4*mm),
-              P(titulo_legal.upper(), heading),
-              P(f'Versión {version} · Ámbito: {txt(aceptacion.get("Ambito","Persoas"))}', small),
-              Spacer(1, 2*mm),
-          ]
-          for paragraph in re.split(r'\n\s*\n|  +', texto_legal):
-              paragraph = paragraph.strip()
-              if paragraph:
-                  story.append(P(paragraph, body))
-          story += [
-              Spacer(1, 3*mm),
-              P('DECLARACIÓN DE ACEPTACIÓN', heading),
-              P('A persoa declara que revisou os datos anteriores e que son correctos coas modificacións introducidas. Declara igualmente que leu e comprendeu o texto legal reproducido neste documento e acepta o tratamento dos seus datos persoais para a xestión da súa relación coa Sociedade Coral Polifónica de Pontevedra e para o cumprimento dos fins propios da entidade.'),
-              P('Esta aceptación foi realizada mediante unha ligazón individual de revisión e queda asociada á versión exacta do texto legal indicada neste documento.'),
-          ]
-
-          tmp = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
-          tmp.close()
-          doc = SimpleDocTemplate(tmp.name, pagesize=A4, rightMargin=18*mm, leftMargin=18*mm, topMargin=17*mm, bottomMargin=17*mm,
-                                  title='Aceptación de datos SCPP', author='Sociedade Coral Polifónica de Pontevedra')
-          doc.build(story)
-
-          s3 = boto3.client(
-              's3', endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
-              aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-              aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'], region_name='auto')
-          with open(tmp.name, 'rb') as fh:
-              s3.put_object(Bucket=BUCKET, Key=DOCUMENTO, Body=fh, ContentType='application/pdf', CacheControl='private, no-store',
-                            Metadata={'idpersoa':ID_PERSOA,'revisionid':REVISION_ID,'versionlegal':version})
-
-          latest = {
-              'idPersoa': ID_PERSOA,
-              'revisionId': REVISION_ID,
-              'documento': DOCUMENTO,
-              'completadaEn': completada_en,
-              'versionLegal': version,
-              'tituloLegal': titulo_legal,
-              'aceptacionRowId': str(aceptacion.get('Row ID','')).strip(),
-              'nomeFicheiro': f'aceptacion-{ID_PERSOA}-{REVISION_ID}.pdf'
-          }
-          s3.put_object(Bucket=BUCKET, Key=f'persoas/aceptacions/{ID_PERSOA}/latest.json',
-                        Body=json.dumps(latest, ensure_ascii=False).encode('utf-8'), ContentType='application/json; charset=utf-8',
-                        CacheControl='private, no-store')
-          head = s3.head_object(Bucket=BUCKET, Key=DOCUMENTO)
-          print('REPARADO', DOCUMENTO, 'bytes=', head.get('ContentLength'))
-          print('INDICE_REPARADO', f'persoas/aceptacions/{ID_PERSOA}/latest.json')
-          PY
-
-      - name: Protexer os PDF ante respostas antigas de Apps Script
+      - name: Aplicar parche mínimo
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -221,17 +44,12 @@ jobs:
           p.write_text(s, encoding='utf-8')
           PY
           git diff --check
-          git diff -- functions/api/persoas-revision.js
 
-      - name: Gardar corrección preventiva
+      - name: Publicar rama de corrección
         run: |
-          if git diff --quiet -- functions/api/persoas-revision.js; then
-            echo 'Sen cambios que gardar.'
-            exit 0
-          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b fix/aceptacion-pdf-legacy
           git add functions/api/persoas-revision.js
           git commit -m 'Evitar borrar aceptacións válidas por resposta legacy'
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git push --force-with-lease origin HEAD:refs/heads/fix/aceptacion-pdf-legacy
