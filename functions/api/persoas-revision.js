@@ -432,10 +432,14 @@ async function gardarRevision(context, data, token) {
         xeradaPor: invitation.administrador
       }
     });
-    if (!result?.aceptacion?.rowId) throw new Error('O backend non confirmou o rexistro na táboa Aceptación.');
   } catch (error) {
     try { if (typeof env.R2_PRIVADO.delete === 'function') await env.R2_PRIVADO.delete(documento); } catch {}
     return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible rexistrar a aceptación.' });
+  }
+
+  const aceptacionRowId = String(result?.aceptacion?.rowId || '').trim();
+  if (!aceptacionRowId) {
+    console.warn('Apps Script confirmou a actualización sen devolver o Row ID da aceptación; consérvase o PDF por compatibilidade.');
   }
 
   const latest = {
@@ -445,7 +449,7 @@ async function gardarRevision(context, data, token) {
     completadaEn,
     versionLegal: invitation.textoLegal.version,
     tituloLegal: invitation.textoLegal.titulo,
-    aceptacionRowId: result.aceptacion.rowId,
+    aceptacionRowId,
     nomeFicheiro: `aceptacion-${safeId(invitation.idPersoa)}-${safeId(invitation.revisionId)}.pdf`
   };
   await env.R2_PRIVADO.put(keyAcceptanceIndex(invitation.idPersoa), JSON.stringify(latest), {
@@ -463,7 +467,7 @@ async function gardarRevision(context, data, token) {
     ok: true,
     mensaxe: 'Os datos e a aceptación legal quedaron rexistrados correctamente.',
     versionLegal: invitation.textoLegal.version,
-    aceptacionId: result.aceptacion.rowId
+    aceptacionId: aceptacionRowId || null
   });
 }
 
