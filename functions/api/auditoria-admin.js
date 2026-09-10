@@ -4,7 +4,6 @@ import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-p
 const MODULO = 'auditoria';
 const CACHE_PREFIX = 'auditoria/cache-v1/';
 const CACHE_FRESH_MS = 2 * 60 * 1000;
-const CACHE_BACKUP_MS = 24 * 60 * 60 * 1000;
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 
 const clean = (value) => String(value || '').trim();
@@ -72,8 +71,10 @@ async function lerCache(env) {
     if (!entry?.payload?.ok || !Array.isArray(entry.payload.actividade)) return null;
     const savedAt = Number(entry.savedAt || 0);
     const idadeMs = Date.now() - savedAt;
-    if (!savedAt || idadeMs < 0 || idadeMs > CACHE_BACKUP_MS) return null;
-    return { payload: entry.payload, idadeMs, fresca: idadeMs <= CACHE_FRESH_MS };
+    // A última copia válida segue sendo útil se Sheets está indispoñible.
+    // A antigüidade comunícase ao cliente; non modifica a autorización.
+    if (!Number.isFinite(savedAt) || savedAt <= 0 || idadeMs < 0) return null;
+    return { payload: entry.payload, savedAt, idadeMs, fresca: idadeMs <= CACHE_FRESH_MS };
   } catch (error) {
     console.warn('Auditoría: non se puido ler a caché R2:', error);
     return null;
@@ -103,7 +104,8 @@ async function listarDesdeSheet(env, user, limite = 1000) {
     error.resultado = resultado;
     throw error;
   }
-  await gardarCache(env, resultado);
+  try { await gardarCache(env, resultado); }
+  catch (error) { console.warn('Auditoría: non se puido gardar a caché R2:', error); }
   return resultado;
 }
 
@@ -129,15 +131,16 @@ export async function onRequest(context) {
 
   const cache = await lerCache(env);
   if (cache?.payload) {
-    if (!cache.fresca) {
+    const actualizando = !cache.fresca && typeof context.waitUntil === 'function';
+    if (actualizando) {
       const tarefa = listarDesdeSheet(env, user, body?.limite).catch((error) =>
         console.warn('Auditoría: non se puido refrescar a caché R2:', error)
       );
-      if (typeof context.waitUntil === 'function') context.waitUntil(tarefa);
+      context.waitUntil(tarefa);
     }
     return json(200, {
       ...cache.payload,
-      cache: { orixe: 'r2', idadeMs: cache.idadeMs, fresca: cache.fresca }
+      cache: { orixe: 'r2', savedAt: cache.savedAt, idadeMs: cache.idadeMs, fresca: cache.fresca, actualizando }
     }, {
       'X-SCPP-Cache': cache.fresca ? 'HIT' : 'STALE-WHILE-REVALIDATE',
       'X-SCPP-Storage': 'R2'
