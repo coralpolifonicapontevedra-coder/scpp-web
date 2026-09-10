@@ -30,6 +30,8 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       </section>
 
       <section id="app" hidden>
+        <p id="cache-status" role="status"></p>
+        <button id="reload" type="button" class="secondary">Recargar datos</button>
         <section class="metrics" aria-label="Resumo de actividade">
           <article><small>Accións hoxe</small><strong id="m-today">0</strong></article>
           <article><small>Últimos 7 días</small><strong id="m-week">0</strong></article>
@@ -159,6 +161,10 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
       if (!user?.email) throw new Error('Non hai unha sesión válida.');
       $('#user-email').textContent = user.email;
       const data = await portalRequest('/api/auditoria-admin', 'listarActividadePortal', { limite: 1000 });
+      const cache = data.cache;
+      $('#cache-status').textContent = cache?.orixe === 'r2'
+        ? `Copia do ${formatDate(cache.savedAt || Date.now() - cache.idadeMs)}.${cache.fresca ? '' : ' Pode non incluír a actividade máis recente.'}${cache.actualizando ? ' Solicitouse unha actualización en segundo plano. Recarga os datos nuns segundos para consultar o resultado.' : ''}`
+        : 'Datos consultados na fonte.';
       activity = Array.isArray(data.actividade) ? data.actividade : [];
       fillFilters();
       updateMetrics();
@@ -175,6 +181,7 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
   $('#apply')?.addEventListener('click', render);
   $('#search')?.addEventListener('input', render);
   $('#retry')?.addEventListener('click', load);
+  $('#reload')?.addEventListener('click', load);
   $('#auditoria-logout')?.addEventListener('click', () => closePortalSession());
   load();
 </script>
