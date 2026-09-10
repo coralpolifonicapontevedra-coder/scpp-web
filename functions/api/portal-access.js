@@ -1,3 +1,5 @@
+import { obterPermisoPortal } from '../_lib/portal-permissions.js';
+
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const REVIEW_CACHE_PREFIX = 'cache/autorizacion-fotos/';
 const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -117,12 +119,24 @@ export async function onRequestPost({ request, env }) {
   const administration = adminState(adminResult.entry, email);
   const review = reviewState(reviewResult.entry, email);
 
+  let administrationPermission = null;
+  if (!administration.allowed) {
+    try {
+      administrationPermission = await obterPermisoPortal(env, { email }, 'administracion');
+    } catch (error) {
+      console.warn('Non se puido resolver o permiso do módulo Administración:', error);
+    }
+  }
+
+  const moduleAdministrationKnown = administrationPermission?.ok === true;
+  const moduleAdministrationAllowed = moduleAdministrationKnown && administrationPermission?.podeLer === true;
+
   return json(200, {
     ok: true,
     email,
-    administrationAllowed: administration.allowed,
+    administrationAllowed: administration.allowed || moduleAdministrationAllowed,
     reviewAllowed: review.allowed,
-    administrationKnown: adminResult.available && administration.known,
+    administrationKnown: moduleAdministrationKnown || (adminResult.available && administration.known),
     reviewKnown: reviewResult.available && review.known
   }, {
     'Server-Timing': `r2;dur=${Date.now() - started}`,
