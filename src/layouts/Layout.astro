@@ -112,6 +112,9 @@ const datosEstructurados = ePortada && !eZonaPortal ? {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{tituloSeo}</title>
     <meta name="description" content={description} />
+    <slot name="head" />
+    {eInicioPortal && <link rel="stylesheet" href="/css/portal-home.css" />}
+    {eAxenda && <link rel="stylesheet" href="/css/agenda-mobile.css" />}
     {!eZonaPortal && <meta property="og:type" content="website" />}
     {!eZonaPortal && <meta property="og:site_name" content={nomeSitio} />}
     {!eZonaPortal && <meta property="og:title" content={tituloSeo} />}

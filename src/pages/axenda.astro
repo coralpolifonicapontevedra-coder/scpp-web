@@ -134,7 +134,7 @@ import BaseLayout from '../layouts/Layout.astro';
       : cartelOrixinal;
     const alt = `Cartel de ${concerto.nome}`;
     return `<button type="button" class="poster-thumb" data-poster="${escapar(cartel)}" data-alt="${escapar(alt)}" aria-label="Ampliar ${escapar(alt)}">
-      <img src="${escapar(cartel)}" alt="${escapar(alt)}" loading="lazy" />
+      <img src="${escapar(cartel)}" alt="${escapar(alt)}" loading="lazy" decoding="async" />
       <span>Ampliar cartel</span>
     </button>`;
   };
@@ -185,6 +185,7 @@ import BaseLayout from '../layouts/Layout.astro';
     document.addEventListener('click', (evento) => {
       const boton = evento.target.closest('.poster-thumb');
       if (!boton) return;
+      imaxe.decoding = 'async';
       imaxe.src = boton.dataset.poster || '';
       imaxe.alt = boton.dataset.alt || 'Cartel ampliado';
       dialogo.showModal();

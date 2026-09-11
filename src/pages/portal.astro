@@ -8,6 +8,13 @@ const homeModules = getPortalNavigationModules('home');
 ---
 
 <BaseLayout title="Portal do Coralista" lang="gl">
+  <script slot="head" is:inline>
+    // Resolve the initial session before showing either layout. Fail open if
+    // the application bundle or the network is unavailable.
+    document.documentElement.classList.add('portal-session-pending');
+    window.setTimeout(() => document.documentElement.classList.remove('portal-session-pending'), 8000);
+  </script>
+  <div class="portal-session-loading" role="status">Comprobando a sesión…</div>
   <div id="portal-sidebar-container" class="portal-sidebar-container" hidden>
     <PortalSidebar active="inicio" logoutId="portal-sidebar-logout" />
   </div>
@@ -31,31 +38,6 @@ const homeModules = getPortalNavigationModules('home');
             <button type="button" id="logout-button">Pechar sesión</button>
           </div>
         </header>
-
-        <div id="portal-feature-grid" class="portal-feature-grid is-locked" aria-label="Contidos do portal">
-          {homeModules.map((module) => {
-            const isEnabled = module.homeEnabled ?? module.enabled;
-            const title = module.homeTitle || module.label;
-            const description = module.homeDescription || '';
-            const number = module.homeNumber || '00';
-
-            return isEnabled ? (
-              <a
-                id={module.homeCardId}
-                class:list={['portal-feature', 'is-active', module.adminOnly && 'is-admin']}
-                href={module.path}
-                hidden={module.adminOnly ? true : undefined}
-              >
-                <span>{number}</span><strong>{title}</strong><p>{description}</p><b aria-hidden="true">→</b>
-              </a>
-            ) : (
-              <article class="portal-feature is-disabled">
-                <span>{number}</span><strong>{title}</strong><p>{description}</p><em>{module.statusText || 'Próximamente'}</em>
-              </article>
-            );
-          })}
-        </div>
-      </div>
 
       <aside class="portal-access-card" aria-labelledby="auth-title">
         <div id="auth-options">
@@ -90,6 +72,33 @@ const homeModules = getPortalNavigationModules('home');
           <p>Es membro da agrupación pero aínda non tes acceso? <a href="/contacto">Solicítao á Xunta Directiva</a>.</p>
         </footer>
       </aside>
+
+        <div id="portal-feature-grid" class="portal-feature-grid is-locked" aria-label="Contidos do portal">
+          {homeModules.map((module) => {
+            const isEnabled = module.homeEnabled ?? module.enabled;
+            const title = module.homeTitle || module.label;
+            const description = module.homeDescription || '';
+            const number = module.homeNumber || '00';
+
+            return isEnabled ? (
+              <a
+                id={module.homeCardId}
+                class:list={['portal-feature', 'is-active', module.adminOnly && 'is-admin']}
+                href={module.path}
+                hidden={module.adminOnly ? true : undefined}
+              >
+                <span>{number}</span><strong>{title}</strong><p>{description}</p><b aria-hidden="true">→</b>
+              </a>
+            ) : (
+              <article class="portal-feature is-disabled">
+                <span>{number}</span><strong>{title}</strong><p>{description}</p><em>{module.statusText || 'Próximamente'}</em>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+
+
     </section>
   </main>
 
@@ -223,6 +232,7 @@ const homeModules = getPortalNavigationModules('home');
     if (privacyModal instanceof HTMLElement) privacyModal.hidden = true;
     document.body.classList.remove('modal-open');
     if (reviewLink instanceof HTMLElement) reviewLink.hidden = true;
+    document.documentElement.classList.remove('portal-session-pending');
   }
 
   function showChecking(email) {
@@ -238,6 +248,7 @@ const homeModules = getPortalNavigationModules('home');
     document.body.classList.add('modal-open');
     if (consent instanceof HTMLInputElement) consent.checked = false;
     hidePrivacyMessage();
+    document.documentElement.classList.remove('portal-session-pending');
   }
 
   function renderTextoLegal(textoLegal) {
@@ -315,6 +326,7 @@ const homeModules = getPortalNavigationModules('home');
     setAuthenticatedLayout(true);
     if (sessionStatus instanceof HTMLElement) sessionStatus.hidden = true;
     if (dashboardEmail instanceof HTMLElement) dashboardEmail.textContent = user.email || '';
+    document.documentElement.classList.remove('portal-session-pending');
     if (reviewLink instanceof HTMLElement) reviewLink.hidden = !(await requestPhotoAdmin().catch(() => false));
   }
 
@@ -423,6 +435,10 @@ const homeModules = getPortalNavigationModules('home');
 </script>
 
 <style>
+  .portal-session-loading { display: none; }
+  :global(.portal-session-pending) .portal-session-loading { display: grid; position: fixed; inset: 0; place-items: center; color: #5c5652; }
+  :global(.portal-session-pending) .portal-shell,
+  :global(.portal-session-pending) .portal-sidebar-container { visibility: hidden; }
   :global(body) { background: #f4f1ee; }
   .portal-shell { min-height: 100vh; }
   .portal-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .75fr); gap: 3rem; align-items: start; min-height: 100vh; padding: 2.4rem clamp(1.5rem, 5vw, 5.5rem) 3rem; }
@@ -443,7 +459,7 @@ const homeModules = getPortalNavigationModules('home');
   .portal-feature.is-active:hover { transform: translateY(-2px); border-color: #bda9aa; box-shadow: 0 12px 30px rgba(68, 45, 45, .08); }
   .portal-feature.is-disabled { background: #f2efec; }
   .portal-feature-grid.is-locked .portal-feature { pointer-events: none; }
-  .portal-feature-grid.is-locked .portal-feature.is-active b { display: none; }
+  .portal-feature-grid.is-locked .portal-feature.is-active b { visibility: hidden; }
   .portal-access-card { align-self: start; padding: clamp(2rem, 4vw, 3rem); border: 1px solid #ded8d2; background: #fff; box-shadow: 0 24px 60px rgba(42, 32, 26, .08); }
   .portal-access-card h2 { margin: 0 0 .9rem; color: #2d2825; font-family: Georgia, 'Times New Roman', serif; font-size: 2rem; font-weight: 400; }
   .portal-access-card p { color: #675f5a; line-height: 1.65; }
