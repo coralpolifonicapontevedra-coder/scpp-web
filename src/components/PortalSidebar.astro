@@ -27,7 +27,7 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
 ---
 
 <aside class="private-sidebar" aria-label="Navegación do portal privado">
-  <a class="private-brand" href="/portal/" aria-label="Inicio do Portal do Coralista">
+  <a class="private-brand" href="/portal/" aria-label="Inicio do Portal do Coralista" data-astro-prefetch="hover">
     <Image src={escudoImg} alt="Escudo da Sociedade Coral Polifónica de Pontevedra" class="private-crest" />
     <span class="private-brand-copy">
       <strong>Sociedade Coral<br />Polifónica<br />de Pontevedra</strong>
@@ -50,6 +50,7 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
           <a
             class:list={[active === module.id && 'is-active']}
             href={module.path}
+            data-astro-prefetch="hover"
             data-nav-id={module.id}
             data-review-admin={module.id === 'revisar' ? 'true' : undefined}
             data-board-role={module.id === 'administracion' ? 'true' : undefined}
@@ -85,6 +86,7 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
   const mobileMenuQuery = window.matchMedia('(max-width: 620px)');
   const PROTECTED_MENU_CACHE_KEY = 'scpp-protected-menu-v2';
   const PROTECTED_MENU_CACHE_TTL = 15 * 60 * 1000;
+  const prefetchedPortalLinks = new Set<string>();
 
   function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
@@ -157,6 +159,25 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
       });
   }
 
+  function prefetchPortalLink(link: HTMLAnchorElement) {
+    if (!link.href || link.hidden) return;
+    const url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin || !url.pathname.startsWith('/portal/')) return;
+    const key = `${url.pathname}${url.search}`;
+    if (prefetchedPortalLinks.has(key) || key === `${window.location.pathname}${window.location.search}`) return;
+    prefetchedPortalLinks.add(key);
+    const preload = document.createElement('link');
+    preload.rel = 'prefetch';
+    preload.as = 'document';
+    preload.href = url.href;
+    document.head.append(preload);
+  }
+
+  document.querySelectorAll<HTMLAnchorElement>('.private-menu a[href], .private-brand[href]').forEach((link) => {
+    link.addEventListener('pointerenter', () => prefetchPortalLink(link), { once: true });
+    link.addEventListener('focus', () => prefetchPortalLink(link), { once: true });
+  });
+
   document.querySelectorAll<HTMLElement>('.private-sidebar').forEach((sidebar) => {
     const layout = sidebar.parentElement;
     if (layout?.matches('.private-layout, .layout')) {
@@ -199,6 +220,10 @@ const iconFor = (id: string) => ICONS[id as keyof typeof ICONS] || '';
         administrationAllowed: knownAdministration
       });
     }
+
+    // Se xa temos unha comprobación válida nesta sesión, non volvemos golpear
+    // Firebase + permisos cada vez que o usuario cambia de páxina no portal.
+    if (cachedPermissions) return;
 
     let access;
     try {

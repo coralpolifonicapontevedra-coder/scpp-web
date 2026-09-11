@@ -1,9 +1,18 @@
 const TIMEOUT_FIREBASE_MS = 8000;
+const TOKEN_CACHE_MS = 10 * 60 * 1000;
 const PERFIS_R2_KEY = 'persoas/cache/perfis.json';
 const PERFIL_R2_PREFIX = 'persoas/cache/perfis/';
 const ENSAIOS_CACHE_PREFIX = 'ensaios/cache-v2/usuarios/';
+const ADMIN_INDEX_MAIN = 'indices/ensaios-admin-v4.json';
+const ADMIN_INDEX_PREVIEW = 'indices/preview/ensaios-admin-v4.json';
+const LEGACY_INDEX_MAIN = 'indices/ensaios-administracion-v3.json';
+const LEGACY_INDEX_PREVIEW = 'indices/preview/ensaios-administracion-v3.json';
 
+const tokenCache = new Map();
 const clean = (v) => String(v == null ? '' : v).trim();
+const branch = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
+const adminIndexKey = (env) => branch(env) === 'main' ? ADMIN_INDEX_MAIN : ADMIN_INDEX_PREVIEW;
+const legacyIndexKey = (env) => branch(env) === 'main' ? LEGACY_INDEX_MAIN : LEGACY_INDEX_PREVIEW;
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'} });
 
 async function fetchLimit(url, options, timeoutMs) {
@@ -13,14 +22,27 @@ async function fetchLimit(url, options, timeoutMs) {
   finally { clearTimeout(timer); }
 }
 
+function trimTokenCache() {
+  const now = Date.now();
+  for (const [key, value] of tokenCache.entries()) {
+    if (!value || Number(value.expires || 0) <= now) tokenCache.delete(key);
+  }
+  while (tokenCache.size > 100) tokenCache.delete(tokenCache.keys().next().value);
+}
+
 async function verifyFirebase(idToken, apiKey) {
   const token = clean(idToken);
   if (!token) return null;
+  const cached = tokenCache.get(token);
+  if (cached?.expires > Date.now()) return cached.user;
   const response = await fetchLimit(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({idToken:token}) }, TIMEOUT_FIREBASE_MS);
   if (!response.ok) return null;
   const user = (await response.json())?.users?.[0];
   if (!user?.email || user.emailVerified !== true) return null;
-  return { uid:clean(user.localId), email:clean(user.email).toLowerCase() };
+  const verified = { uid:clean(user.localId), email:clean(user.email).toLowerCase() };
+  tokenCache.set(token, { user:verified, expires:Date.now() + TOKEN_CACHE_MS });
+  trimTokenCache();
+  return verified;
 }
 
 async function sha256(value) {
@@ -50,21 +72,37 @@ async function profileFor(env, email) {
   return p || null;
 }
 
+function sharedPayload(source) {
+  if (!source?.ok || !Array.isArray(source.ensaios) || source.ensaios.length === 0) return null;
+  return {
+    ensaios: source.ensaios,
+    ensaiosRepertorio: Array.isArray(source.ensaiosRepertorio) ? source.ensaiosRepertorio : [],
+    repertorio: Array.isArray(source.repertorio) ? source.repertorio : []
+  };
+}
+
 async function latestSharedPayload(env) {
+  const admin = sharedPayload(await readJson(env, adminIndexKey(env)));
+  if (admin) return { payload:admin, fonte:'R2-ADMIN' };
+
+  const legacy = sharedPayload(await readJson(env, legacyIndexKey(env)));
+  if (legacy) return { payload:legacy, fonte:'R2-LEGACY' };
+
   let cursor;
   let best = null;
-  for (let page = 0; page < 3; page += 1) {
+  for (let page = 0; page < 2; page += 1) {
     const listed = await env.R2_PRIVADO.list({ prefix:ENSAIOS_CACHE_PREFIX, cursor, limit:100 });
     for (const object of listed.objects || []) {
       const entry = await readJson(env, object.key);
-      if (!entry?.payload?.ok || entry.payload.version !== 2 || !Array.isArray(entry.payload.ensaios)) continue;
+      const payload = sharedPayload(entry?.payload);
+      if (!payload || entry?.payload?.version !== 2) continue;
       const savedAt = Number(entry.savedAt || 0);
-      if (!best || savedAt > best.savedAt) best = { savedAt, payload:entry.payload };
+      if (!best || savedAt > best.savedAt) best = { savedAt, payload };
     }
-    if (!listed.truncated || !listed.cursor) break;
+    if (best || !listed.truncated || !listed.cursor) break;
     cursor = listed.cursor;
   }
-  return best?.payload || null;
+  return best ? { payload:best.payload, fonte:'R2-COMPARTIDO' } : null;
 }
 
 export async function onRequest({request, env}) {
@@ -76,14 +114,14 @@ export async function onRequest({request, env}) {
   const profile = await profileFor(env, user.email);
   if (!profile || !activeSinger(profile)) return json(403,{ok:false,erro:'Usuario non autorizado para consultar ensaios.'});
   const source = await latestSharedPayload(env);
-  if (!source) return json(503,{ok:false,erro:'A información de ensaios aínda non está dispoñible en R2.'});
+  if (!source?.payload) return json(503,{ok:false,erro:'A información de ensaios aínda non está dispoñible en R2.'});
   return json(200,{
     ok:true, version:2,
     perfil:{ email:user.email, nivel:'Coralista', podeEditar:false, idPersoa:personId(profile), voz:clean(profile?.voz || profile?.Voz) },
-    ensaios:Array.isArray(source.ensaios)?source.ensaios:[],
-    ensaiosRepertorio:Array.isArray(source.ensaiosRepertorio)?source.ensaiosRepertorio:[],
-    repertorio:Array.isArray(source.repertorio)?source.repertorio:[],
+    ensaios:source.payload.ensaios,
+    ensaiosRepertorio:source.payload.ensaiosRepertorio,
+    repertorio:source.payload.repertorio,
     concertos:[], persoas:[], asistencias:[], seguimento:{},
-    diagnostico:{fonte:'R2-CORALISTA'}
+    diagnostico:{fonte:source.fonte}
   });
 }
