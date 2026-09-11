@@ -1,7 +1,7 @@
 const ORIXE = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec?recurso=publicacions';
 const PRENSA_SCRIPT = '<script src="/js/actualidade-prensa-20260828.js?v=20260901-1"></script>';
 const ADALID_SCRIPT = '<script src="/js/actualidade-adalid-20260910.js?v=20260911-2"></script>';
-const ADALID_LINKS_FIX_SCRIPT = '<script src="/js/actualidade-adalid-links-fix-20260911.js?v=20260911-1"></script>';
+const ADALID_LINKS_FIX_SCRIPT = '<script src="/js/actualidade-adalid-links-fix-20260911.js?v=20260911-2"></script>';
 
 export async function onRequest(context) {
   const response = await context.next();
