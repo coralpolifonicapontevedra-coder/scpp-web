@@ -16,28 +16,38 @@
     ['Diario de Santiago', '/documentos/publicacions/2026-09-10_lavoz-memoria-cantada-gl.pdf']
   ]);
 
-  const fixLinks = () => {
-    const links = document.querySelectorAll('.actualidade-adalid-links a');
-    if (!links.length) return false;
-
-    links.forEach((link) => {
-      const text = (link.textContent || '').trim();
-      for (const [label, href] of targets) {
-        if (text.includes(label)) {
-          link.setAttribute('href', href);
-          break;
-        }
-      }
-    });
-    return true;
+  const targetFor = (link) => {
+    const text = (link?.textContent || '').trim();
+    for (const [label, href] of targets) {
+      if (text.includes(label)) return href;
+    }
+    return '';
   };
 
-  if (fixLinks()) return;
+  const fixLink = (link) => {
+    if (!(link instanceof HTMLAnchorElement)) return;
+    const href = targetFor(link);
+    if (href && link.getAttribute('href') !== href) link.setAttribute('href', href);
+  };
+
+  const fixLinks = () => {
+    document.querySelectorAll('.actualidade-adalid-links a').forEach(fixLink);
+  };
+
+  const forceTarget = (event) => {
+    const link = event.target instanceof Element
+      ? event.target.closest('.actualidade-adalid-links a')
+      : null;
+    fixLink(link);
+  };
+
+  fixLinks();
+  document.addEventListener('pointerdown', forceTarget, true);
+  document.addEventListener('click', forceTarget, true);
+  document.addEventListener('auxclick', forceTarget, true);
+  document.addEventListener('focusin', forceTarget, true);
 
   const root = document.querySelector('.actualidade') || document.body;
-  const observer = new MutationObserver(() => {
-    if (fixLinks()) observer.disconnect();
-  });
-  observer.observe(root, { childList: true, subtree: true });
-  setTimeout(() => observer.disconnect(), 10000);
+  const observer = new MutationObserver(fixLinks);
+  observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['href'] });
 })();
