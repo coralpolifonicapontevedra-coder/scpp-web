@@ -39,15 +39,19 @@
     s.textContent = `
       .actualidade-adalid-corpo{margin-top:1.55rem;max-width:1000px;color:#4f4a45;font-size:1.03rem;line-height:1.72}
       .actualidade-adalid-corpo::after{content:"";display:block;clear:both}
-      .actualidade-adalid-foto{float:left;width:240px;max-width:36%;margin:.2rem 1.35rem .85rem 0;text-decoration:none;color:inherit}
-      .actualidade-adalid-foto img{display:block;width:100%;height:auto;border-radius:3px}
-      .actualidade-adalid-foto span{display:block;margin-top:.42rem;color:#6b655f;font-size:.78rem;line-height:1.35}
+      .actualidade-adalid-foto{float:left;width:180px;max-width:28%;margin:.18rem 1.35rem .75rem 0;text-decoration:none;color:inherit}
+      .actualidade-adalid-foto img{display:block;width:100%;height:auto;max-height:210px;object-fit:cover;border-radius:3px}
+      .actualidade-adalid-foto span{display:block;margin-top:.38rem;color:#6b655f;font-size:.74rem;line-height:1.3}
       .actualidade-adalid-corpo p{margin:0 0 .95rem}
       .actualidade-adalid-links{clear:both;display:flex;flex-wrap:wrap;gap:.8rem 1.6rem;margin-top:1.35rem}
       .actualidade-adalid-links .ligazon-principal{margin-top:0;color:#1f1f1f!important;border-bottom-color:#1f1f1f!important}
       @media(max-width:700px){
-        .actualidade-adalid-foto{float:none;width:min(270px,100%);max-width:100%;margin:.2rem 0 1rem}
+        .actualidade-adalid-foto{float:left;width:130px;max-width:42%;margin:.15rem 1rem .65rem 0}
+        .actualidade-adalid-foto img{max-height:165px}
         .actualidade-adalid-links{flex-direction:column;align-items:flex-start}
+      }
+      @media(max-width:430px){
+        .actualidade-adalid-foto{float:none;width:170px;max-width:100%;margin:.15rem 0 .9rem}
       }
     `;
     document.head.append(s);
@@ -123,7 +127,7 @@
       a.href = href;
       a.target = '_blank';
       a.rel = 'noopener';
-      a.textContent = `${isEs ? 'Ver ficha' : 'Ver ficha'} ${name} →`;
+      a.textContent = `Ver ficha ${name} →`;
       return a;
     }));
     return true;
