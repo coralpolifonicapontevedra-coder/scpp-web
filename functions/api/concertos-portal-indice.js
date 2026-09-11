@@ -147,7 +147,7 @@ function prepararConcertosPortal(concertos = [], catalogo = []) {
 
       return {
         ...concerto,
-        estado: pasaAutomaticamenteARealizado ? 'Realizado' : concerto.estado,
+        estado: estado || 'confirmado',
         estadoAutomatico: pasaAutomaticamenteARealizado,
         programa: prepararPrograma(concerto.programa, catalogo),
         mostrarWeb: visibleNoPortal
