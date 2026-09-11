@@ -35,6 +35,14 @@ function dataCanon(value = '') {
   return `${partes[3]}-${String(partes[2]).padStart(2, '0')}-${String(partes[1]).padStart(2, '0')}`;
 }
 
+function hoxeMadrid() {
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const get = (tipo) => partes.find((p) => p.type === tipo)?.value || '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
 function idObraCatalogo(obra = {}) {
   return clean(
     obra?.id ||
@@ -122,18 +130,25 @@ function prepararPrograma(programa = [], catalogo = []) {
 }
 
 function prepararConcertosPortal(concertos = [], catalogo = []) {
+  const hoxe = hoxeMadrid();
   return concertos
     .filter((concerto) => clean(concerto?.id))
     .map((concerto) => {
       const id = clean(concerto.id);
       const historico = id.startsWith('hist-');
-      const estado = normalizarEstado(concerto.estado);
+      const estadoOrixinal = normalizarEstado(concerto.estado);
+      const data = dataCanon(concerto.data);
+      const pasaAutomaticamenteARealizado =
+        !historico && data && data < hoxe && (estadoOrixinal === 'previsto' || estadoOrixinal === 'confirmado');
+      const estado = pasaAutomaticamenteARealizado ? 'realizado' : estadoOrixinal;
       const futuroVisible = estado === 'previsto' || estado === 'confirmado';
-      const realizadoVisible = estado === 'realizado' && dataCanon(concerto.data) >= '2026-04-01';
+      const realizadoVisible = estado === 'realizado' && data >= '2026-04-01';
       const visibleNoPortal = !historico && (futuroVisible || realizadoVisible);
 
       return {
         ...concerto,
+        estado: pasaAutomaticamenteARealizado ? 'Realizado' : concerto.estado,
+        estadoAutomatico: pasaAutomaticamenteARealizado,
         programa: prepararPrograma(concerto.programa, catalogo),
         mostrarWeb: visibleNoPortal
       };
@@ -189,12 +204,12 @@ export async function onRequest({ request, env }) {
     concertos,
     cache: 'R2',
     rama: rama(env),
-    regraPortal: 'Previsto+Confirmado; Realizado desde 2026-04-01; Aprazado/Cancelado só Administración; só id hist-* vai ao Histórico',
+    regraPortal: 'Previsto+Confirmado; vencidos pasan automaticamente a Realizado; Realizado desde 2026-04-01; Aprazado/Cancelado só Administración; só id hist-* vai ao Histórico',
     repertorioCatalogo: catalogo.length,
     tempoRespostaMs: duracion
   }, {
     'X-SCPP-Concertos-Index': rama(env) === 'main' ? 'R2-PRIVADO-MAIN' : 'R2-PRIVADO-PREVIEW',
-    'X-SCPP-Concertos-Portal-Rule': 'previsto-confirmado-realizado-desde-2026-04-01',
+    'X-SCPP-Concertos-Portal-Rule': 'previsto-confirmado-realizado-auto-data',
     'X-SCPP-Repertorio-Catalogo': String(catalogo.length),
     'Server-Timing': `r2;dur=${duracion}`
   });
