@@ -65,7 +65,9 @@
     try {
       const valor = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input || '');
       const url = new URL(valor, window.location.href);
-      if (url.pathname === '/api/concertos-admin' && body?.accion === 'finalizarXestion' && response.ok && ultimoToken) {
+      const eFinalizacion = ['/api/concertos-admin', '/api/concertos-admin-sync'].includes(url.pathname)
+        && body?.accion === 'finalizarXestion';
+      if (eFinalizacion && response.ok && ultimoToken) {
         rexenerarPeriodoActual(ultimoToken);
       }
     } catch {}
