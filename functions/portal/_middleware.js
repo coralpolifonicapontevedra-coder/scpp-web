@@ -20,6 +20,10 @@ const PORTAL_FONT_STYLE = `
     letter-spacing: -0.02em !important;
   }
 
+  .private-menu-title {
+    text-transform: none !important;
+  }
+
   /*
    * Estabilización visual do inicio do Portal.
    *
@@ -152,6 +156,13 @@ class PortalHeadRewriter {
   }
 }
 
+class PortalCopyRewriter {
+  text(text) {
+    if (!text.text.includes('Portal do Coralista')) return;
+    text.replace(text.text.replaceAll('Portal do Coralista', 'Portal do coralista'));
+  }
+}
+
 export async function onRequest(context) {
   const response = await context.next();
   const contentType = response.headers.get('Content-Type') || '';
@@ -165,5 +176,7 @@ export async function onRequest(context) {
 
   return new HTMLRewriter()
     .on('head', new PortalHeadRewriter(extra))
+    .on('title', new PortalCopyRewriter())
+    .on('body', new PortalCopyRewriter())
     .transform(response);
 }
