@@ -26,6 +26,26 @@ const scriptAsistenciasPreview = `<script>
 })();
 </script>`;
 
+const scriptAsistenciasProducion = `<script>
+(() => {
+  const fetchOriginal = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    try {
+      const valor = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input || '');
+      const url = new URL(valor, window.location.href);
+      if (url.pathname === '/api/asistencias-concertos') {
+        url.pathname = '/api/asistencias-concertos-portal';
+        const destino = typeof input === 'string' ? url.pathname + url.search : new Request(url.toString(), input);
+        return fetchOriginal(destino, init);
+      }
+    } catch (erro) {
+      console.warn('Non foi posible activar a lectura autoritativa de asistencias.', erro);
+    }
+    return fetchOriginal(input, init);
+  };
+})();
+</script>`;
+
 export async function onRequestGet({ request, env }) {
   const resposta = await env.ASSETS.fetch(requestImplementacion(request));
   const tipo = String(resposta.headers.get('Content-Type') || '');
@@ -42,6 +62,14 @@ export async function onRequestGet({ request, env }) {
       html = html.replace('</head>', `${scriptAsistenciasPreview}</head>`);
     } else {
       html = `${scriptAsistenciasPreview}${html}`;
+    }
+  }
+
+  if (branch === 'main' && !html.includes('/api/asistencias-concertos-portal')) {
+    if (html.includes('</head>')) {
+      html = html.replace('</head>', `${scriptAsistenciasProducion}</head>`);
+    } else {
+      html = `${scriptAsistenciasProducion}${html}`;
     }
   }
 
@@ -77,7 +105,7 @@ export async function onRequestGet({ request, env }) {
   cabeceiras.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   cabeceiras.set('Pragma', 'no-cache');
   cabeceiras.set('Expires', '0');
-  cabeceiras.set('X-SCPP-Concertos-Version', 'oficial-v7-cartel-r2-contorno');
+  cabeceiras.set('X-SCPP-Concertos-Version', 'oficial-v8-asistencias-autoritativas');
 
   return new Response(html, {
     status: resposta.status,
