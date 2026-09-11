@@ -180,4 +180,4 @@ Este documento reconstruye ese informe a partir de:
 2. el commit efectivamente presente en `main`;
 3. los nueve archivos modificados que constan en el commit.
 
-No se ha añadido al repositorio. Puede revisarse primero y, si se considera oportuno, incorporarse posteriormente.
+El informe reconstruido se incorporó posteriormente a la rama `main` como documentación de la publicación.
