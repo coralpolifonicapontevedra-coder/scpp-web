@@ -11,7 +11,8 @@ export async function onRequest({ request, env }) {
   const recursos = [
     '<script src="/js/concertos-admin-sheet-source.js?v=2"></script>',
     '<script src="/js/concertos-admin-eliminar.js?v=1"></script>',
-    '<script src="/js/concertos-admin-informe.js?v=2"></script>'
+    '<script src="/js/concertos-admin-informe.js?v=2"></script>',
+    '<script src="/js/concertos-admin-fixes.js?v=1"></script>'
   ];
 
   for (const recurso of recursos) {
@@ -26,7 +27,7 @@ export async function onRequest({ request, env }) {
   headers.delete('Content-Encoding');
   headers.delete('ETag');
   headers.set('Cache-Control','private, no-store');
-  headers.set('X-SCPP-Admin-Concertos','final-sheet-delete-report-v3');
+  headers.set('X-SCPP-Admin-Concertos','final-sheet-delete-report-v4');
 
   return new Response(html, { status:resposta.status, statusText:resposta.statusText, headers });
 }
