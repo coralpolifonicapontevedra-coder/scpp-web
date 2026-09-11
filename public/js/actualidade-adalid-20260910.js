@@ -30,7 +30,7 @@
     'Reunimos aquí, nunha única publicación, as referencias aparecidas en La Voz de Galicia, a Xunta de Galicia, La Opinión A Coruña e Diario de Santiago, xunto coas súas fichas documentais en PDF para consulta e arquivo.'
   ];
 
-  const photoUrl = '/api/galeria-orixinal?ruta=fotos%2Frevision-cache%2Ff3b24569-cf0e-4cbf-bf46-c221b7ada3e2.jpg';
+  const photoUrl = '/api/galeria-orixinal?ruta=fotos%2Frevision-cache%2F6a5e46aa-860b-4e22-b711-28af32618c03.jpg';
 
   const addStyles = () => {
     if (document.getElementById('actualidade-adalid-20260910-style')) return;
