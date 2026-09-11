@@ -54,8 +54,20 @@ function dataCanon(value) {
   return local ? `${local[3]}-${String(local[2]).padStart(2,'0')}-${String(local[1]).padStart(2,'0')}` : '';
 }
 function dataValida(value) { return /^\d{4}-\d{2}-\d{2}$/.test(clean(value)); }
-function estadoRealizado(value) {
-  return clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase() === 'realizado';
+function estadoCanon(value) {
+  return clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+function hoxeMadrid() {
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone:'Europe/Madrid', year:'numeric', month:'2-digit', day:'2-digit'
+  }).formatToParts(new Date());
+  const get = (tipo) => partes.find((p) => p.type === tipo)?.value || '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+function concertoRealizadoParaInforme(concerto, hoxe) {
+  const estado = estadoCanon(concerto?.estado);
+  const data = dataCanon(concerto?.data);
+  return estado === 'realizado' || (estado === 'confirmado' && data && data < hoxe);
 }
 
 function crearInforme(indiceConcertos, indiceAsistencias, user, inicio, fin) {
@@ -64,6 +76,7 @@ function crearInforme(indiceConcertos, indiceAsistencias, user, inicio, fin) {
   const porConcertoCompleto = indiceAsistencias?.resultado?.asistenciasPorConcerto || {};
   const porConcertoPeriodo = {};
   const persoas = new Map();
+  const hoxe = hoxeMadrid();
   let totalAsistencias = 0;
   let concertosConAsistencia = 0;
   let concertosRealizadosPeriodo = 0;
@@ -71,14 +84,14 @@ function crearInforme(indiceConcertos, indiceAsistencias, user, inicio, fin) {
   for (const concerto of concertos) {
     const id = clean(concerto?.id);
     const data = dataCanon(concerto?.data);
-    if (!id || id.startsWith('hist-') || !estadoRealizado(concerto?.estado) || !data || data < inicio || data > fin) continue;
+    if (!id || id.startsWith('hist-') || !concertoRealizadoParaInforme(concerto, hoxe) || !data || data < inicio || data > fin) continue;
     concertosRealizadosPeriodo += 1;
   }
 
   for (const [idRaw, asistentesRaw] of Object.entries(porConcertoCompleto)) {
     const id = clean(idRaw);
     const concerto = porId.get(id);
-    if (!concerto || id.startsWith('hist-') || !estadoRealizado(concerto.estado)) continue;
+    if (!concerto || id.startsWith('hist-') || !concertoRealizadoParaInforme(concerto, hoxe)) continue;
     const data = dataCanon(concerto.data);
     if (!data || data < inicio || data > fin) continue;
 
@@ -120,13 +133,13 @@ function crearInforme(indiceConcertos, indiceAsistencias, user, inicio, fin) {
 
   return {
     ok:true,
-    version:2,
+    version:3,
     gardadoEn:Date.now(),
     xeradoEn:new Date().toISOString(),
     xeradoPor:user.email,
     periodo:{ inicio, fin },
     criterios:{
-      estados:['Realizado'],
+      estados:['Realizado','Confirmado con data anterior a hoxe'],
       computa:'Só asistentes con estado Asiste',
       agrupacion:'Número de concertos, corda e orde alfabética'
     },
@@ -174,7 +187,7 @@ export async function onRequest({ request, env }) {
   const informe = crearInforme(concertos, asistencias, user, inicio, fin);
   await env.R2_PRIVADO.put(reportKey(env), JSON.stringify(informe), {
     httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'private, no-store' },
-    customMetadata:{ tipo:'informe-asistencia-concertos', version:'2' }
+    customMetadata:{ tipo:'informe-asistencia-concertos', version:'3' }
   });
   return json(200, informe);
 }
