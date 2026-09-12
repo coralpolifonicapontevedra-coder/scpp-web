@@ -1,20 +1,21 @@
-name: Regenerar lockfile de seguridad
+name: Validar actualizacion de seguridad
 
 on:
   push:
     branches:
       - fix/security-dependencies-2026-09-12
     paths:
-      - package.json
       - .github/workflows/regenerate-security-lock.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  regenerate-lockfile:
-    if: github.actor != 'github-actions[bot]'
+  validate-security-update:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASTRO_TELEMETRY_DISABLED: "1"
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
@@ -27,17 +28,23 @@ jobs:
           node-version: "24.16.0"
           cache: npm
 
-      - name: Regenerar package-lock sin ejecutar scripts
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Instalar exactamente el lockfile
+        run: npm ci
 
-      - name: Guardar únicamente package-lock.json
-        run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json ya estaba sincronizado"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore(deps): regenerar package-lock de seguridad"
-          git push origin HEAD:fix/security-dependencies-2026-09-12
+      - name: Mostrar versiones relevantes
+        run: npm ls sharp svgo vitest miniflare || true
+
+      - name: Auditar vulnerabilidades altas
+        run: npm audit --audit-level=high
+
+      - name: Comprobar TypeScript
+        run: npm run check
+
+      - name: Executar ESLint
+        run: npm run lint
+
+      - name: Executar probas
+        run: npm run test
+
+      - name: Construír a web
+        run: npm run build
