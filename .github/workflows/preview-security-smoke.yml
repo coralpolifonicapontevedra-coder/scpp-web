@@ -1,0 +1,42 @@
+name: Comprobar Preview de seguridad
+
+on:
+  push:
+    branches:
+      - fix/security-dependencies-2026-09-12
+    paths:
+      - .github/workflows/preview-security-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  preview-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Esperar e comprobar alias Preview de Cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://fix-security-dependencies-2026-09-12.scpp-web.pages.dev'
+          echo "Preview: $BASE"
+          ok=0
+          for i in $(seq 1 18); do
+            code=$(curl -L -sS -o /tmp/home.html -w '%{http_code}' --connect-timeout 10 --max-time 30 "$BASE/" || true)
+            echo "Intento $i: HTTP $code"
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 10
+          done
+          if [ "$ok" != "1" ]; then
+            echo 'O alias Preview non respondeu HTTP 200.'
+            exit 1
+          fi
+          curl -fsSI "$BASE/" | sed -n '1,30p'
+          grep -qi '<html' /tmp/home.html
+          for path in '/portal/' '/portal/ensaios/' '/portal/administracion/ensaios/'; do
+            code=$(curl -L -sS -o /tmp/page.html -w '%{http_code}' --connect-timeout 10 --max-time 30 "$BASE$path")
+            echo "$path -> HTTP $code"
+            test "$code" = '200'
+            grep -qi '<html' /tmp/page.html
+          done
