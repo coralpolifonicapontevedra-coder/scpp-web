@@ -1,0 +1,42 @@
+name: Regenerar lockfile de seguridad
+
+on:
+  push:
+    branches:
+      - fix/security-dependencies-2026-09-12
+    paths:
+      - package.json
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: fix/security-dependencies-2026-09-12
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Regenerar package-lock sin ejecutar scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Guardar únicamente package-lock.json
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json ya estaba sincronizado"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore(deps): regenerar package-lock de seguridad"
+          git push origin HEAD:fix/security-dependencies-2026-09-12
