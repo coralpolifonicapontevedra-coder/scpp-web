@@ -1,4 +1,4 @@
-name: Validar actualizacion de seguridad
+name: Comparar imaxes da actualizacion de seguridade
 
 on:
   push:
@@ -8,58 +8,56 @@ on:
       - .github/workflows/regenerate-security-lock.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  validate-security-update:
+  compare-images:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       ASTRO_TELEMETRY_DISABLED: "1"
     steps:
-      - name: Descargar repositorio
+      - name: Descargar version de respaldo
+        uses: actions/checkout@v4
+        with:
+          ref: backup/pre-actualizacion-seguridad-2026-09-12
+          path: baseline
+
+      - name: Descargar version candidata
         uses: actions/checkout@v4
         with:
           ref: fix/security-dependencies-2026-09-12
+          path: candidate
 
       - name: Preparar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "24.16.0"
-          cache: npm
 
-      - name: Regenerar package-lock de forma controlada
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
-      - name: Instalar exactamente el lockfile regenerado
-        run: npm ci
-
-      - name: Mostrar versiones relevantes
-        run: npm ls sharp svgo vitest miniflare wrangler @cloudflare/vite-plugin
-
-      - name: Auditar vulnerabilidades altas
-        run: npm audit --audit-level=high
-
-      - name: Comprobar TypeScript
-        run: npm run check
-
-      - name: Executar ESLint
-        run: npm run lint
-
-      - name: Executar probas
-        run: npm run test
-
-      - name: Construír a web
-        run: npm run build
-
-      - name: Gardar package-lock validado
+      - name: Construir version de respaldo
+        working-directory: baseline
         run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json xa estaba sincronizado"
-            exit 0
+          npm ci
+          npm run build
+
+      - name: Construir version candidata
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run build
+
+      - name: Comparar imaxes e SVG xerados
+        run: |
+          cd "$GITHUB_WORKSPACE/baseline"
+          find dist -type f \( -iname '*.svg' -o -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.avif' -o -iname '*.gif' \) -print0 | sort -z | xargs -0 -r sha256sum | sed 's#  dist/#  #' > "$GITHUB_WORKSPACE/baseline-images.sha256"
+          cd "$GITHUB_WORKSPACE/candidate"
+          find dist -type f \( -iname '*.svg' -o -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.avif' -o -iname '*.gif' \) -print0 | sort -z | xargs -0 -r sha256sum | sed 's#  dist/#  #' > "$GITHUB_WORKSPACE/candidate-images.sha256"
+          echo "Imaxes respaldo: $(wc -l < "$GITHUB_WORKSPACE/baseline-images.sha256")"
+          echo "Imaxes candidata: $(wc -l < "$GITHUB_WORKSPACE/candidate-images.sha256")"
+          if diff -u "$GITHUB_WORKSPACE/baseline-images.sha256" "$GITHUB_WORKSPACE/candidate-images.sha256" > "$GITHUB_WORKSPACE/image-diff.txt"; then
+            echo "RESULTADO: todas as imaxes e SVG xerados son identicos byte a byte."
+          else
+            echo "RESULTADO: hai diferenzas nas imaxes ou SVG xerados:"
+            cat "$GITHUB_WORKSPACE/image-diff.txt"
+            exit 1
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore(deps): guardar lockfile de seguridad validado"
-          git push origin HEAD:fix/security-dependencies-2026-09-12
