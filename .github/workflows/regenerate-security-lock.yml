@@ -6,6 +6,7 @@ on:
       - fix/security-dependencies-2026-09-12
     paths:
       - package.json
+      - .github/workflows/regenerate-security-lock.yml
 
 permissions:
   contents: write
@@ -23,7 +24,7 @@ jobs:
       - name: Preparar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "24.16.0"
           cache: npm
 
       - name: Regenerar package-lock sin ejecutar scripts
