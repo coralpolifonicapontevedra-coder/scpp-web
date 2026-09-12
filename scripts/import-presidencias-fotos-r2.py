@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Importa as tres fotografías institucionais de Presidencias.
+"""Importa fotografías institucionais de Presidencias.
 
 Le as copias PRESIDENCIA-2026 da carpeta Fotos_Images de produción, xera un
 orixinal web en R2 e crea a fila correspondente na folla Fotos. As fotografías
@@ -38,6 +38,10 @@ PHOTOS = {
     "PRESIDENCIA-2026 - José Raposeiras Correa.png": {
         "id": "presidencia-jose-raposeiras-correa",
         "title": "José Raposeiras Correa",
+    },
+    "PRESIDENCIA-2026 - Vicente Riestra Calderón.jpeg": {
+        "id": "presidencia-vicente-riestra-calderon",
+        "title": "Vicente Riestra Calderón",
     },
 }
 
