@@ -1,0 +1,38 @@
+name: Aplicar fotos de Presidencias
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/patch-presidencias-fotos.py
+  workflow_dispatch:
+
+concurrency:
+  group: apply-presidencias-fotos
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Aplicar fotografías de Presidencias
+        run: python scripts/patch-presidencias-fotos.py
+      - name: Publicar cambios
+        run: |
+          if git diff --quiet -- src/components/PublicCoralMenu.astro public/js/historia-paridad-es.js; then
+            echo "No hay cambios pendientes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/PublicCoralMenu.astro public/js/historia-paridad-es.js
+          git commit -m "Sustituir foto de Vicente Riestra en Presidencias"
+          git push
