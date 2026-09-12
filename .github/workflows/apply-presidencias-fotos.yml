@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/patch-presidencias-fotos.py
+      - .github/workflows/apply-presidencias-fotos.yml
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +26,7 @@ jobs:
           python-version: "3.12"
       - name: Aplicar fotografías de Presidencias
         run: python scripts/patch-presidencias-fotos.py
-      - name: Publicar cambios
+      - name: Preparar rama para revisión
         run: |
           if git diff --quiet -- src/components/PublicCoralMenu.astro public/js/historia-paridad-es.js; then
             echo "No hay cambios pendientes."
@@ -33,6 +34,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B bot/vicente-riestra-photo
           git add src/components/PublicCoralMenu.astro public/js/historia-paridad-es.js
           git commit -m "Sustituir foto de Vicente Riestra en Presidencias"
-          git push
+          git push --force origin HEAD:refs/heads/bot/vicente-riestra-photo
