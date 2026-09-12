@@ -8,12 +8,12 @@ on:
       - .github/workflows/regenerate-security-lock.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate-security-update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       ASTRO_TELEMETRY_DISABLED: "1"
     steps:
@@ -28,11 +28,14 @@ jobs:
           node-version: "24.16.0"
           cache: npm
 
-      - name: Instalar exactamente el lockfile
+      - name: Regenerar package-lock de forma controlada
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Instalar exactamente el lockfile regenerado
         run: npm ci
 
       - name: Mostrar versiones relevantes
-        run: npm ls sharp svgo vitest miniflare || true
+        run: npm ls sharp svgo vitest miniflare wrangler @cloudflare/vite-plugin
 
       - name: Auditar vulnerabilidades altas
         run: npm audit --audit-level=high
@@ -48,3 +51,15 @@ jobs:
 
       - name: Construír a web
         run: npm run build
+
+      - name: Gardar package-lock validado
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json xa estaba sincronizado"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore(deps): guardar lockfile de seguridad validado"
+          git push origin HEAD:fix/security-dependencies-2026-09-12
