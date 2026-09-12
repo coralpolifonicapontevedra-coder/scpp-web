@@ -32,12 +32,10 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.66.0",
     "vitest": "4.1.11",
-    "wrangler": "^4.127.1"
+    "wrangler": "^4.131.0"
   },
   "overrides": {
-    "miniflare": {
-      "sharp": "$sharp"
-    },
+    "@cloudflare/vite-plugin": "1.54.7",
     "svgo": "4.1.0"
   }
 }
