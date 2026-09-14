@@ -41,6 +41,10 @@ const ACCIONS_ACEPTACION_PROTEXIDAS = new Set([
   'rexistrarAceptacion'
 ]);
 
+const ACCIONS_DOCUMENTACION_PROTEXIDAS = new Set([
+  'listarDocumentacionPortal', 'obterFicheiroDocumentacion'
+]);
+
 const ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS = new Set([
   'listarArquivoAdministracion',
   'gardarFondoAdministracion',
@@ -130,6 +134,7 @@ function urlAppsScriptProtexida(env = {}, accion = '') {
     || ACCIONS_FOTOS_ADMIN_PROTEXIDAS.has(accion)
     || ACCIONS_PERMISOS_PROTEXIDAS.has(accion)
     || ACCIONS_ACEPTACION_PROTEXIDAS.has(accion)
+    || ACCIONS_DOCUMENTACION_PROTEXIDAS.has(accion)
     || ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS.has(accion)
     || ACCIONS_ENSAIOS_PROTEXIDAS.has(accion);
   if (!protexida) return '';

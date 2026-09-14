@@ -25,7 +25,7 @@ describe('servicio de Documentación desde R2', () => {
   it('sirve R2 como origen principal con cabeceras privadas', () => {
     expect(worker).toContain("env.R2_PRIVADO.get(key)");
     expect(worker).toContain("'X-SCPP-Storage', 'R2'");
-    expect(worker).toContain("'Cache-Control', 'private, max-age=3600'");
+    expect(worker).toContain("'Cache-Control', 'private, no-store'");
   });
 
   it('mantiene Drive y Apps Script solamente como respaldo transitorio', () => {

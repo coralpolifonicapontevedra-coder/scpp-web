@@ -1,4 +1,5 @@
 import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
+import { comprobarLecturaPortal } from '../_lib/portal-permissions.js';
 import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 import { REPERTORIO_CATALOGO } from '../_data/repertorio-catalogo.js';
 
@@ -305,6 +306,14 @@ export async function onRequest({ request, env }) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
   }
 
+  try {
+    if (!(await comprobarLecturaPortal(env, usuario, accion === 'listarAsistenciasConcertosPortal' ? 'concertos' : 'repertorio'))) {
+      return json(403, { ok: false, erro: 'Non tes permiso para consultar este contido.' });
+    }
+  } catch {
+    return json(503, { ok: false, erro: 'Non foi posible comprobar os permisos.' });
+  }
+
   if (accion === 'obterFicheiroRepertorio') {
     const clave = claveR2Valida(datos.r2Key || datos.ruta);
     if (clave) {
@@ -319,9 +328,7 @@ export async function onRequest({ request, env }) {
 
   const duracionCache = accion === 'listarRepertorioPortal'
     ? CACHE_REPERTORIO_MS
-    : accion === 'listarAsistenciasConcertosPortal'
-      ? CACHE_ASISTENCIAS_MS
-      : 0;
+    : 0;
 
   if (duracionCache) {
     const cacheado = await lerCachePersistente(request, accion, duracionCache);

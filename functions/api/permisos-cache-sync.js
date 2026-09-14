@@ -74,6 +74,9 @@ export async function onRequestPost(context) {
   const accion = clean(data?.accion || 'invalidar');
 
   if (accion === 'invalidarListado') {
+    if (clean(data?.fonte) === 'sheet-usuarios-onEdit') {
+      await borrarPrefix(env.R2_PRIVADO, 'permisos/autorizacion-v1/main/');
+    }
     await borrarListado(env);
     return json(200, { ok: true, accion, fonte: clean(data?.fonte) || 'descoñecida' });
   }
@@ -81,12 +84,16 @@ export async function onRequestPost(context) {
   if (accion === 'invalidarTodo') {
     const permisosEliminados = await borrarPrefix(env.R2_PRIVADO, PERMISSIONS_PREFIX);
     const contextosEliminados = await borrarPrefix(env.R2_PRIVADO, ADMIN_CONTEXT_PREFIX);
+    const autorizacionsFotosEliminadas = await borrarPrefix(env.R2_PRIVADO, 'cache/autorizacion-fotos/');
+    const autorizacionsLecturaEliminadas = await borrarPrefix(env.R2_PRIVADO, 'permisos/autorizacion-v1/main/');
     await borrarListado(env);
     return json(200, {
       ok: true,
       accion,
       permisosEliminados,
       contextosEliminados,
+      autorizacionsFotosEliminadas,
+      autorizacionsLecturaEliminadas,
       fonte: clean(data?.fonte) || 'descoñecida'
     });
   }

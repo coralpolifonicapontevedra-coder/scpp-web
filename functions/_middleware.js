@@ -1,3 +1,18 @@
+import { comprobarAdministracionFotosPortal } from './_lib/portal-permissions.js';
+
+const RUTAS_ADMIN_FOTOS = new Set([
+  '/api/administracion-fotografias', '/api/editor-fotos',
+  '/api/editor-fotos-original', '/api/editor-fotos-miniatura',
+  '/api/gestion-fotos-publicadas', '/api/retirar-foto-galeria',
+  '/api/gardar-borrador-foto', '/api/eliminar-foto-revision',
+  '/api/xestion-publicacion-foto', '/api/refrescar-fotos-revision',
+  '/api/reconstruir-indices-fotos'
+]);
+const ACCIONS_ADMIN_FOTOS = new Set([
+  'listarFotosRevision', 'actualizarRevisionFoto', 'actualizarPublicacionFoto',
+  'eliminarFotoPortal', 'migrarFotoR2'
+]);
+
 const IDS_AUDIO_DESACTIVADOS = new Set(['18', '35', '52', '67']);
 const REVISION_INDEX_PATH = 'indices/revision-fotos-v1.json';
 const AUTH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -175,6 +190,31 @@ export async function onRequest(context) {
         'X-Robots-Tag': 'noindex, nofollow'
       }
     });
+  }
+
+  // Executar antes da vía rápida R2 e dos handlers históricos: ningunha
+  // autorización antiga de fotos substitúe o permiso actual.
+  const path = url.pathname.replace(/\/+$/, '');
+  const method = context.request.method;
+  if ((method === 'POST' || method === 'GET') &&
+      (RUTAS_ADMIN_FOTOS.has(path) || path === '/api/fotos')) {
+    const body = method === 'POST'
+      ? await context.request.clone().json().catch(() => null) : null;
+    if (RUTAS_ADMIN_FOTOS.has(path) || ACCIONS_ADMIN_FOTOS.has(String(body?.accion || '').trim())) {
+      const token = String(body?.idToken || context.request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '').trim();
+      const email = await verificarTokenFirebase(token, context.env.FIREBASE_API_KEY).catch(() => null);
+      if (!email) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou.' });
+      try {
+        const lectura = method === 'GET' ||
+          (path === '/api/administracion-fotografias' && ['listar', 'miniaturas'].includes(String(body?.accion || 'listar'))) ||
+          (path === '/api/fotos' && String(body?.accion || '') === 'listarFotosRevision');
+        if (!(await comprobarAdministracionFotosPortal(context.env, { email }, { fresco: !lectura }))) {
+          return json(403, { ok: false, erro: 'Non tes permiso para administrar fotografías.' });
+        }
+      } catch {
+        return json(503, { ok: false, erro: 'Non foi posible comprobar os permisos de fotografías.' });
+      }
+    }
   }
 
   const revisionR2 = await intentarRevisionR2(context, url);

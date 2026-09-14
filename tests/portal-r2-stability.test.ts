@@ -25,7 +25,7 @@ describe('Portal R2-first stability', () => {
   });
 
   it('separa permisos de preview e produción e permite invalidación selectiva', () => {
-    expect(permissionLib).toContain("const CACHE_R2_MS = 24 * 60 * 60 * 1000");
+    expect(permissionLib).toContain("const CACHE_R2_MS = 5 * 60 * 1000");
     expect(permissionLib).toContain("const R2_PREFIX = 'permisos/cache-v2/'");
     expect(permissionLib).toContain("ramaActual(env)");
     expect(permissionLib).toContain('export async function invalidarPermisosPortal');

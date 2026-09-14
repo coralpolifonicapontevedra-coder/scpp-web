@@ -1,4 +1,5 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { comprobarLecturaPortal } from '../_lib/portal-permissions.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
 const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
@@ -314,6 +315,14 @@ export async function onRequest({ request, env }) {
 
   const user = await verificarFirebase(body.idToken, env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou.' });
+
+  try {
+    if (!(await comprobarLecturaPortal(env, user, 'repertorio'))) {
+      return json(403, { ok: false, erro: 'Non tes permiso para consultar o repertorio.' });
+    }
+  } catch {
+    return json(503, { ok: false, erro: 'Non foi posible comprobar os permisos de Repertorio.' });
+  }
 
   const key = catalogoKey(env);
   const inicio = Date.now();
