@@ -117,6 +117,40 @@ const texts = contactInfo[lang] || contactInfo.gl;
   </div>
 </footer>
 
+<script is:inline>
+  (() => {
+    const isGalicianHistory = () => /^\/historia\/?$/.test(window.location.pathname);
+    if (!isGalicianHistory()) return;
+
+    const activateFromHash = () => {
+      const id = window.location.hash.replace(/^#/, '');
+      if (!id) return;
+      const tab = document.querySelector(`.archive-tab[data-tab="${CSS.escape(id)}"]`);
+      const panel = document.querySelector(`#panel-${CSS.escape(id)}`);
+      if (!(tab instanceof HTMLElement) || !(panel instanceof HTMLElement)) return;
+      tab.click();
+      requestAnimationFrame(() => panel.scrollIntoView({ block: 'start' }));
+    };
+
+    const syncTabHashes = () => {
+      document.querySelectorAll('.archive-tab[data-tab]').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          const id = tab.getAttribute('data-tab');
+          if (id && window.location.hash !== `#${id}`) {
+            history.replaceState(null, '', `#${id}`);
+          }
+        });
+      });
+    };
+
+    window.addEventListener('load', () => {
+      syncTabHashes();
+      activateFromHash();
+    }, { once: true });
+    window.addEventListener('hashchange', activateFromHash);
+  })();
+</script>
+
 <style>
   .site-footer {
     background-color: var(--color-principal);
