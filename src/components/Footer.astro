@@ -53,7 +53,17 @@ const texts = contactInfo[lang] || contactInfo.gl;
 </footer>
 <script is:inline>
 (() => {
-  const isGalicianHistory = () => /^\/historia\/?$/.test(window.location.pathname);
+  const path = window.location.pathname;
+  const homeDonationTarget = path === '/' ? '/donar/' : (/^\/es\/?$/.test(path) ? '/es/donar/' : null);
+  if (homeDonationTarget) {
+    const collaborationLink = Array.from(document.querySelectorAll('.home-actions a')).find((link) => {
+      const href = link.getAttribute('href');
+      return href === '/colabora' || href === '/es/colabora';
+    });
+    if (collaborationLink) collaborationLink.setAttribute('href', homeDonationTarget);
+  }
+
+  const isGalicianHistory = () => /^\/historia\/?$/.test(path);
   if (!isGalicianHistory()) return;
   const activateFromHash = () => {
     const id = window.location.hash.replace(/^#/, ''); if (!id) return;
@@ -69,7 +79,6 @@ const texts = contactInfo[lang] || contactInfo.gl;
 </script>
 <style>
 .site-footer{background-color:var(--color-principal);color:var(--color-blanco);padding:4rem 2rem 2rem;margin-top:6rem}.footer-wrapper{display:grid;grid-template-columns:1fr 2fr;gap:4rem;margin-bottom:3rem}.footer-brand{display:flex;flex-direction:column;justify-content:flex-start}.brand-name,.legal-id,.tagline{font-size:.9rem;line-height:1.6}.brand-name{margin:0 0 .35rem;color:var(--color-blanco);font-weight:700}.legal-id{margin:0;opacity:.85}.tagline{margin-top:1rem;opacity:.85}.footer-sections{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem}.footer-section h4{font-size:.95rem;text-transform:uppercase;letter-spacing:.05em;color:var(--color-acento);margin-bottom:1rem;font-weight:700}.footer-section p{font-size:.85rem;opacity:.8;margin-bottom:.5rem;line-height:1.5}.footer-section a{color:var(--color-blanco);text-decoration:none;opacity:.8;transition:opacity .2s ease}.footer-section a:hover{opacity:1;color:var(--color-acento)}.footer-section ul{list-style:none;padding:0}.footer-section li{margin-bottom:.5rem}.social-footer{display:flex;gap:1rem}.social-footer a{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;background:rgba(255,255,255,.1);border-radius:4px;transition:all .3s ease}.social-footer a:hover{background:var(--color-acento);transform:scale(1.05)}.social-icon-footer{width:20px;height:20px;fill:var(--color-blanco);transition:fill .2s ease}.social-footer a:hover .social-icon-footer{fill:var(--color-principal)}.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:2rem;text-align:center}.footer-bottom p{font-size:.8rem;opacity:.6;margin-bottom:1rem}.footer-legal{font-size:.75rem;opacity:.5}.footer-legal a{color:var(--color-blanco);text-decoration:none;margin:0 .5rem;transition:color .2s ease}.footer-legal a:hover{color:var(--color-acento)}
-/* San David: mesma composición editorial en GL e ES. O texto flúe arredor do pano e evita o baleiro inferior. */
 :global(.castelao-san-david-block){display:block!important;overflow:auto}:global(.castelao-san-david-block .castelao-hero-image){float:left!important;width:min(60%,590px)!important;aspect-ratio:1083/720!important;margin:0 clamp(1.4rem,3vw,2.4rem) 1rem 0!important}:global(.castelao-san-david-block .castelao-hero-copy){padding:clamp(.4rem,1.2vw,1rem) 0 0!important;align-self:auto!important}:global(.castelao-san-david-block .pano-caption),:global(.castelao-san-david-block .pano-photo-credit){display:block;margin-top:1.15rem;padding-top:.8rem;border-top:1px solid var(--line)}
 @media(max-width:992px){.footer-wrapper{grid-template-columns:1fr;gap:2rem}.footer-sections{grid-template-columns:1fr}}@media(max-width:700px){:global(.castelao-san-david-block .castelao-hero-image){float:none!important;width:100%!important;margin:0 0 1.35rem!important}:global(.castelao-san-david-block .castelao-hero-copy){padding:0 1.35rem 1.35rem!important}}@media(max-width:576px){.footer-sections{grid-template-columns:1fr;gap:1.5rem}.brand-name,.legal-id,.tagline{font-size:.8rem}.social-footer{gap:.8rem}.social-footer a{width:36px;height:36px}.social-icon-footer{width:18px;height:18px}}
 </style>
