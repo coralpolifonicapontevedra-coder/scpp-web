@@ -1,5 +1,4 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
-import { comprobarLecturaPortal } from '../_lib/portal-permissions.js';
 import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
 const CACHE_MS = 60 * 1000;
@@ -342,16 +341,6 @@ export async function onRequest({ request, env }) {
 
     if (!podeEscribirPartituras(nivelPermiso)) {
       return json(403, { ok: false, erro: 'Non tes permiso de escritura para Partituras.' });
-    }
-  }
-
-  if (accionsLectura.has(accion)) {
-    try {
-      if (!(await comprobarLecturaPortal(env, usuario, 'partituras'))) {
-        return json(403, { ok: false, erro: 'Non tes permiso de lectura para Partituras.' });
-      }
-    } catch {
-      return json(503, { ok: false, erro: 'Non foi posible comprobar os permisos de Partituras.' });
     }
   }
 

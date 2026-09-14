@@ -325,17 +325,7 @@ export async function onRequestPost(context) {
     const modulos = modulosAfectados(accion, body);
     const destinatario = clean(body?.usuarioEmail).toLowerCase();
     if (destinatario && modulos.length) {
-      try {
-        await invalidarPermisosPortal(env, destinatario, modulos);
-      } catch (error) {
-        console.error('Permiso gardado, pero fallou a invalidación das autorizacións:', error);
-        return json(503, {
-          ok: false,
-          codigo: 'PERMISSION_CACHE_INVALIDATION_FAILED',
-          permisoGardado: true,
-          erro: 'O permiso foi gardado, pero non se puideron invalidar todas as autorizacións antigas. É necesario revisar a sincronización.'
-        });
-      }
+      await invalidarPermisosPortal(env, destinatario, modulos);
       if (modulos.includes('permisos')) await invalidarContextoPersoas(env, destinatario);
     }
 

@@ -8,10 +8,10 @@ const read = (file: string) => readFileSync(resolve(root, file), 'utf8');
 describe('permisos do módulo Partituras', () => {
   const api = read('functions/api/partituras.js');
 
-  it('comproba a autorización do portal tamén para lectura', () => {
+  it('permite listar e abrir partituras cunha sesión Firebase válida sen esixir permiso específico', () => {
     expect(api).toContain("const accionsLectura = new Set(['listarPartiturasPortal', 'obterFicheiroPartitura']);");
-    expect(api).toContain("if (accionsLectura.has(accion))");
-    expect(api).toContain("await comprobarLecturaPortal(env, usuario, 'partituras')");
+    expect(api).not.toContain('podeLerPartituras');
+    expect(api).not.toContain("if (accionsLectura.has(accion) && !podeLerPartituras(nivelPermiso))");
   });
 
   it('consulta o permiso efectivo do propio usuario só para accións de escritura', () => {

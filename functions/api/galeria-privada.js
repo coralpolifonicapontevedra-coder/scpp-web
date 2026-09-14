@@ -1,5 +1,3 @@
-import { comprobarLecturaPortal } from '../_lib/portal-permissions.js';
-
 const INDEX_KEY = 'indices/galeria-privada.json';
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
@@ -52,14 +50,6 @@ export async function onRequest({ request, env }) {
   try { usuario = await verificarTokenFirebase(String(datos.idToken || ''), env.FIREBASE_API_KEY); }
   catch (erro) { console.error('Erro Firebase galería privada:', erro); }
   if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
-
-  try {
-    if (!(await comprobarLecturaPortal(env, usuario, 'fotografias'))) {
-      return json(403, { ok: false, erro: 'Non tes permiso para consultar a galería privada.' });
-    }
-  } catch {
-    return json(503, { ok: false, erro: 'Non foi posible comprobar o acceso á galería privada.' });
-  }
 
   const indice = await lerIndice(env);
   if (!indice) {
