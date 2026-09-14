@@ -14,6 +14,7 @@ const contactInfo = {
     enlaces: 'Ligazóns',
     redes: 'Redes Sociais',
     legal: 'Legal',
+    registry: 'Rexistro de Asociacións: 1966/72-1',
     tagline: 'Fundada en 1925. Cen anos de polifonía e patrimonio cultural en Galicia.',
     copyright: 'Todos os dereitos reservados.',
     links: [
@@ -36,6 +37,7 @@ const contactInfo = {
     enlaces: 'Enlaces',
     redes: 'Redes Sociales',
     legal: 'Legal',
+    registry: 'Registro de Asociaciones: 1966/72-1',
     tagline: 'Fundada en 1925. Cien años de polifonía y patrimonio cultural en Galicia.',
     copyright: 'Todos los derechos reservados.',
     /* As páxinas interiores manteranse en galego ata completar a súa tradución. */
@@ -60,7 +62,9 @@ const texts = contactInfo[lang] || contactInfo.gl;
 <footer class="site-footer">
   <div class="container footer-wrapper">
     <div class="footer-brand">
-      <h3>SCPP</h3>
+      <p class="brand-name">{brandName}</p>
+      <p class="legal-id">NIF: G-36011286</p>
+      <p class="legal-id">{texts.registry}</p>
       <p class="tagline">{texts.tagline}</p>
     </div>
 
@@ -137,16 +141,27 @@ const texts = contactInfo[lang] || contactInfo.gl;
     justify-content: flex-start;
   }
 
-  .footer-brand h3 {
-    color: var(--color-acento);
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
+  .brand-name,
+  .legal-id,
+  .tagline {
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .brand-name {
+    margin: 0 0 0.35rem;
+    color: var(--color-blanco);
+    font-weight: 700;
+  }
+
+  .legal-id {
+    margin: 0;
+    opacity: 0.85;
   }
 
   .tagline {
-    font-size: 0.9rem;
+    margin-top: 1rem;
     opacity: 0.85;
-    line-height: 1.6;
   }
 
   .footer-sections {
@@ -269,10 +284,8 @@ const texts = contactInfo[lang] || contactInfo.gl;
       gap: 1.5rem;
     }
 
-    .footer-brand h3 {
-      font-size: 1.5rem;
-    }
-
+    .brand-name,
+    .legal-id,
     .tagline {
       font-size: 0.8rem;
     }
