@@ -1,4 +1,5 @@
 const INDEX_KEY = 'indices/concertos-v1.json';
+const PRIVATE_MAIN_INDEX_KEY = 'indices/concertos-privado-v1.json';
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -10,6 +11,8 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
   }
 });
 
+const clean = (value = '') => String(value ?? '').trim();
+const rama = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
 const normalizarEstado = (value = '') => String(value || '').trim().toLowerCase();
 const estadoPublicable = (value = '') => ['previsto', 'confirmado', 'realizado', 'aprazado', 'aplazado'].includes(normalizarEstado(value));
 
@@ -65,6 +68,80 @@ function aplicarCamposEspanolPreview(concerto) {
   return extra ? { ...concerto, ...extra } : concerto;
 }
 
+function proxeccionPublica(concerto = {}) {
+  const nomeEs = clean(concerto.nomeEs || concerto.nome_es || concerto.Nome_ES || concerto.nombreEs || concerto.Nombre_ES);
+  const caracteristicasEs = clean(
+    concerto.caracteristicasEs || concerto.caracteristicas_es || concerto.Caracteristicas_ES ||
+    concerto['Características_ES'] || concerto.descripcionEs || concerto.Descripcion_ES
+  );
+  return {
+    id: clean(concerto.id || concerto.idConcerto),
+    data: clean(concerto.data),
+    nome: clean(concerto.nome || concerto.nombre),
+    ...(nomeEs ? { nomeEs, nome_es: nomeEs } : {}),
+    cidade: clean(concerto.cidade || concerto.ciudad),
+    lugar: clean(concerto.lugar),
+    caracteristicas: clean(concerto.caracteristicas || concerto.descripcion),
+    ...(caracteristicasEs ? { caracteristicasEs, caracteristicas_es: caracteristicasEs } : {}),
+    cartel: clean(concerto.cartel),
+    triptico: clean(concerto.triptico),
+    prensa: clean(concerto.prensa),
+    hora: clean(concerto.hora),
+    mostrarWeb: true,
+    destacadoWeb: concerto.destacadoWeb === true,
+    estado: clean(concerto.estado),
+    programa: Array.isArray(concerto.programa) ? concerto.programa : []
+  };
+}
+
+async function reconciliarPreviewCoIndicePrivado(env, indexPublico) {
+  if (rama(env) === 'main' || !env.R2_PRIVADO?.get || !Array.isArray(indexPublico?.concertos)) {
+    return { index: indexPublico, reconciliado: false };
+  }
+
+  const object = await env.R2_PRIVADO.get(PRIVATE_MAIN_INDEX_KEY).catch(() => null);
+  const indexPrivado = object ? await object.json().catch(() => null) : null;
+  if (indexPrivado?.ok !== true || !Array.isArray(indexPrivado?.concertos)) {
+    return { index: indexPublico, reconciliado: false };
+  }
+
+  const publicosPrivados = indexPrivado.concertos
+    .filter((concerto) => concerto?.mostrarWeb === true)
+    .map(proxeccionPublica)
+    .filter((concerto) => concerto.id && concerto.data && concerto.nome);
+
+  if (!publicosPrivados.length) return { index: indexPublico, reconciliado: false };
+
+  const idsPublicos = new Set(indexPublico.concertos.map((concerto) => clean(concerto?.id)).filter(Boolean));
+  const faltanNoPublico = publicosPrivados.some((concerto) => !idsPublicos.has(concerto.id));
+  const privadoMaisNovo = Number(indexPrivado.xeradoEnMs || 0) > Number(indexPublico.xeradoEnMs || 0);
+
+  if (!faltanNoPublico && !privadoMaisNovo) {
+    return { index: indexPublico, reconciliado: false };
+  }
+
+  const porId = new Map(
+    indexPublico.concertos
+      .filter((concerto) => clean(concerto?.id))
+      .map((concerto) => [clean(concerto.id), concerto])
+  );
+
+  for (const concerto of publicosPrivados) {
+    const previo = porId.get(concerto.id) || {};
+    porId.set(concerto.id, { ...previo, ...concerto });
+  }
+
+  return {
+    index: {
+      ...indexPublico,
+      concertos: [...porId.values()],
+      reconciliadoDesde: 'R2-PRIVADO-MAIN',
+      xeradoEnMsPrivado: Number(indexPrivado.xeradoEnMs || 0)
+    },
+    reconciliado: true
+  };
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') {
     return json(405, { ok: false, erro: 'Método non permitido' });
@@ -84,17 +161,18 @@ export async function onRequest({ request, env }) {
     });
   }
 
-  const index = await object.json().catch(() => null);
+  const indexLido = await object.json().catch(() => null);
   if (
-    index?.ok !== true ||
-    Number(index?.version) !== 1 ||
-    !Array.isArray(index?.concertos)
+    indexLido?.ok !== true ||
+    Number(indexLido?.version) !== 1 ||
+    !Array.isArray(indexLido?.concertos)
   ) {
     return json(503, { ok: false, erro: 'O índice de concertos non é válido.' }, {
       'X-SCPP-Concertos-Index': 'INVALID'
     });
   }
 
+  const { index, reconciliado } = await reconciliarPreviewCoIndicePrivado(env, indexLido);
   const hoxe = hoxeMadrid();
   const concertos = index.concertos
     .filter((concerto) => estadoPublicable(concerto?.estado))
@@ -111,7 +189,7 @@ export async function onRequest({ request, env }) {
     cache: 'R2',
     tempoRespostaMs: elapsed
   }, {
-    'X-SCPP-Concertos-Index': 'R2',
+    'X-SCPP-Concertos-Index': reconciliado ? 'R2+PRIVATE-MAIN' : 'R2',
     'X-SCPP-Concertos-Version': String(index.xeradoEnMs || index.xeradoEn || ''),
     'X-SCPP-Concertos-Publication-Rule': 'previsto-confirmado-realizado-aprazado-auto-data',
     'Server-Timing': `r2;dur=${elapsed}`
