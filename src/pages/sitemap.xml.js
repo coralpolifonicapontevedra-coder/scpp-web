@@ -1,12 +1,12 @@
 const routes = [
   '/', '/acoral/', '/historia/', '/centenario/', '/directora/', '/xunta-directiva/',
   '/coralistas/', '/distincions/', '/honras/', '/benvida/', '/axenda/', '/actualidade/',
-  '/galeria/', '/historico-concertos/', '/colabora/', '/colaboradores/', '/contacto/',
+  '/galeria/', '/historico-concertos/', '/colabora/', '/colaboradores/', '/contacto/', '/donar/',
   '/privacidade/', '/aviso-legal/', '/cookies/', '/es/', '/es/la-coral/', '/es/historia/',
   '/es/centenario/', '/es/directora/', '/es/junta-directiva/', '/es/coralistas/',
   '/es/distinciones/', '/es/honores/', '/es/bienvenida/', '/es/agenda/', '/es/actualidad/',
   '/es/galeria/', '/es/historico-conciertos/', '/es/colabora/', '/es/colaboradores/',
-  '/es/contacto/', '/es/privacidad/', '/es/aviso-legal/', '/es/cookies/'
+  '/es/contacto/', '/es/donar/', '/es/privacidad/', '/es/aviso-legal/', '/es/cookies/'
 ];
 
 export function GET({ site }) {
