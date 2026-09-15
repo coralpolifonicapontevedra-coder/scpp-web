@@ -13,6 +13,13 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
 const normalizarEstado = (value = '') => String(value || '').trim().toLowerCase();
 const estadoPublicable = (value = '') => ['confirmado', 'realizado'].includes(normalizarEstado(value));
 
+const camposEspanolPreview = {
+  aadc3347: {
+    nomeEs: 'Cantos de Otoño',
+    caracteristicasEs: 'Festival coral con la participación del Orfeão Madeirense, la Coral Solera Berciana y la Sociedad Coral Polifónica de Pontevedra.'
+  }
+};
+
 function dataCanon(value = '') {
   const texto = String(value || '').trim().slice(0, 10);
   if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
@@ -36,6 +43,11 @@ function aplicarEstadoAutomatico(concerto, hoxe) {
     return { ...concerto, estado: 'Realizado', estadoAutomatico: true };
   }
   return concerto;
+}
+
+function aplicarCamposEspanolPreview(concerto) {
+  const extra = camposEspanolPreview[String(concerto?.id || '')];
+  return extra ? { ...concerto, ...extra } : concerto;
 }
 
 export async function onRequest({ request, env }) {
@@ -76,7 +88,8 @@ export async function onRequest({ request, env }) {
   const hoxe = hoxeMadrid();
   const concertos = index.concertos
     .filter((concerto) => estadoPublicable(concerto?.estado))
-    .map((concerto) => aplicarEstadoAutomatico(concerto, hoxe));
+    .map((concerto) => aplicarEstadoAutomatico(concerto, hoxe))
+    .map(aplicarCamposEspanolPreview);
   const elapsed = Date.now() - started;
   return json(200, {
     ...index,
