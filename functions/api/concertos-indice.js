@@ -1,5 +1,5 @@
 const INDEX_KEY = 'indices/concertos-v1.json';
-const PRIVATE_MAIN_INDEX_KEY = 'indices/concertos-privado-v1.json';
+const MAIN_PUBLIC_API = 'https://6d5ea687.scpp-web.pages.dev/api/concertos-indice';
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -68,78 +68,33 @@ function aplicarCamposEspanolPreview(concerto) {
   return extra ? { ...concerto, ...extra } : concerto;
 }
 
-function proxeccionPublica(concerto = {}) {
-  const nomeEs = clean(concerto.nomeEs || concerto.nome_es || concerto.Nome_ES || concerto.nombreEs || concerto.Nombre_ES);
-  const caracteristicasEs = clean(
-    concerto.caracteristicasEs || concerto.caracteristicas_es || concerto.Caracteristicas_ES ||
-    concerto['Características_ES'] || concerto.descripcionEs || concerto.Descripcion_ES
-  );
-  return {
-    id: clean(concerto.id || concerto.idConcerto),
-    data: clean(concerto.data),
-    nome: clean(concerto.nome || concerto.nombre),
-    ...(nomeEs ? { nomeEs, nome_es: nomeEs } : {}),
-    cidade: clean(concerto.cidade || concerto.ciudad),
-    lugar: clean(concerto.lugar),
-    caracteristicas: clean(concerto.caracteristicas || concerto.descripcion),
-    ...(caracteristicasEs ? { caracteristicasEs, caracteristicas_es: caracteristicasEs } : {}),
-    cartel: clean(concerto.cartel),
-    triptico: clean(concerto.triptico),
-    prensa: clean(concerto.prensa),
-    hora: clean(concerto.hora),
-    mostrarWeb: true,
-    destacadoWeb: concerto.destacadoWeb === true,
-    estado: clean(concerto.estado),
-    programa: Array.isArray(concerto.programa) ? concerto.programa : []
-  };
+function indiceValido(index) {
+  return index?.ok === true && Number(index?.version) === 1 && Array.isArray(index?.concertos);
 }
 
-async function reconciliarPreviewCoIndicePrivado(env, indexPublico) {
-  if (rama(env) === 'main' || !env.R2_PRIVADO?.get || !Array.isArray(indexPublico?.concertos)) {
-    return { index: indexPublico, reconciliado: false };
+async function lerIndiceMainDesdePreview(env) {
+  if (rama(env) === 'main') return null;
+  try {
+    const resposta = await fetch(MAIN_PUBLIC_API, {
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    const index = await resposta.json().catch(() => null);
+    return resposta.ok && indiceValido(index) ? index : null;
+  } catch (error) {
+    console.warn('Non se puido ler o índice público de main desde Preview:', error);
+    return null;
   }
+}
 
-  const object = await env.R2_PRIVADO.get(PRIVATE_MAIN_INDEX_KEY).catch(() => null);
-  const indexPrivado = object ? await object.json().catch(() => null) : null;
-  if (indexPrivado?.ok !== true || !Array.isArray(indexPrivado?.concertos)) {
-    return { index: indexPublico, reconciliado: false };
-  }
-
-  const publicosPrivados = indexPrivado.concertos
-    .filter((concerto) => concerto?.mostrarWeb === true)
-    .map(proxeccionPublica)
-    .filter((concerto) => concerto.id && concerto.data && concerto.nome);
-
-  if (!publicosPrivados.length) return { index: indexPublico, reconciliado: false };
-
-  const idsPublicos = new Set(indexPublico.concertos.map((concerto) => clean(concerto?.id)).filter(Boolean));
-  const faltanNoPublico = publicosPrivados.some((concerto) => !idsPublicos.has(concerto.id));
-  const privadoMaisNovo = Number(indexPrivado.xeradoEnMs || 0) > Number(indexPublico.xeradoEnMs || 0);
-
-  if (!faltanNoPublico && !privadoMaisNovo) {
-    return { index: indexPublico, reconciliado: false };
-  }
-
-  const porId = new Map(
-    indexPublico.concertos
-      .filter((concerto) => clean(concerto?.id))
-      .map((concerto) => [clean(concerto.id), concerto])
-  );
-
-  for (const concerto of publicosPrivados) {
-    const previo = porId.get(concerto.id) || {};
-    porId.set(concerto.id, { ...previo, ...concerto });
-  }
-
-  return {
-    index: {
-      ...indexPublico,
-      concertos: [...porId.values()],
-      reconciliadoDesde: 'R2-PRIVADO-MAIN',
-      xeradoEnMsPrivado: Number(indexPrivado.xeradoEnMs || 0)
-    },
-    reconciliado: true
-  };
+async function lerIndiceR2(env) {
+  if (!env.R2_PUBLICO) return null;
+  const object = await env.R2_PUBLICO.get(INDEX_KEY);
+  if (!object) return null;
+  const index = await object.json().catch(() => null);
+  return indiceValido(index) ? index : null;
 }
 
 export async function onRequest({ request, env }) {
@@ -147,32 +102,24 @@ export async function onRequest({ request, env }) {
     return json(405, { ok: false, erro: 'Método non permitido' });
   }
 
-  if (!env.R2_PUBLICO) {
-    return json(500, { ok: false, erro: 'O bucket público R2 non está configurado.' }, {
-      'X-SCPP-Concertos-Index': 'UNCONFIGURED'
-    });
+  const started = Date.now();
+
+  // En Preview usamos como referencia o índice público de main. É o índice que
+  // Administración actualiza inmediatamente ao gardar e xa incorpora a regra
+  // de publicar os concertos futuros en estado Previsto cando Mostrar_Web está activo.
+  let index = await lerIndiceMainDesdePreview(env);
+  let fonte = index ? 'MAIN-6CC99D4' : 'R2';
+
+  if (!index) {
+    index = await lerIndiceR2(env);
   }
 
-  const started = Date.now();
-  const object = await env.R2_PUBLICO.get(INDEX_KEY);
-  if (!object) {
+  if (!index) {
     return json(503, { ok: false, erro: 'O índice de concertos aínda non está dispoñible.' }, {
       'X-SCPP-Concertos-Index': 'MISSING'
     });
   }
 
-  const indexLido = await object.json().catch(() => null);
-  if (
-    indexLido?.ok !== true ||
-    Number(indexLido?.version) !== 1 ||
-    !Array.isArray(indexLido?.concertos)
-  ) {
-    return json(503, { ok: false, erro: 'O índice de concertos non é válido.' }, {
-      'X-SCPP-Concertos-Index': 'INVALID'
-    });
-  }
-
-  const { index, reconciliado } = await reconciliarPreviewCoIndicePrivado(env, indexLido);
   const hoxe = hoxeMadrid();
   const concertos = index.concertos
     .filter((concerto) => estadoPublicable(concerto?.estado))
@@ -189,7 +136,7 @@ export async function onRequest({ request, env }) {
     cache: 'R2',
     tempoRespostaMs: elapsed
   }, {
-    'X-SCPP-Concertos-Index': reconciliado ? 'R2+PRIVATE-MAIN' : 'R2',
+    'X-SCPP-Concertos-Index': fonte,
     'X-SCPP-Concertos-Version': String(index.xeradoEnMs || index.xeradoEn || ''),
     'X-SCPP-Concertos-Publication-Rule': 'previsto-confirmado-realizado-aprazado-auto-data',
     'Server-Timing': `r2;dur=${elapsed}`
