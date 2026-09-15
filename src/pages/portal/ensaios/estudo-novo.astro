@@ -313,11 +313,12 @@ import PortalSidebar from '../../../components/PortalSidebar.astro';
     }
     try {
       [repertoirePayload, rehearsalPayload] = await Promise.all([
-        apiJson('/api/repertorio', 'listarRepertorioPortal'),
+        apiJson('/api/repertorio-cache-v2', 'listarRepertorioPortal'),
         apiJson('/api/ensaios-coralista', 'listar').catch(() => null)
       ]);
-      currentWork = findWork(requestedWorkId) || catalogWorks()[0] || null;
-      if (!currentWork) throw new Error('Non se atopou a obra no catálogo de Repertorio.');
+      if (!requestedWorkId) throw new Error('Falta identificar a obra.');
+      currentWork = findWork(requestedWorkId);
+      if (!currentWork) throw new Error(`Non se atopou a obra ${requestedWorkId} no catálogo de Repertorio.`);
 
       $('#work-title').textContent = workName(currentWork) || `Obra ${requestedWorkId}`;
       $('#work-meta').textContent = [currentWork?.compositor, currentWork?.autorLetra].filter(Boolean).join(' · ');
