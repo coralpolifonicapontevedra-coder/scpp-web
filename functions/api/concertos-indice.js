@@ -1,5 +1,6 @@
 const INDEX_KEY = 'indices/concertos-v1.json';
-const MAIN_PUBLIC_API = 'https://6d5ea687.scpp-web.pages.dev/api/concertos-indice';
+const MAIN_PUBLIC_ORIGIN = 'https://6d5ea687.scpp-web.pages.dev';
+const MAIN_PUBLIC_API = `${MAIN_PUBLIC_ORIGIN}/api/concertos-indice`;
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -68,6 +69,22 @@ function aplicarCamposEspanolPreview(concerto) {
   return extra ? { ...concerto, ...extra } : concerto;
 }
 
+function urlMediaMain(ruta = '') {
+  const valor = clean(ruta).replaceAll('\\', '/');
+  if (!valor) return '';
+  if (/^https?:\/\//i.test(valor)) return valor;
+  const nome = valor.split('/').filter(Boolean).pop();
+  if (!nome) return '';
+  const miniatura = nome.replace(/\.pdf$/i, '.jpg');
+  return `${MAIN_PUBLIC_ORIGIN}/media/concertos/${encodeURIComponent(miniatura)}`;
+}
+
+function aplicarMediosMainPreview(concerto) {
+  if (!concerto) return concerto;
+  const cartel = urlMediaMain(concerto.cartel);
+  return cartel ? { ...concerto, cartel } : concerto;
+}
+
 function indiceValido(index) {
   return index?.ok === true && Number(index?.version) === 1 && Array.isArray(index?.concertos);
 }
@@ -121,10 +138,12 @@ export async function onRequest({ request, env }) {
   }
 
   const hoxe = hoxeMadrid();
+  const desdeMain = fonte === 'MAIN-6CC99D4';
   const concertos = index.concertos
     .filter((concerto) => estadoPublicable(concerto?.estado))
     .map((concerto) => aplicarEstadoAutomatico(concerto, hoxe))
     .filter(Boolean)
+    .map((concerto) => desdeMain ? aplicarMediosMainPreview(concerto) : concerto)
     .map(aplicarCamposEspanolPreview);
   const elapsed = Date.now() - started;
 
