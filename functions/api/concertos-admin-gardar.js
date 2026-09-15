@@ -5,6 +5,7 @@ const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9
 const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
 const INDEX_MAIN = 'indices/concertos-privado-v1.json';
 const INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
+const R2_SYNC_ATTEMPTS = 2;
 
 const clean = (value) => String(value ?? '').trim();
 const json = (status, body) => new Response(JSON.stringify(body), {
@@ -18,6 +19,7 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 const rama = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
 const indexKey = (env) => rama(env) === 'main' ? INDEX_MAIN : INDEX_PREVIEW;
 const esperadoAppsScript = (env) => rama(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
+const pausa = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function canon(value) {
   return clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').toLowerCase();
@@ -117,6 +119,26 @@ async function actualizarIndice(env, idConcerto, concerto) {
   }), { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } });
 }
 
+async function actualizarIndiceConReintento(env, idConcerto, concerto) {
+  let ultimoErro = null;
+  for (let intento = 1; intento <= R2_SYNC_ATTEMPTS; intento += 1) {
+    try {
+      await actualizarIndice(env, idConcerto, concerto);
+      return { ok:true, intentos:intento };
+    } catch (error) {
+      ultimoErro = error;
+      if (intento < R2_SYNC_ATTEMPTS) await pausa(150 * intento);
+    }
+  }
+
+  return {
+    ok:false,
+    intentos:R2_SYNC_ATTEMPTS,
+    codigo:ultimoErro?.code || 'R2_SYNC_FAILED',
+    erro:ultimoErro?.message || 'Non foi posible actualizar o índice R2.'
+  };
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok:false, erro:'Método non permitido.' });
   if (clean(env.APPS_SCRIPT_WEBAPP_URL) !== esperadoAppsScript(env)) return json(409, { ok:false, erro:`O contorno ${rama(env)} non está conectado ao Apps Script esperado.` });
@@ -132,6 +154,7 @@ export async function onRequest({ request, env }) {
   const concerto = body?.concerto || {};
   if (!canonData(concerto.data) || !clean(concerto.nome)) return json(400, { ok:false, erro:'A data e o nome son obrigatorios.' });
 
+  const inicioTotal = Date.now();
   try {
     let idConcerto = clean(concerto.idConcerto);
     let reutilizado = false;
@@ -147,22 +170,69 @@ export async function onRequest({ request, env }) {
       }
     }
 
-    const resultado = await chamarAppsScript(env, user, 'gardarConcertoAdministracionPortal', { concerto: { ...concerto, idConcerto } }, true);
-    idConcerto = clean(resultado?.idConcerto || idConcerto);
-    if (!idConcerto) throw new Error('Apps Script non devolveu o identificador do concerto.');
-    await actualizarIndice(env, idConcerto, concerto);
+    const inicioAppsScript = Date.now();
+    let resultado;
+    try {
+      resultado = await chamarAppsScript(env, user, 'gardarConcertoAdministracionPortal', { concerto: { ...concerto, idConcerto } }, true);
+    } catch (error) {
+      const status = error?.code === 'FORBIDDEN' ? 403 : error?.code === 'NOT_FOUND' ? 404 : 502;
+      return json(status, {
+        ok:false,
+        etapa:'APPS_SCRIPT',
+        codigo:error?.code || 'UPSTREAM',
+        erro:error?.message || 'Non foi posible gardar o concerto.',
+        tempos:{ appsScriptMs:Date.now() - inicioAppsScript, totalMs:Date.now() - inicioTotal }
+      });
+    }
 
+    const appsScriptMs = Date.now() - inicioAppsScript;
+    idConcerto = clean(resultado?.idConcerto || idConcerto);
+    if (!idConcerto) {
+      return json(502, {
+        ok:false,
+        etapa:'APPS_SCRIPT',
+        codigo:'MISSING_CONCERT_ID',
+        erro:'Apps Script non devolveu o identificador do concerto.',
+        tempos:{ appsScriptMs, totalMs:Date.now() - inicioTotal }
+      });
+    }
+
+    const inicioR2 = Date.now();
+    const sincronizacionR2 = await actualizarIndiceConReintento(env, idConcerto, concerto);
+    const r2Ms = Date.now() - inicioR2;
+    if (!sincronizacionR2.ok) {
+      console.warn('O concerto gardouse na Sheet pero fallou a sincronización R2.', {
+        idConcerto,
+        codigo:sincronizacionR2.codigo,
+        erro:sincronizacionR2.erro,
+        intentos:sincronizacionR2.intentos
+      });
+    }
+
+    const almacenSheet = rama(env) === 'main' ? 'SHEET-PRODUCION' : 'SHEET-PROBAS';
     return json(200, {
       ok:true,
       nivel:permiso.nivel,
       resultado:{ ...resultado, idConcerto },
-      almacen:rama(env) === 'main' ? 'SHEET-PRODUCION+R2-MAIN' : 'SHEET-PROBAS+R2-PREVIEW',
+      almacen:sincronizacionR2.ok
+        ? `${almacenSheet}+${rama(env) === 'main' ? 'R2-MAIN' : 'R2-PREVIEW'}`
+        : almacenSheet,
+      sincronizacionR2,
+      aviso:sincronizacionR2.ok
+        ? null
+        : 'O concerto quedou gardado na folla de datos, pero o índice rápido non se puido actualizar neste intento.',
       reutilizado,
       duplicadosDetectados:duplicados,
-      fonteDuplicados
+      fonteDuplicados,
+      tempos:{ appsScriptMs, r2Ms, totalMs:Date.now() - inicioTotal }
     });
   } catch (error) {
-    const status = error?.code === 'FORBIDDEN' ? 403 : error?.code === 'NOT_FOUND' ? 404 : 502;
-    return json(status, { ok:false, codigo:error?.code || 'UPSTREAM', erro:error?.message || 'Non foi posible gardar o concerto.' });
+    return json(502, {
+      ok:false,
+      etapa:'PREPARACION',
+      codigo:error?.code || 'UPSTREAM',
+      erro:error?.message || 'Non foi posible preparar o gardado do concerto.',
+      tempos:{ totalMs:Date.now() - inicioTotal }
+    });
   }
 }
