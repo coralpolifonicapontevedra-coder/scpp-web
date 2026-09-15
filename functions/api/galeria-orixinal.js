@@ -16,8 +16,16 @@ function rutaSegura(ruta) {
 
 function ePreview(url, env) {
   const rama = String(env?.CF_PAGES_BRANCH || '').trim();
-  return rama !== 'main' || url.hostname.endsWith('.scpp-web.pages.dev');
+  if (rama) return rama !== 'main';
+  return url.hostname.endsWith('.scpp-web.pages.dev');
 }
+
+// Fotos rows 124 and 38: the preview bucket still contains older images at
+// these keys. Read the verified public R2 originals instead of that stale copy.
+const ORIXINAIS_CASTELAO = new Set([
+  'fotos/orixinais/c5875c20-7c55-536e-8419-32ad2404c70b.jpg',
+  'fotos/orixinais/91630e1a-725d-42c9-9aa5-259e6655ef08.jpg'
+]);
 
 async function desdeProducion(request, url) {
   const destino = new URL('/api/galeria-orixinal', 'https://coralpolifonicapontevedra.org');
@@ -51,6 +59,11 @@ export async function onRequest({ request, env }) {
   const ruta = String(url.searchParams.get('ruta') || '').trim().replace(/^\/+/, '');
   if (!rutaSegura(ruta)) {
     return json(400, { ok: false, erro: 'Ruta de fotografía non válida.' });
+  }
+
+  if (ePreview(url, env) && ORIXINAIS_CASTELAO.has(ruta)) {
+    const orixinal = await desdeProducion(request, url).catch(() => null);
+    return orixinal || json(502, { ok: false, erro: 'Non foi posible cargar o orixinal público verificado.' });
   }
 
   if (!env.R2_PUBLICO) {
