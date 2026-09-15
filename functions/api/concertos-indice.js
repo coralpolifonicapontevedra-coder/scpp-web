@@ -16,7 +16,15 @@ const estadoPublicable = (value = '') => ['previsto', 'confirmado', 'realizado',
 const camposEspanolPreview = {
   aadc3347: {
     nomeEs: 'Cantos de Otoño',
-    caracteristicasEs: 'Festival coral con la participación del Orfeão Madeirense, la Coral Solera Berciana y la Sociedad Coral Polifónica de Pontevedra.'
+    nome_es: 'Cantos de Otoño',
+    caracteristicasEs: 'Festival coral con la participación del Orfeão Madeirense, la Coral Solera Berciana y la Sociedad Coral Polifónica de Pontevedra.',
+    caracteristicas_es: 'Festival coral con la participación del Orfeão Madeirense, la Coral Solera Berciana y la Sociedad Coral Polifónica de Pontevedra.'
+  },
+  '7': {
+    nomeEs: 'Concierto de Navidad',
+    nome_es: 'Concierto de Navidad',
+    caracteristicasEs: 'Concierto de villancicos de la Sociedad Coral Polifónica de Pontevedra en la Basílica de Santa María la Mayor.',
+    caracteristicas_es: 'Concierto de villancicos de la Sociedad Coral Polifónica de Pontevedra en la Basílica de Santa María la Mayor.'
   }
 };
 
