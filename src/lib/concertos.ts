@@ -98,6 +98,13 @@ async function lerCSV(url: string): Promise<Record<string, string>[]> {
   }
 }
 
+const dataHoxeMadrid = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Madrid',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).format(new Date());
+
 export async function obterConcertos(): Promise<Concerto[]> {
   const [filasConcertos, filasProgramas, filasRepertorio] = await Promise.all([
     lerCSV(URL_CONCERTOS),
@@ -114,6 +121,8 @@ export async function obterConcertos(): Promise<Concerto[]> {
       },
     ]),
   );
+
+  const hoxe = dataHoxeMadrid();
 
   return filasConcertos
     .map((fila): Concerto => {
@@ -142,6 +151,8 @@ export async function obterConcertos(): Promise<Concerto[]> {
         'Descripción_ES',
         'Descripcion_ES',
       );
+      const estadoOrixinal = valor(fila, 'Estado');
+      const estadoNormalizado = normalizar(estadoOrixinal);
 
       return {
         id,
@@ -160,12 +171,12 @@ export async function obterConcertos(): Promise<Concerto[]> {
         hora: valor(fila, 'Hora'),
         mostrarWeb: verdadeiro(valor(fila, 'Mostrar_Web')),
         destacadoWeb: verdadeiro(valor(fila, 'Destacado_Web')),
-        estado: valor(fila, 'Estado'),
+        estado: estadoNormalizado === 'previsto' ? 'Confirmado' : estadoOrixinal,
         programa,
       };
     })
-    .filter((concerto) => concerto.mostrarWeb && concerto.id && concerto.data)
-    .sort((a, b) => a.data.localeCompare(b.data));
+    .filter((concerto) => concerto.mostrarWeb && concerto.id && concerto.data && dataISO(concerto.data) >= hoxe)
+    .sort((a, b) => dataISO(a.data).localeCompare(dataISO(b.data)));
 }
 
 export const dataLocal = (data: string, formato: 'curto' | 'longo' = 'longo') => {
