@@ -14,13 +14,45 @@ function rutaSegura(ruta) {
   return !partes.some((parte) => !parte || parte === '.' || parte === '..');
 }
 
+function ePreview(url, env) {
+  const rama = String(env?.CF_PAGES_BRANCH || '').trim();
+  if (rama) return rama !== 'main';
+  return url.hostname.endsWith('.scpp-web.pages.dev');
+}
+
+// Fotos rows 124 and 38: the preview bucket still contains older images at
+// these keys. Read the verified public R2 originals instead of that stale copy.
+const ORIXINAIS_CASTELAO = new Set([
+  'fotos/orixinais/c5875c20-7c55-536e-8419-32ad2404c70b.jpg',
+  'fotos/orixinais/91630e1a-725d-42c9-9aa5-259e6655ef08.jpg'
+]);
+
+async function desdeProducion(request, url) {
+  const destino = new URL('/api/galeria-orixinal', 'https://coralpolifonicapontevedra.org');
+  destino.search = url.search;
+  const resposta = await fetch(destino.toString(), {
+    method: request.method,
+    headers: {
+      'Accept': request.headers.get('Accept') || '*/*',
+      'If-None-Match': request.headers.get('If-None-Match') || ''
+    },
+    redirect: 'follow'
+  });
+
+  if (!resposta.ok && resposta.status !== 304) return null;
+
+  const headers = new Headers(resposta.headers);
+  headers.set('X-SCPP-Gallery-Preview-Fallback', 'PRODUCTION');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  return new Response(request.method === 'HEAD' ? null : resposta.body, {
+    status: resposta.status,
+    headers
+  });
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return json(405, { ok: false, erro: 'Método non permitido' });
-  }
-
-  if (!env.R2_PUBLICO) {
-    return json(500, { ok: false, erro: 'O bucket público R2 non está configurado.' });
   }
 
   const url = new URL(request.url);
@@ -29,8 +61,31 @@ export async function onRequest({ request, env }) {
     return json(400, { ok: false, erro: 'Ruta de fotografía non válida.' });
   }
 
-  const obxecto = await env.R2_PUBLICO.get(ruta, { onlyIf: request.headers });
+  if (ePreview(url, env) && ORIXINAIS_CASTELAO.has(ruta)) {
+    const orixinal = await desdeProducion(request, url).catch(() => null);
+    return orixinal || json(502, { ok: false, erro: 'Non foi posible cargar o orixinal público verificado.' });
+  }
+
+  if (!env.R2_PUBLICO) {
+    if (ePreview(url, env)) {
+      const fallback = await desdeProducion(request, url).catch(() => null);
+      if (fallback) return fallback;
+    }
+    return json(500, { ok: false, erro: 'O bucket público R2 non está configurado.' });
+  }
+
+  let obxecto;
+  try {
+    obxecto = await env.R2_PUBLICO.get(ruta, { onlyIf: request.headers });
+  } catch {
+    obxecto = null;
+  }
+
   if (!obxecto) {
+    if (ePreview(url, env)) {
+      const fallback = await desdeProducion(request, url).catch(() => null);
+      if (fallback) return fallback;
+    }
     return json(404, { ok: false, erro: 'A fotografía orixinal non existe.' });
   }
 

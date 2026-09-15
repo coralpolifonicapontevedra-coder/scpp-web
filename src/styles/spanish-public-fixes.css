@@ -127,6 +127,71 @@
   text-underline-offset: 3px;
 }
 
+/*
+ * Paridade visual GL/ES na sección de Castelao.
+ * En escritorio a imaxe de San David flota á esquerda para que o texto a rodee,
+ * exactamente como na versión galega, evitando o gran oco en branco do grid.
+ */
+.historia-page .castelao-san-david-block {
+  display: block !important;
+  overflow: auto;
+}
+
+.historia-page .castelao-san-david-block .castelao-hero-image {
+  float: left !important;
+  width: min(60%, 590px) !important;
+  min-height: 0 !important;
+  aspect-ratio: 1083 / 720 !important;
+  margin: 0 clamp(1.4rem, 3vw, 2.4rem) 1rem 0 !important;
+  overflow: hidden !important;
+  background: #fff !important;
+}
+
+.historia-page .castelao-san-david-block .castelao-hero-image img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  background: transparent !important;
+}
+
+.historia-page .castelao-san-david-block .castelao-hero-copy {
+  padding: clamp(.4rem, 1.2vw, 1rem) 0 0 !important;
+  align-self: auto !important;
+}
+
+.historia-page .castelao-san-david-block .pano-caption,
+.historia-page .castelao-san-david-block .pano-photo-credit {
+  display: block;
+  margin-top: 1.15rem;
+  padding-top: .8rem;
+  border-top: 1px solid var(--line, #ded8ce);
+}
+
+/* O Rosetón oxival móstrase completo, sen recortes nin máscaras circulares adicionais. */
+.historia-page .castelao-roseton-block .castelao-hero-image {
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  display: block !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  background: #fff !important;
+}
+
+.historia-page .castelao-roseton-block .castelao-hero-image img {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  clip-path: none !important;
+  background: #fff !important;
+}
+
 @media (max-width: 720px) {
   .history-page .table-wrap thead {
     display: none;
@@ -167,5 +232,17 @@
   .history-page .period-meta {
     flex-direction: column;
     align-items: flex-end;
+  }
+}
+
+@media (max-width: 700px) {
+  .historia-page .castelao-san-david-block .castelao-hero-image {
+    float: none !important;
+    width: 100% !important;
+    margin: 0 0 1.35rem !important;
+  }
+
+  .historia-page .castelao-san-david-block .castelao-hero-copy {
+    padding: 0 1.35rem 1.35rem !important;
   }
 }

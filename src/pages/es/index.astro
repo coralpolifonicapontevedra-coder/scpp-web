@@ -8,7 +8,7 @@ import rosetonImg from '../../assets/roseton.jpg';
 <BaseLayout
   title="Inicio"
   lang="es"
-  description="Web oficial de la Sociedad Coral Polifónica de Pontevedra, fundada en 1925. Cien años de patrimonio y polifonía en Galicia."
+  description="Web oficial de la Sociedad Coral Polifónica de Pontevedra. Conservamos, interpretamos y difundimos el patrimonio coral gallego e ibérico desde 1925."
 >
   <section class="hero-section">
     <div class="hero-box">
@@ -33,19 +33,32 @@ import rosetonImg from '../../assets/roseton.jpg';
 
   <section class="intro-section">
     <div class="container intro-content">
-      <h2><a href="/historia/">Un siglo de historia</a></h2>
+      <h2><a href="/es/historia">Un siglo de historia</a></h2>
       <p>
-        Una de las agrupaciones corales más antiguas de Galicia y una institución
-        de referencia. Mantenemos vivo el compromiso con la difusión de nuestro
-        patrimonio a través de la polifonía renacentista, la música medieval y
-        sacra y la canción popular gallega armonizada.
+        Nuestra misión es conservar, interpretar y difundir el patrimonio coral gallego e ibérico,
+        acercar la música polifónica a la sociedad y mantener viva una tradición cultural iniciada
+        en Pontevedra en 1925. Nuestro repertorio abarca la polifonía renacentista, la música
+        medieval y sacra y la canción popular gallega armonizada.
       </p>
       <div class="intro-action">
-        <a href="/benvida" class="btn-esencia">Descubre nuestra esencia</a>
-        <p class="colabora-texto">
-          <a href="/es/donar/">Colabora económicamente al mantenimiento de este patrimonio cultural</a>
-        </p>
+        <a href="/es/bienvenida" class="btn-esencia">Conoce la Coral</a>
       </div>
+      <nav class="home-actions" aria-label="Formas de participar">
+        <a href="/es/agenda">Asiste a un concierto</a>
+        <a href="/es/contacto">Solicita una actuación</a>
+        <a href="/es/donar/">Colabora con la Coral</a>
+      </nav>
+    </div>
+  </section>
+
+  <section class="castelao-section container" aria-labelledby="castelao-home-title">
+    <div class="castelao-home-link">
+      <div>
+        <p class="castelao-eyebrow">Arte, música y patrimonio</p>
+        <h2 id="castelao-home-title">Castelao y la Polifónica</h2>
+        <p>Una identidad visual inseparable de la historia de la Coral desde sus orígenes.</p>
+      </div>
+      <a href="/es/historia#castelao" class="castelao-link">Descubre este legado <span aria-hidden="true">→</span></a>
     </div>
   </section>
 
@@ -61,7 +74,7 @@ import rosetonImg from '../../assets/roseton.jpg';
       </div>
 
       <div class="agenda-actions">
-        <a href="/axenda" class="btn-agenda-link">Ver la agenda completa</a>
+        <a href="/es/agenda" class="btn-agenda-link">Ver la agenda completa</a>
       </div>
     </div>
   </section>
@@ -192,13 +205,22 @@ import rosetonImg from '../../assets/roseton.jpg';
     return String(fallback || '').trim();
   };
 
+  const hoyISO = () => {
+    const ahora = new Date();
+    const ano = ahora.getFullYear();
+    const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+    const dia = String(ahora.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  };
+
   async function cargarProximosEventos() {
     const contenedor = document.querySelector('#grid-proximos-eventos');
     if (!contenedor) return;
 
     const conciertos = await obterConcertos();
+    const hoy = hoyISO();
     const proximos = conciertos
-      .filter((evento) => normalizar(evento.estado) === 'confirmado')
+      .filter((evento) => normalizar(evento.estado) === 'confirmado' && dataISO(evento.data) >= hoy)
       .sort((a, b) => dataISO(a.data).localeCompare(dataISO(b.data)))
       .slice(0, 3);
 
@@ -217,7 +239,7 @@ import rosetonImg from '../../assets/roseton.jpg';
       const localizacion = [evento.lugar, evento.cidade].filter(Boolean).join(' · ');
       const hora = horaLocal(evento.hora);
       const datosEvento = [hora, localizacion].filter(Boolean).map(escapar).join(' · ');
-      return `<a class="event-card" href="/axenda" aria-label="Ver ${escapar(nombre)} en la agenda">
+      return `<a class="event-card" href="/es/agenda" aria-label="Ver ${escapar(nombre)} en la agenda">
         <time datetime="${escapar(dataISO(evento.data))}">${fechaEnEspanol(evento.data)}</time>
         <h4>${escapar(nombre)}</h4>
         ${datosEvento ? `<p class="event-meta">${datosEvento}</p>` : ''}
@@ -331,14 +353,14 @@ import rosetonImg from '../../assets/roseton.jpg';
   }
 
   .intro-section {
-    padding: 5rem 0;
+    padding: 5rem 0 3.5rem;
     width: 100%;
     display: flex;
     justify-content: center;
     text-align: center;
   }
   .intro-content {
-    max-width: 700px;
+    max-width: 760px;
     margin: 0 auto;
   }
   .intro-content h2 {
@@ -359,10 +381,11 @@ import rosetonImg from '../../assets/roseton.jpg';
     font-size: 1.15rem;
     color: var(--color-texto);
     opacity: 0.9;
+    line-height: 1.7;
   }
 
   .intro-action {
-    margin-top: 2.5rem;
+    margin-top: 2rem;
   }
 
   .btn-esencia {
@@ -381,22 +404,69 @@ import rosetonImg from '../../assets/roseton.jpg';
     border-color: var(--color-principal);
   }
 
-  .colabora-texto {
-    margin-top: 1.2rem;
-    font-size: 0.85rem;
+  .home-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: .65rem 1.35rem;
+    margin-top: 2.25rem;
   }
-
-  .colabora-texto a {
-    color: var(--color-texto);
-    opacity: 0.75;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    transition: opacity 0.2s ease, color 0.2s ease;
-  }
-
-  .colabora-texto a:hover {
-    opacity: 1;
+  .home-actions a {
     color: var(--color-principal);
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-decoration: none;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(106, 27, 41, .28);
+    padding-bottom: .2rem;
+  }
+  .home-actions a:hover {
+    color: var(--color-acento);
+    border-color: var(--color-acento);
+  }
+
+  .castelao-section {
+    padding-bottom: 4.5rem;
+  }
+  .castelao-home-link {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 2rem;
+    padding: 1.5rem 0;
+    border-top: 1px solid rgba(106, 27, 41, .14);
+    border-bottom: 1px solid rgba(106, 27, 41, .14);
+  }
+  .castelao-eyebrow {
+    margin: 0 0 .35rem;
+    color: var(--color-acento);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .castelao-home-link h2 {
+    margin: 0 0 .35rem;
+    color: var(--color-principal);
+    font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  }
+  .castelao-home-link p:last-child {
+    margin: 0;
+    color: #5f5b56;
+    line-height: 1.55;
+  }
+  .castelao-link {
+    flex: 0 0 auto;
+    color: var(--color-principal);
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+  .castelao-link:hover {
+    color: var(--color-acento);
   }
 
   .listen-section {
@@ -621,6 +691,7 @@ import rosetonImg from '../../assets/roseton.jpg';
     margin-bottom: 3rem;
   }
   @media (max-width: 768px) {
+    .castelao-home-link,
     .listen-card {
       align-items: stretch;
       flex-direction: column;

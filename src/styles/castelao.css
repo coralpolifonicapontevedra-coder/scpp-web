@@ -1,0 +1,48 @@
+/* The same uncropped originals and text flow in both languages. */
+#panel-castelao .castelao-san-david-block {
+  display: flow-root !important;
+  overflow: visible;
+}
+
+#panel-castelao .castelao-san-david-block .castelao-hero-image {
+  float: left !important;
+  width: min(60%, 590px) !important;
+  margin: 0 clamp(1.4rem, 3vw, 2.4rem) 1rem 0 !important;
+  aspect-ratio: 1083 / 720 !important;
+}
+
+#panel-castelao .castelao-san-david-block .castelao-hero-copy {
+  display: block;
+  overflow: visible;
+  padding: clamp(.4rem, 1.2vw, 1rem) 1rem 1rem 0 !important;
+}
+
+#panel-castelao .castelao-san-david-block .castelao-hero-image img,
+#panel-castelao .castelao-roseton-block .castelao-hero-image img {
+  display: block;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  clip-path: none !important;
+}
+
+#panel-castelao .castelao-roseton-block .castelao-hero-image {
+  display: block !important;
+  aspect-ratio: auto !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+}
+
+@media (max-width: 700px) {
+  #panel-castelao .castelao-san-david-block .castelao-hero-image {
+    float: none !important;
+    width: 100% !important;
+    margin: 0 0 1.35rem !important;
+  }
+  #panel-castelao .castelao-san-david-block .castelao-hero-copy {
+    padding: 0 1.35rem 1.35rem !important;
+  }
+}
