@@ -50,33 +50,7 @@ const year = new Date().getFullYear();
   </div>
 </footer>
 
-<script is:inline>
-(() => {
-  const path = window.location.pathname;
 
-  if (/^\/es\/?$/.test(path)) {
-    const collaborationLink = Array.from(document.querySelectorAll('.home-actions a')).find((link) => link.getAttribute('href') === '/es/colabora');
-    if (collaborationLink) collaborationLink.setAttribute('href', '/es/donar/');
-  }
-
-  if (/^\/es\/historia\/?$/.test(path)) {
-    const sanDavid = document.querySelector('.castelao-san-david-block .castelao-hero-image img');
-    if (sanDavid instanceof HTMLImageElement) {
-      sanDavid.src = '/api/galeria-orixinal?ruta=fotos%2Forixinais%2Fc5875c20-7c55-536e-8419-32ad2404c70b.jpg';
-      sanDavid.alt = 'Escudo de San David de la Sociedad Coral Polifónica de Pontevedra';
-    }
-
-    const roseton = document.querySelector('.castelao-roseton-block .castelao-hero-image img');
-    if (roseton instanceof HTMLImageElement) {
-      roseton.src = '/api/galeria-orixinal?ruta=fotos%2Forixinais%2F91630e1a-725d-42c9-9aa5-259e6655ef08.jpg';
-      roseton.alt = 'Rosetón oxival diseñado por Castelao para la Sociedad Coral Polifónica de Pontevedra';
-    }
-
-    const rosetonTitle = document.querySelector('.castelao-roseton-block h3');
-    if (rosetonTitle) rosetonTitle.textContent = 'Rosetón oxival';
-  }
-})();
-</script>
 
 <style>
 .site-footer{background-color:var(--color-principal);color:var(--color-blanco);padding:4rem 2rem 2rem;margin-top:6rem}.footer-wrapper{display:grid;grid-template-columns:1fr 2fr;gap:4rem;margin-bottom:3rem}.footer-brand{display:flex;flex-direction:column;justify-content:flex-start}.brand-name,.legal-id,.tagline{font-size:.9rem;line-height:1.6}.brand-name{margin:0 0 .35rem;color:var(--color-blanco);font-weight:700}.legal-id{margin:0;opacity:.85}.tagline{margin-top:1rem;opacity:.85}.footer-sections{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem}.footer-section h4{font-size:.95rem;text-transform:uppercase;letter-spacing:.05em;color:var(--color-acento);margin-bottom:1rem;font-weight:700}.footer-section p{font-size:.85rem;opacity:.8;margin-bottom:.5rem;line-height:1.5}.footer-section a{color:var(--color-blanco);text-decoration:none;opacity:.8;transition:opacity .2s ease}.footer-section a:hover{opacity:1;color:var(--color-acento)}.footer-section ul{list-style:none;padding:0}.footer-section li{margin-bottom:.5rem}.social-footer{display:flex;gap:1rem}.social-footer a{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;background:rgba(255,255,255,.1);border-radius:4px;transition:all .3s ease}.social-footer a:hover{background:var(--color-acento);transform:scale(1.05)}.social-icon-footer{width:20px;height:20px;fill:var(--color-blanco)}.social-footer a:hover .social-icon-footer{fill:var(--color-principal)}.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:2rem;text-align:center}.footer-bottom p{font-size:.8rem;opacity:.6;margin-bottom:1rem}.footer-legal{font-size:.75rem;opacity:.5}.footer-legal a{color:var(--color-blanco);text-decoration:none;margin:0 .5rem}.footer-legal a:hover{color:var(--color-acento)}

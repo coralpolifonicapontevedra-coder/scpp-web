@@ -61,7 +61,7 @@ export async function onRequest({ request, env }) {
     return json(500, { ok: false, erro: 'O bucket público R2 non está configurado.' });
   }
 
-  let obxecto = null;
+  let obxecto;
   try {
     obxecto = await env.R2_PUBLICO.get(ruta, { onlyIf: request.headers });
   } catch {

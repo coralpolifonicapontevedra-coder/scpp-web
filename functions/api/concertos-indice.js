@@ -4,14 +4,14 @@ const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(bo
   status,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400',
+    'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
     ...extraHeaders
   }
 });
 
 const normalizarEstado = (value = '') => String(value || '').trim().toLowerCase();
-const estadoPublicable = (value = '') => ['confirmado', 'realizado'].includes(normalizarEstado(value));
+const estadoPublicable = (value = '') => ['previsto', 'confirmado', 'realizado', 'aprazado', 'aplazado'].includes(normalizarEstado(value));
 
 const camposEspanolPreview = {
   aadc3347: {
@@ -39,9 +39,16 @@ function hoxeMadrid() {
 function aplicarEstadoAutomatico(concerto, hoxe) {
   const estado = normalizarEstado(concerto?.estado);
   const data = dataCanon(concerto?.data);
+
   if (estado === 'confirmado' && data && data < hoxe) {
     return { ...concerto, estado: 'Realizado', estadoAutomatico: true };
   }
+
+  if (estado === 'previsto') {
+    if (data && data < hoxe) return null;
+    return { ...concerto, estado: 'Confirmado', estadoPublicoOrixinal: 'Previsto' };
+  }
+
   return concerto;
 }
 
@@ -52,14 +59,11 @@ function aplicarCamposEspanolPreview(concerto) {
 
 export async function onRequest({ request, env }) {
   if (request.method !== 'GET') {
-    return json(405, { ok: false, erro: 'Método non permitido' }, {
-      'Cache-Control': 'no-store'
-    });
+    return json(405, { ok: false, erro: 'Método non permitido' });
   }
 
   if (!env.R2_PUBLICO) {
     return json(500, { ok: false, erro: 'O bucket público R2 non está configurado.' }, {
-      'Cache-Control': 'no-store',
       'X-SCPP-Concertos-Index': 'UNCONFIGURED'
     });
   }
@@ -68,7 +72,6 @@ export async function onRequest({ request, env }) {
   const object = await env.R2_PUBLICO.get(INDEX_KEY);
   if (!object) {
     return json(503, { ok: false, erro: 'O índice de concertos aínda non está dispoñible.' }, {
-      'Cache-Control': 'no-store',
       'X-SCPP-Concertos-Index': 'MISSING'
     });
   }
@@ -80,7 +83,6 @@ export async function onRequest({ request, env }) {
     !Array.isArray(index?.concertos)
   ) {
     return json(503, { ok: false, erro: 'O índice de concertos non é válido.' }, {
-      'Cache-Control': 'no-store',
       'X-SCPP-Concertos-Index': 'INVALID'
     });
   }
@@ -89,19 +91,21 @@ export async function onRequest({ request, env }) {
   const concertos = index.concertos
     .filter((concerto) => estadoPublicable(concerto?.estado))
     .map((concerto) => aplicarEstadoAutomatico(concerto, hoxe))
+    .filter(Boolean)
     .map(aplicarCamposEspanolPreview);
   const elapsed = Date.now() - started;
+
   return json(200, {
     ...index,
     total: concertos.length,
     concertos,
-    regraPublicacion: 'Mostrar_Web + Confirmado/Realizado; Confirmado pasa a Realizado ao día seguinte',
+    regraPublicacion: 'Mostrar_Web + Previsto/Confirmado/Realizado/Aprazado; Previsto futuro publícase como próximo e Confirmado pasado pasa a Realizado',
     cache: 'R2',
     tempoRespostaMs: elapsed
   }, {
     'X-SCPP-Concertos-Index': 'R2',
     'X-SCPP-Concertos-Version': String(index.xeradoEnMs || index.xeradoEn || ''),
-    'X-SCPP-Concertos-Publication-Rule': 'confirmado-realizado-auto-data',
+    'X-SCPP-Concertos-Publication-Rule': 'previsto-confirmado-realizado-aprazado-auto-data',
     'Server-Timing': `r2;dur=${elapsed}`
   });
 }

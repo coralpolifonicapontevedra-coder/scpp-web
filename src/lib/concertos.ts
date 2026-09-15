@@ -27,10 +27,6 @@ export type Concerto = {
   programa: ProgramaItem[];
 };
 
-const URL_CONCERTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
-const URL_PROGRAMAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTMm4Z45Bcfz_-AEwcA6lNmttLAjJEOxXpTFmlnLwtRCoSIF7xlCP-LEdlfLoMYkbOnAefC7I9G9Cec/pub?gid=1925601694&single=true&output=csv';
-const URL_REPERTORIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuYtrIlKLbU1QkH7fP2zbKQQYFV6kvACLLFBZrJ7cC8t54jAsrTDWvL_x7fko9Hw71oKIoYyBcjNF3/pub?gid=984049442&single=true&output=csv';
-
 const normalizar = (valor = '') =>
   String(valor)
     .normalize('NFD')
@@ -38,134 +34,43 @@ const normalizar = (valor = '') =>
     .trim()
     .toLowerCase();
 
-const verdadeiro = (valor = '') => ['true', 'si', 'sí', 'yes', '1', 'verdadeiro'].includes(normalizar(valor));
-
-function parseCSV(texto: string): Record<string, string>[] {
-  const filas: string[][] = [];
-  let fila: string[] = [];
-  let campo = '';
-  let entreComillas = false;
-
-  for (let i = 0; i < texto.length; i++) {
-    const c = texto[i];
-    const seguinte = texto[i + 1];
-    if (c === '"' && entreComillas && seguinte === '"') {
-      campo += '"';
-      i++;
-    } else if (c === '"') {
-      entreComillas = !entreComillas;
-    } else if (c === ',' && !entreComillas) {
-      fila.push(campo);
-      campo = '';
-    } else if ((c === '\n' || c === '\r') && !entreComillas) {
-      if (c === '\r' && seguinte === '\n') i++;
-      fila.push(campo);
-      if (fila.some((v) => v.trim() !== '')) filas.push(fila);
-      fila = [];
-      campo = '';
-    } else {
-      campo += c;
-    }
-  }
-
-  if (campo || fila.length) {
-    fila.push(campo);
-    filas.push(fila);
-  }
-
-  const cabeceiras = (filas.shift() ?? []).map(normalizar);
-  return filas.map((valores) =>
-    Object.fromEntries(cabeceiras.map((cab, i) => [cab, (valores[i] ?? '').trim()])),
-  );
-}
-
-const valor = (fila: Record<string, string>, ...nomes: string[]) => {
-  for (const nome of nomes) {
-    const atopado = fila[normalizar(nome)];
-    if (atopado !== undefined && atopado !== '') return atopado;
-  }
-  return '';
+const dataHoxeMadrid = () => {
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const get = (tipo: string) => partes.find((parte) => parte.type === tipo)?.value || '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
 };
 
-async function lerCSV(url: string): Promise<Record<string, string>[]> {
+export async function obterConcertos(): Promise<Concerto[]> {
   try {
-    const resposta = await fetch(url);
-    if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
-    return parseCSV(await resposta.text());
+    const resposta = await fetch('/api/concertos-indice', { cache: 'no-store' });
+    const indice = await resposta.json().catch(() => null);
+    if (!resposta.ok || indice?.ok !== true || !Array.isArray(indice?.concertos)) {
+      throw new Error(indice?.erro || `HTTP ${resposta.status}`);
+    }
+
+    const hoxe = dataHoxeMadrid();
+    return indice.concertos
+      .filter((concerto: Concerto) => concerto?.id && concerto?.data && concerto?.nome)
+      .map((concerto: Concerto) => ({
+        ...concerto,
+        mostrarWeb: concerto.mostrarWeb !== false,
+        destacadoWeb: concerto.destacadoWeb === true,
+        programa: Array.isArray(concerto.programa) ? concerto.programa : [],
+      }))
+      .filter((concerto: Concerto) => {
+        const estado = normalizar(concerto.estado);
+        return ['previsto', 'confirmado'].includes(estado) && dataISO(concerto.data) >= hoxe;
+      })
+      .sort((a: Concerto, b: Concerto) => dataISO(a.data).localeCompare(dataISO(b.data)));
   } catch (erro) {
-    console.warn(`Non se puido ler ${url}:`, erro);
+    console.warn('Non se puido cargar o índice rápido de concertos:', erro);
     return [];
   }
-}
-
-export async function obterConcertos(): Promise<Concerto[]> {
-  const [filasConcertos, filasProgramas, filasRepertorio] = await Promise.all([
-    lerCSV(URL_CONCERTOS),
-    lerCSV(URL_PROGRAMAS),
-    lerCSV(URL_REPERTORIO),
-  ]);
-
-  const obras = new Map(
-    filasRepertorio.map((fila) => [
-      valor(fila, 'Id', 'Row ID'),
-      {
-        nome: valor(fila, 'Nome', 'NomeObra', 'Obra', 'Título', 'Titulo'),
-        autor: valor(fila, 'Autor', 'Compositor'),
-      },
-    ]),
-  );
-
-  return filasConcertos
-    .map((fila): Concerto => {
-      const id = valor(fila, 'Id', 'Row ID');
-      const programa = filasProgramas
-        .filter((item) => valor(item, 'Id_Conciertos', 'Id_Concertos') === id)
-        .map((item) => {
-          const idObra = valor(item, 'Id_Obras');
-          const obra = obras.get(idObra);
-          return {
-            orde: Number(valor(item, 'Orde')) || 999,
-            obra: obra?.nome || idObra,
-            autor: obra?.autor,
-            notas: valor(item, 'Notas'),
-            solista: valor(item, 'Solista'),
-          };
-        })
-        .sort((a, b) => a.orde - b.orde);
-      const nomeEs = valor(fila, 'Nome_ES', 'Nome ES', 'Nombre_ES', 'Nombre ES');
-      const caracteristicasEs = valor(
-        fila,
-        'Características_ES',
-        'Caracteristicas_ES',
-        'Características ES',
-        'Caracteristicas ES',
-        'Descripción_ES',
-        'Descripcion_ES',
-      );
-
-      return {
-        id,
-        data: valor(fila, 'Data'),
-        nome: valor(fila, 'Nome'),
-        nomeEs,
-        nome_es: nomeEs,
-        cidade: valor(fila, 'Cidade'),
-        lugar: valor(fila, 'Lugar'),
-        caracteristicas: valor(fila, 'Características', 'Caracteristicas'),
-        caracteristicasEs,
-        caracteristicas_es: caracteristicasEs,
-        cartel: valor(fila, 'Cartel'),
-        triptico: valor(fila, 'Triptico', 'Tríptico'),
-        prensa: valor(fila, 'Prensa'),
-        hora: valor(fila, 'Hora'),
-        mostrarWeb: verdadeiro(valor(fila, 'Mostrar_Web')),
-        destacadoWeb: verdadeiro(valor(fila, 'Destacado_Web')),
-        estado: valor(fila, 'Estado'),
-        programa,
-      };
-    })
-    .filter((concerto) => concerto.mostrarWeb && concerto.id && concerto.data)
-    .sort((a, b) => a.data.localeCompare(b.data));
 }
 
 export const dataLocal = (data: string, formato: 'curto' | 'longo' = 'longo') => {
@@ -191,7 +96,7 @@ export const dataLocal = (data: string, formato: 'curto' | 'longo' = 'longo') =>
 
 export const dataISO = (data: string) => {
   const partes = data.split(/[\/-]/).map(Number);
-  if (partes.length !== 3) return data;
+  if (partes.length !== 3 || partes.some(Number.isNaN)) return data;
   if (partes[0] > 31) return `${partes[0]}-${String(partes[1]).padStart(2, '0')}-${String(partes[2]).padStart(2, '0')}`;
   return `${partes[2]}-${String(partes[1]).padStart(2, '0')}-${String(partes[0]).padStart(2, '0')}`;
 };
