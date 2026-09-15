@@ -4,25 +4,22 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const feed = readFileSync(resolve(root, 'src/lib/concertos.ts'), 'utf8');
 const homeGl = readFileSync(resolve(root, 'src/pages/index.astro'), 'utf8');
 const homeEs = readFileSync(resolve(root, 'src/pages/es/index.astro'), 'utf8');
-const agendaGl = readFileSync(resolve(root, 'src/pages/axenda.astro'), 'utf8');
-const agendaEs = readFileSync(resolve(root, 'src/pages/es/agenda.astro'), 'utf8');
 
-const pages = [homeGl, homeEs, agendaGl, agendaEs];
-
-describe('eventos próximos', () => {
-  it('acepta eventos previstos e confirmados', () => {
-    for (const page of pages) {
-      expect(page).toContain("'previsto'");
-      expect(page).toContain("'confirmado'");
-    }
+describe('eventos próximos da portada', () => {
+  it('segue alimentando as dúas portadas desde o mesmo módulo', () => {
+    expect(homeGl).toContain("obterConcertos()");
+    expect(homeEs).toContain("obterConcertos()");
   });
 
-  it('exclúe das listas de próximos os eventos anteriores á data actual', () => {
-    for (const page of pages) {
-      expect(page).toContain("timeZone: 'Europe/Madrid'");
-      expect(page).toMatch(/dataISO\([^)]*\.data\)\s*>=\s*hoxe|dataISO\([^)]*\.data\)\s*>=\s*hoy/);
-    }
+  it('considera publicable un concerto previsto para a portada', () => {
+    expect(feed).toContain("estadoNormalizado === 'previsto' ? 'Confirmado' : estadoOrixinal");
+  });
+
+  it('elimina automaticamente os concertos anteriores ao día actual en Madrid', () => {
+    expect(feed).toContain("timeZone: 'Europe/Madrid'");
+    expect(feed).toContain('dataISO(concerto.data) >= hoxe');
   });
 });
