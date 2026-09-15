@@ -1,6 +1,7 @@
 name: Sincronizar concertos con R2
 
 # A actualización deste workflow tamén forza unha sincronización inmediata.
+# Mantense ademais como mecanismo de reconciliación do índice público tras cambios na administración.
 on:
   workflow_dispatch:
   schedule:

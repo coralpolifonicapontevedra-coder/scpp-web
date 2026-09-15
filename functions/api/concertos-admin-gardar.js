@@ -5,6 +5,7 @@ const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9
 const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
 const INDEX_MAIN = 'indices/concertos-privado-v1.json';
 const INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
+const PUBLIC_INDEX_MAIN = 'indices/concertos-v1.json';
 const R2_SYNC_ATTEMPTS = 2;
 
 const clean = (value) => String(value ?? '').trim();
@@ -98,15 +99,19 @@ async function localizarExistente(env, user, concerto) {
   return { existente: preferirId(coincidencias), duplicados: coincidencias.map((item) => clean(item.idConcerto)), fonte: 'SHEET-RECOVERY' };
 }
 
-async function actualizarIndice(env, idConcerto, concerto) {
-  const indice = await lerIndice(env);
-  if (!indice?.ok || !Array.isArray(indice.concertos)) throw new Error('O índice privado de concertos non está dispoñible.');
-  const id = clean(idConcerto);
-  const patch = {
+function patchConcerto(concerto) {
+  return {
     data: canonData(concerto.data), nome: clean(concerto.nome), cidade: clean(concerto.cidade), lugar: clean(concerto.lugar),
     hora: clean(concerto.hora), estado: clean(concerto.estado) || 'Previsto', mostrarWeb: concerto.mostrarWeb === true,
     destacadoWeb: concerto.destacadoWeb === true, caracteristicas: clean(concerto.caracteristicas)
   };
+}
+
+async function actualizarIndice(env, idConcerto, concerto) {
+  const indice = await lerIndice(env);
+  if (!indice?.ok || !Array.isArray(indice.concertos)) throw new Error('O índice privado de concertos non está dispoñible.');
+  const id = clean(idConcerto);
+  const patch = patchConcerto(concerto);
   let found = false;
   const concertos = indice.concertos.map((item) => {
     if (clean(item?.id) !== id) return item;
@@ -119,11 +124,38 @@ async function actualizarIndice(env, idConcerto, concerto) {
   }), { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } });
 }
 
+async function actualizarIndicePublico(env, idConcerto, concerto) {
+  if (rama(env) !== 'main' || !env.R2_PUBLICO) return { ok:true, omitido:true };
+  const object = await env.R2_PUBLICO.get(PUBLIC_INDEX_MAIN);
+  const indice = object ? await object.json().catch(() => null) : null;
+  if (!indice?.ok || !Array.isArray(indice.concertos)) throw new Error('O índice público de concertos non está dispoñible.');
+
+  const id = clean(idConcerto);
+  const patch = patchConcerto(concerto);
+  const existentes = indice.concertos.filter((item) => clean(item?.id) !== id);
+  if (patch.mostrarWeb) {
+    const previo = indice.concertos.find((item) => clean(item?.id) === id) || {};
+    existentes.push({ ...previo, id, programa:Array.isArray(previo.programa) ? previo.programa : [], ...patch });
+  }
+  existentes.sort((a, b) => canonData(a.data).localeCompare(canonData(b.data)) || clean(a.id).localeCompare(clean(b.id)));
+
+  await env.R2_PUBLICO.put(PUBLIC_INDEX_MAIN, JSON.stringify({
+    ...indice,
+    concertos:existentes,
+    total:existentes.length,
+    xeradoEn:new Date().toISOString(),
+    xeradoEnMs:Date.now(),
+    actualizadoDesde:'ADMIN-CONCERTOS-GARDAR'
+  }), { httpMetadata:{ contentType:'application/json; charset=utf-8', cacheControl:'no-store' } });
+  return { ok:true, omitido:false };
+}
+
 async function actualizarIndiceConReintento(env, idConcerto, concerto) {
   let ultimoErro = null;
   for (let intento = 1; intento <= R2_SYNC_ATTEMPTS; intento += 1) {
     try {
       await actualizarIndice(env, idConcerto, concerto);
+      await actualizarIndicePublico(env, idConcerto, concerto);
       return { ok:true, intentos:intento };
     } catch (error) {
       ultimoErro = error;
@@ -177,9 +209,7 @@ export async function onRequest({ request, env }) {
     } catch (error) {
       const status = error?.code === 'FORBIDDEN' ? 403 : error?.code === 'NOT_FOUND' ? 404 : 502;
       return json(status, {
-        ok:false,
-        etapa:'APPS_SCRIPT',
-        codigo:error?.code || 'UPSTREAM',
+        ok:false, etapa:'APPS_SCRIPT', codigo:error?.code || 'UPSTREAM',
         erro:error?.message || 'Non foi posible gardar o concerto.',
         tempos:{ appsScriptMs:Date.now() - inicioAppsScript, totalMs:Date.now() - inicioTotal }
       });
@@ -189,9 +219,7 @@ export async function onRequest({ request, env }) {
     idConcerto = clean(resultado?.idConcerto || idConcerto);
     if (!idConcerto) {
       return json(502, {
-        ok:false,
-        etapa:'APPS_SCRIPT',
-        codigo:'MISSING_CONCERT_ID',
+        ok:false, etapa:'APPS_SCRIPT', codigo:'MISSING_CONCERT_ID',
         erro:'Apps Script non devolveu o identificador do concerto.',
         tempos:{ appsScriptMs, totalMs:Date.now() - inicioTotal }
       });
@@ -202,10 +230,7 @@ export async function onRequest({ request, env }) {
     const r2Ms = Date.now() - inicioR2;
     if (!sincronizacionR2.ok) {
       console.warn('O concerto gardouse na Sheet pero fallou a sincronización R2.', {
-        idConcerto,
-        codigo:sincronizacionR2.codigo,
-        erro:sincronizacionR2.erro,
-        intentos:sincronizacionR2.intentos
+        idConcerto, codigo:sincronizacionR2.codigo, erro:sincronizacionR2.erro, intentos:sincronizacionR2.intentos
       });
     }
 
@@ -228,9 +253,7 @@ export async function onRequest({ request, env }) {
     });
   } catch (error) {
     return json(502, {
-      ok:false,
-      etapa:'PREPARACION',
-      codigo:error?.code || 'UPSTREAM',
+      ok:false, etapa:'PREPARACION', codigo:error?.code || 'UPSTREAM',
       erro:error?.message || 'Non foi posible preparar o gardado do concerto.',
       tempos:{ totalMs:Date.now() - inicioTotal }
     });
