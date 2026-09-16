@@ -6,14 +6,23 @@ const CACHE_REPERTORIO_MS = 12 * 60 * 60 * 1000;
 const CACHE_REPERTORIO_VERSION = '2026-08-06-r2-catalogo-persistente-3';
 const REPERTORIO_R2_CATALOGO_KEY = 'repertorio/cache/catalogo.json';
 const CACHE_ASISTENCIAS_MS = 5 * 60 * 1000;
-const CACHE_TOKEN_MS = 5 * 60 * 1000;
+const CACHE_TOKEN_MS = 10 * 60 * 1000;
+const CACHE_ACEPTACION_FRESCA_MS = 60 * 60 * 1000;
+const CACHE_ACEPTACION_RESPALDO_MS = 30 * 24 * 60 * 60 * 1000;
+const CACHE_ACEPTACION_PREFIX = 'cache/aceptacion-portal-v2/';
+const PERFIS_MAIN = 'persoas/cache/perfis.json';
+const PERFIS_PREVIEW = 'persoas/cache/preview/perfis.json';
 const TIMEOUT_FIREBASE_MS = 8_000;
+const TIMEOUT_ACEPTACION_MS = 18_000;
 const TIMEOUT_REPERTORIO_MS = 55_000;
 const TIMEOUT_ASISTENCIAS_MS = 30_000;
 const TIMEOUT_FICHEIRO_MS = 40_000;
 
 const cacheRespostas = new Map();
 const cacheTokens = new Map();
+const clean = (value) => String(value || '').trim();
+const ramaActual = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
+const perfisKey = (env) => ramaActual(env) === 'main' ? PERFIS_MAIN : PERFIS_PREVIEW;
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -102,7 +111,7 @@ async function gardarCachePersistente(request, accion, resultado, duracionMs) {
 }
 
 async function verificarTokenFirebase(idToken, apiKey) {
-  const token = String(idToken || '').trim();
+  const token = clean(idToken);
   if (!token) return null;
   const usuarioCacheado = lerCache(cacheTokens, token);
   if (usuarioCacheado) return usuarioCacheado;
@@ -121,11 +130,139 @@ async function verificarTokenFirebase(idToken, apiKey) {
   if (!usuario?.email || usuario.emailVerified !== true) return null;
 
   const resultado = {
-    uid: String(usuario.localId || ''),
-    email: String(usuario.email).trim().toLowerCase()
+    uid: clean(usuario.localId),
+    email: clean(usuario.email).toLowerCase()
   };
   gardarCache(cacheTokens, token, resultado, CACHE_TOKEN_MS);
   return resultado;
+}
+
+async function hashTexto(value) {
+  const datos = new TextEncoder().encode(clean(value).toLowerCase());
+  const hash = await crypto.subtle.digest('SHA-256', datos);
+  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function claveCacheAceptacion(env, email) {
+  return `${CACHE_ACEPTACION_PREFIX}${ramaActual(env)}/${await hashTexto(email)}.json`;
+}
+
+function correoPersoa(persoa) {
+  return clean(persoa?.correoElectronico || persoa?.correo || persoa?.email).toLowerCase();
+}
+
+async function estadoPersoaR2(env, email) {
+  if (!env.R2_PRIVADO?.get) return null;
+  try {
+    const obxecto = await env.R2_PRIVADO.get(perfisKey(env));
+    if (!obxecto) return null;
+    const indice = await obxecto.json().catch(() => null);
+    const persoa = Array.isArray(indice?.persoas)
+      ? indice.persoas.find((item) => correoPersoa(item) === clean(email).toLowerCase())
+      : null;
+    if (!persoa) return null;
+    return persoa?.activo === false ? false : true;
+  } catch (erro) {
+    console.warn('Non se puido comprobar o estado da persoa en R2:', erro);
+    return null;
+  }
+}
+
+async function lerCacheAceptacion(env, email) {
+  if (!env.R2_PRIVADO?.get) return null;
+  try {
+    const obxecto = await env.R2_PRIVADO.get(await claveCacheAceptacion(env, email));
+    if (!obxecto) return null;
+    const cache = await obxecto.json().catch(() => null);
+    const gardadaEnMs = Date.parse(clean(cache?.gardadaEn));
+    if (!Number.isFinite(gardadaEnMs)) return null;
+    const idadeMs = Date.now() - gardadaEnMs;
+    if (idadeMs < 0 || idadeMs > CACHE_ACEPTACION_RESPALDO_MS) return null;
+    if (typeof cache?.aceptacionVixente !== 'boolean') return null;
+    return {
+      aceptacionVixente: cache.aceptacionVixente,
+      idadeMs,
+      fresca: idadeMs <= CACHE_ACEPTACION_FRESCA_MS
+    };
+  } catch (erro) {
+    console.warn('Non se puido ler a caché de aceptación:', erro);
+    return null;
+  }
+}
+
+async function gardarCacheAceptacion(env, email, aceptacionVixente) {
+  if (!env.R2_PRIVADO?.put) return;
+  try {
+    await env.R2_PRIVADO.put(
+      await claveCacheAceptacion(env, email),
+      JSON.stringify({
+        gardadaEn: new Date().toISOString(),
+        aceptacionVixente: aceptacionVixente === true
+      }),
+      {
+        httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' },
+        customMetadata: { tipo: 'aceptacion-portal', version: '2', contorno: ramaActual(env) }
+      }
+    );
+  } catch (erro) {
+    console.warn('Non se puido gardar a caché de aceptación:', erro);
+  }
+}
+
+async function consultarAceptacionAppsScript(env, usuario) {
+  const { resultado } = await obterJsonAppsScript(
+    env,
+    {
+      token: env.WEB_WRITE_TOKEN,
+      accion: 'comprobarAceptacion',
+      email: usuario.email,
+      uidFirebase: usuario.uid
+    },
+    { timeoutMs: TIMEOUT_ACEPTACION_MS }
+  );
+  if (!resultado?.ok) return null;
+  const aceptacionVixente = resultado.aceptacionVixente === true;
+  await gardarCacheAceptacion(env, usuario.email, aceptacionVixente);
+  return aceptacionVixente;
+}
+
+async function refrescarAceptacion(context, usuario) {
+  try {
+    await consultarAceptacionAppsScript(context.env, usuario);
+  } catch (erro) {
+    console.warn('Non se puido refrescar a aceptación en segundo plano:', erro);
+  }
+}
+
+async function comprobarAccesoPortal(context, usuario) {
+  const [estadoPersoa, cacheAceptacion] = await Promise.all([
+    estadoPersoaR2(context.env, usuario.email),
+    lerCacheAceptacion(context.env, usuario.email)
+  ]);
+
+  if (estadoPersoa === false) {
+    return { ok: false, status: 403, erro: 'A túa conta xa non está activa no Portal.' };
+  }
+
+  if (cacheAceptacion) {
+    if (!cacheAceptacion.fresca) {
+      const tarefa = refrescarAceptacion(context, usuario);
+      if (typeof context.waitUntil === 'function') context.waitUntil(tarefa);
+    }
+    return cacheAceptacion.aceptacionVixente
+      ? { ok: true, fonte: cacheAceptacion.fresca ? 'R2-CACHE' : 'R2-STALE' }
+      : { ok: false, status: 403, erro: 'É necesario aceptar as condicións vixentes do Portal.' };
+  }
+
+  try {
+    const aceptacionVixente = await consultarAceptacionAppsScript(context.env, usuario);
+    return aceptacionVixente
+      ? { ok: true, fonte: 'APP-SCRIPT' }
+      : { ok: false, status: 403, erro: 'É necesario aceptar as condicións vixentes do Portal.' };
+  } catch (erro) {
+    console.error('Erro ao comprobar a aceptación do Portal:', erro);
+    return { ok: false, status: 503, erro: 'Non foi posible comprobar o acceso ao Portal neste momento.' };
+  }
 }
 
 function respostaFicheiroDrive(resultado) {
@@ -279,7 +416,8 @@ async function respostaR2(env, clave) {
   return new Response(obxecto.body, { status: 200, headers });
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequest(context) {
+  const { request, env } = context;
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido' });
   if (!env.WEB_WRITE_TOKEN || !env.FIREBASE_API_KEY) {
     return json(500, { ok: false, erro: 'O servizo non está configurado correctamente.' });
@@ -294,22 +432,27 @@ export async function onRequest({ request, env }) {
 
   let usuario;
   try {
-    usuario = await verificarTokenFirebase(String(datos.idToken || '').trim(), env.FIREBASE_API_KEY);
+    usuario = await verificarTokenFirebase(clean(datos.idToken), env.FIREBASE_API_KEY);
   } catch (erro) {
     console.error('Erro ao validar Firebase:', erro);
   }
   if (!usuario) return json(401, { ok: false, erro: 'A identificación non é válida ou caducou' });
 
-  const accion = String(datos.accion || 'listarRepertorioPortal').trim();
+  const accion = clean(datos.accion || 'listarRepertorioPortal');
   if (!['listarRepertorioPortal', 'listarAsistenciasConcertosPortal', 'obterFicheiroRepertorio'].includes(accion)) {
     return json(400, { ok: false, erro: 'Acción non permitida' });
   }
+
+  const acceso = await comprobarAccesoPortal(context, usuario);
+  if (!acceso.ok) return json(acceso.status || 403, { ok: false, erro: acceso.erro || 'Acceso non permitido' });
 
   if (accion === 'obterFicheiroRepertorio') {
     const clave = claveR2Valida(datos.r2Key || datos.ruta);
     if (clave) {
       try {
-        return await respostaR2(env, clave);
+        const resposta = await respostaR2(env, clave);
+        resposta.headers.set('X-SCPP-Access', acceso.fonte || 'PORTAL');
+        return resposta;
       } catch (erro) {
         console.error('Erro ao obter o ficheiro de R2:', erro);
         return json(503, { ok: false, erro: 'Non foi posible abrir o ficheiro desde R2.' });
@@ -328,6 +471,7 @@ export async function onRequest({ request, env }) {
     if (cacheado) {
       return json(200, accion === 'listarRepertorioPortal' ? incorporarIndiceCompleto(cacheado) : cacheado, {
         'X-SCPP-Cache': 'HIT',
+        'X-SCPP-Access': acceso.fonte || 'PORTAL',
         'Server-Timing': 'apps-script;dur=0'
       });
     }
@@ -339,6 +483,7 @@ export async function onRequest({ request, env }) {
       await gardarCachePersistente(request, accion, respaldoR2, CACHE_REPERTORIO_MS);
       return json(200, respaldoR2, {
         'X-SCPP-Cache': 'R2',
+        'X-SCPP-Access': acceso.fonte || 'PORTAL',
         'X-SCPP-Storage': 'R2-CATALOG',
         'X-SCPP-R2-Audios': String(respaldoR2?.indiceR2?.audios || 0),
         'X-SCPP-R2-Partituras': String(respaldoR2?.indiceR2?.partituras || 0),
@@ -353,6 +498,7 @@ export async function onRequest({ request, env }) {
     ]);
     return json(200, persistente, {
       'X-SCPP-Cache': 'EMBEDDED-SEED',
+      'X-SCPP-Access': acceso.fonte || 'PORTAL',
       'X-SCPP-Storage': 'R2-INDEX',
       'X-SCPP-R2-Audios': String(persistente?.indiceR2?.audios || 0),
       'X-SCPP-R2-Partituras': String(persistente?.indiceR2?.partituras || 0),
@@ -375,7 +521,7 @@ export async function onRequest({ request, env }) {
         accion,
         email: usuario.email,
         uidFirebase: usuario.uid,
-        ruta: String(datos.ruta || '').trim()
+        ruta: clean(datos.ruta)
       },
       {
         timeoutMs,
@@ -393,6 +539,7 @@ export async function onRequest({ request, env }) {
     if (accion === 'obterFicheiroRepertorio') {
       const resposta = respostaFicheiroDrive(resultado);
       if (usouRespaldo) resposta.headers.set('X-SCPP-AppScript', 'FALLBACK');
+      resposta.headers.set('X-SCPP-Access', acceso.fonte || 'PORTAL');
       return resposta;
     }
 
@@ -403,6 +550,7 @@ export async function onRequest({ request, env }) {
 
     return json(200, adaptado, {
       'X-SCPP-Cache': 'MISS',
+      'X-SCPP-Access': acceso.fonte || 'PORTAL',
       'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
       'X-SCPP-AppScript-Attempt': String(intento),
       'X-SCPP-R2-Audios': String(adaptado?.indiceR2?.audios || 0),
