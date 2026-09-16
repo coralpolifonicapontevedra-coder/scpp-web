@@ -1,4 +1,5 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
 const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
@@ -68,6 +69,41 @@ function slugFilename(filename) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return `${slug}${ext}`;
+}
+
+function copiarRecursos(recursos) {
+  return (Array.isArray(recursos) ? recursos : []).map((recurso) => ({
+    ...recurso,
+    ruta: recurso.r2Key || recurso.ruta,
+    r2Key: recurso.r2Key || recurso.ruta,
+    orixe: 'r2'
+  }));
+}
+
+function incorporarIndiceR2(catalogo) {
+  if (!catalogo?.ok || !Array.isArray(catalogo.obras)) return catalogo;
+
+  for (const obra of catalogo.obras) {
+    const id = canonId(obra?.id ?? obra?.Id);
+    const recursos = id ? REPERTORIO_R2[id] : null;
+    if (!recursos) continue;
+
+    const audiosVerificados = copiarRecursos(recursos.audios);
+    const partiturasVerificadas = copiarRecursos(recursos.partituras);
+    if (audiosVerificados.length) obra.audios = audiosVerificados;
+    if (partiturasVerificadas.length) obra.partituras = partiturasVerificadas;
+    obra.audiosR2 = Array.isArray(obra.audios) ? obra.audios : [];
+    obra.partiturasR2 = Array.isArray(obra.partituras) ? obra.partituras : [];
+    obra.tenRecursosR2 = obra.audiosR2.length > 0 || obra.partiturasR2.length > 0;
+  }
+
+  catalogo.indiceR2 = {
+    obras: catalogo.obras.filter((obra) => obra.tenRecursosR2).length,
+    audios: catalogo.obras.reduce((sum, obra) => sum + (Array.isArray(obra.audios) ? obra.audios.length : 0), 0),
+    partituras: catalogo.obras.reduce((sum, obra) => sum + (Array.isArray(obra.partituras) ? obra.partituras.length : 0), 0),
+    completo: true
+  };
+  return catalogo;
 }
 
 async function fetchConTempoLimite(url, options, timeoutMs) {
@@ -208,9 +244,10 @@ function mapPartitura(row) {
 
 function mapAudio(row) {
   const rawWorkId = clean(row.NomeObra);
+  const workId = canonId(rawWorkId);
   const sourceName = basename(row.AudioFile);
   let key = clean(row.R2Key).replace(/^\/+/, '');
-  if (!key && rawWorkId && sourceName) key = `repertorio/audios/${rawWorkId}/${slugFilename(sourceName)}`;
+  if (!key && workId && sourceName) key = `repertorio/audios/${workId}/${slugFilename(sourceName)}`;
   if (!key) return null;
   return {
     id: canonId(row.Id_Audio),
@@ -289,7 +326,7 @@ function construirCatalogo(snapshot, concertIndex, catalogoAnterior) {
     .filter(Boolean)
     .sort((a, b) => a.nomeObra.localeCompare(b.nomeObra, 'gl', { sensitivity: 'base' }));
 
-  return {
+  return incorporarIndiceR2({
     ok: true,
     obras: mapped,
     indiceR2: {
@@ -298,7 +335,7 @@ function construirCatalogo(snapshot, concertIndex, catalogoAnterior) {
       partituras: mapped.reduce((sum, obra) => sum + obra.partituras.length, 0),
       completo: true
     }
-  };
+  });
 }
 
 export async function onRequest({ request, env }) {
@@ -319,9 +356,9 @@ export async function onRequest({ request, env }) {
   const inicio = Date.now();
   const catalogoAnterior = await readJson(env.R2_PRIVADO, key);
   if (catalogoFresh(catalogoAnterior)) {
-    return json(200, catalogoAnterior, {
+    return json(200, incorporarIndiceR2(catalogoAnterior), {
       'X-SCPP-Repertorio': 'R2-CACHE',
-      'X-SCPP-Repertorio-Source': 'SHEETS-SNAPSHOT',
+      'X-SCPP-Repertorio-Source': 'SHEETS-SNAPSHOT+R2-INDEX',
       'Server-Timing': `r2;dur=${Date.now() - inicio}`
     });
   }
@@ -334,7 +371,7 @@ export async function onRequest({ request, env }) {
     const catalogo = construirCatalogo(payload, concertIndex, catalogoAnterior);
     catalogo.cacheMeta = {
       savedAt,
-      source: 'Sheets→R2',
+      source: 'Sheets→R2+R2-index',
       branch: ramaActual(env),
       version: 'repertorio-cache-v2'
     };
@@ -342,13 +379,13 @@ export async function onRequest({ request, env }) {
 
     return json(200, catalogo, {
       'X-SCPP-Repertorio': 'R2-REFRESH',
-      'X-SCPP-Repertorio-Source': 'SHEETS-SNAPSHOT',
+      'X-SCPP-Repertorio-Source': 'SHEETS-SNAPSHOT+R2-INDEX',
       'Server-Timing': `sync;dur=${Date.now() - inicio}`
     });
   } catch (error) {
     console.error('Non se puido sincronizar Repertorio Sheet → R2:', error);
     if (catalogoAnterior?.ok === true && Array.isArray(catalogoAnterior?.obras)) {
-      return json(200, catalogoAnterior, {
+      return json(200, incorporarIndiceR2(catalogoAnterior), {
         'X-SCPP-Repertorio': 'R2-STALE',
         'X-SCPP-Repertorio-Warning': 'SYNC-FAILED',
         'Server-Timing': `stale;dur=${Date.now() - inicio}`
