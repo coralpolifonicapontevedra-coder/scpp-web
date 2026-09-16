@@ -9,6 +9,7 @@ const administracion = read('apps-script-production/repertorio-administracion.js
 const dispatcher = read('apps-script-production/repertorio-dispatcher-integracion.js');
 const partiturasPortal = read('apps-script-production/partituras-portal.js');
 const altas = read('functions/api/repertorio-admin-altas.js');
+const partituras = read('functions/api/partituras.js');
 const cache = read('functions/api/repertorio-cache-v2.js');
 
 describe('integridade transversal do repertorio', () => {
@@ -38,6 +39,13 @@ describe('integridade transversal do repertorio', () => {
   it('fai idempotente a alta de partituras por R2Key', () => {
     expect(partiturasPortal).toContain('function atoparPartituraPorR2Key_');
     expect(partiturasPortal).toContain('xaExistia: true');
+  });
+
+  it('conserva a partitura cando non pode confirmar o rexistro na folla', () => {
+    expect(partituras).toContain('async function conciliarPartituraPorR2Key');
+    expect(partituras).toContain("codigo: 'ALTA_PENDENTE_CONCILIACION'");
+    expect(partituras).toContain('preservado: true');
+    expect(partituras).toContain('if (!resultado?.ok)');
   });
 
   it('limita a 24 horas a antigüidade do catálogo usado como respaldo', () => {
