@@ -162,21 +162,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   const normalizar = (value) => String(value || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-  async function aceptacionVixente(user) {
-    const idToken = await user.getIdToken(true);
-    const response = await fetch('/api/aceptacion', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, accion: 'comprobarAceptacion', version: 'PRIVACIDADE-WEB-1.0' })
-    });
-    const result = await response.json().catch(() => null);
-    return response.ok && result?.ok && result.aceptacionVixente === true;
-  }
-
   async function solicitar(accion, extra = {}) {
     const user = auth.currentUser;
     if (!user?.email) throw new Error('A sesión xa non está activa.');
-    const idToken = await user.getIdToken(true);
+    const idToken = await user.getIdToken();
     const response = await fetch('/api/repertorio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -225,11 +214,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     if (noResults instanceof HTMLElement) noResults.hidden = filtradas.length > 0;
 
     const seleccionVisible = filtradas.some((obra) => obra.id === valorAnterior);
-    if (seleccionVisible) {
-      select.value = valorAnterior;
-    } else if (valorAnterior) {
-      limparSeleccion();
-    }
+    if (seleccionVisible) select.value = valorAnterior;
+    else if (valorAnterior) limparSeleccion();
   }
 
   async function abrirFicheiro(ruta, button, tipo) {
@@ -262,11 +248,7 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   function nomeDescarga(ruta, fallback = 'ficheiro') {
     const ultimo = String(ruta || '').split('/').pop() || fallback;
-    try {
-      return decodeURIComponent(ultimo);
-    } catch {
-      return ultimo;
-    }
+    try { return decodeURIComponent(ultimo); } catch { return ultimo; }
   }
 
   async function descargarFicheiro(ruta, button, fallback) {
@@ -425,9 +407,8 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
 
   onAuthStateChanged(auth, async (user) => {
     if (!user?.email) { window.location.replace('/portal/'); return; }
+    if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
     try {
-      if (!(await aceptacionVixente(user))) { window.location.replace('/portal/'); return; }
-      if (userEmail instanceof HTMLElement) userEmail.textContent = user.email;
       await cargar();
     } catch {
       window.location.replace('/portal/');
@@ -471,7 +452,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .error-state strong { color:var(--color-principal); }
   .error-state p { margin:.4rem 0 .8rem; }
   .error-state button { border:1px solid var(--color-principal); padding:.55rem .8rem; background:#fff; color:var(--color-principal); font:inherit; font-weight:700; cursor:pointer; }
-
   .repertorio-app { display:grid; gap:1.25rem; }
   .works-tools { padding:1.15rem 1.25rem 1.25rem; border:1px solid #ddd9d5; border-radius:4px; background:#fafafa; }
   .works-tools-heading { display:flex; justify-content:space-between; gap:1.5rem; align-items:end; margin-bottom:1rem; }
@@ -490,7 +470,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .search-box:focus-within,.select-field select:focus { border-color:var(--color-principal); outline:2px solid rgba(106,27,41,.08); outline-offset:1px; }
   .no-results { margin:.85rem 0 0; color:#77716c; font-size:.78rem; }
   .empty-selection { background:#fff; }
-
   .work-detail { min-width:0; border:1px solid #ddd9d5; border-radius:4px; background:#fff; }
   .work-heading { padding:1.7rem 1.8rem 1.4rem; border-bottom:1px solid #e5e1dd; }
   .work-id { color:#a18331; font-size:.7rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
