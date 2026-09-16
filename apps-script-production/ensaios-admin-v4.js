@@ -3,6 +3,7 @@
  *
  * Finalización completa nunha única chamada Apps Script.
  * Reconciliamos o estado recibido coas Sheets sen tocar outros ensaios.
+ * Redeploy controlado 2026-09-16 para asegurar a función v4 en produción.
  */
 
 function reconciliarEnsaioAdministracionV4_(datos) {
