@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - "scripts/audit-file-systems.py"
+      - "scripts/audit-bertomeu-r2.py"
       - ".github/workflows/audit-file-systems.yml"
   schedule:
     - cron: "15 5 * * 1"
@@ -60,6 +61,15 @@ jobs:
           print('Cuenta técnica de lectura: ' + (data.get('client_email') or 'NO IDENTIFICADA'))
           PY
 
+      - name: Buscar materiais de Bertomeu en Drive e R2
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python scripts/audit-bertomeu-r2.py 2>&1 | tee bertomeu-audit.log
+
       - name: Ejecutar auditoría global de solo lectura
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
@@ -93,5 +103,6 @@ jobs:
             files-audit.json
             files-audit.md
             files-audit.log
+            bertomeu-audit.log
           if-no-files-found: error
           retention-days: 90
