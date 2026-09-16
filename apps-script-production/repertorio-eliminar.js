@@ -48,14 +48,90 @@ function localizarDependenciasObraRepertorioEliminar_(nome, campoReferencia, id)
   return atopados;
 }
 
+function normalizarCabeceraRepertorioEliminar_(valor) {
+  return String(valor == null ? '' : valor)
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function localizarDependenciasExternasRepertorioEliminar_(spreadsheetId, nomeFolla, camposReferencia, id) {
+  if (!spreadsheetId) throw new Error('Falta a configuración de ' + nomeFolla + '.');
+  var ss = SpreadsheetApp.openById(spreadsheetId);
+  var f = ss.getSheetByName(nomeFolla) || ss.getSheets()[0];
+  if (!f) throw new Error('Non existe a folla ' + nomeFolla + '.');
+  var lastRow = f.getLastRow();
+  var lastCol = f.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return [];
+
+  var h = f.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+  var normalizadas = h.map(normalizarCabeceraRepertorioEliminar_);
+  var ixRef = -1;
+  for (var i = 0; i < camposReferencia.length && ixRef < 0; i++) {
+    ixRef = normalizadas.indexOf(normalizarCabeceraRepertorioEliminar_(camposReferencia[i]));
+  }
+  if (ixRef < 0) {
+    throw new Error('Non se atopou a referencia ao repertorio en ' + nomeFolla + '.');
+  }
+
+  var valores = f.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  var buscado = canonIdRepertorioEliminar_(id);
+  var atopados = [];
+  for (var fila = 0; fila < valores.length; fila++) {
+    if (canonIdRepertorioEliminar_(valores[fila][ixRef]) !== buscado) continue;
+    var rexistro = {};
+    h.forEach(function(k, j) { rexistro[k] = valores[fila][j]; });
+    atopados.push({ row:fila + 2, rexistro:rexistro });
+  }
+  return atopados;
+}
+
+function dependenciasHistoricasObraRepertorioEliminar_(id) {
+  if (typeof configuracionEnsaiosPortal_ !== 'function') {
+    throw new Error('Non se pode comprobar EnsaiosRepertorio antes de eliminar a obra.');
+  }
+  if (typeof configuracionConcertosAdministracionPortal_ !== 'function') {
+    throw new Error('Non se pode comprobar ConcertosRepertorio antes de eliminar a obra.');
+  }
+
+  var cfgEnsaios = configuracionEnsaiosPortal_();
+  var cfgConcertos = configuracionConcertosAdministracionPortal_();
+  var ensaios = localizarDependenciasExternasRepertorioEliminar_(
+    cfgEnsaios.ensaiosRepertorioId,
+    'EnsaiosRepertorio',
+    ['Repertorio', 'Id_Repertorio', 'IdRepertorio'],
+    id
+  );
+  var concertos = localizarDependenciasExternasRepertorioEliminar_(
+    cfgConcertos.concertosRepertorioId,
+    'ConcertosRepertorio',
+    ['Id_Repertorio', 'Repertorio', 'IdRepertorio', 'Id_Obras', 'Id_Obra'],
+    id
+  );
+
+  return {
+    ensaios: ensaios.length,
+    concertos: concertos.length,
+    filasEnsaios: ensaios,
+    filasConcertos: concertos
+  };
+}
+
 function dependenciasObraRepertorioEliminar_(id) {
   var partituras = localizarDependenciasObraRepertorioEliminar_('Partituras_App', 'Id_Repertorio', id);
   var audios = localizarDependenciasObraRepertorioEliminar_('AudiosRepertorio', 'NomeObra', id);
+  var historicas = dependenciasHistoricasObraRepertorioEliminar_(id);
   return {
     partituras: partituras.length,
     audios: audios.length,
+    ensaios: historicas.ensaios,
+    concertos: historicas.concertos,
     filasPartituras: partituras,
-    filasAudios: audios
+    filasAudios: audios,
+    filasEnsaios: historicas.filasEnsaios,
+    filasConcertos: historicas.filasConcertos
   };
 }
 
@@ -86,11 +162,25 @@ function eliminarRecursoRepertorioAdministracion_(d) {
       if (!localizadoObra) return { ok:false, codigo:'NOT_FOUND', erro:'Non se atopou a obra ' + id + '.' };
 
       var deps = dependenciasObraRepertorioEliminar_(id);
+      if (deps.ensaios || deps.concertos) {
+        return {
+          ok:false,
+          codigo:'REFERENCIAS_HISTORICAS',
+          dependencias:{
+            partituras:deps.partituras,
+            audios:deps.audios,
+            ensaios:deps.ensaios,
+            concertos:deps.concertos
+          },
+          erro:'A obra está utilizada en ensaios ou concertos e non se pode eliminar.'
+        };
+      }
+
       if ((deps.partituras || deps.audios) && !cascada) {
         return {
           ok:false,
           codigo:'DEPENDENCIAS',
-          dependencias:{ partituras:deps.partituras, audios:deps.audios },
+          dependencias:{ partituras:deps.partituras, audios:deps.audios, ensaios:0, concertos:0 },
           erro:'A obra ten recursos vinculados.'
         };
       }
