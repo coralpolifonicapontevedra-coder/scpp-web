@@ -49,6 +49,21 @@ function seguinteIdPartituraPortal_(values, headers) {
   return String(maximo + 1);
 }
 
+function atoparPartituraPorR2Key_(values, headers, r2Key) {
+  var idxKey = indiceHeaderPartiturasPortal_(headers, ['R2Key']);
+  var idxId = indiceHeaderPartiturasPortal_(headers, ['Id_Partitura']);
+  var idxRow = indiceHeaderPartiturasPortal_(headers, ['Row ID', 'RowID']);
+  if (idxKey < 0) return null;
+  for (var i = 1; i < values.length; i++) {
+    if (textoPartiturasPortal_(values[i][idxKey]) !== r2Key) continue;
+    return {
+      idPartitura: idxId >= 0 ? textoPartiturasPortal_(values[i][idxId]) : '',
+      rowId: idxRow >= 0 ? textoPartiturasPortal_(values[i][idxRow]) : ''
+    };
+  }
+  return null;
+}
+
 function altaPartituraPortal_(datos) {
   var nome = textoPartiturasPortal_(datos && datos.Nomepartitura);
   var r2Key = textoPartiturasPortal_(datos && datos.R2Key);
@@ -61,6 +76,10 @@ function altaPartituraPortal_(datos) {
   var values = sheet.getDataRange().getValues();
   if (!values.length) return { ok: false, codigo: 'SCHEMA', erro: 'Partituras_App non ten cabeceiras' };
   var headers = values[0].map(textoPartiturasPortal_);
+  var existente = atoparPartituraPorR2Key_(values, headers, r2Key);
+  if (existente) {
+    return { ok: true, idPartitura: existente.idPartitura, rowId: existente.rowId, xaExistia: true };
+  }
   var row = new Array(headers.length).fill('');
 
   function set(nomes, valor) {
