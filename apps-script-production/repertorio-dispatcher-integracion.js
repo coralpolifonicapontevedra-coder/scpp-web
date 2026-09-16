@@ -2,6 +2,7 @@
 var ACCIONS_REPERTORIO_ADMIN_PROD_ = [
   'listarRepertorioAdministracion',
   'diagnosticoRepertorioAdministracion',
+  'buscarAudioRepertorioAdministracion',
   'altaObraRepertorioAdministracion',
   'altaAudioRepertorioAdministracion',
   'estadoRecursoRepertorioAdministracion',
@@ -52,6 +53,7 @@ function despacharRepertorioAdministracionProduccion_(accion, datos, bloqueo) {
 
   if (accion === 'listarRepertorioAdministracion') return listarRepertorioAdministracion_();
   if (accion === 'diagnosticoRepertorioAdministracion') return diagnosticoRepertorioAdministracion_();
+  if (accion === 'buscarAudioRepertorioAdministracion') return buscarAudioRepertorioAdministracion_(datos);
   if (accion === 'altaObraRepertorioAdministracion') return altaObraRepertorioAdministracionSegura_(datos);
   if (accion === 'altaAudioRepertorioAdministracion') return altaAudioRepertorioAdministracion_(datos);
   if (accion === 'estadoRecursoRepertorioAdministracion') return estadoRecursoRepertorioAdministracion_(datos);

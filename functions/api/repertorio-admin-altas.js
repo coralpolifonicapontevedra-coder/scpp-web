@@ -99,10 +99,20 @@ async function anexarCache(env, tipo, fila) {
       await invalidarCache(env);
       return;
     }
+    if (fila?.R2Key && cache.payload[campo].some((item) => clean(item?.R2Key) === clean(fila.R2Key))) return;
     cache.payload[campo].push(fila);
     await gardarCache(env, cache);
   } catch {
     await invalidarCache(env).catch(() => {});
+  }
+}
+
+async function conciliarAudioPorR2Key(env, user, r2Key) {
+  try {
+    const resultado = await chamarAppsScript(env, user, 'buscarAudioRepertorioAdministracion', { r2Key });
+    return resultado?.ok ? resultado : null;
+  } catch {
+    return null;
   }
 }
 
@@ -237,16 +247,33 @@ async function altaAudio(env, user, body) {
     R2SHA256: sha256
   };
 
+  let resultado;
   try {
-    const resultado = await chamarAppsScript(env, user, 'altaAudioRepertorioAdministracion', { audio: fila });
-    if (!resultado?.ok) throw new Error(resultado?.erro || 'Non foi posible crear o rexistro en AudiosRepertorio.');
-    const id = clean(resultado.id);
-    await anexarCache(env, 'audio', { ...fila, Id_Audio: id }).catch(() => {});
-    return { ok: true, id, r2Key, tamano: bytes.byteLength, mimeType, sha256 };
+    resultado = await chamarAppsScript(env, user, 'altaAudioRepertorioAdministracion', { audio: fila });
   } catch (error) {
-    await env.R2_PRIVADO.delete(r2Key).catch(() => {});
-    throw error;
+    const conciliado = await conciliarAudioPorR2Key(env, user, r2Key);
+    if (conciliado?.atopado === true) {
+      const id = clean(conciliado.id);
+      await anexarCache(env, 'audio', { ...fila, Id_Audio: id }).catch(() => {});
+      return { ok: true, id, r2Key, tamano: bytes.byteLength, mimeType, sha256, recuperado: true };
+    }
+    return {
+      ok: false,
+      codigo: 'ALTA_PENDENTE_CONCILIACION',
+      erro: 'O ficheiro quedou gardado en R2, pero non foi posible confirmar aínda o rexistro na folla. Conservouse para revisión.',
+      r2Key,
+      preservado: true
+    };
   }
+
+  if (!resultado?.ok) {
+    await env.R2_PRIVADO.delete(r2Key).catch(() => {});
+    return resultado || { ok: false, codigo: 'ALTA_REXEITADA', erro: 'Non foi posible crear o rexistro en AudiosRepertorio.' };
+  }
+
+  const id = clean(resultado.id);
+  await anexarCache(env, 'audio', { ...fila, Id_Audio: id }).catch(() => {});
+  return { ok: true, id, r2Key, tamano: bytes.byteLength, mimeType, sha256, recuperado: resultado.xaExistia === true };
 }
 
 export async function onRequest({ request, env }) {
@@ -276,7 +303,8 @@ export async function onRequest({ request, env }) {
     }
     if (accion === 'altaAudioRepertorioAdministracion') {
       const resultado = await altaAudio(env, user, body);
-      return json(resultado?.ok ? 200 : 400, resultado);
+      const status = resultado?.ok ? 200 : resultado?.codigo === 'ALTA_PENDENTE_CONCILIACION' ? 202 : 400;
+      return json(status, resultado);
     }
     return json(400, { ok: false, erro: 'Acción non permitida.' });
   } catch (error) {

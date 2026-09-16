@@ -74,6 +74,24 @@ function listarRepertorioAdministracion_() {
   }
 }
 
+function buscarAudioRepertorioAdministracion_(d) {
+  try {
+    const key = String(d && d.r2Key || '').trim();
+    if (!key) return { ok:false, codigo:'VALIDATION', erro:'Falta R2Key.' };
+    const filas = filasRepertorioAdmin_('AudiosRepertorio');
+    const atopado = filas.find(function(row) { return String(row.R2Key || '').trim() === key; });
+    if (!atopado) return { ok:true, atopado:false };
+    return {
+      ok:true,
+      atopado:true,
+      id:String(atopado.Id_Audio || '').trim(),
+      audio:atopado
+    };
+  } catch (e) {
+    return { ok:false, codigo:'AUDIO_LOOKUP_ERROR', erro:String(e && e.message ? e.message : e) };
+  }
+}
+
 function seguinteIdRepertorioAdmin_(filas, campo) {
   return String(filas.reduce((m, x) => Math.max(m, Number(x[campo]) || 0), 0) + 1);
 }
@@ -217,6 +235,8 @@ function altaAudioRepertorioAdministracion_(d) {
   const obra = String(a.NomeObra || '').trim();
   const key = String(a.R2Key || '').trim();
   if (!nome || !key || !obra) throw new Error('Faltan a obra, o nome ou o ficheiro do audio.');
+  const existente = buscarAudioRepertorioAdministracion_({ r2Key:key });
+  if (existente.ok && existente.atopado) return { ok:true, id:existente.id, xaExistia:true };
   const id = seguinteIdRepertorioAdmin_(filasRepertorioAdmin_('AudiosRepertorio'), 'Id_Audio');
   engadirFilaRepertorioAdmin_('AudiosRepertorio', Object.assign({}, a, { Id_Audio: id, NomeObra: obra, Activo: 'Y' }));
   return { ok: true, id: id };
