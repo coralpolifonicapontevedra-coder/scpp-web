@@ -22,9 +22,12 @@ describe('eventos próximos da portada', () => {
     ];
     const response = await onRequest({
       request: new Request('https://example.org/api/concertos-indice'),
-      env: { R2_PUBLICO: { get: async () => ({
-        json: async () => ({ ok: true, version: 1, concertos }),
-      }) } },
+      env: {
+        CF_PAGES_BRANCH: 'main',
+        R2_PUBLICO: { get: async () => ({
+          json: async () => ({ ok: true, version: 1, concertos }),
+        }) },
+      },
     });
     expect(response.status).toBe(200);
     const body = await response.json();

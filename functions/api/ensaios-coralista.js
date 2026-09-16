@@ -10,6 +10,10 @@ const LEGACY_INDEX_PREVIEW = 'indices/preview/ensaios-administracion-v3.json';
 
 const tokenCache = new Map();
 const clean = (v) => String(v == null ? '' : v).trim();
+const numericWorkKey = (v) => {
+  const value = clean(v);
+  return /^\d+$/.test(value) ? String(Number(value)) : value;
+};
 const branch = (env) => clean(env?.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
 const adminIndexKey = (env) => branch(env) === 'main' ? ADMIN_INDEX_MAIN : ADMIN_INDEX_PREVIEW;
 const legacyIndexKey = (env) => branch(env) === 'main' ? LEGACY_INDEX_MAIN : LEGACY_INDEX_PREVIEW;
@@ -81,6 +85,25 @@ function sharedPayload(source) {
   };
 }
 
+function canonicalWorkId(catalog, value) {
+  const original = clean(value);
+  if (!original) return '';
+  const key = numericWorkKey(original);
+  const match = (Array.isArray(catalog) ? catalog : []).find((row) => {
+    const id = clean(row?.idRepertorio || row?.id || row?.Id || row?.['Row ID']);
+    return numericWorkKey(id) === key;
+  });
+  return match ? clean(match?.idRepertorio || match?.id || match?.Id || match?.['Row ID']) : original;
+}
+
+function normalizeRehearsalWorks(relations, catalog) {
+  return (Array.isArray(relations) ? relations : []).map((row) => {
+    const raw = clean(row?.repertorio || row?.idRepertorio || row?.Repertorio || row?.Id_Repertorio);
+    const canonical = canonicalWorkId(catalog, raw);
+    return canonical ? { ...row, repertorio:canonical, idRepertorio:canonical } : row;
+  });
+}
+
 async function latestSharedPayload(env) {
   const admin = sharedPayload(await readJson(env, adminIndexKey(env)));
   if (admin) return { payload:admin, fonte:'R2-ADMIN' };
@@ -115,12 +138,14 @@ export async function onRequest({request, env}) {
   if (!profile || !activeSinger(profile)) return json(403,{ok:false,erro:'Usuario non autorizado para consultar ensaios.'});
   const source = await latestSharedPayload(env);
   if (!source?.payload) return json(503,{ok:false,erro:'A información de ensaios aínda non está dispoñible en R2.'});
+  const repertorio = source.payload.repertorio;
+  const ensaiosRepertorio = normalizeRehearsalWorks(source.payload.ensaiosRepertorio, repertorio);
   return json(200,{
     ok:true, version:2,
     perfil:{ email:user.email, nivel:'Coralista', podeEditar:false, idPersoa:personId(profile), voz:clean(profile?.voz || profile?.Voz) },
     ensaios:source.payload.ensaios,
-    ensaiosRepertorio:source.payload.ensaiosRepertorio,
-    repertorio:source.payload.repertorio,
+    ensaiosRepertorio,
+    repertorio,
     concertos:[], persoas:[], asistencias:[], seguimento:{},
     diagnostico:{fonte:source.fonte}
   });
