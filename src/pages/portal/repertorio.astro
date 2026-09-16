@@ -260,39 +260,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     }
   }
 
-  function nomeDescarga(ruta, fallback = 'ficheiro') {
-    const ultimo = String(ruta || '').split('/').pop() || fallback;
-    try {
-      return decodeURIComponent(ultimo);
-    } catch {
-      return ultimo;
-    }
-  }
-
-  async function descargarFicheiro(ruta, button, fallback) {
-    if (!ruta || !(button instanceof HTMLButtonElement)) return;
-    const previous = button.textContent;
-    button.disabled = true;
-    button.textContent = 'Descargando…';
-    try {
-      const blob = await solicitar('obterFicheiroRepertorio', { ruta });
-      const urlDescarga = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = urlDescarga;
-      link.download = nomeDescarga(ruta, fallback);
-      link.hidden = true;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(urlDescarga), 1000);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Non foi posible descargar o ficheiro.');
-    } finally {
-      button.disabled = false;
-      button.textContent = previous || 'Descargar';
-    }
-  }
-
   function debuxarObra(obra) {
     obraActiva = obra.id;
     if (select instanceof HTMLSelectElement) select.value = obra.id;
@@ -326,16 +293,10 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         const card = crear('div', 'resource-card');
         const copy = crear('div', '');
         copy.append(crear('strong', '', score.nome || obra.nomeObra));
-        const actions = crear('div', 'resource-actions');
-        const button = crear('button', 'resource-button', 'Ver partitura');
+        const button = crear('button', 'resource-button', 'Abrir partitura');
         button.type = 'button';
         button.addEventListener('click', () => abrirFicheiro(score.ruta, button, 'pdf'));
-        const downloadButton = crear('button', 'resource-button secondary', 'Descargar');
-        downloadButton.type = 'button';
-        downloadButton.setAttribute('aria-label', `Descargar partitura ${score.nome || obra.nomeObra || ''}`);
-        downloadButton.addEventListener('click', () => descargarFicheiro(score.ruta, downloadButton, score.nome || obra.nomeObra || 'partitura.pdf'));
-        actions.append(button, downloadButton);
-        card.append(copy, actions);
+        card.append(copy, button);
         scoresList.append(card);
       });
     }
@@ -351,20 +312,14 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
         const card = crear('div', 'audio-card');
         const heading = crear('div', 'audio-heading');
         heading.append(crear('strong', '', audio.voz || 'Audio'));
-        const actions = crear('div', 'audio-actions');
         const button = crear('button', 'audio-play', 'Escoitar');
         button.type = 'button';
-        const downloadButton = crear('button', 'audio-play secondary', 'Descargar');
-        downloadButton.type = 'button';
-        downloadButton.setAttribute('aria-label', `Descargar audio ${audio.voz || 'Audio'}`);
         const player = document.createElement('audio');
         player.controls = true;
         player.preload = 'none';
         player.hidden = true;
         button.addEventListener('click', () => abrirFicheiro(audio.ruta, button, 'audio'));
-        downloadButton.addEventListener('click', () => descargarFicheiro(audio.ruta, downloadButton, `${audio.voz || 'audio'}.mp3`));
-        actions.append(button, downloadButton);
-        card.append(heading, actions, player);
+        card.append(heading, button, player);
         audiosList.append(card);
       });
     }
@@ -518,17 +473,11 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
   .resource-button,.audio-play { min-height:2.25rem; padding:.48rem .75rem; border:1px solid var(--color-principal); border-radius:3px; background:var(--color-principal); color:#fff; font-family:var(--fuente-minimalista); font-size:.72rem; font-weight:700; cursor:pointer; }
   .resource-button:hover,.audio-play:hover { background:#4f0c1a; }
   .resource-button:disabled,.audio-play:disabled { opacity:.55; cursor:wait; }
-  .resource-list :global(.resource-actions) { display:flex; gap:.45rem; justify-content:flex-end; }
-  .resource-list :global(.resource-button.secondary),.audios-list :global(.audio-play.secondary) { background:#fff; color:var(--color-principal); }
-  .resource-list :global(.resource-button.secondary:hover),.audios-list :global(.audio-play.secondary:hover) { background:#f7eff1; }
   .audios-list :global(.audio-card) { display:grid; grid-template-columns:1fr; align-content:space-between; gap:.75rem; min-height:145px; padding:1rem; border:1px solid color-mix(in srgb,var(--color-principal) 55%,#fff); background:#fff; font-family:var(--fuente-minimalista); }
   .audios-list :global(.audio-heading) { display:block; text-align:left; }
   .audios-list :global(.audio-heading strong) { color:var(--color-principal); font-size:.9rem; }
-  .audios-list :global(.audio-actions) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.45rem; }
   .audios-list :global(.audio-play) { width:100%; min-height:2.4rem; padding:.5rem .7rem; border:1px solid var(--color-principal); border-radius:3px; background:var(--color-principal); color:#fff; font-family:var(--fuente-minimalista); font-size:.75rem; font-weight:700; cursor:pointer; }
   .audios-list :global(.audio-play:hover) { background:#4f0c1a; }
-  .audios-list :global(.audio-play.secondary) { background:#fff; color:var(--color-principal); }
-  .audios-list :global(.audio-play.secondary:hover) { background:#f7eff1; }
   .audios-list :global(.audio-card audio) { width:100%; height:34px; }
   .concerts-list { grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; border-top:1px solid #d8d2cc; border-left:1px solid #d8d2cc; }
   .concerts-list :global(.concert-card) { display:grid; grid-template-columns:1fr; align-content:start; gap:.55rem; min-height:145px; padding:1rem; border:0; border-right:1px solid #d8d2cc; border-bottom:1px solid #d8d2cc; background:#fff; color:#393532!important; font-family:var(--fuente-minimalista); text-align:left; text-decoration:none; cursor:pointer; }
@@ -558,8 +507,6 @@ import PortalSidebar from '../../components/PortalSidebar.astro';
     .account-card{width:100%}
     .works-summary{white-space:normal}
     .resource-card,.audio-card,.concert-card{grid-template-columns:1fr}
-    .resource-list :global(.resource-actions){width:100%;justify-content:stretch}
-    .resource-list :global(.resource-actions .resource-button){flex:1 1 0}
     .concerts-list{grid-template-columns:1fr}
     .concert-order,.audio-card audio{grid-column:auto}
     .work-heading,.resource-section{padding-left:1.15rem;padding-right:1.15rem}
