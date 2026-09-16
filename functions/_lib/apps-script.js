@@ -57,6 +57,7 @@ const ACCIONS_ENSAIOS_PROTEXIDAS = new Set([
   'eliminarAsistenciaEnsaioPortal',
   'gardarEnsaioRepertorioPortal',
   'actualizarEnsaioAdministracionPortal',
+  'reconciliarEnsaioAdministracionV4',
   'eliminarEnsaioPortal',
   'obterSeguimentoEnsaiosPortal'
 ]);
