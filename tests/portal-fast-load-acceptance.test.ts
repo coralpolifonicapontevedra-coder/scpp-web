@@ -14,7 +14,7 @@ describe('portal-fast-load e aceptación legal', () => {
   });
 
   it('usa exclusivamente a caché R2 sincronizada para a carga rápida de Repertorio', () => {
-    expect(source).toContain('/api/repertorio-cache-v2');
+    expect(source).toContain('/api/repertorio-cache-v3');
     expect(source).toContain("body?.accion === 'listarRepertorioPortal'");
     expect(source).toContain('localStorage');
     expect(source).not.toContain('buildFastWorks');
