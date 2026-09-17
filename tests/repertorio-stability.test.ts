@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const middleware = readFileSync(resolve(root, 'functions/portal/repertorio/_middleware.js'), 'utf8');
 const api = readFileSync(resolve(root, 'functions/api/repertorio.js'), 'utf8');
-const cacheApi = readFileSync(resolve(root, 'functions/api/repertorio-cache-v2.js'), 'utf8');
+const cacheApi = readFileSync(resolve(root, 'functions/api/repertorio-cache-v3.js'), 'utf8');
 const directLoader = readFileSync(resolve(root, 'public/js/repertorio-direct-api.js'), 'utf8');
 const bridge = readFileSync(resolve(root, 'public/js/repertorio-r2-bridge.js'), 'utf8');
 
@@ -32,13 +32,19 @@ describe('estabilidade do Repertorio privado', () => {
     expect(cacheApi).toContain('row.R2Key');
     expect(cacheApi).toContain('truth(row.Activa)');
     expect(cacheApi).toContain('truth(row.Activo)');
-    expect(cacheApi).toContain('writeJson(env.R2_PRIVADO, key, catalogo)');
+    expect(cacheApi).toContain('writeJson(env.R2_PRIVADO, catalogoKey(env), catalogo)');
+  });
+
+  it('serve R2 inmediatamente e revalida en segundo plano', () => {
+    expect(cacheApi).toContain('waitUntil');
+    expect(cacheApi).toContain('R2-STALE-WHILE-REVALIDATE');
+    expect(cacheApi).toContain('R2-ADMIN-SNAPSHOT');
   });
 
   it('intercepta a carga completa autenticada e conserva unha caché local curta', () => {
     expect(directLoader).toContain("body?.accion === 'listarRepertorioPortal'");
     expect(directLoader).toContain('localStorage');
-    expect(directLoader).toContain('/api/repertorio-cache-v2');
+    expect(directLoader).toContain('/api/repertorio-cache-v3');
   });
 
   it('invalida as versións locais antigas sen eliminar a versión nova', () => {
