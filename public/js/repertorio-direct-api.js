@@ -5,7 +5,7 @@
   const CACHE_KEY = 'scpp:repertorio:completo:v6';
   const CACHE_FRESH_MS = 60 * 1000;
   const CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
-  const LIST_ENDPOINT = '/api/repertorio-cache-v2';
+  const LIST_ENDPOINT = '/api/repertorio-cache-v3';
 
   function lerCache(permitirAntiga = false) {
     try {
