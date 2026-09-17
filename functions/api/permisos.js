@@ -1,9 +1,5 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
-import {
-  invalidarPermisosPortal,
-  obterPermisoPortal,
-  obterPermisoPortalCacheado
-} from '../_lib/portal-permissions.js';
+import { invalidarPermisosPortal } from '../_lib/portal-permissions.js';
 
 const ADMIN_CACHE_PREFIX = 'persoas/cache/administracion/';
 const ADMIN_CONTEXT_MAX_MS = 60 * 60 * 1000;
@@ -260,29 +256,12 @@ export async function onRequestPost(context) {
     ? await obterContextoPersoas(env, user)
     : null;
 
-  if (accionsAdmin.has(accion)) {
-    const lecturaAdministrativa = accion === 'listarPermisosPortal' || accion === 'listarActividadePortal';
-    const autorizadoDesdeR2 = lecturaAdministrativa && eContextoAdministracion(contextoPersoas);
-
-    if (!autorizadoDesdeR2) {
-      let permisoAdmin;
-      try {
-        permisoAdmin = await obterPermisoPortalCacheado(env, user, 'permisos');
-        if (!permisoAdmin) permisoAdmin = await obterPermisoPortal(env, user, 'permisos');
-      } catch (error) {
-        return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible comprobar os permisos.' });
-      }
-      if (!permisoAdmin?.podeEscribir) {
-        return json(403, { ok: false, codigo: 'ADMIN_REQUIRED', erro: 'A túa conta non ten permiso para xestionar os accesos.' });
-      }
-    }
-  }
-
   if (accion === 'listarPermisosPortal') {
-    const cache = await lerCacheListado(env);
+    const autorizadoDesdeR2 = eContextoAdministracion(contextoPersoas);
+    const cache = autorizadoDesdeR2 ? await lerCacheListado(env) : null;
     if (cache?.payload) {
       const payload = { ...cache.payload };
-      if (contextoPersoas) payload.usuarios = fusionarPersoasConUsuarios(payload, contextoPersoas);
+      payload.usuarios = fusionarPersoasConUsuarios(payload, contextoPersoas);
       if (!cache.fresca) {
         const tarefa = refrescarListado(env, user, contextoPersoas).catch((error) =>
           console.warn('Non se puido refrescar a xestión de permisos en segundo plano:', error)
@@ -304,6 +283,8 @@ export async function onRequestPost(context) {
         cache: { orixe: 'apps-script', idadeMs: 0, fresca: true }
       }, { 'X-SCPP-Permissions-Source': 'SHEET-SEED' });
     } catch (error) {
+      const resultado = error?.resultado;
+      if (resultado?.codigo === 'ADMIN_REQUIRED') return json(403, resultado);
       console.error('Erro ao cargar a xestión de permisos:', error);
       return json(502, { ok: false, erro: 'Non foi posible cargar a xestión de permisos.' });
     }
