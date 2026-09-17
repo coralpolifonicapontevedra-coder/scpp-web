@@ -2,9 +2,9 @@
   'use strict';
 
   const originalFetch = window.fetch.bind(window);
-  const CACHE_KEY = 'scpp:repertorio:rapido:v3';
+  const CACHE_KEY = 'scpp:repertorio:rapido:v4';
   const CACHE_TTL_MS = 60 * 1000;
-  const LIST_ENDPOINT = '/api/repertorio-cache-v2';
+  const LIST_ENDPOINT = '/api/repertorio-cache-v3';
 
   const jsonResponse = (body, estado) => new Response(JSON.stringify(body), {
     status: 200,
