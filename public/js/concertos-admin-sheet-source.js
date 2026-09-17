@@ -30,6 +30,12 @@
         return fetchNativo('/api/concertos-admin-list', init);
       }
 
+      if (body?.accion === 'obterXestion') {
+        const resposta = await fetchNativo('/api/concertos-admin-xestion-v2', init);
+        if (resposta.ok) return resposta;
+        return fetchNativo(input, init);
+      }
+
       if (body?.accion === 'subirMedio') {
         url.pathname = '/api/concertos-admin-medio';
         const destino = typeof input === 'string'
