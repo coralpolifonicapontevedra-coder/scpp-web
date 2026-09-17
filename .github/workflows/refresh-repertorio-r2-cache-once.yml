@@ -1,0 +1,81 @@
+name: Refrescar cache R2 de repertorio una vez
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/refresh-repertorio-r2-cache-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scpp-refresh-repertorio-r2-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: r2-migration
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            boto3==1.40.1 \
+            google-api-python-client==2.177.0 \
+            google-auth==2.40.3
+
+      - name: Regenerar catalogos de Repertorio y borradores de Concertos
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python scripts/refresh-repertorio-r2-cache.py
+
+      - name: Verificar obra 90 en la cache R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, boto3
+          client = boto3.client(
+              's3',
+              endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
+              aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
+              aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
+              region_name='auto',
+          )
+          bucket = os.environ['R2_BUCKET']
+          data = json.loads(client.get_object(Bucket=bucket, Key='repertorio/cache/catalogo.json')['Body'].read())
+          obras = data.get('obras', [])
+          obra90 = next((o for o in obras if str(o.get('id')) == '90'), None)
+          if not obra90:
+              raise SystemExit('ERROR: a obra 90 non está no catálogo R2')
+          print('OK obra 90:', obra90.get('nomeObra'))
+          print('Audios obra 90:', len(obra90.get('audios', [])))
+          cantas = [o.get('nomeObra') for o in obras if 'canta' in str(o.get('nomeObra','')).casefold()]
+          print("Obras que conteñen 'canta':", ', '.join(cantas))
+          admin = json.loads(client.get_object(Bucket=bucket, Key='repertorio/cache/administracion/main/listado-v2.json')['Body'].read())
+          ids_admin = {str(o.get('Id')) for o in admin.get('payload', {}).get('obras', [])}
+          if '90' not in ids_admin:
+              raise SystemExit('ERROR: a obra 90 non está na caché administrativa R2')
+          print('OK obra 90 na caché administrativa')
+          PY
