@@ -22,7 +22,7 @@ from PIL import Image, ImageOps
 
 SPREADSHEET_ID = "1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg"
 SHEET_RANGE = "Fotos!A1:AB5000"
-FOLDER_ID = "1FySxDvTHVNC20-a3I0wDU1v0s82VRiix"
+FOLDER_ID = "1iXjZPmg330JEpuBXrioeJmAAQXUzNlFW"
 BUCKET = "scpp-publico"
 MAX_IMAGE = (2400, 2400)
 
