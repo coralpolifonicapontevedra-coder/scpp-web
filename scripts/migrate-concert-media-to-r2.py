@@ -27,10 +27,10 @@ from googleapiclient.http import MediaIoBaseDownload
 MODE = os.getenv("MIGRATION_MODE", "plan").strip().lower()
 REPORT_PATH = pathlib.Path(os.getenv("REPORT_PATH", "concertos-r2-migration.csv"))
 CONCERTOS_FILES_FOLDER_ID = os.getenv(
-    "CONCERTOS_FILES_FOLDER_ID", "1H12S32zJzncJoXdUvbZx82CLFXvlhtd6"
+    "CONCERTOS_FILES_FOLDER_ID", "1-JpNpvPXooV46n-zp_r995EDeaVngQq4"
 )
 CONCERTOS_IMAGES_FOLDER_ID = os.getenv(
-    "CONCERTOS_IMAGES_FOLDER_ID", "1yvEWIatZIa3UnE71VQUb4LCvBZ6HLs6t"
+    "CONCERTOS_IMAGES_FOLDER_ID", "1uzTqQK1hkmGO6ie7yVVZ-SeRLPn7Vk-A"
 )
 CONCERTOS_CSV_URL = os.getenv(
     "CONCERTOS_CSV_URL",
