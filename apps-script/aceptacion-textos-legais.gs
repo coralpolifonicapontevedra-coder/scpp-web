@@ -8,7 +8,7 @@
 const ACEPTACION_SPREADSHEET_ID_ =
   PropertiesService.getScriptProperties().getProperty(
     'ACEPTACION_SPREADSHEET_ID'
-  ) || '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k';
+  ) || '1tFlpbljN_eYKWm1QON8hwPZU1v4rB3C3ebafe8lIiXs';
 const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208;
 const TEXTO_LEGAL_PORTAL_ID_ = 'PRIVACIDADE_WEB';
 
