@@ -6,11 +6,22 @@
  * Emprega Id_Documento, Id_Actas e Persoas.Id, sen depender de Row ID.
  */
 
+function recursoCorporativoDoc_(nome, corporativo) {
+  const configurado = String(
+    PropertiesService.getScriptProperties().getProperty(nome) || ''
+  ).trim();
+  if (configurado && configurado !== corporativo) {
+    throw new Error(nome + ' non apunta ao recurso corporativo autorizado.');
+  }
+  return corporativo;
+}
+
 const DOC_PORTAL_CONFIG = {
   documentosSpreadsheetId:
-    PropertiesService.getScriptProperties().getProperty(
-      'DOCUMENTACION_SPREADSHEET_ID'
-    ) || '10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs',
+    recursoCorporativoDoc_(
+      'DOCUMENTACION_SPREADSHEET_ID',
+      '10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs'
+    ),
 
   sheetDocumentacion:
     'Documentación',
@@ -19,30 +30,34 @@ const DOC_PORTAL_CONFIG = {
     'Actas XD e AX',
 
   usuariosSpreadsheetId:
-    PropertiesService.getScriptProperties().getProperty(
-      'DOCUMENTACION_USUARIOS_SPREADSHEET_ID'
-    ) || '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
+    recursoCorporativoDoc_(
+      'DOCUMENTACION_USUARIOS_SPREADSHEET_ID',
+      '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI'
+    ),
 
   usuariosSheetId:
     1291817000,
 
   persoasSpreadsheetId:
-    PropertiesService.getScriptProperties().getProperty(
-      'DOCUMENTACION_PERSOAS_SPREADSHEET_ID'
-    ) || '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
+    recursoCorporativoDoc_(
+      'DOCUMENTACION_PERSOAS_SPREADSHEET_ID',
+      '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ'
+    ),
 
   persoasSheetId:
     388888827,
 
   folderDocumentacionId:
-    PropertiesService.getScriptProperties().getProperty(
-      'DOCUMENTACION_FOLDER_ID'
-    ) || '1mM3-WgglFYWQfN8pzslK3Q1DPm-8G1JC',
+    recursoCorporativoDoc_(
+      'DOCUMENTACION_FOLDER_ID',
+      '1mM3-WgglFYWQfN8pzslK3Q1DPm-8G1JC'
+    ),
 
   folderActasId:
-    PropertiesService.getScriptProperties().getProperty(
-      'ACTAS_FOLDER_ID'
-    ) || '1wBoG9avVdQ5kV-lvGLFEnnjnJu_V7hTx'
+    recursoCorporativoDoc_(
+      'ACTAS_FOLDER_ID',
+      '1wBoG9avVdQ5kV-lvGLFEnnjnJu_V7hTx'
+    )
 };
 
 const DOC_NIVEIS = {
