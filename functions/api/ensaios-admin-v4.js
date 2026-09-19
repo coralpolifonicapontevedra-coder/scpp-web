@@ -133,10 +133,7 @@ function indexAge(index) {
   return Number.isFinite(value) ? Math.max(0, Date.now() - value) : Number.POSITIVE_INFINITY;
 }
 async function concertos(env) {
-  let index = await readJson(env.R2_PRIVADO, concertKey(env));
-  if ((!index?.ok || !Array.isArray(index.concertos)) && concertKey(env) !== CONCERT_MAIN) {
-    index = await readJson(env.R2_PRIVADO, CONCERT_MAIN);
-  }
+  const index = await readJson(env.R2_PRIVADO, concertKey(env));
   return index?.ok && Array.isArray(index.concertos) ? index.concertos : [];
 }
 function recoveredIndex(source, currentConcerts = []) {
