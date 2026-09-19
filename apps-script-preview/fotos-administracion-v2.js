@@ -156,7 +156,7 @@ function gardarFotoAdministracionPortal_(datos) {
  * Esta garda evita que unha configuración accidental do Web App poida eliminar
  * unha fotografía da Sheet ou da carpeta de produción.
  */
-var FOTOS_PREVIEW_SPREADSHEET_ID_V2_ = '1QnsnM2dTpsme0-xPynEZVOAEdY4gKkvnvhKKtKPVEDY';
+var FOTOS_PREVIEW_SPREADSHEET_ID_V2_ = '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg';
 var FOTOS_PREVIEW_FOLDER_ID_V2_ = '1dlNy6ht2AZcSRJF_CkWH-XbGIsTijMiO';
 
 function validarEntornoEliminacionFotosV2_() {
