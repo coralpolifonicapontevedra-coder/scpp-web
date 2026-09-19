@@ -4,7 +4,7 @@
  * A consulta habitual da web NON pasa por esta folla; este módulo só atende escrituras puntuais.
  */
 
-function idSpreadsheetPartiturasPortal_() { return obterPropiedadeObrigatoria_('PARTITURAS_SPREADSHEET_ID'); }
+function idSpreadsheetPartiturasPortal_() { return '1r15Q9RJ-TH6NLFCIAiEI6qUeU5Ax82BF__bur0LoGHc'; }
 var PARTITURAS_PORTAL_SHEET_ = 'Partituras_App';
 
 function textoPartiturasPortal_(valor) {
