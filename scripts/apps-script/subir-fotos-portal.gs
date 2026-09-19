@@ -22,7 +22,7 @@ function configurarFotosPortal() {
     FOTOS_SPREADSHEET_ID: '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg',
     FOTOS_SHEET_ID: '1291817000',
     FOTOS_APPSHEET_PATH: 'Fotos_Images/',
-    FOTOS_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
+    FOTOS_NOTIFY_EMAIL: 'secretario@coralpolifonicapontevedra.org'
   });
 
   var carpeta = DriveApp.getFolderById(
@@ -118,7 +118,7 @@ function subirFotoPortal_(datos) {
 
   MailApp.sendEmail({
     to: propiedades.getProperty('FOTOS_NOTIFY_EMAIL') ||
-      'coralpolifonicapontevedra@gmail.com',
+      'secretario@coralpolifonicapontevedra.org',
     subject: 'Nova fotografía pendente de revisión',
     htmlBody: '<p>Recibiuse unha nova fotografía desde o portal privado.</p>' +
       '<p><strong>Título:</strong> ' + escaparHtmlFoto_(datos.titulo) + '<br>' +
