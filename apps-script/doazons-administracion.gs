@@ -2,7 +2,14 @@
  * Módulo illado: non modifica nin intervén no fluxo CECA.
  */
 
-var DOAZONS_ADMIN_SPREADSHEET_ID_ = PropertiesService.getScriptProperties().getProperty('COLABORACIONS_SPREADSHEET_ID') || '1TSniMR9gurDZ7M_ciL2rWvXVnX3wriFz20AdRPCf_a0';
+var DOAZONS_ADMIN_SPREADSHEET_ID_ = (function(){
+  var corporativo = '1TSniMR9gurDZ7M_ciL2rWvXVnX3wriFz20AdRPCf_a0';
+  var configurado = String(PropertiesService.getScriptProperties().getProperty('COLABORACIONS_SPREADSHEET_ID') || '').trim();
+  if (configurado && configurado !== corporativo) {
+    throw new Error('COLABORACIONS_SPREADSHEET_ID non apunta á Sheet corporativa autorizada.');
+  }
+  return corporativo;
+})();
 var DOAZONS_ADMIN_SHEET_ = 'Colaboracións';
 var DOAZONS_ADMIN_ESTADOS_ = ['Pendente','Pagado','Fallido','Anulado'];
 
