@@ -133,8 +133,14 @@ function prepararPrograma(programa = [], catalogo = []) {
 
 function prepararConcertosPortal(concertos = [], catalogo = []) {
   const hoxe = hoxeMadrid();
-  return concertos
-    .filter((concerto) => clean(concerto?.id))
+  const concertosLimpos = concertos.filter((concerto) => {
+    if (!clean(concerto?.id)) return false;
+    const nome = normalizarTexto(concerto?.nome);
+    // Rexistro fantasma dunha caché antiga: non existe na folla institucional.
+    if (nome === 'cantos do outono2' || nome === 'cantos do outono 2') return false;
+    return true;
+  });
+  return concertosLimpos
     .map((concerto) => {
       const id = clean(concerto.id);
       const historico = id.startsWith('hist-');
@@ -145,7 +151,8 @@ function prepararConcertosPortal(concertos = [], catalogo = []) {
       const estado = pasaAutomaticamenteARealizado ? 'realizado' : estadoOrixinal;
       const futuroVisible = estado === 'previsto' || estado === 'confirmado';
       const realizadoVisible = estado === 'realizado' && data >= '2026-04-01';
-      const visibleNoPortal = !historico && (futuroVisible || realizadoVisible);
+      const publicado = concerto.mostrarWeb === true || ['true','1','si','sí','yes','x'].includes(normalizarEstado(concerto.mostrarWeb));
+      const visibleNoPortal = !historico && publicado && (futuroVisible || realizadoVisible);
 
       return {
         ...concerto,
