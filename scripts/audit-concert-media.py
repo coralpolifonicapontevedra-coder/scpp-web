@@ -19,10 +19,10 @@ REPORT_JSON = pathlib.Path(os.getenv("CONCERT_MEDIA_AUDIT_JSON", "concert-media-
 REPORT_MD = pathlib.Path(os.getenv("CONCERT_MEDIA_AUDIT_MD", "concert-media-audit.md"))
 
 CONCERTOS_FILES_FOLDER_ID = os.getenv(
-    "CONCERTOS_FILES_FOLDER_ID", "1H12S32zJzncJoXdUvbZx82CLFXvlhtd6"
+    "CONCERTOS_FILES_FOLDER_ID", "1-JpNpvPXooV46n-zp_r995EDeaVngQq4"
 )
 CONCERTOS_IMAGES_FOLDER_ID = os.getenv(
-    "CONCERTOS_IMAGES_FOLDER_ID", "1yvEWIatZIa3UnE71VQUb4LCvBZ6HLs6t"
+    "CONCERTOS_IMAGES_FOLDER_ID", "1uzTqQK1hkmGO6ie7yVVZ-SeRLPn7Vk-A"
 )
 PREFIXES = (
     "concertos/documentos/objetos/",
