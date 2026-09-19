@@ -157,7 +157,7 @@ function gardarFotoAdministracionPortal_(datos) {
  * unha fotografía da Sheet ou da carpeta de produción.
  */
 var FOTOS_PREVIEW_SPREADSHEET_ID_V2_ = '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg';
-var FOTOS_PREVIEW_FOLDER_ID_V2_ = '1dlNy6ht2AZcSRJF_CkWH-XbGIsTijMiO';
+var FOTOS_PREVIEW_FOLDER_ID_V2_ = '1iXjZPmg330JEpuBXrioeJmAAQXUzNlFW';
 
 function validarEntornoEliminacionFotosV2_() {
   var props = PropertiesService.getScriptProperties();
