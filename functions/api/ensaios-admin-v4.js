@@ -12,7 +12,7 @@ const CONCERT_MAIN = 'indices/concertos-privado-v1.json';
 const CONCERT_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 const TIMEOUT_APPS_SCRIPT_MS = 30_000;
 const TOKEN_CACHE_MS = 10 * 60 * 1000;
-const INDEX_REFRESH_MS = 15 * 60 * 1000;
+const INDEX_REFRESH_MS = 2 * 60 * 1000;
 
 const tokenCache = new Map();
 const clean = (value) => String(value ?? '').trim();
