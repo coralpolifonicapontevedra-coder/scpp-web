@@ -149,7 +149,7 @@ function gardarFotoAdministracionPortal_(datos) {
 }
 
 /* Garda física de Producción: un Web App mal configurado non pode borrar fóra destes recursos. */
-var FOTOS_PRODUCTION_SPREADSHEET_ID_V2_ = '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w';
+var FOTOS_PRODUCTION_SPREADSHEET_ID_V2_ = '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg';
 var FOTOS_PRODUCTION_FOLDER_ID_V2_ = '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix';
 
 function validarEntornoEliminacionFotosV2_() {
