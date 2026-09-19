@@ -2,7 +2,6 @@ import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-const APPS_SCRIPT_PREVIEW = APPS_SCRIPT_PRODUCION;
 const INDEX_MAIN = 'indices/concertos-privado-v1.json';
 const INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 const PUBLIC_INDEX_MAIN = 'indices/concertos-v1.json';
@@ -19,8 +18,9 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 });
 const rama = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
 const indexKey = (env) => rama(env) === 'main' ? INDEX_MAIN : INDEX_PREVIEW;
-const esperadoAppsScript = (env) => rama(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
+const esperadoAppsScript = (env) => rama(env) === 'main' ? APPS_SCRIPT_PRODUCION : clean(env.APPS_SCRIPT_WEBAPP_URL);
 const pausa = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const invalidationKey = (env) => `cache/invalidation/${rama(env)}/concertos.json`;
 
 function canon(value) {
   return clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').toLowerCase();
@@ -122,6 +122,11 @@ async function actualizarIndice(env, idConcerto, concerto) {
   await env.R2_PRIVADO.put(indexKey(env), JSON.stringify({
     ...indice, concertos, xeradoEn: new Date().toISOString(), xeradoEnMs: Date.now(), actualizadoDesde: 'ADMIN-CONCERTOS-GARDAR'
   }), { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } });
+  await env.R2_PRIVADO.put(
+    invalidationKey(env),
+    JSON.stringify({ updatedAt: Date.now(), source: 'admin-concertos-gardar' }),
+    { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } }
+  ).catch(() => {});
 }
 
 async function actualizarIndicePublico(env, idConcerto, concerto) {
