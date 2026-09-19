@@ -12,7 +12,7 @@ const clean = (value) => String(value ?? '').trim();
 const rama = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
 const concertIndexKey = (env) => rama(env) === 'main' ? CONCERT_INDEX_MAIN : CONCERT_INDEX_PREVIEW;
 const attendanceIndexKey = (env) => rama(env) === 'main' ? ATTENDANCE_INDEX_MAIN : ATTENDANCE_INDEX_PREVIEW;
-const esperadoAppsScript = (env) => rama(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
+const esperadoAppsScript = (env) => clean(env.APPS_SCRIPT_WEBAPP_URL);
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
