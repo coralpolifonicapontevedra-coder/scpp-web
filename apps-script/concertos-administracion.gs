@@ -26,6 +26,12 @@ function nomePersoaConcertoAdministracionPortal_(row) {
   if (nomeCompleto) return nomeCompleto;
   var nome = textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Nome','Nombre']));
   var apelidos = textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Apelidos','Apellidos']));
+  if (!apelidos) {
+    apelidos = [
+      textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Primeiro apelido','PrimeiroApelido'])),
+      textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Segundo apelido','SegundoApelido']))
+    ].filter(Boolean).join(' ');
+  }
   return [apelidos, nome].filter(Boolean).join(', ') || nome || apelidos;
 }
 
@@ -73,7 +79,7 @@ function listarConcertosAdministracionPortal_(datos) {
     if (!id) return;
     obrasPorId[id] = {
       idRepertorio:id,
-      titulo:textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Titulo','Título','Obra','Nome'])),
+      titulo:textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['NomeObra','Titulo','Título','Obra','Nome'])),
       autor:textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Autor','Compositor']))
     };
   });
@@ -84,13 +90,13 @@ function listarConcertosAdministracionPortal_(datos) {
     var idPersoa = textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Persoa','Id_Persoa','IdPersoa']));
     if (!idConcerto || !idPersoa) return;
     var persoa = persoasPorId[idPersoa] || { idPersoa:idPersoa, nome:idPersoa, voz:textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Voz'])) };
-    var estado = campoEnsaiosPortal_(row, ['Estado asistencia','Estado_asistencia','Asiste','Estado']);
+    var estado = campoEnsaiosPortal_(row, ['EstadoAsistencia','Estado asistencia','Estado_asistencia','Asiste','Estado']);
     if (!asistenciasPorConcerto[idConcerto]) asistenciasPorConcerto[idConcerto] = [];
     asistenciasPorConcerto[idConcerto].push({
       idPersoa:persoa.idPersoa,
       nome:persoa.nome,
       voz:persoa.voz || textoEnsaiosPortal_(campoEnsaiosPortal_(row, ['Voz'])),
-      asiste:estado === '' ? true : booleanoEnsaiosPortal_(estado)
+      asiste:estado === '' ? true : estadoAsistenciaConcertoPortal_(estado) === 'asiste'
     });
   });
 
