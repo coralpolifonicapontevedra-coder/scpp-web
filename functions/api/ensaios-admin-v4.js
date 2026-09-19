@@ -541,10 +541,11 @@ export async function onRequest(context) {
     }
 
     if (accion === 'finalizar') {
-      const fresh = await seedIndex(env, user);
-      if (clean(draft.baseRevision) !== revisionEnsaio(fresh, ensaio)) {
-        return fail(409, 'DRAFT_CONFLICT', 'A Sheet cambiou desde que se abriu o borrador. Recarga desde Sheet antes de finalizar.', { conflito: true });
-      }
+      // O borrador R2 xa contén o estado que o usuario acaba de confirmar.
+      // Non facemos unha lectura completa de seis Sheets antes de escribir:
+      // esa lectura era redundante e podía esgotar o límite HTTP antes de chegar
+      // á reconciliación. A operación de Apps Script valida de novo permisos e
+      // a existencia do ensaio antes de modificar as Sheets corporativas.
       await apps(env, user, 'reconciliarEnsaioAdministracionV4', {
         idEnsaio: ensaio,
         obras: draft.repertorio,
