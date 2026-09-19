@@ -2,7 +2,7 @@ import { AppsScriptError, obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const CHAVE_INDICE = 'indices/asistencias-concertos.json';
 const CHAVE_INDICE_PREVIEW = 'indices/preview/asistencias-concertos.json';
-const CACHE_FRESCA_MS = 10 * 60 * 1000;
+const CACHE_FRESCA_MS = 2 * 60 * 1000;
 
 const ramaProducion = (env = {}) =>
   String(env.CF_PAGES_BRANCH || '').trim() === 'main';
@@ -82,23 +82,21 @@ async function lerCacheR2(bucket, chave) {
 }
 
 async function lerCacheEntorno(env) {
-  if (!ramaProducion(env)) {
-    const preview = await lerCacheR2(env.R2_PRIVADO, CHAVE_INDICE_PREVIEW);
-    if (preview) return preview;
-  }
-  return lerCacheR2(env.R2_PRIVADO, CHAVE_INDICE);
+  return lerCacheR2(
+    env.R2_PRIVADO,
+    ramaProducion(env) ? CHAVE_INDICE : CHAVE_INDICE_PREVIEW
+  );
 }
 
 async function gardarCacheR2(bucket, resultado, env) {
   if (
-    !ramaProducion(env) ||
     !bucket ||
     typeof bucket.put !== 'function' ||
     !resultadoValido(resultado)
   ) return;
 
   await bucket.put(
-    CHAVE_INDICE,
+    ramaProducion(env) ? CHAVE_INDICE : CHAVE_INDICE_PREVIEW,
     JSON.stringify({ gardadoEn: Date.now(), resultado }),
     {
       httpMetadata: {
@@ -221,19 +219,28 @@ export async function onRequest(context) {
     });
   }
 
-  if (cache) {
-    if (ramaProducion(env) && typeof context.waitUntil === 'function') {
-      context.waitUntil(actualizarCacheEnSegundoPlano(env, usuario));
-    }
-
-    return respostaAsistencias(cache.resultado, {
-      'X-SCPP-Asistencias-Source': 'R2-STALE',
-      'X-SCPP-Asistencias-Age': String(Math.round(cache.idadeMs / 1000)),
-      'X-SCPP-AppScript': 'R2-CACHE'
-    });
-  }
-
   const inicio = Date.now();
+
+  if (cache) {
+    try {
+      const { resultado, usouRespaldo, intento, intentoLocal } = await consultarAppsScript(env, usuario);
+      await gardarCacheR2(env.R2_PRIVADO, resultado, env).catch(() => {});
+      return respostaAsistencias(resultado, {
+        'X-SCPP-Asistencias-Source': 'APPS-SCRIPT-REFRESH',
+        'X-SCPP-Asistencias-Time': String(Date.now() - inicio),
+        'X-SCPP-AppScript': usouRespaldo ? 'FALLBACK' : 'PRIMARY',
+        'X-SCPP-AppScript-Attempt': String(intento),
+        'X-SCPP-Asistencias-Retry': String(intentoLocal)
+      });
+    } catch (erro) {
+      console.warn('Non se puido refrescar a caché de asistencias; úsase a última copia válida:', erro);
+      return respostaAsistencias(cache.resultado, {
+        'X-SCPP-Asistencias-Source': 'R2-STALE',
+        'X-SCPP-Asistencias-Age': String(Math.round(cache.idadeMs / 1000)),
+        'X-SCPP-AppScript': 'R2-CACHE'
+      });
+    }
+  }
 
   try {
     const { resultado, usouRespaldo, intento, intentoLocal } = await consultarAppsScript(env, usuario);
