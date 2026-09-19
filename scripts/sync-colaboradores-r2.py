@@ -32,7 +32,7 @@ INDEX_KEY = "indices/colaboradores-v1.json"
 PUBLIC_BUCKET = os.getenv("R2_PUBLIC_BUCKET", "scpp-publico").strip()
 SPREADSHEET_ID = os.getenv(
     "COLABORADORES_SPREADSHEET_ID",
-    "1mqlMESC6ZkE4t1zfA0q1dK3PRFHtKLO71ifdbT2CtHw",
+    "1TSniMR9gurDZ7M_ciL2rWvXVnX3wriFz20AdRPCf_a0",
 ).strip()
 SHEET_NAME = os.getenv("COLABORADORES_SHEET_NAME", "Colaboracións").strip()
 TIMEOUT = int(os.getenv("SYNC_TIMEOUT_SECONDS", "90"))
