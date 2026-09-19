@@ -233,6 +233,13 @@ async function migrateLegacyPhoto(context, user, id) {
 async function infoFor(context, user, id) {
   const index = await readIndex(context.env);
   let info = index.persoas[id] || null;
+
+  if (!validStoredPhoto(info) && branch(context.env) !== 'main') {
+    const main = await readJson(context.env, PHOTO_INDEX_MAIN);
+    const mainInfo = main?.persoas && typeof main.persoas === 'object' ? main.persoas[id] : null;
+    if (validStoredPhoto(mainInfo)) info = mainInfo;
+  }
+
   if (!validStoredPhoto(info)) {
     info = await migrateLegacyPhoto(context, user, id);
   }
