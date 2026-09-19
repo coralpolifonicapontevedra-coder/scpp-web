@@ -1,6 +1,7 @@
 const INDEX_KEY_MAIN = 'indices/concertos-privado-v1.json';
 const INDEX_KEY_PREVIEW = 'indices/preview/concertos-privado-v1.json';
-const REPERTORIO_CATALOGO_KEY = 'repertorio/cache/catalogo.json';
+const REPERTORIO_CATALOGO_KEY_MAIN = 'repertorio/cache/catalogo.json';
+const REPERTORIO_CATALOGO_KEY_PREVIEW = 'repertorio/cache/preview/catalogo.json';
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
@@ -16,6 +17,7 @@ const clean = (value = '') => String(value || '').trim();
 const normalizarEstado = (value = '') => clean(value).toLowerCase();
 const rama = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-Z0-9._-]/g, '-') || 'preview';
 const indiceKey = (env) => rama(env) === 'main' ? INDEX_KEY_MAIN : INDEX_KEY_PREVIEW;
+const repertorioKey = (env) => rama(env) === 'main' ? REPERTORIO_CATALOGO_KEY_MAIN : REPERTORIO_CATALOGO_KEY_PREVIEW;
 
 function normalizarTexto(value = '') {
   return clean(value)
@@ -66,7 +68,7 @@ function autorObraCatalogo(obra = {}) {
 async function lerCatalogoRepertorio(env) {
   if (!env.R2_PRIVADO?.get) return [];
   try {
-    const obxecto = await env.R2_PRIVADO.get(REPERTORIO_CATALOGO_KEY);
+    const obxecto = await env.R2_PRIVADO.get(repertorioKey(env));
     if (!obxecto) return [];
     const datos = await obxecto.json().catch(() => null);
     const obras = Array.isArray(datos?.obras) ? datos.obras : [];
@@ -143,7 +145,8 @@ function prepararConcertosPortal(concertos = [], catalogo = []) {
       const estado = pasaAutomaticamenteARealizado ? 'realizado' : estadoOrixinal;
       const futuroVisible = estado === 'previsto' || estado === 'confirmado';
       const realizadoVisible = estado === 'realizado' && data >= '2026-04-01';
-      const visibleNoPortal = !historico && (futuroVisible || realizadoVisible);
+      const publicado = concerto.mostrarWeb === true || ['true','1','si','sí','yes','x'].includes(normalizarEstado(concerto.mostrarWeb));
+      const visibleNoPortal = !historico && publicado && (futuroVisible || realizadoVisible);
 
       return {
         ...concerto,
