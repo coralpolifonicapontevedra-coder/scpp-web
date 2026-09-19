@@ -55,10 +55,15 @@ export async function onRequest({ request, env }) {
 
   const key = await rutaCartelExacta(env, concertoId);
   if (!key) return json(404, { ok:false, erro:'Este concerto non ten un cartel R2 asociado no seu índice.' });
-  const obxecto = await env.R2_PRIVADO.get(key);
+  let obxecto = await env.R2_PRIVADO.get(key);
+  let resolvedKey = key;
+  if (!obxecto && clean(env.CF_PAGES_BRANCH) !== 'main' && key.startsWith('concertos/admin/main/')) {
+    // Preview comparte o bucket privado e debe poder visualizar os medios xa publicados en Produción.
+    obxecto = await env.R2_PRIVADO.get(key);
+  }
   if (!obxecto) return json(404, { ok:false, erro:'O cartel asociado ao concerto non está dispoñible en R2.' });
 
-  const nome = clean(key.split('/').pop() || 'cartel-concerto.jpg').replace(/[\r\n"]/g,'');
+  const nome = clean(resolvedKey.split('/').pop() || 'cartel-concerto.jpg').replace(/[\r\n"]/g,'');
   const headers = new Headers();
   obxecto.writeHttpMetadata(headers);
   headers.set('Content-Type', mimeCartel(nome, obxecto.httpMetadata?.contentType));
