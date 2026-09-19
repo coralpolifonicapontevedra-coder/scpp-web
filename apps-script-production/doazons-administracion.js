@@ -7,7 +7,7 @@
  */
 
 var DOAZONS_ADMIN_SPREADSHEET_ID_ =
-  '1mqlMESC6ZkE4t1zfA0q1dK3PRFHtKLO71ifdbT2CtHw';
+  '1TSniMR9gurDZ7M_ciL2rWvXVnX3wriFz20AdRPCf_a0';
 
 var DOAZONS_ADMIN_SHEET_ =
   'Colaboracións';
