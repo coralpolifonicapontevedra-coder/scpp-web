@@ -25,7 +25,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/spreadsheets",
 ]
-PERSOAS_ID = os.getenv("PERSOAS_SPREADSHEET_ID", "13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ")
+PERSOAS_ID = os.getenv("PERSOAS_SPREADSHEET_ID", "1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ")
 PERSOAS_TAB = os.getenv("PERSOAS_TAB", "Persoas")
 FICHAS_FOLDER_ID = os.getenv("FICHAS_FOLDER_ID", "1UmEo1fP5jyxxo90dQbXG6SM2SrmdysbN")
 REPORT_PATH = pathlib.Path(os.getenv("REPORT_PATH", "r2-fichas-migration-report.csv"))
