@@ -17,7 +17,7 @@ function configurarFotosPortal() {
     FOTOS_SPREADSHEET_ID: '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg',
     FOTOS_SHEET_ID: '1291817000',
     FOTOS_APPSHEET_PATH: 'Fotos_Images/',
-    FOTOS_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
+    FOTOS_NOTIFY_EMAIL: 'secretario@coralpolifonicapontevedra.org'
   });
 
   const contexto = obterContextoFotos_();
@@ -30,7 +30,7 @@ function configurarFotosPortal() {
 }
 
 function probarPanelFotos() {
-  const email = 'jcuinas@gmail.com';
+  const email = 'secretario@coralpolifonicapontevedra.org';
 
   console.log('Correo utilizado na proba: ' + email);
 
@@ -142,7 +142,7 @@ function subirFotoPortal_(datos) {
   const correoAviso = String(
     PropertiesService.getScriptProperties()
       .getProperty('FOTOS_NOTIFY_EMAIL') ||
-    'coralpolifonicapontevedra@gmail.com'
+    'secretario@coralpolifonicapontevedra.org'
   ).trim();
 
   if (correoAviso) {
