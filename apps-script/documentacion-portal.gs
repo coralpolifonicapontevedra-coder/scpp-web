@@ -8,7 +8,9 @@
 
 const DOC_PORTAL_CONFIG = {
   documentosSpreadsheetId:
-    '1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8',
+    PropertiesService.getScriptProperties().getProperty(
+      'DOCUMENTACION_SPREADSHEET_ID'
+    ) || '1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8',
 
   sheetDocumentacion:
     'Documentación',
@@ -17,22 +19,30 @@ const DOC_PORTAL_CONFIG = {
     'Actas XD e AX',
 
   usuariosSpreadsheetId:
-    '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+    PropertiesService.getScriptProperties().getProperty(
+      'DOCUMENTACION_USUARIOS_SPREADSHEET_ID'
+    ) || '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
 
   usuariosSheetId:
     1291817000,
 
   persoasSpreadsheetId:
-    '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
+    PropertiesService.getScriptProperties().getProperty(
+      'DOCUMENTACION_PERSOAS_SPREADSHEET_ID'
+    ) || '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
 
   persoasSheetId:
     388888827,
 
   folderDocumentacionId:
-    '1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ',
+    PropertiesService.getScriptProperties().getProperty(
+      'DOCUMENTACION_FOLDER_ID'
+    ) || '1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ',
 
   folderActasId:
-    '1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR'
+    PropertiesService.getScriptProperties().getProperty(
+      'ACTAS_FOLDER_ID'
+    ) || '1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR'
 };
 
 const DOC_NIVEIS = {

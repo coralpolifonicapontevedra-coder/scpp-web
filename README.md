@@ -48,6 +48,7 @@ Antes de modificar a arquitectura, os fluxos de ficheiros, os permisos ou a cach
 - [Convencións do proxecto](docs/framework-scpp/CONVENCIONS.md)
 - [Decisións técnicas](docs/framework-scpp/DECISIONS.md)
 - [Folla de ruta](docs/framework-scpp/ROADMAP.md)
+- [Plan da réplica institucional de Secretario](docs/framework-scpp/REPLICA-SECRETARIO.md)
 - [Guía de deseño da web pública](docs/GUIA-DESEÑO-WEB-PUBLICA.md)
 
 A documentación é viva: un cambio estrutural non se considera pechado ata actualizar o documento técnico correspondente.

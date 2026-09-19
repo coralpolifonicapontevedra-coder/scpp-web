@@ -2,7 +2,7 @@
  * Módulo illado: non modifica nin intervén no fluxo CECA.
  */
 
-var DOAZONS_ADMIN_SPREADSHEET_ID_ = '1mqlMESC6ZkE4t1zfA0q1dK3PRFHtKLO71ifdbT2CtHw';
+var DOAZONS_ADMIN_SPREADSHEET_ID_ = PropertiesService.getScriptProperties().getProperty('COLABORACIONS_SPREADSHEET_ID') || '1mqlMESC6ZkE4t1zfA0q1dK3PRFHtKLO71ifdbT2CtHw';
 var DOAZONS_ADMIN_SHEET_ = 'Colaboracións';
 var DOAZONS_ADMIN_ESTADOS_ = ['Pendente','Pagado','Fallido','Anulado'];
 

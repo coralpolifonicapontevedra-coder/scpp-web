@@ -3,7 +3,7 @@ import { obterJsonAppsScript, AppsScriptError } from '../functions/_lib/apps-scr
 import { onRequestPost as permisosPost } from '../functions/api/permisos.js';
 import { onRequestPost as estadoPost } from '../functions/api/estado-sistema.js';
 
-const PROD_URL = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
+const PROD_URL = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
 const encoder = new TextEncoder();
 
 async function hashValue(value: string) {

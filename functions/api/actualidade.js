@@ -1,5 +1,5 @@
 const INDEX_KEY = 'indices/actualidade-v1.json';
-const ORIXE = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec?recurso=publicacions';
+const ORIXE = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec?recurso=publicacions';
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 const PRODUCION_PUBLICACIONS = [

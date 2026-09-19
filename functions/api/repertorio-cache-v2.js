@@ -1,8 +1,8 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
-const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
-const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
+const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
+const APPS_SCRIPT_PREVIEW = APPS_SCRIPT_PRODUCION;
 
 const CATALOGO_KEY_MAIN = 'repertorio/cache/catalogo.json';
 const CATALOGO_KEY_PREVIEW = 'repertorio/cache/preview/catalogo.json';

@@ -1,8 +1,8 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
-const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh/exec';
-const APPS_SCRIPT_PREVIEW = 'https://script.google.com/macros/s/AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU/exec';
+const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
+const APPS_SCRIPT_PREVIEW = APPS_SCRIPT_PRODUCION;
 const CONCERT_INDEX_MAIN = 'indices/concertos-privado-v1.json';
 const CONCERT_INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 const ATTENDANCE_INDEX_MAIN = 'indices/asistencias-concertos.json';
