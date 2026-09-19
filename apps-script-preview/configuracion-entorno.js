@@ -17,6 +17,17 @@ var SCPP_CORPORATE_SPREADSHEETS_ = {
   SOLICITUDES_SPREADSHEET_ID: '1GxQkT4Av2cfWp2UetfMVCvYI0_9PYUnxYLkschwH6wo'
 };
 
+var SCPP_CORPORATE_FOLDERS_ = {
+  OBRAS_FILES_FOLDER_ID: '19h7RXL8HW4fguIJGP_-C8kon8DWfaeyG',
+  PARTITURAS_FILES_FOLDER_ID: '1zhZaDc5sZeDcDB4h14knEZX-3Mhbkk1o',
+  CONCERTOS_FILES_FOLDER_ID: '1-JpNpvPXooV46n-zp_r995EDeaVngQq4',
+  CONCERTOS_IMAGES_FOLDER_ID: '1uzTqQK1hkmGO6ie7yVVZ-SeRLPn7Vk-A',
+  DOCUMENTACION_FOLDER_ID: '1mM3-WgglFYWQfN8pzslK3Q1DPm-8G1JC',
+  ACTAS_FOLDER_ID: '1wBoG9avVdQ5kV-lvGLFEnnjnJu_V7hTx',
+  FOTOS_FOLDER_ID: '1iXjZPmg330JEpuBXrioeJmAAQXUzNlFW',
+  PERFIL_FOTOS_FOLDER_ID: '1xVVka1ru1MonTw8ktfjwPkPIp_xCarqS'
+};
+
 /**
  * Configuración común para Preview e Produción.
  *
@@ -70,9 +81,13 @@ function obterPropiedadeObrigatoria_(nome) {
   if (!valor) {
     throw new Error('Falta a propiedade obrigatoria do ambiente: ' + nome);
   }
-  var esperado = SCPP_CORPORATE_SPREADSHEETS_[nome];
-  if (esperado && valor !== esperado) {
+  var esperadoSheet = SCPP_CORPORATE_SPREADSHEETS_[nome];
+  if (esperadoSheet && valor !== esperadoSheet) {
     throw new Error('A propiedade ' + nome + ' non apunta á Sheet corporativa autorizada.');
+  }
+  var esperadoFolder = SCPP_CORPORATE_FOLDERS_[nome];
+  if (esperadoFolder && valor !== esperadoFolder) {
+    throw new Error('A propiedade ' + nome + ' non apunta á carpeta corporativa autorizada.');
   }
   return valor;
 }
