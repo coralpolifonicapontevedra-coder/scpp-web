@@ -28,7 +28,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/spreadsheets",
 ]
-SPREADSHEET_ID = os.getenv("DOCUMENTACION_SPREADSHEET_ID", "1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8")
+SPREADSHEET_ID = os.getenv("DOCUMENTACION_SPREADSHEET_ID", "10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs")
 DOCUMENTACION_FOLDER_ID = os.getenv("DOCUMENTACION_FOLDER_ID", "1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ")
 ACTAS_FOLDER_ID = os.getenv("ACTAS_FOLDER_ID", "1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR")
 MODE = os.getenv("MIGRATION_MODE", "plan").strip().lower()
