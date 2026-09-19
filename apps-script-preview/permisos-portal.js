@@ -20,7 +20,7 @@ var PERMISOS_PORTAL_CONFIG_ = {
     direccionArtisticaId: '1ZC83Dc79JI3lZklTFu9nnaHcNMUA5zPIZO5Qizepioc'
   },
   production: {
-    persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
+    persoasId: '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
     xuntaDirectivaId: '1zRKw66yA5zn1fmR4tlgZRtNZ4Gg5ezrDiF8oHzpUykc',
     direccionArtisticaId: '1X1wu0n2Mz-LKZzCDUp--P1V2GY5tIZztz7EwoXOfQII'
   }
