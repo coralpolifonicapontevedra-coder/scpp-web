@@ -29,8 +29,8 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
 ]
 SPREADSHEET_ID = os.getenv("DOCUMENTACION_SPREADSHEET_ID", "10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs")
-DOCUMENTACION_FOLDER_ID = os.getenv("DOCUMENTACION_FOLDER_ID", "1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ")
-ACTAS_FOLDER_ID = os.getenv("ACTAS_FOLDER_ID", "1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR")
+DOCUMENTACION_FOLDER_ID = os.getenv("DOCUMENTACION_FOLDER_ID", "1mM3-WgglFYWQfN8pzslK3Q1DPm-8G1JC")
+ACTAS_FOLDER_ID = os.getenv("ACTAS_FOLDER_ID", "1wBoG9avVdQ5kV-lvGLFEnnjnJu_V7hTx")
 MODE = os.getenv("MIGRATION_MODE", "plan").strip().lower()
 REPORT_PATH = pathlib.Path(os.getenv("REPORT_PATH", "documentacion-r2-migration.csv"))
 R2_COLUMNS = ["R2Key", "R2ETag", "R2SHA256", "R2Size", "R2MimeType", "R2Estado", "R2Actualizada", "R2Erro"]
