@@ -258,7 +258,7 @@ export function initPersoasAdminV4() {
     if (nodes.photo instanceof HTMLImageElement) { nodes.photo.hidden = true; nodes.photo.removeAttribute('src'); }
     if (nodes.photoEmpty instanceof HTMLElement) nodes.photoEmpty.hidden = false;
     const id = keyOf(item);
-    if (!id || !item?.fotoR2?.key) return;
+    if (!id) return;
     try {
       const blob = await requestPhoto('descargar', id, true);
       if (!selected || keyOf(selected) !== id) return;
@@ -566,16 +566,34 @@ export function initPersoasAdminV4() {
     if (!id || !(nodes.openAcceptance instanceof HTMLButtonElement)) return;
     const tab = window.open('', '_blank');
     if (!tab) { notify('O navegador bloqueou a nova lapela.', 'error'); return; }
-    tab.opener = null;
+
+    try {
+      tab.opener = null;
+      tab.document.title = 'Cargando aceptación…';
+      tab.document.body.innerHTML = '<p style="font-family:system-ui;padding:2rem">Cargando o PDF de aceptación…</p>';
+    } catch {}
+
     setAcceptanceState(true, true);
     try {
       const blob = await requestReview('obterAceptacion', { idPersoa: id }, true);
+      if (!blob || blob.type !== 'application/pdf') throw new Error('A aceptación non devolveu un PDF válido.');
       if (acceptanceUrl) URL.revokeObjectURL(acceptanceUrl);
       acceptanceUrl = URL.createObjectURL(blob);
       setAcceptanceState(true, false);
-      tab.location.replace(acceptanceUrl);
+
+      try {
+        tab.location.href = acceptanceUrl;
+      } catch {
+        tab.document.body.innerHTML = '';
+        const frame = tab.document.createElement('iframe');
+        frame.src = acceptanceUrl;
+        frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0';
+        tab.document.body.append(frame);
+      }
     } catch (error) {
-      tab.close();
+      try {
+        tab.document.body.innerHTML = '<p style="font-family:system-ui;padding:2rem;color:#7a2439">Non foi posible abrir o PDF de aceptación.</p>';
+      } catch {}
       setAcceptanceState(false, false);
       notify(error instanceof Error ? error.message : 'Non foi posible abrir a aceptación.', 'error');
     }
