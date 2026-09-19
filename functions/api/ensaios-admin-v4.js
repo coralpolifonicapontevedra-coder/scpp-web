@@ -220,11 +220,21 @@ async function seedIndex(env, user) {
   await writeJson(env.R2_PRIVADO, indexKey(env), index, 'indice-ensaios-admin-v4');
   return index;
 }
+async function dependencyInvalidated(env, index) {
+  const revision = Number(index?.revision) || Date.parse(clean(index?.xeradoEn)) || 0;
+  const markers = await Promise.all([
+    readJson(env.R2_PRIVADO, invalidationKey(env, 'repertorio')),
+    readJson(env.R2_PRIVADO, invalidationKey(env, 'concertos'))
+  ]);
+  return markers.some((marker) => Number(marker?.updatedAt || 0) > revision);
+}
+
 async function getIndex(env, user, force = false) {
   const fallback = await cachedFallbackIndex(env);
-  if (!force && fallback?.index) return fallback;
+  const invalidated = fallback?.index ? await dependencyInvalidated(env, fallback.index) : false;
+  if (!force && fallback?.index && !invalidated) return fallback;
   try {
-    return { index: await seedIndex(env, user), fonte: 'SHEET' };
+    return { index: await seedIndex(env, user), fonte: invalidated ? 'SHEET-DEPENDENCY-REFRESH' : 'SHEET' };
   } catch (error) {
     if (fallback?.index) return { index: fallback.index, fonte: `${fallback.fonte}-STALE`, aviso: error?.message || '' };
     throw error;
