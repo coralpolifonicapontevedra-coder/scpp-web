@@ -617,6 +617,12 @@ function doPost(e) {
       return respostaJSON(resultado);
     }
 
+    if (accion === 'gardarEnsaioRepertorioLotePortal') {
+      bloqueo.waitLock(10000);
+      const resultado = gardarEnsaioRepertorioLotePortal_(datos);
+      return respostaJSON(resultado);
+    }
+
     if (accion === 'gardarEnsaioRepertorioPortal') {
       bloqueo.waitLock(10000);
 
