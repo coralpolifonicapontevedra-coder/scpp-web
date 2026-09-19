@@ -1,5 +1,4 @@
 const URL_RESPALDO_SCPP = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-const URL_PREVIEW_SCPP = URL_RESPALDO_SCPP;
 
 const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
 const ESTADOS_REDIRECCION_GET = new Set([301, 302, 303]);
@@ -134,7 +133,15 @@ function urlAppsScriptProtexida(env = {}, accion = '') {
     || ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS.has(accion)
     || ACCIONS_ENSAIOS_PROTEXIDAS.has(accion);
   if (!protexida) return '';
-  return ramaSCPP(env) === 'main' ? URL_RESPALDO_SCPP : URL_PREVIEW_SCPP;
+  if (ramaSCPP(env) === 'main') return URL_RESPALDO_SCPP;
+  const previewUrl = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  if (!PATRON_WEBAPP_APPS_SCRIPT.test(previewUrl)) {
+    throw new AppsScriptError(
+      'A implementación institucional de Apps Script non está configurada en Preview.',
+      'APPS_SCRIPT_NOT_CONFIGURED'
+    );
+  }
+  return previewUrl;
 }
 
 function urlAppsScriptForzada(options = {}) {
