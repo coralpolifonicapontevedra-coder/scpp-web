@@ -19,7 +19,7 @@
 function configurarFotosPortal() {
   PropertiesService.getScriptProperties().setProperties({
     FOTOS_FOLDER_ID: '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',
-    FOTOS_SPREADSHEET_ID: '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w',
+    FOTOS_SPREADSHEET_ID: '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg',
     FOTOS_SHEET_ID: '1291817000',
     FOTOS_APPSHEET_PATH: 'Fotos_Images/',
     FOTOS_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
