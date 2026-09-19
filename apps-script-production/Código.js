@@ -989,15 +989,15 @@ function listarRepertorioPortal_(datos) {
 
   const ids = {
     repertorio:
-      '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw',
+      '1xMsQhlY-M_K7h65T0de0ENySv1SxNrmPLjLoMGEIM2Y',
     audios:
-      '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0',
+      '108IkK_MPNqwMtkP7Qz4pqbzkTY6JBwYkI_9Npt1ik1U',
     partituras:
-      '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0',
+      '1r15Q9RJ-TH6NLFCIAiEI6qUeU5Ax82BF__bur0LoGHc',
     programas:
-      '1NyOt3A8EQ-HFBguDlsqaBQ0TpdlslI0GkRQzGXZkOig',
+      '12XfmhPTQCgOdIXN5Qg76Ej_cwgfh0LelNq9lhuLdDtg',
     concertos:
-      '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU'
+      '16v71m2HVzygUpOqn-Zws59d2jmaSqzcbq866pLZeQyA'
   };
 
   const repertorio = lerFollaRepertorio_(
@@ -1179,7 +1179,7 @@ function listarAsistenciasConcertosPortal_(datos) {
   }
 
   const asistencias = lerFollaRepertorio_(
-    '1pObayoj3uoPLtqUqQG9S5GZ0afRz9ErBeJbTgJlaiH0',
+    '199NFDBqbDT_9PXcB4roZK9dvyTWmnTsQXS8ZJMlE-qY',
     'AsistenciasConcertos'
   );
 
@@ -1904,7 +1904,7 @@ function rexistrarAcceso(datos) {
 
     // Arquivo independente RexistroAccesosWeb.
     const libroRexistro = SpreadsheetApp.openById(
-      '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU'
+      '16sAHStRwNzNAROV7X0pXYu-GBHwzZoGEnzSFCz9nbCY'
     );
 
     // Identificador interno da pestana.
@@ -1975,7 +1975,7 @@ function autorizarAccesoUsuariosWeb() {
 
 function comprobarRexistroAccesosWeb() {
   const libroRexistro = SpreadsheetApp.openById(
-    '1nhoP8ea1RyZiZ9SaTyFjnHG9MBOk-TMe15eHvvkXcdU'
+    '16sAHStRwNzNAROV7X0pXYu-GBHwzZoGEnzSFCz9nbCY'
   );
 
   const follaRexistro =
@@ -2009,7 +2009,7 @@ function probarEscrituraRexistro() {
 }
 function comprobarFollaAceptacion() {
   const libroAceptacion = SpreadsheetApp.openById(
-    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+    '1tFlpbljN_eYKWm1QON8hwPZU1v4rB3C3ebafe8lIiXs'
   );
 
   const follaAceptacion =
@@ -2044,7 +2044,7 @@ function comprobarFollaAceptacion() {
 
 function rexistrarAceptacion(datos) {
   const libroAceptacion = SpreadsheetApp.openById(
-    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+    '1tFlpbljN_eYKWm1QON8hwPZU1v4rB3C3ebafe8lIiXs'
   );
 
   const follaAceptacion =
@@ -2080,7 +2080,7 @@ function rexistrarAceptacion(datos) {
 
 function tenAceptacionVixente_(correo, version) {
   const libroAceptacion = SpreadsheetApp.openById(
-    '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k'
+    '1tFlpbljN_eYKWm1QON8hwPZU1v4rB3C3ebafe8lIiXs'
   );
 
   const follaAceptacion =
@@ -2207,7 +2207,7 @@ function probarPostAceptacion() {
  * desde TextosLegais.
  */
 const ACEPTACION_SPREADSHEET_ID_ =
-  '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k';
+  '1tFlpbljN_eYKWm1QON8hwPZU1v4rB3C3ebafe8lIiXs';
 const TEXTOS_LEGAIS_SHEET_ID_ = 2025412208;
 const TEXTO_LEGAL_PORTAL_ID_ = 'PRIVACIDADE_WEB';
 
