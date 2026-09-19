@@ -605,53 +605,21 @@ function gardarRutasFotoR2Portal_(datos) {
    ========================= */
 
 function obterContextoFotos_() {
-  const propiedades =
-    PropertiesService.getScriptProperties();
-
-  const spreadsheetId = String(
-    propiedades.getProperty('FOTOS_SPREADSHEET_ID') ||
-    '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg'
-  ).trim();
-
-  const sheetId = Number(
-    propiedades.getProperty('FOTOS_SHEET_ID') ||
-    '1291817000'
-  );
-
-  const folderId = String(
-    propiedades.getProperty('FOTOS_FOLDER_ID') ||
-    '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'
-  ).trim();
-
-  const appsheetPath = String(
-    propiedades.getProperty('FOTOS_APPSHEET_PATH') ||
-    'Fotos_Images/'
-  ).trim();
-
-  if (!spreadsheetId || !sheetId || !folderId) {
-    throw new Error(
-      'Falta a configuración do módulo Fotos'
-    );
-  }
+  const spreadsheetId = '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg';
+  const sheetId = 1291817000;
+  const folderId = '1iXjZPmg330JEpuBXrioeJmAAQXUzNlFW';
+  const appsheetPath = 'Fotos_Images/';
 
   const libro = SpreadsheetApp.openById(spreadsheetId);
   const folla = libro.getSheetById(sheetId);
 
   if (!folla || folla.getName() !== 'Fotos') {
-    throw new Error(
-      'Non se atopou a folla Fotos co ID configurado'
-    );
+    throw new Error('Non se atopou a folla corporativa Fotos');
   }
 
   validarCabeceirasFotos_(folla);
-
-  return {
-    folla: folla,
-    folderId: folderId,
-    appsheetPath: appsheetPath
-  };
+  return { folla: folla, folderId: folderId, appsheetPath: appsheetPath };
 }
-
 function obterAdministradorFotosPortalV2_(email) {
   const correo = String(email || '')
     .trim()
