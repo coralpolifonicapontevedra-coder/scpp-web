@@ -28,9 +28,9 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly", "https://www.googleapis.com/auth/spreadsheets.readonly"]
-AUDIO_SHEET_ID = os.getenv("AUDIO_SHEET_ID", "16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0")
+AUDIO_SHEET_ID = os.getenv("AUDIO_SHEET_ID", "108IkK_MPNqwMtkP7Qz4pqbzkTY6JBwYkI_9Npt1ik1U")
 AUDIO_TAB = os.getenv("AUDIO_TAB", "AudiosRepertorio")
-PARTITURA_SHEET_ID = os.getenv("PARTITURA_SHEET_ID", "18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0")
+PARTITURA_SHEET_ID = os.getenv("PARTITURA_SHEET_ID", "1r15Q9RJ-TH6NLFCIAiEI6qUeU5Ax82BF__bur0LoGHc")
 PARTITURA_TAB = os.getenv("PARTITURA_TAB", "Partituras_App")
 AUDIO_FOLDER_ID = os.getenv("AUDIO_FOLDER_ID", "1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU")
 PARTITURA_FOLDER_ID = os.getenv("PARTITURA_FOLDER_ID", "1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm")
