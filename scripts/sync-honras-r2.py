@@ -22,7 +22,7 @@ from urllib.parse import quote
 
 BUCKET = os.getenv("R2_PUBLIC_BUCKET", "scpp-publico").strip()
 INDEX_KEY = "indices/honras-v1.json"
-SPREADSHEET_ID = os.getenv("HONRAS_SPREADSHEET_ID", "1YUJ-110A2A8EASTblPE8YSJuRUTKgmKIFGPRaOVhCAE").strip()
+SPREADSHEET_ID = os.getenv("HONRAS_SPREADSHEET_ID", "1T9RFmj8kW-jfaC7id9bnOE2F14MSQq9AFJB2gAAVecw").strip()
 SHEET_NAME = os.getenv("HONRAS_SHEET_NAME", "Honras").strip()
 ATTEMPTS = int(os.getenv("SYNC_ATTEMPTS", "5"))
 TIMEOUT = int(os.getenv("SYNC_TIMEOUT_SECONDS", "90"))
