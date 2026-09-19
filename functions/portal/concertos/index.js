@@ -6,26 +6,6 @@ function requestImplementacion(request) {
   return new Request(url.toString(), request);
 }
 
-const scriptAsistenciasPreview = `<script>
-(() => {
-  const fetchOriginal = window.fetch.bind(window);
-  window.fetch = (input, init) => {
-    try {
-      const valor = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input || '');
-      const url = new URL(valor, window.location.href);
-      if (url.pathname === '/api/asistencias-concertos') {
-        url.pathname = '/api/asistencias-concertos-preview';
-        const destino = typeof input === 'string' ? url.pathname + url.search : new Request(url.toString(), input);
-        return fetchOriginal(destino, init);
-      }
-    } catch (erro) {
-      console.warn('Non foi posible activar as asistencias illadas de Preview.', erro);
-    }
-    return fetchOriginal(input, init);
-  };
-})();
-</script>`;
-
 const scriptAsistenciasProducion = `<script>
 (() => {
   const fetchOriginal = window.fetch.bind(window);
@@ -57,15 +37,7 @@ export async function onRequestGet({ request, env }) {
   let html = await resposta.text();
   const branch = String(env.CF_PAGES_BRANCH || '').trim();
 
-  if (branch !== 'main' && !html.includes('/api/asistencias-concertos-preview')) {
-    if (html.includes('</head>')) {
-      html = html.replace('</head>', `${scriptAsistenciasPreview}</head>`);
-    } else {
-      html = `${scriptAsistenciasPreview}${html}`;
-    }
-  }
-
-  if (branch === 'main' && !html.includes('/api/asistencias-concertos-portal')) {
+  if (!html.includes('/api/asistencias-concertos-portal')) {
     if (html.includes('</head>')) {
       html = html.replace('</head>', `${scriptAsistenciasProducion}</head>`);
     } else {
