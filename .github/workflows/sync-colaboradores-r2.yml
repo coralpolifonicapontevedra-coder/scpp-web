@@ -40,7 +40,7 @@ jobs:
       - name: Publicar entidades e logos en R2
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          COLABORADORES_SPREADSHEET_ID: '1mqlMESC6ZkE4t1zfA0q1dK3PRFHtKLO71ifdbT2CtHw'
+          COLABORADORES_SPREADSHEET_ID: '1TSniMR9gurDZ7M_ciL2rWvXVnX3wriFz20AdRPCf_a0'
           COLABORADORES_SHEET_NAME: 'Colaboracións'
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
