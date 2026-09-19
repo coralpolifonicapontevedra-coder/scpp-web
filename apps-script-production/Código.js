@@ -1379,9 +1379,9 @@ function obterFicheiroRepertorio_(datos) {
 
   const carpetasPermitidas = {
     'Obras_Files_':
-      '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU',
+      '19h7RXL8HW4fguIJGP_-C8kon8DWfaeyG',
     'Partituras_Files_':
-      '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm',
+      '1zhZaDc5sZeDcDB4h14knEZX-3Mhbkk1o',
     'AudiosRepertorio_Files_':
       '1lDDdv0iUTqY70rVN0NjIe7XE5ovI5T-V'
   };
