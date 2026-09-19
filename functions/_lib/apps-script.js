@@ -1,5 +1,3 @@
-const URL_RESPALDO_SCPP = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-
 const ESTADOS_RECUPERABLES = new Set([404, 408, 410, 425, 429, 500, 502, 503, 504]);
 const ESTADOS_REDIRECCION_GET = new Set([301, 302, 303]);
 const PATRON_WEBAPP_APPS_SCRIPT = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/;
@@ -112,13 +110,8 @@ export class AppsScriptError extends Error {
 }
 
 function urlsAppsScript(env = {}) {
-  return [
-    env.APPS_SCRIPT_WEBAPP_URL,
-    env.APPS_SCRIPT_FALLBACK_URL,
-    URL_RESPALDO_SCPP
-  ]
-    .map((url) => String(url || '').trim())
-    .filter((url, index, all) => PATRON_WEBAPP_APPS_SCRIPT.test(url) && all.indexOf(url) === index);
+  const url = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  return PATRON_WEBAPP_APPS_SCRIPT.test(url) ? [url] : [];
 }
 
 function ramaSCPP(env = {}) {
@@ -133,15 +126,14 @@ function urlAppsScriptProtexida(env = {}, accion = '') {
     || ACCIONS_ARQUIVO_ADMIN_PROTEXIDAS.has(accion)
     || ACCIONS_ENSAIOS_PROTEXIDAS.has(accion);
   if (!protexida) return '';
-  if (ramaSCPP(env) === 'main') return URL_RESPALDO_SCPP;
-  const previewUrl = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
-  if (!PATRON_WEBAPP_APPS_SCRIPT.test(previewUrl)) {
+  const institucionalUrl = String(env.APPS_SCRIPT_WEBAPP_URL || '').trim();
+  if (!PATRON_WEBAPP_APPS_SCRIPT.test(institucionalUrl)) {
     throw new AppsScriptError(
-      'A implementación institucional de Apps Script non está configurada en Preview.',
+      'A implementación institucional de Apps Script non está configurada.',
       'APPS_SCRIPT_NOT_CONFIGURED'
     );
   }
-  return previewUrl;
+  return institucionalUrl;
 }
 
 function urlAppsScriptForzada(options = {}) {
