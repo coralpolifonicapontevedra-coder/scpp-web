@@ -278,7 +278,8 @@ export async function onRequest({ request, env }) {
     fonte = atopada ? 'R2-PUBLICO-COPIA-PRIVADA' : '';
   }
 
-  if (!atopada && rexistroRevision) {
+  const permitirRecuperacionDrive = url.searchParams.get('recuperar') === '1';
+  if (!atopada && rexistroRevision && permitirRecuperacionDrive) {
     atopada = await recuperarDeDrive(env, usuario, identificador).catch((erro) => {
       console.warn(`Non se puido recuperar ${identificador} desde Drive:`, erro);
       return null;
