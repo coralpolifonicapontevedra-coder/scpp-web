@@ -15,14 +15,14 @@ var PERMISOS_PORTAL_CONFIG_ = {
   previewScriptId: '1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF',
   productionScriptId: '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV',
   preview: {
-    persoasId: '1o45U0odJynzPXNTBhOm11_sko13Sat-_r0saZ0BjBEg',
-    xuntaDirectivaId: '12Fmoc41qMDRgZvlLMdbstLGjz1MA63SNCa4QfMJB7QM',
-    direccionArtisticaId: '1ZC83Dc79JI3lZklTFu9nnaHcNMUA5zPIZO5Qizepioc'
+    persoasId: '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
+    xuntaDirectivaId: '1ZwpZ9msqB5PFsIaJp_2pkqhCsbheniR07l0pZt_xSu8',
+    direccionArtisticaId: '1OoaU1mUJ8bCxd2YzQNbDYbP2-b254terghcXtodSCTs'
   },
   production: {
-    persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
-    xuntaDirectivaId: '1zRKw66yA5zn1fmR4tlgZRtNZ4Gg5ezrDiF8oHzpUykc',
-    direccionArtisticaId: '1X1wu0n2Mz-LKZzCDUp--P1V2GY5tIZztz7EwoXOfQII'
+    persoasId: '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
+    xuntaDirectivaId: '1ZwpZ9msqB5PFsIaJp_2pkqhCsbheniR07l0pZt_xSu8',
+    direccionArtisticaId: '1OoaU1mUJ8bCxd2YzQNbDYbP2-b254terghcXtodSCTs'
   }
 };
 
