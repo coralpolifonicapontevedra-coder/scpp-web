@@ -1,7 +1,7 @@
 const REPERTORIO_ADMIN_LIBROS_ = {
-  Repertorio: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw',
-  Partituras_App: '18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0',
-  AudiosRepertorio: '16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0'
+  Repertorio: '1xMsQhlY-M_K7h65T0de0ENySv1SxNrmPLjLoMGEIM2Y',
+  Partituras_App: '1r15Q9RJ-TH6NLFCIAiEI6qUeU5Ax82BF__bur0LoGHc',
+  AudiosRepertorio: '108IkK_MPNqwMtkP7Qz4pqbzkTY6JBwYkI_9Npt1ik1U'
 };
 
 function follaRepertorioAdmin_(nome) {
