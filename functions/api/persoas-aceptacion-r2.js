@@ -2,6 +2,7 @@ import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-p
 
 const ACCEPTANCE_PREFIX = 'persoas/aceptacions/';
 const REVISION_PREFIX = 'persoas/revisions/';
+const MAIN_ACCEPTANCE_API = 'https://coralpolifonicapontevedra.org/api/persoas-aceptacion-r2';
 
 const clean = (value) => String(value || '').trim();
 const safeId = (value) => clean(value).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
@@ -140,6 +141,25 @@ async function diagnosticarRevision(env, idPersoa, revisionId) {
   };
 }
 
+async function obterDesdeMainSePreview(request, env, data) {
+  if (clean(env?.CF_PAGES_BRANCH) === 'main') return null;
+  try {
+    const resposta = await fetch(MAIN_ACCEPTANCE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!resposta.ok) return null;
+    const headers = new Headers(resposta.headers);
+    headers.set('Cache-Control', 'private, no-store');
+    headers.set('X-SCPP-Aceptacion-Fonte', 'MAIN-R2');
+    return new Response(resposta.body, { status: resposta.status, headers });
+  } catch (error) {
+    console.warn('Non se puido consultar a aceptación no R2 de produción desde Preview:', error);
+    return null;
+  }
+}
+
 export async function onRequest({ request, env }) {
   if (request.method !== 'POST') return json(405, { ok: false, erro: 'Método non permitido.' });
   let data;
@@ -163,6 +183,10 @@ export async function onRequest({ request, env }) {
   }
 
   const aceptacion = await localizarAceptacion(env, idPersoa);
+  if (!aceptacion) {
+    const desdeMain = await obterDesdeMainSePreview(request, env, data);
+    if (desdeMain) return desdeMain;
+  }
   if (accion === 'estadoAceptacion') {
     return json(200, {
       ok: true,
