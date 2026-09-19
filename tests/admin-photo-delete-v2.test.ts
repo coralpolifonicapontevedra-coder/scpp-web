@@ -40,7 +40,7 @@ describe('Borrado seguro de fotografías en Producción', () => {
   });
 
   it('Apps Script segue esixindo os recursos físicos exactos de Producción', () => {
-    expect(appsScript).toContain("FOTOS_PRODUCTION_SPREADSHEET_ID_V2_ = '1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w'");
+    expect(appsScript).toContain("FOTOS_PRODUCTION_SPREADSHEET_ID_V2_ = '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg'");
     expect(appsScript).toContain("FOTOS_PRODUCTION_FOLDER_ID_V2_ = '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'");
     expect(appsScript).toContain("entorno: 'production'");
   });
