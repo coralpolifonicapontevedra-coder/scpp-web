@@ -7,6 +7,7 @@ const TIMEOUT_FIREBASE_MS = 8 * 1000;
 const TIMEOUT_LISTADO_MS = 22 * 1000;
 const TIMEOUT_FICHEIRO_MS = 60 * 1000;
 const TIMEOUT_INTENTO_FICHEIRO_MS = 40 * 1000;
+const MAIN_DOCUMENTACION_API = 'https://coralpolifonicapontevedra.org/api/documentacion';
 
 const cacheTokens = new Map();
 const cacheDocumentacion = new Map();
@@ -266,6 +267,30 @@ async function respostaR2(env, documento) {
   return new Response(object.body, { status: 200, headers });
 }
 
+async function respostaR2MainSePreview(env, usuario, datos) {
+  if (String(env?.CF_PAGES_BRANCH || '').trim() === 'main') return null;
+  try {
+    const resposta = await fetch(MAIN_DOCUMENTACION_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken: String(datos.idToken || '').trim(),
+        accion: 'obterFicheiroDocumentacion',
+        ruta: String(datos.ruta || '').trim(),
+        clase: String(datos.clase || '').trim()
+      })
+    });
+    if (!resposta.ok) return null;
+    const headers = new Headers(resposta.headers);
+    headers.set('X-SCPP-Storage', 'R2-MAIN-FALLBACK');
+    headers.set('Cache-Control', 'private, max-age=300');
+    return new Response(resposta.body, { status: 200, headers });
+  } catch (error) {
+    console.warn('Non se puido recuperar o documento desde o R2 de produción:', error);
+    return null;
+  }
+}
+
 function corpoAppsScript(env, usuario, accion, datos) {
   return {
     token: env.WEB_WRITE_TOKEN,
@@ -365,10 +390,13 @@ export async function onRequest(context) {
         const respostaDirecta = await respostaR2(env, documento);
         if (respostaDirecta) return respostaDirecta;
       } catch (erroR2) {
-        console.warn('Non se puido servir o documento desde R2; úsase o respaldo:', erroR2);
+        console.warn('Non se puido servir o documento desde R2 local:', erroR2);
       }
 
-      // Respaldo temporal: conserva Drive a través de Apps Script durante a transición.
+      const respostaMain = await respostaR2MainSePreview(env, usuario, datos);
+      if (respostaMain) return respostaMain;
+
+      // Respaldo temporal corporativo: Drive institucional a través de Apps Script.
       const { resultado, usouRespaldo } = await obterJsonAppsScript(
         env,
         corpoAppsScript(env, usuario, accion, datos),
