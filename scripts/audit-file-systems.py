@@ -59,14 +59,14 @@ class Finding:
 
 
 DRIVE_SCOPES = [
-    DriveScope("documentacion", "Documentación", os.getenv("DOCUMENTACION_FOLDER_ID", "1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ"), "documentacion/documentos/", "CATALOG_VERIFY", "private"),
-    DriveScope("actas", "Actas", os.getenv("ACTAS_FOLDER_ID", "1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR"), "documentacion/actas/", "CATALOG_VERIFY", "private"),
+    DriveScope("documentacion", "Documentación", os.getenv("DOCUMENTACION_FOLDER_ID", "1mM3-WgglFYWQfN8pzslK3Q1DPm-8G1JC"), "documentacion/documentos/", "CATALOG_VERIFY", "private"),
+    DriveScope("actas", "Actas", os.getenv("ACTAS_FOLDER_ID", "1wBoG9avVdQ5kV-lvGLFEnnjnJu_V7hTx"), "documentacion/actas/", "CATALOG_VERIFY", "private"),
     DriveScope("concertos_documentos", "Programas de conciertos", os.getenv("CONCERTOS_FILES_FOLDER_ID", "1H12S32zJzncJoXdUvbZx82CLFXvlhtd6"), "concertos/documentos/", "MIGRATE_PRIVATE", "private"),
     DriveScope("concertos_imaxes", "Carteles e imágenes de conciertos", os.getenv("CONCERTOS_IMAGES_FOLDER_ID", "1yvEWIatZIa3UnE71VQUb4LCvBZ6HLs6t"), "concertos/imaxes/", "REVIEW_PUBLIC_R2", "public"),
     DriveScope("perfil_fotos", "Fotos de perfil", os.getenv("PERFIL_FOTOS_FOLDER_ID", "1qXPUplggCFbFTTLRtm2j16af717o-bQs"), "persoas/perfis/", "MIGRATE_PRIVATE", "private"),
-    DriveScope("persoas_fichas", "Fichas de personas", os.getenv("FICHAS_FOLDER_ID", "1UmEo1fP5jyxxo90dQbXG6SM2SrmdysbN"), "persoas/fichas/", "VERIFY_MANAGED", "private"),
-    DriveScope("repertorio", "Audios de repertorio", os.getenv("AUDIO_FOLDER_ID", "1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU"), "repertorio/audios/", "VERIFY_MANAGED", "private"),
-    DriveScope("partituras", "Partituras", os.getenv("PARTITURA_FOLDER_ID", "1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm"), "partituras/", "VERIFY_MANAGED", "private"),
+    DriveScope("persoas_fichas", "Fichas de personas", os.getenv("FICHAS_FOLDER_ID", "1xNdiiZMU_ydmzYp6H48OscZLqzbzNcaA"), "persoas/fichas/", "VERIFY_MANAGED", "private"),
+    DriveScope("repertorio", "Audios de repertorio", os.getenv("AUDIO_FOLDER_ID", "19h7RXL8HW4fguIJGP_-C8kon8DWfaeyG"), "repertorio/audios/", "VERIFY_MANAGED", "private"),
+    DriveScope("partituras", "Partituras", os.getenv("PARTITURA_FOLDER_ID", "1zhZaDc5sZeDcDB4h14knEZX-3Mhbkk1o"), "partituras/", "VERIFY_MANAGED", "private"),
     DriveScope("fotos", "Fotografías", os.getenv("FOTOS_FOLDER_ID", "1FySxDvTHVNC20-a3I0wDU1v0s82VRiix"), "fotos/", "VERIFY_MANAGED", "private"),
 ]
 
