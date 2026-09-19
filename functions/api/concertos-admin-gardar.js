@@ -18,7 +18,7 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 });
 const rama = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
 const indexKey = (env) => rama(env) === 'main' ? INDEX_MAIN : INDEX_PREVIEW;
-const esperadoAppsScript = (env) => rama(env) === 'main' ? APPS_SCRIPT_PRODUCION : clean(env.APPS_SCRIPT_WEBAPP_URL);
+const esperadoAppsScript = (env) => clean(env.APPS_SCRIPT_WEBAPP_URL);
 const pausa = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const invalidationKey = (env) => `cache/invalidation/${rama(env)}/concertos.json`;
 
