@@ -29,23 +29,24 @@ function obterDocumentoConcerto_(datos) {
 }
 
 function obterContextoConcertosPortal_() {
-  var p = PropertiesService.getScriptProperties();
-  var concertosSpreadsheetId = p.getProperty('CONCERTOS_SPREADSHEET_ID');
-  var concertosSheetId = Number(p.getProperty('CONCERTOS_SHEET_ID'));
-  var usuariosSpreadsheetId = p.getProperty('USUARIOS_WEB_SPREADSHEET_ID');
-  var usuariosSheetId = Number(p.getProperty('USUARIOS_WEB_SHEET_ID'));
-  var filesFolderId = p.getProperty('CONCERTOS_FILES_FOLDER_ID');
-  var imagesFolderId = p.getProperty('CONCERTOS_IMAGES_FOLDER_ID');
-  if (!concertosSpreadsheetId || !concertosSheetId || !usuariosSpreadsheetId || !usuariosSheetId || !filesFolderId || !imagesFolderId) {
-    throw new Error('Falta configurar o módulo Concertos mediante Script Properties');
-  }
+  var concertosSpreadsheetId = '16v71m2HVzygUpOqn-Zws59d2jmaSqzcbq866pLZeQyA';
+  var concertosSheetId = 1098509641;
+  var usuariosSpreadsheetId = '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI';
+  var usuariosSheetId = 1291817000;
+  var filesFolderId = '1-JpNpvPXooV46n-zp_r995EDeaVngQq4';
+  var imagesFolderId = '1uzTqQK1hkmGO6ie7yVVZ-SeRLPn7Vk-A';
+
   var follaConcertos = SpreadsheetApp.openById(concertosSpreadsheetId).getSheetById(concertosSheetId);
   var follaUsuarios = SpreadsheetApp.openById(usuariosSpreadsheetId).getSheetById(usuariosSheetId);
-  if (!follaConcertos || follaConcertos.getName() !== 'Concertos') throw new Error('Non se atopou a folla Concertos configurada');
-  if (!follaUsuarios || follaUsuarios.getName() !== 'UsuariosWeb') throw new Error('Non se atopou a folla UsuariosWeb configurada');
-  return { follaConcertos: follaConcertos, follaUsuarios: follaUsuarios, carpetaFiles: DriveApp.getFolderById(filesFolderId), carpetaImages: DriveApp.getFolderById(imagesFolderId) };
+  if (!follaConcertos || follaConcertos.getName() !== 'Concertos') throw new Error('Non se atopou a folla corporativa Concertos');
+  if (!follaUsuarios || follaUsuarios.getName() !== 'UsuariosWeb') throw new Error('Non se atopou a folla corporativa UsuariosWeb');
+  return {
+    follaConcertos: follaConcertos,
+    follaUsuarios: follaUsuarios,
+    carpetaFiles: DriveApp.getFolderById(filesFolderId),
+    carpetaImages: DriveApp.getFolderById(imagesFolderId)
+  };
 }
-
 function usuarioActivoConcertosPortal_(contexto, email) {
   var valores = contexto.follaUsuarios.getDataRange().getValues();
   if (valores.length < 2) return false;
