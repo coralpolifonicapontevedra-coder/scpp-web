@@ -609,6 +609,21 @@ function doPost(e) {
       return respostaJSON(eliminarFotoHuerfanaAdministracionPortal_(datos));
     }
 
+    if (accion === 'reconciliarEnsaioAdministracionV4') {
+      bloqueo.waitLock(10000);
+      const resultado = reconciliarEnsaioAdministracionV4_(datos);
+      rexistrarAcceso({
+        email: correo,
+        tipoEvento: 'Finalizar xestión de ensaio',
+        modulo: 'Ensaios',
+        resultado: resultado.ok ? 'Correcto' : 'Rexeitado',
+        detalle: resultado.ok
+          ? 'Obras e asistencias reconciliadas nunha única operación'
+          : String(resultado.erro || '')
+      });
+      return respostaJSON(resultado);
+    }
+
     if (accion === 'gardarAsistenciaEnsaioPortal') {
       bloqueo.waitLock(10000);
 
