@@ -117,7 +117,17 @@ async function lerSnapshot(env) {
 
 async function lerPhotoIndex(env) {
   const entry = await lerJsonR2(env.R2_PRIVADO, photoIndexKey(env));
-  return entry && typeof entry === 'object' ? entry : { version: 1, persoas: {} };
+  if (envBranch(env) === 'main') {
+    return entry && typeof entry === 'object' ? entry : { version: 1, persoas: {} };
+  }
+  const main = await lerJsonR2(env.R2_PRIVADO, PHOTO_INDEX_MAIN);
+  return {
+    version: Math.max(Number(main?.version || 1), Number(entry?.version || 1)),
+    persoas: {
+      ...(main?.persoas && typeof main.persoas === 'object' ? main.persoas : {}),
+      ...(entry?.persoas && typeof entry.persoas === 'object' ? entry.persoas : {})
+    }
+  };
 }
 
 function enriquecerFotos(payload, photoIndex) {
