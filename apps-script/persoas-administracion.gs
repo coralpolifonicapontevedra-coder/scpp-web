@@ -931,7 +931,7 @@ function enviarRevisionsPersoasAdministracion_(datos) {
             body: corpoTexto,
             htmlBody: corpoHtml,
             name: 'Sociedade Coral Polifónica de Pontevedra',
-            replyTo: 'coralpolifonicapontevedra@gmail.com'
+            replyTo: 'secretario@coralpolifonicapontevedra.org'
           });
           propiedades.setProperty(chaveEnvio, JSON.stringify({
             enviadoEn: new Date().toISOString(),
