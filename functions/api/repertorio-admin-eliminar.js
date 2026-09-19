@@ -1,8 +1,5 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 
-const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-const APPS_SCRIPT_PREVIEW = APPS_SCRIPT_PRODUCION;
-
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: {
