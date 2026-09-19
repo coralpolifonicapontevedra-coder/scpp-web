@@ -27,7 +27,7 @@ SCOPES = [
 ]
 PERSOAS_ID = os.getenv("PERSOAS_SPREADSHEET_ID", "1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ")
 PERSOAS_TAB = os.getenv("PERSOAS_TAB", "Persoas")
-FICHAS_FOLDER_ID = os.getenv("FICHAS_FOLDER_ID", "1UmEo1fP5jyxxo90dQbXG6SM2SrmdysbN")
+FICHAS_FOLDER_ID = os.getenv("FICHAS_FOLDER_ID", "1xNdiiZMU_ydmzYp6H48OscZLqzbzNcaA")
 REPORT_PATH = pathlib.Path(os.getenv("REPORT_PATH", "r2-fichas-migration-report.csv"))
 R2_COLUMNS = [
     "FichaR2Key", "FichaR2ETag", "FichaR2SHA256", "FichaR2Size",
