@@ -5,7 +5,7 @@
  */
 
 var XESTION_PERMISOS_CONFIG_ = {
-  usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+  usuariosSpreadsheetId: '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
   sheetUsuarios: 'UsuariosWeb',
   sheetPermisos: 'PermisosPortal'
 };
