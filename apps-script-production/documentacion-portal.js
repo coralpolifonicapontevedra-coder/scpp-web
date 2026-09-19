@@ -29,10 +29,10 @@ const DOC_PORTAL_CONFIG = {
     388888827,
 
   folderDocumentacionId:
-    '1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ',
+    '1mM3-WgglFYWQfN8pzslK3Q1DPm-8G1JC',
 
   folderActasId:
-    '1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR'
+    '1wBoG9avVdQ5kV-lvGLFEnnjnJu_V7hTx'
 };
 
 const DOC_NIVEIS = {
