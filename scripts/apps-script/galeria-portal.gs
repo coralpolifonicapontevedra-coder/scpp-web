@@ -105,13 +105,8 @@ function obterFotoGaleriaPortal_(datos) {
 }
 
 function obterContextoGaleriaFotos_() {
-  var propiedades = PropertiesService.getScriptProperties();
-  var spreadsheetId = propiedades.getProperty('FOTOS_SPREADSHEET_ID');
-  var sheetId = Number(propiedades.getProperty('FOTOS_SHEET_ID'));
-  if (!spreadsheetId || !sheetId) {
-    throw new Error('Falta a configuración do módulo Fotos');
-  }
-
+  var spreadsheetId = '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg';
+  var sheetId = 1291817000;
   var folla = SpreadsheetApp.openById(spreadsheetId).getSheetById(sheetId);
   if (!folla || folla.getName() !== 'Fotos') {
     throw new Error('Non se atopou a folla Fotos co ID configurado');
