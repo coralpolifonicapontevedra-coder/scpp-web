@@ -6,9 +6,22 @@
  * Emprega Id_Documento, Id_Actas e Persoas.Id, sen depender de Row ID.
  */
 
+function recursoCorporativoDoc_(nome, corporativo) {
+  const configurado = String(
+    PropertiesService.getScriptProperties().getProperty(nome) || ''
+  ).trim();
+  if (configurado && configurado !== corporativo) {
+    throw new Error(nome + ' non apunta ao recurso corporativo autorizado.');
+  }
+  return corporativo;
+}
+
 const DOC_PORTAL_CONFIG = {
   documentosSpreadsheetId:
-    '10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs',
+    recursoCorporativoDoc_(
+      'DOCUMENTACION_SPREADSHEET_ID',
+      '10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs'
+    ),
 
   sheetDocumentacion:
     'Documentación',
@@ -17,22 +30,34 @@ const DOC_PORTAL_CONFIG = {
     'Actas XD e AX',
 
   usuariosSpreadsheetId:
-    '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
+    recursoCorporativoDoc_(
+      'DOCUMENTACION_USUARIOS_SPREADSHEET_ID',
+      '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI'
+    ),
 
   usuariosSheetId:
     1291817000,
 
   persoasSpreadsheetId:
-    '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
+    recursoCorporativoDoc_(
+      'DOCUMENTACION_PERSOAS_SPREADSHEET_ID',
+      '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ'
+    ),
 
   persoasSheetId:
     388888827,
 
   folderDocumentacionId:
-    '1mM3-WgglFYWQfN8pzslK3Q1DPm-8G1JC',
+    recursoCorporativoDoc_(
+      'DOCUMENTACION_FOLDER_ID',
+      '1mM3-WgglFYWQfN8pzslK3Q1DPm-8G1JC'
+    ),
 
   folderActasId:
-    '1wBoG9avVdQ5kV-lvGLFEnnjnJu_V7hTx'
+    recursoCorporativoDoc_(
+      'ACTAS_FOLDER_ID',
+      '1wBoG9avVdQ5kV-lvGLFEnnjnJu_V7hTx'
+    )
 };
 
 const DOC_NIVEIS = {
@@ -194,13 +219,17 @@ function obterContextoDocumentacion_() {
     DOC_PORTAL_CONFIG.sheetActas
   );
 
-  const usuarios = SpreadsheetApp
-    .openById(
-      DOC_PORTAL_CONFIG.usuariosSpreadsheetId
-    )
-    .getSheetById(
-      DOC_PORTAL_CONFIG.usuariosSheetId
-    );
+  const libroUsuarios = SpreadsheetApp.openById(
+    DOC_PORTAL_CONFIG.usuariosSpreadsheetId
+  );
+
+  const usuarios = libroUsuarios.getSheetById(
+    DOC_PORTAL_CONFIG.usuariosSheetId
+  );
+
+  const permisos = libroUsuarios.getSheetByName(
+    'PermisosPortal'
+  );
 
   const persoas = SpreadsheetApp
     .openById(
@@ -239,6 +268,15 @@ function obterContextoDocumentacion_() {
   }
 
   if (
+    !permisos ||
+    permisos.getName() !== 'PermisosPortal'
+  ) {
+    throw new Error(
+      'Non se atopou a folla PermisosPortal'
+    );
+  }
+
+  if (
     !persoas ||
     persoas.getName() !== 'Persoas'
   ) {
@@ -251,6 +289,7 @@ function obterContextoDocumentacion_() {
     documentos: documentos,
     actas: actas,
     usuarios: usuarios,
+    permisos: permisos,
     persoas: persoas
   };
 }
@@ -598,6 +637,17 @@ function obterPerfilDocumentacion_(contexto, email) {
       'Nome'
     );
 
+  const nivelPermiso = nivelPermisoDocumentacion_(
+    contexto.permisos,
+    email
+  );
+
+  if (!nivelPermiso || nivelPermiso === 'Sen acceso') {
+    return null;
+  }
+
+  const nivel = nivelPermiso;
+
   return {
     email: email,
     idPersoa: textoFilaDoc_(
@@ -613,46 +663,71 @@ function obterPerfilDocumentacion_(contexto, email) {
       ) ||
       nomePersoa,
     cargo: cargo,
-    nivel: nivelDesdeCargoDoc_(cargo)
+    nivel: nivel
   };
 }
 
-function nivelDesdeCargoDoc_(cargo) {
-  const valor = normalizarTextoDoc_(cargo);
-
-  const cargosAdministracion = [
-    'presidente',
-    'presidenta',
-    'vicepresidente',
-    'vicepresidenta',
-    'secretario',
-    'secretaria',
-    'vicesecretario',
-    'vicesecretaria',
-    'tesoureiro',
-    'tesoureira',
-    'contador',
-    'contadora'
-  ];
-
-  const eAdministracion =
-    cargosAdministracion.some(function(cargoAdmin) {
-      return valor.indexOf(cargoAdmin) >= 0;
-    });
-
-  if (eAdministracion) {
-    return 'Administración';
+function nivelPermisoDocumentacion_(sheet, email) {
+  if (!sheet || sheet.getLastRow() < 2) {
+    return null;
   }
 
-  if (
-    valor &&
-    valor !== 'ningun' &&
-    valor !== 'ningunha'
-  ) {
+  email = normalizarEmailDoc_(email);
+
+  const valores = sheet
+    .getDataRange()
+    .getDisplayValues();
+
+  const headers = mapaHeadersDoc_(
+    valores.shift()
+  );
+
+  requireHeaderDoc_(headers, 'Email', 'PermisosPortal');
+  requireHeaderDoc_(headers, 'Modulo', 'PermisosPortal');
+  requireHeaderDoc_(headers, 'Nivel', 'PermisosPortal');
+  requireHeaderDoc_(headers, 'Activo', 'PermisosPortal');
+
+  const permiso = valores.find(function(row) {
+    const contido =
+      headers.Contido === undefined
+        ? ''
+        : textoFilaDoc_(row, headers, 'Contido');
+
+    return (
+      normalizarEmailDoc_(
+        valorFilaDoc_(row, headers, 'Email')
+      ) === email &&
+      normalizarTextoDoc_(
+        valorFilaDoc_(row, headers, 'Modulo')
+      ) === 'documentacion' &&
+      !contido &&
+      verdadeiroDoc_(
+        valorFilaDoc_(row, headers, 'Activo')
+      )
+    );
+  });
+
+  if (!permiso) {
+    return null;
+  }
+
+  const nivel = normalizarTextoDoc_(
+    valorFilaDoc_(permiso, headers, 'Nivel')
+  );
+
+  if (nivel === 'administracion') {
+    return 'Administraci\u00f3n';
+  }
+
+  if (nivel === 'escritura') {
     return 'Xunta Directiva';
   }
 
-  return 'Coralistas';
+  if (nivel === 'lectura') {
+    return 'Coralistas';
+  }
+
+  return 'Sen acceso';
 }
 
 function nivelCanonicoDoc_(nivel) {
