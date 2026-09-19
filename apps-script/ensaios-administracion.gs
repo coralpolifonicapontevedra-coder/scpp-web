@@ -1,10 +1,10 @@
 /* Administración de ensaios desde o Portal SCPP. */
 function configuracionEnsaiosAdministracionPortal_() {
-  var props = PropertiesService.getScriptProperties();
-  var nomes = ['ENSAIOS_SPREADSHEET_ID','ASISTENCIAS_ENSAIOS_SPREADSHEET_ID','ENSAIOS_REPERTORIO_SPREADSHEET_ID'];
-  var valores = {};
-  nomes.forEach(function (nome) { var valor=String(props.getProperty(nome)||'').trim(); if(!valor)throw new Error('Falta a propiedade obrigatoria do ambiente: '+nome); valores[nome]=valor; });
-  return { ensaiosId:valores.ENSAIOS_SPREADSHEET_ID, asistenciasId:valores.ASISTENCIAS_ENSAIOS_SPREADSHEET_ID, ensaiosRepertorioId:valores.ENSAIOS_REPERTORIO_SPREADSHEET_ID };
+  return {
+    ensaiosId: '1C7EJINpYuhjOsn9ZtUM6HAUBww47BeY4sD_gszNjbug',
+    asistenciasId: '1SML9gTtVKzACxY4G8evp7wlfO7fZ8ut2fMOkKxvRxqI',
+    ensaiosRepertorioId: '1qp3oKzWColruFIHLSHTaeLCNFk3ebQQ8zGu5wa11eUg'
+  };
 }
 function permisoEnsaiosAdministracionPortal_(email) {
   var correo=String(email||'').trim().toLowerCase();
