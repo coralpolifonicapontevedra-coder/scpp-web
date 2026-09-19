@@ -8,7 +8,7 @@
 
 const DOC_PORTAL_CONFIG = {
   documentosSpreadsheetId:
-    '1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8',
+    '10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs',
 
   sheetDocumentacion:
     'Documentación',
@@ -17,13 +17,13 @@ const DOC_PORTAL_CONFIG = {
     'Actas XD e AX',
 
   usuariosSpreadsheetId:
-    '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+    '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
 
   usuariosSheetId:
     1291817000,
 
   persoasSpreadsheetId:
-    '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
+    '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
 
   persoasSheetId:
     388888827,
