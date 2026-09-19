@@ -23,7 +23,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 SPREADSHEET_ID = "1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg"
 RANGE = "Fotos!A1:AC5000"
-FOLDER_ID = "1FySxDvTHVNC20-a3I0wDU1v0s82VRiix"
+FOLDER_ID = "1iXjZPmg330JEpuBXrioeJmAAQXUzNlFW"
 BUCKET = "scpp-privado"
 INDEX_KEY = "indices/revision-fotos-v1.json"
 ORIGINAL_PREFIX = "fotos/traballo/"
