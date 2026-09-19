@@ -1,7 +1,6 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-const APPS_SCRIPT_PREVIEW = APPS_SCRIPT_PRODUCION;
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -136,7 +135,10 @@ async function eAdministrador(env, user) {
 }
 
 function urlRepertorioAdministracion(env) {
-  return ramaActual(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
+  if (ramaActual(env) === 'main') return APPS_SCRIPT_PRODUCION;
+  const url = clean(env.APPS_SCRIPT_WEBAPP_URL);
+  if (!url) throw new Error('A implementación institucional de Apps Script non está configurada en Preview.');
+  return url;
 }
 
 const ACCIONS = new Set([
