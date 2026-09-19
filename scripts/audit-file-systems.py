@@ -30,7 +30,7 @@ SCOPES = [
 ]
 DOCUMENTACION_SPREADSHEET_ID = os.getenv(
     "DOCUMENTACION_SPREADSHEET_ID",
-    "1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8",
+    "10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs",
 )
 FILE_EXTENSIONS = {
     ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg",
