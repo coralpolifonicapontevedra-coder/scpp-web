@@ -25,7 +25,7 @@ function xestionPropiedadeObrigatoria_(nome){
 }
 
 function asegurarXestionPermisos_(){
-  var ss=SpreadsheetApp.openById(xestionPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID'));
+  var ss=SpreadsheetApp.openById('1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI');
   var permisos=ss.getSheetByName(XESTION_PERMISOS_CONFIG_.sheetPermisos);
   if(!permisos){
     permisos=ss.insertSheet(XESTION_PERMISOS_CONFIG_.sheetPermisos);
@@ -36,7 +36,7 @@ function asegurarXestionPermisos_(){
 }
 
 function usuariosXestionPermisos_(){
-  var ss=SpreadsheetApp.openById(xestionPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID')),sh=ss.getSheetByName(XESTION_PERMISOS_CONFIG_.sheetUsuarios);
+  var ss=SpreadsheetApp.openById('1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI'),sh=ss.getSheetByName(XESTION_PERMISOS_CONFIG_.sheetUsuarios);
   if(!sh)return [];
   var v=sh.getDataRange().getValues();
   if(v.length<2)return [];
@@ -203,12 +203,8 @@ function rexistrarActividadePortalXestion_(datos){
 }
 
 function follaRexistroAccesosXestion_(){
-  var props=PropertiesService.getScriptProperties();
-  var spreadsheetId=xestionTexto_(props.getProperty('REXISTRO_ACCESOS_SPREADSHEET_ID'));
-  var sheetId=Number(xestionTexto_(props.getProperty('REXISTRO_ACCESOS_SHEET_ID')));
-  if(!spreadsheetId||!sheetId)throw new Error('RexistroAccesosWeb non está configurado.');
-  var sh=SpreadsheetApp.openById(spreadsheetId).getSheetById(sheetId);
-  if(!sh)throw new Error('Non se atopou a pestana de RexistroAccesosWeb.');
+  var sh=SpreadsheetApp.openById('16sAHStRwNzNAROV7X0pXYu-GBHwzZoGEnzSFCz9nbCY').getSheetById(1291817000);
+  if(!sh||sh.getName()!=='RegistroAccesosWeb')throw new Error('Non se atopou a pestana corporativa RexistroAccesosWeb.');
   return sh;
 }
 
