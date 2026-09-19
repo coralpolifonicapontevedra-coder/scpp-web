@@ -213,6 +213,10 @@ function slugR2(valor) {
 }
 
 function claveR2Documento(documento) {
+  const declarada = String(documento?.r2Key || '').trim().replace(/^\/+/, '');
+  if (declarada && declarada.startsWith('documentacion/') && !declarada.includes('..') && !declarada.includes('\\')) {
+    return declarada;
+  }
   const id = String(documento?.id || '').trim();
   const nome = nomeSeguro(documento?.ruta);
   if (!id || !nome) return '';
