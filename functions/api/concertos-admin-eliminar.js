@@ -1,8 +1,6 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
-const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-const APPS_SCRIPT_PREVIEW = APPS_SCRIPT_PRODUCION;
 const CONCERT_INDEX_MAIN = 'indices/concertos-privado-v1.json';
 const CONCERT_INDEX_PREVIEW = 'indices/preview/concertos-privado-v1.json';
 const ATTENDANCE_INDEX_MAIN = 'indices/asistencias-concertos.json';
