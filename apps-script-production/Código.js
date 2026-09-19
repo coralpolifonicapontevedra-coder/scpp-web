@@ -31,6 +31,10 @@ function doGet(e) {
       return respostaJSON(listarPublicacionsWeb_());
     }
 
+    if (recurso === 'coralistas') {
+      return respostaJSON(listarCoralistasWeb_());
+    }
+
     return respostaJSON({
       ok: true,
       servizo: 'UsuariosWeb',
@@ -51,6 +55,61 @@ function doGet(e) {
       )
     });
   }
+}
+
+
+function listarCoralistasWeb_() {
+  var spreadsheetId = '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ';
+  var ss = SpreadsheetApp.openById(spreadsheetId);
+  var sh = ss.getSheetByName('Persoas') || ss.getSheets()[0];
+  if (!sh) throw new Error('Non se atopou a folla corporativa Persoas.');
+
+  var values = sh.getDataRange().getDisplayValues();
+  if (!values.length) return { ok: true, coralistas: [], total: 0 };
+
+  var headers = values[0].map(function(v) {
+    return String(v || '').trim().toLowerCase();
+  });
+  function idx() {
+    for (var a = 0; a < arguments.length; a++) {
+      var wanted = String(arguments[a] || '').trim().toLowerCase();
+      var i = headers.indexOf(wanted);
+      if (i >= 0) return i;
+    }
+    return -1;
+  }
+  function truth(v) {
+    return ['y','si','sí','true','1','yes'].indexOf(String(v || '').trim().toLowerCase()) >= 0;
+  }
+
+  var iNome = idx('nome');
+  var iAp1 = idx('primeiro apelido','primeiroapelido');
+  var iAp2 = idx('segundo apelido','segundoapelido');
+  var iVoz = idx('voz');
+  var iMostrar = idx('mostrarweb','mostrar web');
+  var iActivo = idx('activo','activa','estado');
+
+  var coralistas = values.slice(1).map(function(row) {
+    return {
+      nome: iNome >= 0 ? String(row[iNome] || '').trim() : '',
+      primeiroApelido: iAp1 >= 0 ? String(row[iAp1] || '').trim() : '',
+      segundoApelido: iAp2 >= 0 ? String(row[iAp2] || '').trim() : '',
+      voz: iVoz >= 0 ? String(row[iVoz] || '').trim() : '',
+      mostrarWeb: iMostrar < 0 ? false : truth(row[iMostrar]),
+      activo: iActivo < 0 ? true : truth(row[iActivo])
+    };
+  }).filter(function(p) {
+    return p.nome && p.voz && p.mostrarWeb && p.activo;
+  }).map(function(p) {
+    return {
+      nome: p.nome,
+      primeiroApelido: p.primeiroApelido,
+      segundoApelido: p.segundoApelido,
+      voz: p.voz
+    };
+  });
+
+  return { ok: true, coralistas: coralistas, total: coralistas.length };
 }
 
 /**
