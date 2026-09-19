@@ -9,12 +9,12 @@
  */
 
 var ENSAIOS_CONFIG_ = {
-  ensaiosId: '1YJkIH4DpuOQShAP8fcSq_TrLPDn08zv_tfKNjq297wc',
-  asistenciasId: '1yp0Gc_GaewODS6IaPB9p2cdKqeOCbnyehL_-HzpdUQI',
-  ensaiosRepertorioId: '155FLEl07h8LwlrSVLEhFsbkgJMqIf4E6k6lCXf8x_JE',
-  persoasId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
-  concertosId: '1vYlC1VO1hql8jJVkt1OBXnbH7GvUVe4XXe5TSIJk2dU',
-  repertorioId: '1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw'
+  ensaiosId: '1C7EJINpYuhjOsn9ZtUM6HAUBww47BeY4sD_gszNjbug',
+  asistenciasId: '1SML9gTtVKzACxY4G8evp7wlfO7fZ8ut2fMOkKxvRxqI',
+  ensaiosRepertorioId: '1qp3oKzWColruFIHLSHTaeLCNFk3ebQQ8zGu5wa11eUg',
+  persoasId: '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
+  concertosId: '16v71m2HVzygUpOqn-Zws59d2jmaSqzcbq866pLZeQyA',
+  repertorioId: '1xMsQhlY-M_K7h65T0de0ENySv1SxNrmPLjLoMGEIM2Y'
 };
 
 function configuracionEnsaiosPortal_() {
