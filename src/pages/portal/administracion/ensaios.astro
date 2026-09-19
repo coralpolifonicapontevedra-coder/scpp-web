@@ -124,8 +124,13 @@ import AdministracionNav from '../../../components/AdministracionNav.astro';
     list.innerHTML = rows.length ? rows.map(r=>`<article class="card ${r.cancelado?'cancelled':''}"><div class="field-pair"><small>Data</small><strong>${esc(fmt(r.data))}</strong></div><div><h2>${esc(r.tipoEnsaio)}</h2><p>${esc([r.horaInicio,r.lugar].filter(Boolean).join(' · '))}</p><span>${r.obras} obras · ${r.asistencias} asistencias</span></div><div><b>${r.cancelado?'Baixa':'Activo'}</b></div><div class="actions">${r.cancelado?'':`<button class="primary manage" data-id="${esc(r.idEnsaio)}">Xestionar</button><button class="secondary date" data-id="${esc(r.idEnsaio)}">Cambiar data</button><button class="secondary cancel" data-id="${esc(r.idEnsaio)}">Dar de baixa</button>`}<button class="danger delete" data-id="${esc(r.idEnsaio)}">Eliminar</button></div></article>`).join('') : '<div class="box">Non hai ensaios neste filtro.</div>';
   }
   function fillConcerts() {
-    const options = (payload?.concertos || []).map(c=>({id:clean(c.id||c.idConcerto),name:clean(c.nome||c.nomeConcerto||c.titulo||c.id)})).filter(c=>c.id);
-    ['#new-concert','#program-concert'].forEach(sel=>{ const el=$(sel); if(el instanceof HTMLSelectElement){ const first=sel==='#new-concert'?'Sen concerto asociado':'Cargar programa dun concerto…'; el.innerHTML=`<option value="">${first}</option>`+options.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(''); } });
+    const options = (payload?.concertos || []).map(c=>{
+      const id=clean(c.id||c.idConcerto);
+      const name=clean(c.nome||c.nomeConcerto||c.titulo||c.id);
+      const data=clean(c.data||c.Data).slice(0,10);
+      return {id,name,label:[data?fmt(data):'',name].filter(Boolean).join(' · ')};
+    }).filter(c=>c.id);
+    ['#new-concert','#program-concert'].forEach(sel=>{ const el=$(sel); if(el instanceof HTMLSelectElement){ const first=sel==='#new-concert'?'Sen concerto asociado':'Cargar programa dun concerto…'; el.innerHTML=`<option value="">${first}</option>`+options.map(c=>`<option value="${esc(c.id)}">${esc(c.label||c.name)}</option>`).join(''); } });
   }
   function workName(id) {
     const wanted=clean(id);
