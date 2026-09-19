@@ -157,9 +157,8 @@ async function permisoRepertorio(env, user) {
 }
 
 function urlRepertorioAdministracion(env) {
-  if (ramaActual(env) === 'main') return APPS_SCRIPT_PRODUCION;
   const url = clean(env.APPS_SCRIPT_WEBAPP_URL);
-  if (!url) throw new Error('A implementación institucional de Apps Script non está configurada en Preview.');
+  if (!url) throw new Error('A implementación institucional de Apps Script non está configurada.');
   return url;
 }
 
