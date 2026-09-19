@@ -23,6 +23,15 @@ function ramaActual(env) {
 function claveCacheListado(env) {
   return `repertorio/cache/administracion/${ramaActual(env)}/listado-v2.json`;
 }
+function claveCatalogo(env) {
+  return ramaActual(env) === 'main' ? 'repertorio/cache/catalogo.json' : 'repertorio/cache/preview/catalogo.json';
+}
+function claveIndiceEnsaios(env) {
+  return ramaActual(env) === 'main' ? 'indices/ensaios-admin-v4.json' : 'indices/preview/ensaios-admin-v4.json';
+}
+function claveInvalidacion(env, modulo) {
+  return `cache/invalidation/${ramaActual(env)}/${modulo}.json`;
+}
 
 async function lerCacheListado(env, permitirCaducado = false) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.get !== 'function') return null;
@@ -47,6 +56,24 @@ async function gardarCacheListado(env, payload) {
 async function invalidarCacheListado(env) {
   if (!env.R2_PRIVADO || typeof env.R2_PRIVADO.delete !== 'function') return;
   await env.R2_PRIVADO.delete(claveCacheListado(env));
+}
+
+async function invalidarDerivadosRepertorio(env) {
+  if (!env.R2_PRIVADO) return;
+  const now = Date.now();
+  const deletes = [];
+  if (typeof env.R2_PRIVADO.delete === 'function') {
+    deletes.push(env.R2_PRIVADO.delete(claveCatalogo(env)));
+    deletes.push(env.R2_PRIVADO.delete(claveIndiceEnsaios(env)));
+  }
+  await Promise.all(deletes).catch(() => {});
+  if (typeof env.R2_PRIVADO.put === 'function') {
+    await env.R2_PRIVADO.put(
+      claveInvalidacion(env, 'repertorio'),
+      JSON.stringify({ updatedAt: now, source: 'repertorio-admin' }),
+      { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } }
+    ).catch(() => {});
+  }
 }
 
 function valorCacheSheet(key, value) {
@@ -333,7 +360,10 @@ export async function onRequest({ request, env }) {
 
     if (accion === 'altaPartituraRepertorioAdministracion') {
       const resultadoAlta = await altaPartituraAdministracion(env, user, body);
-      if (resultadoAlta?.ok) await invalidarCacheListado(env).catch(() => {});
+      if (resultadoAlta?.ok) {
+        await invalidarCacheListado(env).catch(() => {});
+        await invalidarDerivadosRepertorio(env).catch(() => {});
+      }
       return json(resultadoAlta?.ok ? 200 : 400, resultadoAlta);
     }
 
@@ -361,6 +391,7 @@ export async function onRequest({ request, env }) {
         await actualizarCacheTrasEscritura(env, accion, body).catch(async () => {
           await invalidarCacheListado(env).catch(() => {});
         });
+        await invalidarDerivadosRepertorio(env).catch(() => {});
       }
       return json(200, resultado);
     }
