@@ -1,7 +1,7 @@
 const PATH_CONCERTOS_CARDS = /^\/portal\/concertos\/?$/;
 
 if (PATH_CONCERTOS_CARDS.test(window.location.pathname)) {
-  const URL_CONCERTOS_CARDS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSX8BEJ-hrubqEtaZ1zZaLSy7LoxaDQOuQuqR2ior7TZErtBGL5bJG0B_AK5Dp8eFeTDb3Pmpqh7Hnu/pub?gid=1098509641&single=true&output=csv';
+  const URL_CONCERTOS_CARDS = '/api/concertos-indice';
   const mediosConcertos = new Map();
 
   const normalizar = (valor = '') => String(valor)
@@ -359,15 +359,17 @@ if (PATH_CONCERTOS_CARDS.test(window.location.pathname)) {
 
   async function cargarMedios() {
     const resposta = await fetch(URL_CONCERTOS_CARDS, { cache: 'no-store' });
-    if (!resposta.ok) throw new Error(`Erro ${resposta.status}`);
+    const indice = await resposta.json().catch(() => null);
+    if (!resposta.ok || indice?.ok !== true || !Array.isArray(indice?.concertos)) {
+      throw new Error(indice?.erro || `Erro ${resposta.status}`);
+    }
 
-    const filas = parseCSV(await resposta.text());
-    filas.forEach((fila) => {
-      const id = valor(fila, 'Id', 'Row ID');
+    indice.concertos.forEach((concerto) => {
+      const id = String(concerto?.id || '').trim();
       if (!id) return;
       mediosConcertos.set(id, {
-        cartel: valor(fila, 'Cartel'),
-        triptico: valor(fila, 'Triptico', 'Tríptico')
+        cartel: String(concerto?.cartel || '').trim(),
+        triptico: String(concerto?.triptico || '').trim()
       });
     });
 
