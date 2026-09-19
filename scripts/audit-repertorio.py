@@ -21,9 +21,9 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets.readonly",
     "https://www.googleapis.com/auth/drive.readonly",
 ]
-REPERTORIO_SHEET_ID = "1Hg_ZWsC6a7Sj-OCwRGyywzTJqqsIxUsAshk02yE9Enw"
-AUDIO_SHEET_ID = "16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0"
-PARTITURA_SHEET_ID = "18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0"
+REPERTORIO_SHEET_ID = "1xMsQhlY-M_K7h65T0de0ENySv1SxNrmPLjLoMGEIM2Y"
+AUDIO_SHEET_ID = "108IkK_MPNqwMtkP7Qz4pqbzkTY6JBwYkI_9Npt1ik1U"
+PARTITURA_SHEET_ID = "1r15Q9RJ-TH6NLFCIAiEI6qUeU5Ax82BF__bur0LoGHc"
 OBRAS_FILES_FOLDER_ID = "1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU"
 REPORT_CSV = pathlib.Path(os.getenv("AUDIT_REPORT_CSV", "repertorio-audit.csv"))
 REPORT_MD = pathlib.Path(os.getenv("AUDIT_REPORT_MD", "repertorio-audit.md"))
