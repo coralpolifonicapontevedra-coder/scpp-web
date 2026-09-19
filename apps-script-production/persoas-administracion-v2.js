@@ -10,11 +10,11 @@
  */
 
 var PERSOAS_V2_CONFIG_ = {
-  spreadsheetId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
+  spreadsheetId: '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
   sheetId: 388888827,
-  usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+  usuariosSpreadsheetId: '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
   usuariosSheetName: 'UsuariosWeb',
-  aceptacionSpreadsheetId: '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k',
+  aceptacionSpreadsheetId: '1tFlpbljN_eYKWm1QON8hwPZU1v4rB3C3ebafe8lIiXs',
   aceptacionSheetId: 974695665,
   textosLegaisSheetId: 2025412208,
   syncUrl: 'https://scpp-web.pages.dev/api/persoas-cache-sync',
