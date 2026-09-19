@@ -17,7 +17,7 @@
  */
 function configurarSolicitudesWeb() {
   PropertiesService.getScriptProperties().setProperties({
-    SOLICITUDES_SPREADSHEET_ID: '1qWzgh84n6yI3mNt1OSWQiytOy1qt3NrLYb3cjQmYuDE',
+    SOLICITUDES_SPREADSHEET_ID: '1GxQkT4Av2cfWp2UetfMVCvYI0_9PYUnxYLkschwH6wo',
     SOLICITUDES_SHEET_ID: '2132656340',
     SOLICITUDES_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
   });
