@@ -55,14 +55,15 @@ function ambientePermisosPortal_() {
 }
 
 function configuracionPermisosPortal_() {
-  var props = PropertiesService.getScriptProperties();
   var ambiente = ambientePermisosPortal_();
   var defaults = PERMISOS_PORTAL_CONFIG_[ambiente];
+  // A identidade e os permisos sempre se resolven nas fontes corporativas.
+  // As Script Properties non poden redirixir este módulo a follas legacy.
   return {
     ambiente: ambiente,
-    persoasId: textoPermisosPortal_(props.getProperty('PERSOAS_SPREADSHEET_ID')) || defaults.persoasId,
-    xuntaDirectivaId: textoPermisosPortal_(props.getProperty('XUNTA_DIRECTIVA_SPREADSHEET_ID')) || defaults.xuntaDirectivaId,
-    direccionArtisticaId: textoPermisosPortal_(props.getProperty('DIRECCION_ARTISTICA_SPREADSHEET_ID')) || defaults.direccionArtisticaId
+    persoasId: defaults.persoasId,
+    xuntaDirectivaId: defaults.xuntaDirectivaId,
+    direccionArtisticaId: defaults.direccionArtisticaId
   };
 }
 
