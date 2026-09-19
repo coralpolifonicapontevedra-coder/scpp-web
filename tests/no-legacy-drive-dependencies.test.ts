@@ -36,6 +36,9 @@ const FORBIDDEN = [
   // Legacy personal-drive folders.
   '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',
   '1dlNy6ht2AZcSRJF_CkWH-XbGIsTijMiO',
+  '1H12S32zJzncJoXdUvbZx82CLFXvlhtd6',
+  '1yvEWIatZIa3UnE71VQUb4LCvBZ6HLs6t',
+  '1qXPUplggCFbFTTLRtm2j16af717o-bQs',
 
   // Legacy Apps Script deployments / fallback path.
   'AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA',
