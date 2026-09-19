@@ -412,7 +412,10 @@ function lerDocumentosXerais_(sheet, perfil) {
           valorFilaDoc_(row, headers, 'Orde') ||
           9999
         ),
-      ruta: ruta
+      ruta: ruta,
+      r2Key: textoFilaDoc_(row, headers, 'R2Key'),
+      r2Estado: textoFilaDoc_(row, headers, 'R2Estado'),
+      r2MimeType: textoFilaDoc_(row, headers, 'R2MimeType')
     });
 
     return saida;
@@ -528,7 +531,10 @@ function lerActas_(sheet, perfil) {
         headers,
         'Data_Aprobacion'
       ),
-      ruta: ruta
+      ruta: ruta,
+      r2Key: textoFilaDoc_(row, headers, 'R2Key'),
+      r2Estado: textoFilaDoc_(row, headers, 'R2Estado'),
+      r2MimeType: textoFilaDoc_(row, headers, 'R2MimeType')
     });
 
     return saida;
