@@ -8,10 +8,10 @@
  */
 
 var PERSOAS_LEGACY_ACEPTACION_CONFIG_ = {
-  aceptacionSpreadsheetId: '1gndQQ1AFQLtg2lUU8ANa5ksU3U6wZNxJI2Ye6z7Mu7k',
+  aceptacionSpreadsheetId: '1tFlpbljN_eYKWm1QON8hwPZU1v4rB3C3ebafe8lIiXs',
   aceptacionSheetId: 974695665,
   textosSheetId: 2025412208,
-  usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+  usuariosSpreadsheetId: '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
   usuariosSheetName: 'UsuariosWeb'
 };
 
