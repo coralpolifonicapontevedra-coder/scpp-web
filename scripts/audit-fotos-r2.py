@@ -36,7 +36,7 @@ FOTOS_SPREADSHEET_ID = os.getenv(
 )
 FOTOS_TAB = os.getenv("FOTOS_TAB", "Fotos")
 FOTOS_FOLDER_ID = os.getenv(
-    "FOTOS_FOLDER_ID", "1FySxDvTHVNC20-a3I0wDU1v0s82VRiix"
+    "FOTOS_FOLDER_ID", "1iXjZPmg330JEpuBXrioeJmAAQXUzNlFW"
 )
 
 
