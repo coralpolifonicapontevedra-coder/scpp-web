@@ -33,6 +33,10 @@ const FORBIDDEN = [
   '1mqlMESC6ZkE4t1zfA0q1dK3PRFHtKLO71ifdbT2CtHw',
   '1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8',
 
+  // Legacy personal-drive folders.
+  '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',
+  '1dlNy6ht2AZcSRJF_CkWH-XbGIsTijMiO',
+
   // Legacy Apps Script deployments / fallback path.
   'AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA',
   'AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh',
