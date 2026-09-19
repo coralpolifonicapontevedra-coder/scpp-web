@@ -13,8 +13,8 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-AUDIO_SHEET_ID = "16BNPPni5BxowBsdGcvATj-zhYNLJYwjWoy2Zqtdu6i0"
-PARTITURA_SHEET_ID = "18KCxQC7UnplDjPoAq2w4EgD8vGZ5G2JDAKvuXIewet0"
+AUDIO_SHEET_ID = "108IkK_MPNqwMtkP7Qz4pqbzkTY6JBwYkI_9Npt1ik1U"
+PARTITURA_SHEET_ID = "1r15Q9RJ-TH6NLFCIAiEI6qUeU5Ax82BF__bur0LoGHc"
 OUTPUT = pathlib.Path("functions/_data/repertorio-r2.js")
 EXPECTED_AUDIOS = 219
 EXPECTED_SCORES = 99
