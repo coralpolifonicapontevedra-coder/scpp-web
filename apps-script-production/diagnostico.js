@@ -10,7 +10,7 @@ function corrixirUsuariosWebPortal() {
     );
 
   const usuario = buscarUsuarioWebPorEmail_(
-    'jcuinas@gmail.com'
+    'secretario@coralpolifonicapontevedra.org'
   );
 
   console.log(JSON.stringify(usuario));
