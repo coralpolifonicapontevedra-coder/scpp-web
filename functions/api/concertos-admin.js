@@ -196,10 +196,7 @@ function estadoConcerto(value) {
 }
 
 async function readConcertIndex(env) {
-  const target = concertIndexKey(env);
-  let current = await readJson(env.R2_PRIVADO, target);
-  if (!current && target !== CONCERT_INDEX_KEY) current = await readJson(env.R2_PRIVADO, CONCERT_INDEX_KEY);
-  return current;
+  return readJson(env.R2_PRIVADO, concertIndexKey(env));
 }
 
 async function marcarCambioConcertos(env, source = 'concertos-admin') {
@@ -339,10 +336,7 @@ async function updateConcertMetadataIndex(env, idConcerto, patch = {}, allowCrea
 
 async function listFromR2(env) {
   const index = await readConcertIndex(env);
-  let attendance = await readJson(env.R2_PRIVADO, attendanceKey(env));
-  if (!attendance && attendanceKey(env) !== ATTENDANCE_INDEX_KEY) {
-    attendance = await readJson(env.R2_PRIVADO, ATTENDANCE_INDEX_KEY);
-  }
+  const attendance = await readJson(env.R2_PRIVADO, attendanceKey(env));
   if (!index?.ok || !Array.isArray(index.concertos)) {
     throw Object.assign(new Error('O índice privado de concertos non está dispoñible.'), { code: 'R2_CONCERT_INDEX_MISSING' });
   }
@@ -374,10 +368,7 @@ async function managementFromR2(env, user, id) {
   const admin = await readJson(env.R2_PRIVADO, `${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
   const catalog = await readJson(env.R2_PRIVADO, repertorioCatalogKey(env));
   const concertIndex = await readConcertIndex(env);
-  let attendance = await readJson(env.R2_PRIVADO, attendanceKey(env));
-  if (!attendance && attendanceKey(env) !== ATTENDANCE_INDEX_KEY) {
-    attendance = await readJson(env.R2_PRIVADO, ATTENDANCE_INDEX_KEY);
-  }
+  const attendance = await readJson(env.R2_PRIVADO, attendanceKey(env));
 
   const persoas = (admin?.payload?.persoas || []).map(personFromR2).filter((p) => p.id && p.nome && p.voz);
   const obras = (catalog?.obras || []).map(workFromR2).filter((o) => o.id && o.nome);
@@ -460,8 +451,7 @@ function attendeeList(draft) {
 
 async function updateAttendanceIndex(env, draft) {
   const target = attendanceKey(env);
-  let current = await readJson(env.R2_PRIVADO, target);
-  if (!current && target !== ATTENDANCE_INDEX_KEY) current = await readJson(env.R2_PRIVADO, ATTENDANCE_INDEX_KEY);
+  const current = await readJson(env.R2_PRIVADO, target);
   const result = current?.resultado?.ok ? current.resultado : { ok: true, asistenciasPorConcerto: {} };
   const por = { ...(result.asistenciasPorConcerto || {}), [draft.idConcerto]: attendeeList(draft) };
   return writeJson(
@@ -545,20 +535,17 @@ export async function onRequest(context) {
 
     if (accion === 'listar') {
       let index = await readConcertIndex(env);
-      if (!index?.ok || !Array.isArray(index.concertos)) {
+      let refreshed = false;
+      if (!index?.ok || !Array.isArray(index.concertos) || concertIndexAge(index) > CONCERT_REFRESH_MS) {
         index = await refreshConcertIndexFromSheet(env, user);
-      } else if (concertIndexAge(index) > CONCERT_REFRESH_MS && typeof context.waitUntil === 'function') {
-        context.waitUntil(
-          refreshConcertIndexFromSheet(env, user)
-            .catch((error) => console.warn('Non se puido refrescar Concertos desde Sheet en segundo plano:', error))
-        );
+        refreshed = true;
       }
       const concertos = await listFromR2(env);
       return json(200, {
         ok: true,
         nivel: permiso.nivel,
         concertos,
-        almacen: 'R2',
+        almacen: refreshed ? 'SHEET+R2' : 'R2',
         cacheAgeMs: concertIndexAge(index)
       });
     }
