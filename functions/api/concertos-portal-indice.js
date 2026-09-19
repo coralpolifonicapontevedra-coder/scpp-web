@@ -145,8 +145,7 @@ function prepararConcertosPortal(concertos = [], catalogo = []) {
       const estado = pasaAutomaticamenteARealizado ? 'realizado' : estadoOrixinal;
       const futuroVisible = estado === 'previsto' || estado === 'confirmado';
       const realizadoVisible = estado === 'realizado' && data >= '2026-04-01';
-      const publicado = concerto.mostrarWeb === true || ['true','1','si','sí','yes','x'].includes(normalizarEstado(concerto.mostrarWeb));
-      const visibleNoPortal = !historico && publicado && (futuroVisible || realizadoVisible);
+      const visibleNoPortal = !historico && (futuroVisible || realizadoVisible);
 
       return {
         ...concerto,
