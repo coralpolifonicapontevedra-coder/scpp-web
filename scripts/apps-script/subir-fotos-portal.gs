@@ -18,7 +18,7 @@
  */
 function configurarFotosPortal() {
   PropertiesService.getScriptProperties().setProperties({
-    FOTOS_FOLDER_ID: '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix',
+    FOTOS_FOLDER_ID: '1iXjZPmg330JEpuBXrioeJmAAQXUzNlFW',
     FOTOS_SPREADSHEET_ID: '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg',
     FOTOS_SHEET_ID: '1291817000',
     FOTOS_APPSHEET_PATH: 'Fotos_Images/',
@@ -26,7 +26,7 @@ function configurarFotosPortal() {
   });
 
   var carpeta = DriveApp.getFolderById(
-    '1FySxDvTHVNC20-a3I0wDU1v0s82VRiix'
+    '1iXjZPmg330JEpuBXrioeJmAAQXUzNlFW'
   );
   console.log('Configuración creada para a carpeta: ' + carpeta.getName());
 }
