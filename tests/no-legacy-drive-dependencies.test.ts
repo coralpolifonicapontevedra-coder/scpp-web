@@ -61,6 +61,9 @@ function extension(path: string) {
 }
 
 function walk(path: string): string[] {
+  // This guard test intentionally contains the forbidden identifiers below.
+  // Do not scan itself, otherwise every sentinel would be reported as a violation.
+  if (path.replace(/\\/g, '/').endsWith('/tests/no-legacy-drive-dependencies.test.ts')) return [];
   const stat = statSync(path);
   if (stat.isFile()) return TEXT_EXTENSIONS.has(extension(path)) ? [path] : [];
   return readdirSync(path).flatMap((name) => {
