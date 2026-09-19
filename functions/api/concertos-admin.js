@@ -213,7 +213,12 @@ function concertIndexAge(index) {
   return Number.isFinite(value) ? Math.max(0, Date.now() - value) : Number.POSITIVE_INFINITY;
 }
 
-function normalizeSheetConcert(item = {}) {
+function canonicalId(value) {
+  const id = clean(value);
+  return /^\d+$/.test(id) ? String(Number(id)) : id;
+}
+
+function normalizeSheetConcert(item = {}, catalogById = new Map()) {
   return {
     id: clean(item.idConcerto || item.id),
     data: clean(item.data),
@@ -227,22 +232,33 @@ function normalizeSheetConcert(item = {}) {
     caracteristicas: clean(item.caracteristicas),
     cartel: clean(item.cartel),
     triptico: clean(item.triptico),
-    programa: (Array.isArray(item.repertorio) ? item.repertorio : []).map((p, index) => ({
-      idRepertorio: clean(p.idRepertorio || p.id),
-      orde: Number(p.orde || index + 1),
-      obra: clean(p.titulo || p.obra || p.nome),
-      autor: clean(p.autor),
-      notas: clean(p.notas),
-      solista: clean(p.solista)
-    })).filter((p) => p.idRepertorio)
+    programa: (Array.isArray(item.repertorio) ? item.repertorio : []).map((p, index) => {
+      const rawId = clean(p.idRepertorio || p.id);
+      const catalogWork = catalogById.get(canonicalId(rawId));
+      return {
+        idRepertorio: clean(catalogWork?.id || rawId),
+        orde: Number(p.orde || index + 1),
+        obra: clean(p.titulo || p.obra || p.nome || catalogWork?.nome),
+        autor: clean(p.autor || catalogWork?.autor),
+        notas: clean(p.notas),
+        solista: clean(p.solista)
+      };
+    }).filter((p) => p.idRepertorio)
   };
 }
 
 async function refreshConcertIndexFromSheet(env, user) {
   const result = await chamarAppsScript(env, user, 'listarConcertosAdministracionPortal');
   const rows = Array.isArray(result?.concertos) ? result.concertos : [];
+  const catalog = await readJson(env.R2_PRIVADO, repertorioCatalogKey(env));
+  const catalogById = new Map(
+    (Array.isArray(catalog?.obras) ? catalog.obras : [])
+      .map(workFromR2)
+      .filter((obra) => obra.id && obra.nome)
+      .map((obra) => [canonicalId(obra.id), obra])
+  );
   const current = await readConcertIndex(env);
-  const concertos = rows.map(normalizeSheetConcert).filter((item) => item.id);
+  const concertos = rows.map((item) => normalizeSheetConcert(item, catalogById)).filter((item) => item.id);
   const before = JSON.stringify((current?.concertos || []).map((item) => ({
     id: clean(item.id), data: clean(item.data), nome: clean(item.nome), estado: clean(item.estado),
     programa: Array.isArray(item.programa) ? item.programa : []
@@ -260,19 +276,18 @@ async function refreshConcertIndexFromSheet(env, user) {
   };
   await writeJson(env.R2_PRIVADO, concertIndexKey(env), next, 'indice-concertos-privado');
 
-  const porConcerto = {};
-  for (const row of rows) {
-    const id = clean(row.idConcerto || row.id);
-    if (!id) continue;
-    porConcerto[id] = (Array.isArray(row.asistentes) ? row.asistentes : [])
-      .filter((p) => p?.asiste !== false)
-      .map((p) => ({ nome: clean(p.nome), voz: clean(p.voz) }))
-      .filter((p) => p.nome);
+  try {
+    const attendanceResult = await chamarAppsScript(env, user, 'listarAsistenciasConcertosPortal');
+    const porConcerto = attendanceResult?.asistenciasPorConcerto;
+    if (porConcerto && typeof porConcerto === 'object' && !Array.isArray(porConcerto)) {
+      await writeJson(env.R2_PRIVADO, attendanceKey(env), {
+        gardadoEn: Date.now(),
+        resultado: { ok: true, asistenciasPorConcerto: porConcerto }
+      }, 'indice-asistencias-concertos');
+    }
+  } catch (error) {
+    console.warn('Non se puido refrescar o índice autoritativo de asistencias; consérvase a última copia R2 válida:', error);
   }
-  await writeJson(env.R2_PRIVADO, attendanceKey(env), {
-    gardadoEn: Date.now(),
-    resultado: { ok: true, asistenciasPorConcerto: porConcerto }
-  }, 'indice-asistencias-concertos');
 
   if (before !== after) await marcarCambioConcertos(env, 'sheet-refresh');
   return next;
@@ -341,9 +356,8 @@ async function listFromR2(env) {
     throw Object.assign(new Error('O índice privado de concertos non está dispoñible.'), { code: 'R2_CONCERT_INDEX_MISSING' });
   }
   const porConcerto = attendance?.resultado?.asistenciasPorConcerto || {};
-  const today = new Date().toISOString().slice(0, 10);
   return index.concertos
-    .filter((c) => !clean(c.id).startsWith('hist-') && (!clean(c.data) || clean(c.data) >= today))
+    .filter((c) => !clean(c.id).startsWith('hist-'))
     .map((c) => ({
       idConcerto: clean(c.id),
       data: clean(c.data),
