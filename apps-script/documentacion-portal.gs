@@ -10,7 +10,7 @@ const DOC_PORTAL_CONFIG = {
   documentosSpreadsheetId:
     PropertiesService.getScriptProperties().getProperty(
       'DOCUMENTACION_SPREADSHEET_ID'
-    ) || '1sAMi9TWZ7YwjOxu1a-KliO_7LtYlo4Zf2AowmPKDQX8',
+    ) || '10FWjnP5q79gjPHjOc4MRpLHaDFo46iIXSItqsHOpjjs',
 
   sheetDocumentacion:
     'Documentación',
@@ -21,7 +21,7 @@ const DOC_PORTAL_CONFIG = {
   usuariosSpreadsheetId:
     PropertiesService.getScriptProperties().getProperty(
       'DOCUMENTACION_USUARIOS_SPREADSHEET_ID'
-    ) || '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+    ) || '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
 
   usuariosSheetId:
     1291817000,
@@ -29,7 +29,7 @@ const DOC_PORTAL_CONFIG = {
   persoasSpreadsheetId:
     PropertiesService.getScriptProperties().getProperty(
       'DOCUMENTACION_PERSOAS_SPREADSHEET_ID'
-    ) || '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
+    ) || '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
 
   persoasSheetId:
     388888827,
