@@ -115,43 +115,18 @@ function payloadAppsScript(body, env, user, accion) {
 }
 
 async function listarDesdeSheet(env, user) {
-  const payload = payloadAppsScript({}, env, user, 'listarArquivoAdministracion');
-  let principalErro = null;
-
-  try {
-    const { resultado } = await obterJsonAppsScript(
-      env,
-      payload,
-      { timeoutMs: 25000, attemptTimeoutMs: 10000 }
-    );
-    if (resultado?.ok) {
-      await gardarCache(env, resultado);
-      return { ...resultado, orixeArquivo: 'INSTITUCIONAL' };
-    }
-    principalErro = new Error(resultado?.erro || 'Non foi posible cargar o arquivo institucional.');
-  } catch (error) {
-    principalErro = error;
+  const { resultado } = await obterJsonAppsScript(
+    env,
+    payloadAppsScript({}, env, user, 'listarArquivoAdministracion'),
+    { timeoutMs: 25000, attemptTimeoutMs: 10000 }
+  );
+  if (!resultado?.ok) {
+    const error = new Error(resultado?.erro || 'Non foi posible cargar o arquivo.');
+    error.resultado = resultado;
+    throw error;
   }
-
-  const fallback = clean(env.APPS_SCRIPT_FALLBACK_URL);
-  if (ramaActual(env) !== 'main' && fallback) {
-    try {
-      const { resultado } = await obterJsonAppsScript(
-        env,
-        payload,
-        { timeoutMs: 20000, attemptTimeoutMs: 9000, urlOverride: fallback }
-      );
-      if (resultado?.ok) {
-        const migracion = { ...resultado, orixeArquivo: 'LEGACY-LECTURA' };
-        await gardarCache(env, migracion);
-        return migracion;
-      }
-    } catch (fallbackError) {
-      console.warn('Arquivo: tamén fallou a lectura legacy de respaldo:', fallbackError);
-    }
-  }
-
-  throw principalErro || new Error('Non foi posible cargar o arquivo.');
+  await gardarCache(env, resultado);
+  return resultado;
 }
 
 async function refrescarEnSegundoPlano(context, user) {
