@@ -125,6 +125,8 @@ const draftKey = (env, id) => `concertos/borradores-v1/${branch(env)}/${encodeUR
 const attendanceKey = (env) => branch(env) === 'main' ? ATTENDANCE_INDEX_KEY : 'indices/preview/asistencias-concertos.json';
 const concertIndexKey = (env) => branch(env) === 'main' ? CONCERT_INDEX_KEY : 'indices/preview/concertos-privado-v1.json';
 const repertorioCatalogKey = (env) => branch(env) === 'main' ? 'repertorio/cache/catalogo.json' : 'repertorio/cache/preview/catalogo.json';
+const invalidationKey = (env, modulo) => `cache/invalidation/${branch(env) === 'main' ? 'main' : 'preview'}/${modulo}.json`;
+const CONCERT_REFRESH_MS = 2 * 60 * 1000;
 
 async function readJson(bucket, key) {
   if (!bucket?.get) return null;
@@ -200,6 +202,85 @@ async function readConcertIndex(env) {
   return current;
 }
 
+async function marcarCambioConcertos(env, source = 'concertos-admin') {
+  if (!env.R2_PRIVADO?.put) return;
+  await env.R2_PRIVADO.put(
+    invalidationKey(env, 'concertos'),
+    JSON.stringify({ updatedAt: Date.now(), source }),
+    { httpMetadata: { contentType: 'application/json; charset=utf-8', cacheControl: 'private, no-store' } }
+  );
+}
+
+function concertIndexAge(index) {
+  const value = Number(index?.xeradoEnMs) || Date.parse(clean(index?.xeradoEn));
+  return Number.isFinite(value) ? Math.max(0, Date.now() - value) : Number.POSITIVE_INFINITY;
+}
+
+function normalizeSheetConcert(item = {}) {
+  return {
+    id: clean(item.idConcerto || item.id),
+    data: clean(item.data),
+    nome: clean(item.nome),
+    cidade: clean(item.cidade),
+    lugar: clean(item.lugar),
+    hora: clean(item.hora),
+    estado: estadoConcerto(item.estado),
+    mostrarWeb: item.mostrarWeb === true,
+    destacadoWeb: item.destacadoWeb === true,
+    caracteristicas: clean(item.caracteristicas),
+    cartel: clean(item.cartel),
+    triptico: clean(item.triptico),
+    programa: (Array.isArray(item.repertorio) ? item.repertorio : []).map((p, index) => ({
+      idRepertorio: clean(p.idRepertorio || p.id),
+      orde: Number(p.orde || index + 1),
+      obra: clean(p.titulo || p.obra || p.nome),
+      autor: clean(p.autor),
+      notas: clean(p.notas),
+      solista: clean(p.solista)
+    })).filter((p) => p.idRepertorio)
+  };
+}
+
+async function refreshConcertIndexFromSheet(env, user) {
+  const result = await chamarAppsScript(env, user, 'listarConcertosAdministracionPortal');
+  const rows = Array.isArray(result?.concertos) ? result.concertos : [];
+  const current = await readConcertIndex(env);
+  const concertos = rows.map(normalizeSheetConcert).filter((item) => item.id);
+  const before = JSON.stringify((current?.concertos || []).map((item) => ({
+    id: clean(item.id), data: clean(item.data), nome: clean(item.nome), estado: clean(item.estado),
+    programa: Array.isArray(item.programa) ? item.programa : []
+  })));
+  const after = JSON.stringify(concertos.map((item) => ({
+    id: item.id, data: item.data, nome: item.nome, estado: item.estado, programa: item.programa
+  })));
+  const next = {
+    ...(current && typeof current === 'object' ? current : {}),
+    ok: true,
+    concertos,
+    xeradoEn: new Date().toISOString(),
+    xeradoEnMs: Date.now(),
+    actualizadoDesde: 'SHEET-CONCERTOS'
+  };
+  await writeJson(env.R2_PRIVADO, concertIndexKey(env), next, 'indice-concertos-privado');
+
+  const porConcerto = {};
+  for (const row of rows) {
+    const id = clean(row.idConcerto || row.id);
+    if (!id) continue;
+    porConcerto[id] = (Array.isArray(row.asistentes) ? row.asistentes : [])
+      .filter((p) => p?.asiste !== false)
+      .map((p) => ({ nome: clean(p.nome), voz: clean(p.voz) }))
+      .filter((p) => p.nome);
+  }
+  await writeJson(env.R2_PRIVADO, attendanceKey(env), {
+    gardadoEn: Date.now(),
+    resultado: { ok: true, asistenciasPorConcerto: porConcerto }
+  }, 'indice-asistencias-concertos');
+
+  if (before !== after) await marcarCambioConcertos(env, 'sheet-refresh');
+  return next;
+}
+
 async function updateConcertMetadataIndex(env, idConcerto, patch = {}, allowCreate = false) {
   const id = clean(idConcerto);
   if (!id) throw Object.assign(new Error('Falta identificar o concerto para actualizar R2.'), { code: 'R2_CONCERT_ID_MISSING' });
@@ -240,7 +321,7 @@ async function updateConcertMetadataIndex(env, idConcerto, patch = {}, allowCrea
     throw Object.assign(new Error('O concerto gardouse na Sheet pero non se atopou no índice R2.'), { code: 'R2_CONCERT_NOT_FOUND' });
   }
 
-  return writeJson(
+  const updated = await writeJson(
     env.R2_PRIVADO,
     target,
     {
@@ -252,6 +333,8 @@ async function updateConcertMetadataIndex(env, idConcerto, patch = {}, allowCrea
     },
     'indice-concertos-privado'
   );
+  await marcarCambioConcertos(env, 'admin-ficha');
+  return updated;
 }
 
 async function listFromR2(env) {
@@ -406,7 +489,7 @@ async function updateConcertIndex(env, draft) {
     };
   });
   const concertos = current.concertos.map((c) => clean(c.id) === draft.idConcerto ? { ...c, programa } : c);
-  return writeJson(
+  const updated = await writeJson(
     env.R2_PRIVADO,
     target,
     {
@@ -418,6 +501,8 @@ async function updateConcertIndex(env, draft) {
     },
     'indice-concertos-privado'
   );
+  await marcarCambioConcertos(env, 'admin-programa');
+  return updated;
 }
 
 export async function onRequest(context) {
@@ -459,8 +544,23 @@ export async function onRequest(context) {
     }
 
     if (accion === 'listar') {
+      let index = await readConcertIndex(env);
+      if (!index?.ok || !Array.isArray(index.concertos)) {
+        index = await refreshConcertIndexFromSheet(env, user);
+      } else if (concertIndexAge(index) > CONCERT_REFRESH_MS && typeof context.waitUntil === 'function') {
+        context.waitUntil(
+          refreshConcertIndexFromSheet(env, user)
+            .catch((error) => console.warn('Non se puido refrescar Concertos desde Sheet en segundo plano:', error))
+        );
+      }
       const concertos = await listFromR2(env);
-      return json(200, { ok: true, nivel: permiso.nivel, concertos, almacen: 'R2' });
+      return json(200, {
+        ok: true,
+        nivel: permiso.nivel,
+        concertos,
+        almacen: 'R2',
+        cacheAgeMs: concertIndexAge(index)
+      });
     }
 
     if (accion === 'cambiarData') {
