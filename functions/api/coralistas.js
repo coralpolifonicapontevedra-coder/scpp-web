@@ -1,4 +1,3 @@
-const ORIXE = 'https://script.google.com/macros/s/AKfycbwKBDO5bvPxlXhsJTDvQHtx313rfN_BQIb3JX69X_qg6nZUOHDu183AGLh7JTIoN1a9/exec';
 const INDEX_KEY = 'indices/coralistas-v1.json';
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
@@ -45,8 +44,18 @@ async function gardarIndice(env, datos) {
   });
 }
 
-async function cargarDesdeSheet() {
-  const resposta = await fetch(ORIXE, {
+function orixeInstitucional(env) {
+  const base = texto(env.APPS_SCRIPT_WEBAPP_URL);
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(base)) {
+    throw new Error('A implementación institucional de Apps Script non está configurada.');
+  }
+  const url = new URL(base);
+  url.searchParams.set('recurso', 'coralistas');
+  return url.toString();
+}
+
+async function cargarDesdeSheet(env) {
+  const resposta = await fetch(orixeInstitucional(env), {
     method: 'GET',
     redirect: 'follow',
     headers: { Accept: 'application/json' }
@@ -79,7 +88,7 @@ export async function onRequestGet({ env, waitUntil }) {
   }
 
   try {
-    const actualizado = await cargarDesdeSheet();
+    const actualizado = await cargarDesdeSheet(env);
     const gardado = gardarIndice(env, actualizado);
     if (typeof waitUntil === 'function') waitUntil(gardado);
     else await gardado;
