@@ -18,7 +18,12 @@ concurrency:
 jobs:
   push-preview:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      PREVIEW_SCRIPT_ID: '1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF'
+      PREVIEW_DEPLOYMENT_ID: 'AKfycbyUsvfiFEUpEgbLhov02EeXIgW6d-wjpTFQcZXOEMHEpXpQzbYnqSH_5L0N8wTwSGU'
+      PRODUCTION_SCRIPT_ID: '1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
+      PRODUCTION_DEPLOYMENT_ID: 'AKfycbyFrlkJW9Ur1gRVRtIXOucfdr7zFzVGiL_V3KCHbot8IkNvoAXylP7-Dta2X-ki7bEh'
     steps:
       - name: Validar confirmación
         shell: bash
@@ -43,20 +48,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PREVIEW_ID='1icbtEkhRPg0r4wcypJZ4UxQb1NVaky7UKvkrpSQxfx44hAS6rZzq5aeF'
-          PRODUCTION_ID='1LeJ91m62gdfm8i1XX9EvtxFMvvhhQhMCN_13iUWgvOHaq7q9LUo-nciV'
           ACTUAL_ID="$(node -e "console.log(require('./apps-script-preview/.clasp.json').scriptId || '')")"
-
-          if [ "$ACTUAL_ID" = "$PRODUCTION_ID" ]; then
+          if [ "$ACTUAL_ID" = "$PRODUCTION_SCRIPT_ID" ]; then
             echo 'BLOQUEADO: apps-script-preview apunta al proyecto de PRODUCCIÓN.'
             exit 1
           fi
-
-          if [ "$ACTUAL_ID" != "$PREVIEW_ID" ]; then
+          if [ "$ACTUAL_ID" != "$PREVIEW_SCRIPT_ID" ]; then
             echo "BLOQUEADO: scriptId inesperado en apps-script-preview: $ACTUAL_ID"
             exit 1
           fi
-
           echo 'Destino verificado: proyecto Apps Script Preview.'
 
       - name: Configurar credenciales de clasp
@@ -72,20 +72,74 @@ jobs:
           printf '%s' "$CLASP_CREDENTIALS_PREVIEW" > "$HOME/.clasprc.json"
           chmod 600 "$HOME/.clasprc.json"
 
-      - name: Comprobar proyecto antes del push
+      - name: Comprobar proyecto antes del despliegue
         working-directory: apps-script-preview
         shell: bash
         run: |
           npx --yes @google/clasp@3 status
 
-      - name: Subir código únicamente a Apps Script Preview
+      - name: Identificar versión viva de Preview
+        id: live
         working-directory: apps-script-preview
         shell: bash
         run: |
+          set -euo pipefail
+          npx --yes @google/clasp@3 list-deployments | tee /tmp/preview-deployments-before.txt
+          LINE="$(grep -F "$PREVIEW_DEPLOYMENT_ID" /tmp/preview-deployments-before.txt | head -n 1 || true)"
+          [ -n "$LINE" ] || { echo 'No se encontró el deployment web de Preview esperado.'; exit 1; }
+          OLD_VERSION="$(printf '%s\n' "$LINE" | sed -n 's/.*@\([0-9][0-9]*\).*/\1/p')"
+          [ -n "$OLD_VERSION" ] || { echo 'No se pudo identificar la versión viva de Preview.'; exit 1; }
+          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Preview vive actualmente en la versión $OLD_VERSION"
+
+      - name: Subir código a HEAD de Apps Script Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
           npx --yes @google/clasp@3 push --force
+
+      - name: Crear versión de Preview
+        id: version
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$(npx --yes @google/clasp@3 create-version "Preview desde GitHub ${GITHUB_SHA}")"
+          echo "$OUT"
+          NEW_VERSION="$(printf '%s\n' "$OUT" | grep -oE '[0-9]+' | tail -n 1)"
+          [ -n "$NEW_VERSION" ] || { echo 'No se pudo obtener la nueva versión.'; exit 1; }
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Actualizar deployment web de Preview
+        working-directory: apps-script-preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLD_VERSION='${{ steps.live.outputs.old_version }}'
+          NEW_VERSION='${{ steps.version.outputs.new_version }}'
+          OUT="$(npx --yes @google/clasp@3 create-deployment --deploymentId "$PREVIEW_DEPLOYMENT_ID" --versionNumber "$NEW_VERSION" --description "Preview ${GITHUB_SHA}")"
+          echo "$OUT"
+          printf '%s\n' "$OUT" | grep -F "$PREVIEW_DEPLOYMENT_ID" >/dev/null || { echo 'La orden no confirmó el deployment de Preview esperado.'; exit 1; }
+          OK=0
+          for intento in 1 2 3 4 5; do
+            sleep $((intento * 2))
+            npx --yes @google/clasp@3 list-deployments | tee "/tmp/preview-deployments-after-${intento}.txt"
+            LINE="$(grep -F "$PREVIEW_DEPLOYMENT_ID" "/tmp/preview-deployments-after-${intento}.txt" | head -n 1 || true)"
+            if printf '%s\n' "$LINE" | grep -Eq "@${NEW_VERSION}([^0-9]|$)"; then
+              OK=1
+              break
+            fi
+          done
+          if [ "$OK" -ne 1 ]; then
+            echo 'No se confirmó la nueva versión; rollback automático de Preview.'
+            npx --yes @google/clasp@3 create-deployment --deploymentId "$PREVIEW_DEPLOYMENT_ID" --versionNumber "$OLD_VERSION" --description 'Rollback automático Preview' || true
+            exit 1
+          fi
+          echo "Preview actualizado: $OLD_VERSION -> $NEW_VERSION"
 
       - name: Confirmación final
         shell: bash
         run: |
-          echo 'Apps Script Preview actualizado correctamente.'
-          echo 'No se ha creado ni actualizado ningún deployment ni versión de Producción.'
+          echo 'Apps Script Preview y su deployment web /exec han quedado actualizados.'
+          echo 'Producción no se ha modificado.'
