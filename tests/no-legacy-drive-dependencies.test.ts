@@ -39,6 +39,11 @@ const FORBIDDEN = [
   '1H12S32zJzncJoXdUvbZx82CLFXvlhtd6',
   '1yvEWIatZIa3UnE71VQUb4LCvBZ6HLs6t',
   '1qXPUplggCFbFTTLRtm2j16af717o-bQs',
+  '1QAt_iu_C2m7jfoTfC9dh5SePWNf0iULU',
+  '1ZbqnD4Gda7gkJrQOLE-eNhiLboz7iqJm',
+  '1T8izGJMWiWH0cSNHyKIDvSQZXtB2LgyQ',
+  '1dJpIGV-i6kvu6gTkeTphpz9uopvHO2MR',
+  '1UmEo1fP5jyxxo90dQbXG6SM2SrmdysbN',
 
   // Legacy Apps Script deployments / fallback path.
   'AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA',
