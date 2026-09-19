@@ -6,6 +6,7 @@ function configuracionEnsaiosAdministracionPortal_() {
     ensaiosRepertorioId: '1qp3oKzWColruFIHLSHTaeLCNFk3ebQQ8zGu5wa11eUg'
   };
 }
+
 function permisoEnsaiosAdministracionPortal_(email) {
   var correo=String(email||'').trim().toLowerCase();
   return permisoEnsaiosPortal_(correo);
