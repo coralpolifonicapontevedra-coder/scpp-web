@@ -265,6 +265,58 @@ function gardarAsistenciaEnsaioPortal_(datos) {
   return { ok: true, resultado: { idEnsaio: idEnsaio, idPersoa: idPersoa, estadoAsistencia: estado } };
 }
 
+function gardarEnsaioRepertorioLotePortal_(datos) {
+  var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
+  var permiso = permisoEnsaiosPortal_(email);
+  if (!permiso.escritura) return { ok:false, codigo:'FORBIDDEN', erro:'Usuario non autorizado para modificar o repertorio do ensaio' };
+
+  var idEnsaio = textoEnsaiosPortal_(datos && datos.idEnsaio);
+  var ids = (datos && Array.isArray(datos.idsRepertorio) ? datos.idsRepertorio : [])
+    .map(textoEnsaiosPortal_).filter(Boolean)
+    .filter(function(id, pos, arr){ return arr.indexOf(id) === pos; });
+  if (!idEnsaio || !ids.length) return { ok:false, codigo:'INVALID_DATA', erro:'Ensaio e repertorio son obrigatorios' };
+
+  var cfg = configuracionEnsaiosPortal_();
+  var table = filasEnsaiosPortal_(cfg.ensaiosRepertorioId, 'EnsaiosRepertorio');
+  var headers = table.headers;
+  var indices = {};
+  ['Id_EnsaioRepertorio','Ensaio','Repertorio','Orde','TipoTraballo','Desde','Ata','Observacions','RexistradoPor','DataRexistro']
+    .forEach(function(name){ indices[name] = indiceHeaderEnsaiosPortal_(headers,[name]); });
+  if (indices.Id_EnsaioRepertorio < 0 || indices.Ensaio < 0 || indices.Repertorio < 0) {
+    return { ok:false, codigo:'SCHEMA', erro:'A Sheet EnsaiosRepertorio non ten as columnas esperadas' };
+  }
+
+  var existentes = {};
+  var ordeMax = 0;
+  table.rows.forEach(function(row){
+    if (textoEnsaiosPortal_(campoEnsaiosPortal_(row,['Ensaio'])) !== idEnsaio) return;
+    var rid = textoEnsaiosPortal_(campoEnsaiosPortal_(row,['Repertorio']));
+    if (rid) existentes[rid] = true;
+    var orde = Number(campoEnsaiosPortal_(row,['Orde'])) || 0;
+    if (orde > ordeMax) ordeMax = orde;
+  });
+
+  var novas = [];
+  var agora = new Date();
+  ids.forEach(function(idRepertorio){
+    if (existentes[idRepertorio]) return;
+    var values = new Array(headers.length).fill('');
+    values[indices.Id_EnsaioRepertorio] = Utilities.getUuid();
+    values[indices.Ensaio] = idEnsaio;
+    values[indices.Repertorio] = idRepertorio;
+    if (indices.Orde >= 0) values[indices.Orde] = ++ordeMax;
+    if (indices.RexistradoPor >= 0) values[indices.RexistradoPor] = email;
+    if (indices.DataRexistro >= 0) values[indices.DataRexistro] = agora;
+    novas.push(values);
+  });
+
+  if (novas.length) {
+    table.sheet.getRange(table.sheet.getLastRow()+1,1,novas.length,headers.length).setValues(novas);
+    SpreadsheetApp.flush();
+  }
+  return { ok:true, resultado:{ idEnsaio:idEnsaio, engadidas:novas.length, totalSolicitadas:ids.length } };
+}
+
 function gardarEnsaioRepertorioPortal_(datos) {
   var email = textoEnsaiosPortal_(datos && datos.email).toLowerCase();
   var permiso = permisoEnsaiosPortal_(email);
