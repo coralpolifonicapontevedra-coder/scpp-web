@@ -1,5 +1,5 @@
 const INDEX_KEY = 'indices/concertos-v1.json';
-const MAIN_PUBLIC_ORIGIN = 'https://6d5ea687.scpp-web.pages.dev';
+const MAIN_PUBLIC_ORIGIN = 'https://coralpolifonicapontevedra.org';
 const MAIN_PUBLIC_API = `${MAIN_PUBLIC_ORIGIN}/api/concertos-indice`;
 
 const json = (status, body, extraHeaders = {}) => new Response(JSON.stringify(body), {
