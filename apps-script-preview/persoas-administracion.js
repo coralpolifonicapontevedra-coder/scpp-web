@@ -7,9 +7,9 @@
  */
 
 const PERSOAS_ADMIN_CONFIG = {
-  persoasSpreadsheetId: '13-WeSz69A50XxPP57HA64Nascx6kXQFbeVKron0wATQ',
+  persoasSpreadsheetId: '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
   persoasSheetId: 388888827,
-  usuariosSpreadsheetId: '1qbW0q1Z6U3JnW0yGM4ELUWqjRkyNdJckJx0VGSoK-i8',
+  usuariosSpreadsheetId: '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
   usuariosSheetId: 1291817000
 };
 
