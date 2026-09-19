@@ -18,32 +18,15 @@ var ENSAIOS_CONFIG_ = {
 };
 
 function configuracionEnsaiosPortal_() {
-  var props = PropertiesService.getScriptProperties();
-
+  // Migración institucional: fontes fixadas ás copias corporativas.
+  // Ignóranse propiedades antigas que poidan redirixir a follas persoais.
   return {
-    ensaiosId:
-      props.getProperty('ENSAIOS_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.ensaiosId,
-
-    asistenciasId:
-      props.getProperty('ASISTENCIAS_ENSAIOS_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.asistenciasId,
-
-    ensaiosRepertorioId:
-      props.getProperty('ENSAIOS_REPERTORIO_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.ensaiosRepertorioId,
-
-    persoasId:
-      props.getProperty('PERSOAS_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.persoasId,
-
-    concertosId:
-      props.getProperty('CONCERTOS_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.concertosId,
-
-    repertorioId:
-      props.getProperty('REPERTORIO_SPREADSHEET_ID') ||
-      ENSAIOS_CONFIG_.repertorioId
+    ensaiosId: ENSAIOS_CONFIG_.ensaiosId,
+    asistenciasId: ENSAIOS_CONFIG_.asistenciasId,
+    ensaiosRepertorioId: ENSAIOS_CONFIG_.ensaiosRepertorioId,
+    persoasId: ENSAIOS_CONFIG_.persoasId,
+    concertosId: ENSAIOS_CONFIG_.concertosId,
+    repertorioId: ENSAIOS_CONFIG_.repertorioId
   };
 }
 
