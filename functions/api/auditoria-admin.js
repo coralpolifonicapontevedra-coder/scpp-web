@@ -88,21 +88,70 @@ async function gardarCache(env, payload) {
   });
 }
 
+function fusionarActividade(...listas) {
+  const mapa = new Map();
+  for (const lista of listas) {
+    for (const item of Array.isArray(lista) ? lista : []) {
+      const clave = clean(item?.id) || [
+        clean(item?.dataHora), clean(item?.email).toLowerCase(), clean(item?.modulo),
+        clean(item?.accion), clean(item?.resultado), clean(item?.detalle)
+      ].join('|');
+      if (!clave || mapa.has(clave)) continue;
+      mapa.set(clave, item);
+    }
+  }
+  return [...mapa.values()].sort((a, b) => clean(b?.dataHora).localeCompare(clean(a?.dataHora)));
+}
+
 async function listarDesdeSheet(env, user, limite = 1000) {
-  const { resultado } = await obterJsonAppsScript(env, {
+  const max = Math.min(Math.max(Number(limite) || 1000, 1), 2000);
+  const payload = {
     token: env.WEB_WRITE_TOKEN,
     accion: 'listarActividadePortal',
     email: user.email,
     actorEmail: user.email,
     uidFirebase: user.uid,
-    limite: Math.min(Math.max(Number(limite) || 1000, 1), 2000)
-  }, { timeoutMs: 20000, attemptTimeoutMs: 9000 });
+    limite: max
+  };
 
-  if (!resultado?.ok) {
-    const error = new Error(resultado?.erro || 'Non foi posible cargar a auditoría.');
-    error.resultado = resultado;
-    throw error;
+  let institucional = null;
+  let legacy = null;
+  let principalErro = null;
+
+  try {
+    const { resultado } = await obterJsonAppsScript(env, payload, { timeoutMs: 20000, attemptTimeoutMs: 9000 });
+    if (resultado?.ok) institucional = resultado;
+    else principalErro = new Error(resultado?.erro || 'Non foi posible cargar a auditoría institucional.');
+  } catch (error) {
+    principalErro = error;
   }
+
+  const fallback = clean(env.APPS_SCRIPT_FALLBACK_URL);
+  const principal = clean(env.APPS_SCRIPT_WEBAPP_URL);
+  if (ramaActual(env) !== 'main' && fallback && fallback !== principal) {
+    try {
+      const { resultado } = await obterJsonAppsScript(env, payload, {
+        timeoutMs: 16000,
+        attemptTimeoutMs: 8000,
+        urlOverride: fallback
+      });
+      if (resultado?.ok) legacy = resultado;
+    } catch (error) {
+      console.warn('Auditoría: non se puido ler o rexistro legacy durante a migración:', error);
+    }
+  }
+
+  if (!institucional && !legacy) throw principalErro || new Error('Non foi posible cargar a auditoría.');
+
+  const actividade = fusionarActividade(institucional?.actividade, legacy?.actividade).slice(0, max);
+  const resultado = {
+    ok: true,
+    actividade,
+    fontes: {
+      institucional: Array.isArray(institucional?.actividade) ? institucional.actividade.length : 0,
+      legacy: Array.isArray(legacy?.actividade) ? legacy.actividade.length : 0
+    }
+  };
   await gardarCache(env, resultado);
   return resultado;
 }
@@ -127,24 +176,8 @@ export async function onRequest(context) {
     return json(403, { ok: false, codigo: 'AUDITORIA_PERMISSION_REQUIRED', erro: 'Non tes permiso para consultar a auditoría.' });
   }
 
-  const cache = await lerCache(env);
-  if (cache?.payload) {
-    if (!cache.fresca) {
-      const tarefa = listarDesdeSheet(env, user, body?.limite).catch((error) =>
-        console.warn('Auditoría: non se puido refrescar a caché R2:', error)
-      );
-      if (typeof context.waitUntil === 'function') context.waitUntil(tarefa);
-    }
-    return json(200, {
-      ...cache.payload,
-      cache: { orixe: 'r2', idadeMs: cache.idadeMs, fresca: cache.fresca }
-    }, {
-      'X-SCPP-Cache': cache.fresca ? 'HIT' : 'STALE-WHILE-REVALIDATE',
-      'X-SCPP-Storage': 'R2'
-    });
-  }
-
   try {
+    // Auditoría é temporal por natureza: consultar sempre as fontes antes de responder.
     const payload = await listarDesdeSheet(env, user, body?.limite);
     return json(200, {
       ...payload,
