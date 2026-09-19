@@ -1,8 +1,6 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
-const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-
 const clean = (value) => String(value || '').trim();
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
