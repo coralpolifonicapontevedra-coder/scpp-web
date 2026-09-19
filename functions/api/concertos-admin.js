@@ -258,7 +258,16 @@ async function refreshConcertIndexFromSheet(env, user) {
       .map((obra) => [canonicalId(obra.id), obra])
   );
   const current = await readConcertIndex(env);
-  const concertos = rows.map((item) => normalizeSheetConcert(item, catalogById)).filter((item) => item.id);
+  const currentById = new Map((current?.concertos || []).map((item) => [clean(item.id), item]));
+  const concertos = rows.map((item) => {
+    const normalized = normalizeSheetConcert(item, catalogById);
+    const previous = currentById.get(clean(normalized.id));
+    return {
+      ...normalized,
+      cartel: clean(normalized.cartel) || clean(previous?.cartel),
+      triptico: clean(normalized.triptico) || clean(previous?.triptico)
+    };
+  }).filter((item) => item.id);
   const before = JSON.stringify((current?.concertos || []).map((item) => ({
     id: clean(item.id), data: clean(item.data), nome: clean(item.nome), estado: clean(item.estado),
     programa: Array.isArray(item.programa) ? item.programa : []
@@ -548,18 +557,13 @@ export async function onRequest(context) {
     }
 
     if (accion === 'listar') {
-      let index = await readConcertIndex(env);
-      let refreshed = false;
-      if (!index?.ok || !Array.isArray(index.concertos) || concertIndexAge(index) > CONCERT_REFRESH_MS) {
-        index = await refreshConcertIndexFromSheet(env, user);
-        refreshed = true;
-      }
+      const index = await refreshConcertIndexFromSheet(env, user);
       const concertos = await listFromR2(env);
       return json(200, {
         ok: true,
         nivel: permiso.nivel,
         concertos,
-        almacen: refreshed ? 'SHEET+R2' : 'R2',
+        almacen: 'SHEET+R2',
         cacheAgeMs: concertIndexAge(index)
       });
     }
