@@ -1,5 +1,5 @@
 function comprobarAdministradorFotos() {
-  const correo = 'jcuinas@gmail.com';
+  const correo = 'secretario@coralpolifonicapontevedra.org';
 
   console.log(
     'UsuarioWeb: ' +
