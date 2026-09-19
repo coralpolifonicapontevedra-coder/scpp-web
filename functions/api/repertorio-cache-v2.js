@@ -1,7 +1,6 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
-const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
 
 const CATALOGO_KEY_MAIN = 'repertorio/cache/catalogo.json';
 const CATALOGO_KEY_PREVIEW = 'repertorio/cache/preview/catalogo.json';
