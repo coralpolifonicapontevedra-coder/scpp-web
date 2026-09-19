@@ -308,10 +308,10 @@ function obterFichaPersoaAdministracion_(datos) {
 }
 
 function obterContextoPersoasAdmin_() {
-  const persoasSpreadsheetId = obterPropiedadeObrigatoria_('PERSOAS_SPREADSHEET_ID');
-  const persoasSheetId = Number(obterPropiedadeObrigatoria_('PERSOAS_SHEET_ID'));
-  const usuariosSpreadsheetId = obterPropiedadeObrigatoria_('USUARIOS_WEB_SPREADSHEET_ID');
-  const usuariosSheetId = Number(obterPropiedadeObrigatoria_('USUARIOS_WEB_SHEET_ID'));
+  const persoasSpreadsheetId = '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ';
+  const persoasSheetId = 388888827;
+  const usuariosSpreadsheetId = '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI';
+  const usuariosSheetId = 1291817000;
 
   const persoas = SpreadsheetApp.openById(persoasSpreadsheetId).getSheetById(persoasSheetId);
   const usuarios = SpreadsheetApp.openById(usuariosSpreadsheetId).getSheetById(usuariosSheetId);
