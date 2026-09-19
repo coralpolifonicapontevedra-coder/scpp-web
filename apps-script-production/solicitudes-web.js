@@ -19,7 +19,7 @@ function configurarSolicitudesWeb() {
   PropertiesService.getScriptProperties().setProperties({
     SOLICITUDES_SPREADSHEET_ID: '1GxQkT4Av2cfWp2UetfMVCvYI0_9PYUnxYLkschwH6wo',
     SOLICITUDES_SHEET_ID: '2132656340',
-    SOLICITUDES_NOTIFY_EMAIL: 'coralpolifonicapontevedra@gmail.com'
+    SOLICITUDES_NOTIFY_EMAIL: 'secretario@coralpolifonicapontevedra.org'
   });
 
   var contexto = obterContextoSolicitudes_();
@@ -34,7 +34,7 @@ function probarSolicitudesWeb() {
     orixe: 'Contacto',
     tipoSolicitude: 'Consulta xeral',
     nomeCompleto: 'Proba técnica',
-    correoElectronico: 'coralpolifonicapontevedra@gmail.com',
+    correoElectronico: 'secretario@coralpolifonicapontevedra.org',
     telefono: '',
     entidade: '',
     cordaPreferente: '',
@@ -197,7 +197,7 @@ function obterContextoSolicitudes_() {
 function enviarAvisoSolicitude_(contexto, valores) {
   var destino =
     contexto.propiedades.getProperty('SOLICITUDES_NOTIFY_EMAIL') ||
-    'coralpolifonicapontevedra@gmail.com';
+    'secretario@coralpolifonicapontevedra.org';
 
   var asunto =
     'Nova solicitude web: ' + valores.TipoSolicitude;
