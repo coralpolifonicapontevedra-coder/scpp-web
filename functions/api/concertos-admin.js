@@ -124,6 +124,7 @@ const branch = (env) => clean(env.CF_PAGES_BRANCH || 'preview').replace(/[^a-zA-
 const draftKey = (env, id) => `concertos/borradores-v1/${branch(env)}/${encodeURIComponent(clean(id))}.json`;
 const attendanceKey = (env) => branch(env) === 'main' ? ATTENDANCE_INDEX_KEY : 'indices/preview/asistencias-concertos.json';
 const concertIndexKey = (env) => branch(env) === 'main' ? CONCERT_INDEX_KEY : 'indices/preview/concertos-privado-v1.json';
+const repertorioCatalogKey = (env) => branch(env) === 'main' ? 'repertorio/cache/catalogo.json' : 'repertorio/cache/preview/catalogo.json';
 
 async function readJson(bucket, key) {
   if (!bucket?.get) return null;
@@ -288,7 +289,7 @@ async function listFromR2(env) {
 
 async function managementFromR2(env, user, id) {
   const admin = await readJson(env.R2_PRIVADO, `${ADMIN_CACHE_PREFIX}${await hashEmail(user.email)}.json`);
-  const catalog = await readJson(env.R2_PRIVADO, 'repertorio/cache/catalogo.json');
+  const catalog = await readJson(env.R2_PRIVADO, repertorioCatalogKey(env));
   const concertIndex = await readConcertIndex(env);
   let attendance = await readJson(env.R2_PRIVADO, attendanceKey(env));
   if (!attendance && attendanceKey(env) !== ATTENDANCE_INDEX_KEY) {
@@ -319,7 +320,20 @@ async function managementFromR2(env, user, id) {
 async function getDraft(env, user, id) {
   const key = draftKey(env, id);
   const saved = await readJson(env.R2_PRIVADO, key);
-  if (validDraft(saved, id)) return saved;
+  if (validDraft(saved, id)) {
+    const catalog = await readJson(env.R2_PRIVADO, repertorioCatalogKey(env));
+    const obras = (catalog?.obras || []).map(workFromR2).filter((o) => o.id && o.nome);
+    if (obras.length) {
+      const antes = JSON.stringify(saved.obras || []);
+      const despois = JSON.stringify(obras);
+      if (antes !== despois) {
+        saved.obras = obras;
+        saved.updatedAt = new Date().toISOString();
+        await writeJson(env.R2_PRIVADO, key, saved, 'borrador-concerto');
+      }
+    }
+    return saved;
+  }
 
   let initial = null;
   try {
