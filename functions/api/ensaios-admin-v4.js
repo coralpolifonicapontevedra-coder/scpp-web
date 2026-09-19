@@ -21,6 +21,7 @@ const indexKey = (env) => rama(env) === 'main' ? INDEX_MAIN : INDEX_PREVIEW;
 const legacyIndexKey = (env) => rama(env) === 'main' ? LEGACY_INDEX_MAIN : LEGACY_INDEX_PREVIEW;
 const concertKey = (env) => rama(env) === 'main' ? CONCERT_MAIN : CONCERT_PREVIEW;
 const draftKey = (env, id) => `${DRAFT_PREFIX}${rama(env)}/${encodeURIComponent(clean(id))}.json`;
+const invalidationKey = (env, modulo) => `cache/invalidation/${rama(env) === 'main' ? 'main' : 'preview'}/${modulo}.json`;
 const idEnsaio = (row = {}) => clean(row.ensaio || row.idEnsaio || row.Id_Ensaio || row.id);
 const idPersoa = (row = {}) => clean(row.persoa || row.idPersoa || row.Id_Persoa || row.id);
 const idObra = (row = {}) => clean(row.repertorio || row.idRepertorio || row.Id_Repertorio || row.id);
