@@ -1,4 +1,5 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
+import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
@@ -149,16 +150,10 @@ async function verificarFirebase(token, apiKey) {
     : null;
 }
 
-async function hashEmail(email) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email));
-  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, '0')).join('');
-}
-
-async function eAdministrador(env, user) {
-  const object = await env.R2_PRIVADO?.get?.(`persoas/cache/administracion/${await hashEmail(user.email)}.json`);
-  if (!object) return false;
-  const data = await object.json().catch(() => null);
-  return data?.administrador === user.email && data?.payload?.perfil?.nivel === 'Administración';
+async function permisoRepertorio(env, user) {
+  let permiso = await obterPermisoPortalCacheado(env, user, 'repertorio');
+  if (!permiso) permiso = await obterPermisoPortal(env, user, 'repertorio');
+  return permiso;
 }
 
 function urlRepertorioAdministracion(env) {
@@ -325,10 +320,24 @@ export async function onRequest({ request, env }) {
 
   const user = await verificarFirebase(clean(body.idToken), env.FIREBASE_API_KEY).catch(() => null);
   if (!user) return json(401, { ok: false, erro: 'A sesión non é válida.' });
-  if (!(await eAdministrador(env, user))) return json(403, { ok: false, erro: 'Só Administración pode xestionar o repertorio.' });
+
+  let permiso;
+  try { permiso = await permisoRepertorio(env, user); }
+  catch (error) {
+    return json(503, { ok: false, erro: error instanceof Error ? error.message : 'Non foi posible comprobar os permisos de Repertorio.' });
+  }
 
   const accion = clean(body.accion);
   if (!ACCIONS.has(accion)) return json(400, { ok: false, erro: 'Acción non permitida.' });
+  const lectura = accion === 'listarRepertorioAdministracion' || accion === 'diagnosticoRepertorioAdministracion';
+  if (lectura ? permiso?.podeLer !== true : permiso?.podeEscribir !== true) {
+    return json(403, {
+      ok: false,
+      erro: lectura
+        ? 'Non tes permiso de lectura no módulo Repertorio.'
+        : 'Non tes permiso de escritura no módulo Repertorio.'
+    });
+  }
 
   try {
     if (accion === 'listarRepertorioAdministracion') {
