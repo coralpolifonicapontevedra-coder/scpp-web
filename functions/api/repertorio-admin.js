@@ -1,7 +1,6 @@
 import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
-const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
