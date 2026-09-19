@@ -2,7 +2,6 @@ import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { REPERTORIO_R2 } from '../_data/repertorio-r2.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-const APPS_SCRIPT_PREVIEW = APPS_SCRIPT_PRODUCION;
 
 const CATALOGO_KEY_MAIN = 'repertorio/cache/catalogo.json';
 const CATALOGO_KEY_PREVIEW = 'repertorio/cache/preview/catalogo.json';
@@ -44,7 +43,10 @@ function concertosKey(env) {
 }
 
 function appsScriptUrl(env) {
-  return ramaActual(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
+  if (ramaActual(env) === 'main') return APPS_SCRIPT_PRODUCION;
+  const url = clean(env.APPS_SCRIPT_WEBAPP_URL);
+  if (!url) throw new Error('A implementación institucional de Apps Script non está configurada en Preview.');
+  return url;
 }
 
 function canonId(value) {
