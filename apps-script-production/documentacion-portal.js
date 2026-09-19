@@ -68,7 +68,7 @@ const DOC_NIVEIS = {
 
 function probarDocumentacionPortal() {
   const resultado = listarDocumentacionPortal_({
-    email: 'jcuinas@gmail.com'
+    email: 'secretario@coralpolifonicapontevedra.org'
   });
   console.log(JSON.stringify(resultado));
 }
