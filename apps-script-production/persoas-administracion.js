@@ -19,7 +19,7 @@ function probarPersoasAdministracion() {
   const inicio = Date.now();
 
   const resultado = listarPersoasAdministracion_({
-    email: 'jcuinas@gmail.com'
+    email: 'secretario@coralpolifonicapontevedra.org'
   });
 
   const persoas = Array.isArray(resultado.persoas)
@@ -654,7 +654,7 @@ function probarFichaPersoaAdministracionR2() {
   const inicio = Date.now();
 
   const resultado = obterFichaPersoaAdministracion_({
-    email: 'jcuinas@gmail.com',
+    email: 'secretario@coralpolifonicapontevedra.org',
     idPersoa: '37'
   });
 
