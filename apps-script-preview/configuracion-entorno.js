@@ -1,3 +1,22 @@
+var SCPP_CORPORATE_SPREADSHEETS_ = {
+  USUARIOS_WEB_SPREADSHEET_ID: '1anry8OEiJ5EuZ-LZtz0QM_13uHj3wn2KXnamXs7f8KI',
+  PERSOAS_SPREADSHEET_ID: '1XWgPYg4z410225Qu17REOiXQlb14Wit7GwoWCjlo9rQ',
+  REPERTORIO_SPREADSHEET_ID: '1xMsQhlY-M_K7h65T0de0ENySv1SxNrmPLjLoMGEIM2Y',
+  AUDIOS_REPERTORIO_SPREADSHEET_ID: '108IkK_MPNqwMtkP7Qz4pqbzkTY6JBwYkI_9Npt1ik1U',
+  PARTITURAS_SPREADSHEET_ID: '1r15Q9RJ-TH6NLFCIAiEI6qUeU5Ax82BF__bur0LoGHc',
+  CONCERTOS_REPERTORIO_SPREADSHEET_ID: '12XfmhPTQCgOdIXN5Qg76Ej_cwgfh0LelNq9lhuLdDtg',
+  CONCERTOS_SPREADSHEET_ID: '16v71m2HVzygUpOqn-Zws59d2jmaSqzcbq866pLZeQyA',
+  ASISTENCIAS_CONCERTOS_SPREADSHEET_ID: '199NFDBqbDT_9PXcB4roZK9dvyTWmnTsQXS8ZJMlE-qY',
+  REXISTRO_ACCESOS_SPREADSHEET_ID: '16sAHStRwNzNAROV7X0pXYu-GBHwzZoGEnzSFCz9nbCY',
+  ACEPTACION_SPREADSHEET_ID: '1tFlpbljN_eYKWm1QON8hwPZU1v4rB3C3ebafe8lIiXs',
+  ENSAIOS_SPREADSHEET_ID: '1C7EJINpYuhjOsn9ZtUM6HAUBww47BeY4sD_gszNjbug',
+  ASISTENCIAS_ENSAIOS_SPREADSHEET_ID: '1SML9gTtVKzACxY4G8evp7wlfO7fZ8ut2fMOkKxvRxqI',
+  ENSAIOS_REPERTORIO_SPREADSHEET_ID: '1qp3oKzWColruFIHLSHTaeLCNFk3ebQQ8zGu5wa11eUg',
+  FOTOS_SPREADSHEET_ID: '1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg',
+  PUBLICACIONS_SPREADSHEET_ID: '1M5tafOg_b3L-TiBH8UnA1rMwEiXmjiCBqvGRV3Bk2Uo',
+  SOLICITUDES_SPREADSHEET_ID: '1GxQkT4Av2cfWp2UetfMVCvYI0_9PYUnxYLkschwH6wo'
+};
+
 /**
  * Configuración común para Preview e Produción.
  *
@@ -50,6 +69,10 @@ function obterPropiedadeObrigatoria_(nome) {
   ).trim();
   if (!valor) {
     throw new Error('Falta a propiedade obrigatoria do ambiente: ' + nome);
+  }
+  var esperado = SCPP_CORPORATE_SPREADSHEETS_[nome];
+  if (esperado && valor !== esperado) {
+    throw new Error('A propiedade ' + nome + ' non apunta á Sheet corporativa autorizada.');
   }
   return valor;
 }
