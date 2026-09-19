@@ -32,7 +32,7 @@ SCOPES = [
 ]
 
 FOTOS_SPREADSHEET_ID = os.getenv(
-    "FOTOS_SPREADSHEET_ID", "1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w"
+    "FOTOS_SPREADSHEET_ID", "1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg"
 )
 FOTOS_TAB = os.getenv("FOTOS_TAB", "Fotos")
 FOTOS_FOLDER_ID = os.getenv(
