@@ -12,7 +12,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from PIL import Image, ImageOps
 
-SPREADSHEET_ID = "1NhWEnrlOk285ECxUQMB3Pedd28TNkiMmN-K25vzd_2w"
+SPREADSHEET_ID = "1KuSQDBk1-7WfDtO7nxKGQGTVggpwdI3kRzPSuKlMQrg"
 RANGE = "Fotos!A1:AC5000"
 INDEX_KEY = "indices/galeria-privada.json"
 BUCKET = "scpp-privado"
