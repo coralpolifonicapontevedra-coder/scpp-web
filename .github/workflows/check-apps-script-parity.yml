@@ -1,0 +1,28 @@
+name: Comprobar paridade Apps Script Preview/Produción
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps-script/snapshot-2026-08-19/preview/**'
+      - 'apps-script/snapshot-2026-08-19/production/**'
+      - 'scripts/check-apps-script-parity.mjs'
+      - '.github/workflows/check-apps-script-parity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Comprobar paridade funcional
+        run: node scripts/check-apps-script-parity.mjs
