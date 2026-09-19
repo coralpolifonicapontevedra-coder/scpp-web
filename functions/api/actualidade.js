@@ -99,8 +99,18 @@ async function gardarIndice(env, datos) {
   });
 }
 
-async function cargarDesdeSheet() {
-  const resposta = await fetch(ORIXE, { method: 'GET', redirect: 'follow', headers: { Accept: 'application/json' } });
+function orixeInstitucional(env) {
+  const base = texto(env.APPS_SCRIPT_WEBAPP_URL);
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(base)) {
+    throw new Error('A implementación institucional de Apps Script non está configurada.');
+  }
+  const url = new URL(base);
+  url.searchParams.set('recurso', 'publicacions');
+  return url.toString();
+}
+
+async function cargarDesdeSheet(env) {
+  const resposta = await fetch(orixeInstitucional(env), { method: 'GET', redirect: 'follow', headers: { Accept: 'application/json' } });
   if (!resposta.ok) throw new Error(`Apps Script respondeu HTTP ${resposta.status}`);
   const datos = await resposta.json();
   if (!respostaValida(datos)) throw new Error('Formato de publicacións non válido');
@@ -109,7 +119,7 @@ async function cargarDesdeSheet() {
 }
 
 async function refrescar(env) {
-  const actualizado = await cargarDesdeSheet();
+  const actualizado = await cargarDesdeSheet(env);
   await gardarIndice(env, actualizado);
   return actualizado;
 }
