@@ -320,16 +320,13 @@ async function gardarEnsaioConPrograma(context, user, body) {
       const fresh = await chamarAppsScript(context.env, user, 'listarEnsaiosPortal');
       const repertorio = Array.isArray(fresh?.repertorio) ? fresh.repertorio : [];
       const ids = await idsProgramaConcerto(context.env, user, idConcerto, repertorio);
-      for (const idRepertorio of ids.slice(0, 80)) {
-        await chamarAppsScript(context.env, user, 'gardarEnsaioRepertorioPortal', {
+      const lote = ids.slice(0, 80);
+      if (lote.length) {
+        const gardado = await chamarAppsScript(context.env, user, 'gardarEnsaioRepertorioLotePortal', {
           idEnsaio,
-          idRepertorio,
-          tipoTraballo:'',
-          desde:'',
-          ata:'',
-          observacions:''
+          idsRepertorio:lote
         });
-        obrasPrograma += 1;
+        obrasPrograma = Number(gardado?.resultado?.engadidas ?? lote.length) || 0;
       }
       if (!ids.length) avisoPrograma = 'O ensaio creouse, pero o concerto seleccionado non ten obras resolubles no programa.';
     } catch (error) {
@@ -358,18 +355,11 @@ async function incluirPrograma(context, user, body) {
   if (!idEnsaio || !ids.length) return erro(400, 'REQUEST', 'INVALID_DATA', 'Non hai obras do programa para incluír.');
 
   const inicio = Date.now();
-  let engadidas = 0;
-  for (const idRepertorio of ids) {
-    await chamarAppsScript(context.env, user, 'gardarEnsaioRepertorioPortal', {
-      idEnsaio,
-      idRepertorio,
-      tipoTraballo:'',
-      desde:'',
-      ata:'',
-      observacions:''
-    });
-    engadidas += 1;
-  }
+  const gardado = await chamarAppsScript(context.env, user, 'gardarEnsaioRepertorioLotePortal', {
+    idEnsaio,
+    idsRepertorio:ids
+  });
+  const engadidas = Number(gardado?.resultado?.engadidas ?? ids.length) || 0;
   await invalidarCache(context.env, user);
   let payload = null;
   try { payload = await rexenerarCache(context, user); }
