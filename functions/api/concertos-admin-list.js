@@ -2,7 +2,6 @@ import { obterJsonAppsScript } from '../_lib/apps-script.js';
 import { obterPermisoPortal, obterPermisoPortalCacheado } from '../_lib/portal-permissions.js';
 
 const APPS_SCRIPT_PRODUCION = 'https://script.google.com/macros/s/AKfycbwxlH1BRoKrmUxSSk_KmtLrhsgToO1OHhw3IBtg8ceqigKxErvkzlS2mHWutv9Wb0OsXA/exec';
-const APPS_SCRIPT_PREVIEW = APPS_SCRIPT_PRODUCION;
 
 const clean = (value) => String(value || '').trim();
 const json = (status, body) => new Response(JSON.stringify(body), {
@@ -15,7 +14,7 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 });
 
 const rama = (env) => clean(env.CF_PAGES_BRANCH) === 'main' ? 'main' : 'preview';
-const esperadoAppsScript = (env) => rama(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
+const esperadoAppsScript = (env) => rama(env) === 'main' ? APPS_SCRIPT_PRODUCION : clean(env.APPS_SCRIPT_WEBAPP_URL);
 
 async function verificarFirebase(idToken, apiKey) {
   const token = clean(idToken);
