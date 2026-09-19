@@ -21,7 +21,9 @@ function ramaActual(env) {
 }
 
 function appsScriptUrl(env) {
-  return ramaActual(env) === 'main' ? APPS_SCRIPT_PRODUCION : APPS_SCRIPT_PREVIEW;
+  const url = clean(env.APPS_SCRIPT_WEBAPP_URL);
+  if (!url) throw new Error('A implementación institucional de Apps Script non está configurada.');
+  return url;
 }
 
 function cacheKey(env) {
