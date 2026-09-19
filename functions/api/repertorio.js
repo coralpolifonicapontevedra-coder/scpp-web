@@ -11,6 +11,7 @@ const TIMEOUT_FIREBASE_MS = 8_000;
 const TIMEOUT_REPERTORIO_MS = 55_000;
 const TIMEOUT_ASISTENCIAS_MS = 30_000;
 const TIMEOUT_FICHEIRO_MS = 40_000;
+const MAIN_REPERTORIO_API = 'https://coralpolifonicapontevedra.org/api/repertorio';
 
 const cacheRespostas = new Map();
 const cacheTokens = new Map();
@@ -265,7 +266,7 @@ async function respostaR2(env, clave) {
     return json(503, { ok: false, erro: 'O almacén privado R2 non está configurado.' });
   }
   const obxecto = await env.R2_PRIVADO.get(clave);
-  if (!obxecto) return json(404, { ok: false, erro: 'O ficheiro non aparece no almacén privado.' });
+  if (!obxecto) return null;
 
   const nome = (clave.split('/').pop() || 'ficheiro').replace(/[\r\n"]/g, '');
   const headers = new Headers();
@@ -309,7 +310,26 @@ export async function onRequest({ request, env }) {
     const clave = claveR2Valida(datos.r2Key || datos.ruta);
     if (clave) {
       try {
-        return await respostaR2(env, clave);
+        const local = await respostaR2(env, clave);
+        if (local) return local;
+        if (String(env.CF_PAGES_BRANCH || '').trim() !== 'main') {
+          const resposta = await fetch(MAIN_REPERTORIO_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              idToken: String(datos.idToken || '').trim(),
+              accion: 'obterFicheiroRepertorio',
+              r2Key: clave,
+              ruta: clave
+            })
+          });
+          if (resposta.ok) {
+            const headers = new Headers(resposta.headers);
+            headers.set('X-SCPP-Storage', 'R2-MAIN-FALLBACK');
+            return new Response(resposta.body, { status: 200, headers });
+          }
+        }
+        return json(404, { ok: false, erro: 'O ficheiro non aparece no almacén privado.' });
       } catch (erro) {
         console.error('Erro ao obter o ficheiro de R2:', erro);
         return json(503, { ok: false, erro: 'Non foi posible abrir o ficheiro desde R2.' });
